@@ -1,0 +1,97 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "Executor"
+readme = "README.md"
+authors = [
+    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
+    {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
+    {name = "Jan Schnabel", email = "jan.schnabel@ipa.fraunhofer.de"},
+    {name = "Frederic Rapp", email = "frederic.rapp@ipa.fraunhofer.de"},
+    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
+    {name = "Marco Roth", email = "marco.roth@ipa.fraunhofer.de"},
+]
+maintainers = [
+    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
+    {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
+]
+license = {file = "LICENSE.txt"}
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["quantum", "machine learning", "qml"]
+dependencies = [
+    "bayesian-optimization>=1.4.3,<2",
+    "dill>=0.3.4",
+    "mapomatic>=0.10.0",
+    "networkx>=3.0",
+    "numpy>=1.20",
+    "pennylane>=0.34.0",
+    "qiskit>=0.45.0",
+    "qiskit-aer>=0.12.0",
+    "qiskit-algorithms>=0.3.0",
+    "qiskit-ibm-runtime>=0.18.0",
+    "qiskit-machine-learning>=0.7.0",
+    "scipy>=1.8.0",
+    "scikit-learn>=1.2.0",
+    "tqdm>=4.1.0",
+]
+requires-python = ">=3.9,<3.13"
+dynamic = ["version", "description"]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "flit",
+    "nbmake",
+    "pylint",
+    "pytest",
+]
+examples = [
+    "jupyter",
+    "matplotlib>=3.5.1",
+    "mlflow",
+    "pandas",
+    "pylatexenc>=2.10",
+    "seaborn",
+    "scikit-optimize",
+]
+docs = [
+    "ipykernel",
+    "jupyter-sphinx",
+    "matplotlib>=3.5.1",
+    "myst-parser",
+    "nbsphinx",
+    "nbsphinx_link",
+    "pylatexenc>=2.10",
+    "sphinx",
+    "sphinxcontrib-spelling",
+    "sphinx-rtd-theme<3.0.0",
+    "sphinx-sitemap",
+]
+
+[project.urls]
+Homepage = "https://github.com/sQUlearn/squlearn"
+
+[tool.black]
+line-length=99
+
+[tool.pylint]
+max-line-length=99
+good-names=["X", "y", "i", "j"]
+
+[tool.pylint.main]
+extension-pkg-allow-list = [
+    "numpy",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--ignore=examples/tutorials/qnn_backend_mitigation.ipynb",
+    "--ignore=examples/tutorials/qnn_ode_solver.ipynb",
+]

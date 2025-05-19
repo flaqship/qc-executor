@@ -163,14 +163,3 @@ cython_debug/
 
 # VSCode
 .vscode/
-
-#Example logs
-examples/qnn/*_log.csv
-examples/**/*.log
-
-#Example caches
-**/_cache
-examples/integration/mlruns
-
-# Genereated doc images
-docs/examples/images/*

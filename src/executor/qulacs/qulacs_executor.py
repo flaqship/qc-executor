@@ -8,7 +8,7 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 
 from qulacs import QuantumState, GradCalculator, GeneralQuantumOperator
 
-from ..base_classes import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
+from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
 
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_observable import QulacsObservable

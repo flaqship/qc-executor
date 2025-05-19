@@ -10,7 +10,7 @@ from qiskit.quantum_info import SparsePauliOp
 from qulacs import Observable, GradCalculator, GeneralQuantumOperator, PauliOperator
 
 
-from ..base_classes import QuantumOperatorBase
+from ..base import QuantumOperatorBase
 
 
 class QulacsObservable:

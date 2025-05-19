@@ -7,9 +7,9 @@ from qiskit.circuit import ParameterExpression, Parameter
 
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
-from .base_classes import QuantumOperatorBase
+from .base import QuantumOperatorBase
 
-from .base_classes import QuantumCircuitBase
+from .base import QuantumCircuitBase
 
 
 class QuantumCircuit(QuantumCircuitBase):

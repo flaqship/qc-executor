@@ -9,7 +9,7 @@ from qiskit.quantum_info import SparsePauliOp
 
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
-from .base_classes import QuantumOperatorBase
+from .base import QuantumOperatorBase
 
 
 class QuantumOperator(QuantumOperatorBase):

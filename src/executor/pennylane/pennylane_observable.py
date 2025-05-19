@@ -10,7 +10,7 @@ import pennylane.numpy as pnp
 import pennylane.pauli as pauli
 from pennylane.operation import Observable as PennyLaneObservable
 
-from ..base_classes import QuantumOperatorBase
+from ..base import QuantumOperatorBase
 
 def _get_sympy_interface():
     """

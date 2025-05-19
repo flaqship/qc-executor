@@ -10,7 +10,7 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 import pennylane as qml
 import pennylane.numpy as pnp
 
-from ..base_classes import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
+from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
 
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_observable import PennyLaneObservable

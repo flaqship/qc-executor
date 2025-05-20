@@ -4,6 +4,7 @@ from typing import List, Union
 
 from qiskit.circuit import ParameterExpression, Parameter
 
+
 class QuantumOperatorBase(ABC):
     """
     Base class for quantum circuits for different quantum frameworks.
@@ -12,7 +13,9 @@ class QuantumOperatorBase(ABC):
         num_qubits (int): Number of qubits in the circuit
     """
 
-    def __init__(self, num_qubits: int = None, paulis: List[str] = None, coeffs: List[float] = None):
+    def __init__(
+        self, num_qubits: int = None, paulis: List[str] = None, coeffs: List[float] = None
+    ):
         self._num_qubits = num_qubits
 
     @property
@@ -29,17 +32,17 @@ class QuantumOperatorBase(ABC):
     def paulis(self) -> List[str]:
         """Return the list of Paulis."""
         return self._paulis
-    
+
     @property
     def coeffs(self) -> List[float]:
         """Return the list of coefficients."""
         return self._coeffs
-    
+
     @property
     def is_parametrized(self) -> bool:
         """Return True if the operator is parametrized."""
         raise NotImplementedError
-    
+
     @property
     def parameters(self) -> List[Union[Parameter, ParameterExpression]]:
         """

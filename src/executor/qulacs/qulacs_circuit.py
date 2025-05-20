@@ -9,10 +9,11 @@ from qiskit.compiler import transpile
 from qulacs import QuantumCircuit as QulacsQuantumCircuit
 from qulacs import ParametricQuantumCircuit
 
-from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict
+from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
 
 from ..utils.decompose_to_std import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
+
 
 class QulacsCircuit:
 
@@ -24,7 +25,7 @@ class QulacsCircuit:
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_circuit = transpile(
             decompose_to_std(circuit._qiskit_circuit),
-            basis_gates=qiskit_qulacs_gate_dict.keys(),
+            target=qulacs_target,
             optimization_level=0,
         )
         self._num_qubits = self._qiskit_circuit.num_qubits
@@ -60,7 +61,6 @@ class QulacsCircuit:
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
         return self._qulacs_gates_parameters
-
 
     # @property
     # def circuit_parameter_dimensions(self) -> dict:
@@ -297,7 +297,11 @@ class QulacsCircuit:
 
             # catch conditions of the gate
             # only c_if is supported, the other cases have been caught before
-            if op.operation.condition is not None or op.operation.name == "measure":
+            if (
+                hasattr(op.operation, "condition")
+                and op.operation.condition is not None
+                or op.operation.name == "measure"
+            ):
                 raise NotImplementedError(
                     "Conditions are not supported in sQUlearn's Qulacs backend."
                 )

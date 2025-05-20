@@ -17,7 +17,10 @@ class QulacsObservable:
 
     def __init__(
         self,
-        observable: Union[QuantumOperatorBase, List[QuantumOperatorBase],],
+        observable: Union[
+            QuantumOperatorBase,
+            List[QuantumOperatorBase],
+        ],
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):

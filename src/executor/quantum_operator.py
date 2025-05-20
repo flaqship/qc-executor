@@ -14,7 +14,9 @@ from .base import QuantumOperatorBase
 
 class QuantumOperator(QuantumOperatorBase):
 
-    def __init__(self, paulis: List[str] = None, coeffs: List[float] = None, num_qubits: int = None):
+    def __init__(
+        self, paulis: List[str] = None, coeffs: List[float] = None, num_qubits: int = None
+    ):
 
         if paulis is not None:
             self._qiskit_operator = SparsePauliOp(paulis, coeffs=coeffs)
@@ -65,6 +67,7 @@ class QuantumOperator(QuantumOperatorBase):
             Number of parameters.
         """
         return len(self.parameters)
+
     def copy(self) -> "QuantumOperatorBase":
         """
         Return a copy of the operator.

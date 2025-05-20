@@ -3,19 +3,19 @@ from typing import Union, List
 from sympy import lambdify, sympify
 
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit import ParameterExpression
+from qiskit.circuit import Clbit, ParameterExpression
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.circuit.classicalregister import Clbit
 
 from qiskit.compiler import transpile
 
 import pennylane as qml
 import pennylane.numpy as pnp
 
-from .pennylane_gates import qiskit_pennylane_gate_dict
+from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
 
 from ..utils.decompose_to_std import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
+
 
 def _get_sympy_interface():
     """
@@ -104,9 +104,11 @@ class PennyLaneCircuit:
     ) -> None:
 
         # Transpile circuit to supported basis gates and expand blocks automatically
-        self._qiskit_circuit = transpile(decompose_to_std(circuit._qiskit_circuit),
-                                         basis_gates=qiskit_pennylane_gate_dict.keys(),
-                                         optimization_level=0,)
+        self._qiskit_circuit = transpile(
+            decompose_to_std(circuit._qiskit_circuit),
+            target=pennylane_target,
+            optimization_level=0,
+        )
 
         self._num_qubits = self._qiskit_circuit.num_qubits
         self._num_clbits = self._qiskit_circuit.num_clbits
@@ -115,13 +117,13 @@ class PennyLaneCircuit:
         self._pennylane_gates_param_function = []
         self._pennylane_gates_wires = []
         self._pennylane_conditions = []
-        self._pennylane_gates_parameters  = []
+        self._pennylane_gates_parameters = []
         self._pennylane_gates_parameters_dimensions = {}
 
         # Build circuit instructions for the pennylane circuit from the qiskit circuit
         self._build_circuit_instructions(self._qiskit_circuit)
 
-        #self._pennylane_circuit = self.build_pennylane_circuit()
+        # self._pennylane_circuit = self.build_pennylane_circuit()
 
     @property
     def pennylane_circuit(self) -> callable:
@@ -166,12 +168,11 @@ class PennyLaneCircuit:
             PennyLane gate wires, PennyLane gate parameters and PennyLane gate parameter dimensions
         """
 
-
         self._pennylane_gates = []
         self._pennylane_gates_param_function = []
         self._pennylane_gates_wires = []
         self._pennylane_conditions = []
-        self._pennylane_gates_parameters  = []
+        self._pennylane_gates_parameters = []
         self._pennylane_gates_parameters_dimensions = {}
 
         symbol_tuple = tuple([sympify(p._symbol_expr) for p in circuit.parameters])
@@ -189,7 +190,7 @@ class PennyLaneCircuit:
 
             # catch conditions of the gate
             # only c_if is supported, the other cases have been caught before
-            if op.operation.condition is None:
+            if not hasattr(op.operation, "condition") or op.operation.condition is None:
                 # No condition (usually the case)
                 self._pennylane_conditions.append(None)
             else:
@@ -245,7 +246,6 @@ class PennyLaneCircuit:
                     circuit.find_bit(op.qubits[i]).index for i in range(op.operation.num_qubits)
                 ]
                 self._pennylane_gates_wires.append(wires)
-
 
     def build_pennylane_circuit(self):
         """

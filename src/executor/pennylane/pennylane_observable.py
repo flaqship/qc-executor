@@ -12,6 +12,7 @@ from pennylane.operation import Observable as PennyLaneObservable
 
 from ..base import QuantumOperatorBase
 
+
 def _get_sympy_interface():
     """
     Returns the sympy interface that is used in the parameter conversion.
@@ -119,9 +120,11 @@ class PennyLaneObservable:
 
     def __init__(
         self,
-        observable: Union[QuantumOperatorBase, List[QuantumOperatorBase],],
+        observable: Union[
+            QuantumOperatorBase,
+            List[QuantumOperatorBase],
+        ],
     ) -> None:
-
 
         if isinstance(observable, QuantumOperatorBase):
             self._qiskit_observable = observable._qiskit_operator
@@ -268,10 +271,7 @@ class PennyLaneObservable:
 
             # Collects the args values connected to the observable parameters
             obs_param_list = sum(
-                [
-                    list(args[i])
-                    for i in range(len(self._pennylane_obs_parameters))
-                ],
+                [list(args[i]) for i in range(len(self._pennylane_obs_parameters))],
                 [],
             )
 
@@ -316,6 +316,5 @@ class PennyLaneObservable:
                         return 0.0
                     else:
                         return qml.expval(sum([obs for obs in self._pennylane_words]))
-
 
         return pennylane_observable

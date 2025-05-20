@@ -354,7 +354,7 @@ class QuantumCircuit(QuantumCircuitBase):
         return return_class
 
     def circuit_metrics(self) -> dict:
-        """ count number of gates in the circuit"""
+        """count number of gates in the circuit"""
         raise NotImplementedError
 
     def from_qasm(self, qasm: str) -> None:

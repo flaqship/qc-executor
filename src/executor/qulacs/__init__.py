@@ -4,4 +4,4 @@ from .qulacs_observable import QulacsObservable
 __all__ = [
     "QulacsCircuit",
     "QulacsObservable",
-    ]
+]

@@ -8,6 +8,7 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
 
+
 class ExecutorBase(ABC):
     """Base class for quantum circuit executors.
 
@@ -18,12 +19,15 @@ class ExecutorBase(ABC):
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
     """
-    def __init__(self,
-                 shots: Union[int,None] = None,
-                 seed: Union[int,None] = None,
-                 log_file: Union[str,None] = None,
-                 caching: Union[bool, None] = None,
-                 cache_dir: str ="cache"):
+
+    def __init__(
+        self,
+        shots: Union[int, None] = None,
+        seed: Union[int, None] = None,
+        log_file: Union[str, None] = None,
+        caching: Union[bool, None] = None,
+        cache_dir: str = "cache",
+    ):
         self._shots = shots
         self._seed = seed
         self._log_file = log_file
@@ -46,7 +50,9 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def expectation_value(self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, parameter) -> float:
+    def expectation_value(
+        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, parameter
+    ) -> float:
         """
         Calculate the expectation value of the operator with respect to the circuit.
 
@@ -60,12 +66,18 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def expectation_value_derivatives(self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, parameter,  *values: Union[
+    def expectation_value_derivatives(
+        self,
+        circuit: QuantumCircuitBase,
+        operator: QuantumOperatorBase,
+        parameter,
+        *values: Union[
             str,
             ParameterVector,
             ParameterVectorElement,
             tuple,
-        ]) -> dict:
+        ],
+    ) -> dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
 
@@ -79,8 +91,8 @@ class ExecutorBase(ABC):
         """
         raise NotImplementedError
 
-    #@abstractmethod
-    #def _convert(self, circuit: QuantumCircuitBase, observables: List[QuantumOperatorBase]):
+    # @abstractmethod
+    # def _convert(self, circuit: QuantumCircuitBase, observables: List[QuantumOperatorBase]):
     #    pass
 
     @abstractmethod
@@ -108,4 +120,3 @@ class ExecutorBase(ABC):
             np.ndarray: The statevector of the circuit.
         """
         raise NotImplementedError
-

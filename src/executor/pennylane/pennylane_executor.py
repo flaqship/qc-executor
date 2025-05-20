@@ -14,6 +14,8 @@ from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
 
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_observable import PennyLaneObservable
+
+
 class PennylaneExecutor(ExecutorBase):
     """Base class for quantum circuit executors.
 
@@ -24,14 +26,19 @@ class PennylaneExecutor(ExecutorBase):
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
     """
-    def __init__(self,
-                 shots: Union[int,None] = None,
-                 seed: Union[int,None] = None,
-                 log_file: Union[str,None] = None,
-                 caching: Union[bool, None] = None,
-                 cache_dir: str ="cache"):
 
-        super().__init__(shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir)
+    def __init__(
+        self,
+        shots: Union[int, None] = None,
+        seed: Union[int, None] = None,
+        log_file: Union[str, None] = None,
+        caching: Union[bool, None] = None,
+        cache_dir: str = "cache",
+    ):
+
+        super().__init__(
+            shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
+        )
 
         self._circuit_cache = {}
         self._operator_cache = {}
@@ -41,7 +48,7 @@ class PennylaneExecutor(ExecutorBase):
         else:
             self._random = np.random.default_rng()
 
-        self._device =  qml.device("default.qubit", wires=1)
+        self._device = qml.device("default.qubit", wires=1)
 
     @property
     def shots(self) -> Union[int, None]:
@@ -58,7 +65,9 @@ class PennylaneExecutor(ExecutorBase):
         """Return True if the execution access a remote backend."""
         return False
 
-    def expectation_value(self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values) -> float:
+    def expectation_value(
+        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
+    ) -> float:
         """
         Calculate the expectation value of the operator with respect to the circuit.
 
@@ -76,12 +85,15 @@ class PennylaneExecutor(ExecutorBase):
             pennylane_circuit = PennyLaneCircuit(circuit)
             self._circuit_cache[circuit] = pennylane_circuit
 
-        #todo operator cache
+        # todo operator cache
         pennylane_observable = PennyLaneObservable(operator)
 
-        circuit_parameters = [parameter_values[param] for param in pennylane_circuit.parameter_names]
-        obs_parameters = [parameter_values[param] for param in pennylane_observable.parameter_names]
-
+        circuit_parameters = [
+            parameter_values[param] for param in pennylane_circuit.parameter_names
+        ]
+        obs_parameters = [
+            parameter_values[param] for param in pennylane_observable.parameter_names
+        ]
 
         if circuit.num_qubits != len(self._device.wires):
             self._device = qml.device(self._device.name, wires=circuit.num_qubits)
@@ -89,18 +101,26 @@ class PennylaneExecutor(ExecutorBase):
         @qml.qnode(self._device)
         def circuit_func(*args):
             pennylane_circuit.build_pennylane_circuit()(*args)
-            return pennylane_observable.build_pennylane_observable()(*args[len(pennylane_circuit.parameter_names):])
+            return pennylane_observable.build_pennylane_observable()(
+                *args[len(pennylane_circuit.parameter_names) :]
+            )
 
         # Execute the circuit
         result = circuit_func(*circuit_parameters, *obs_parameters)
         return result
 
-    def expectation_value_derivatives(self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, parameter,  *values: Union[
+    def expectation_value_derivatives(
+        self,
+        circuit: QuantumCircuitBase,
+        operator: QuantumOperatorBase,
+        parameter,
+        *values: Union[
             str,
             ParameterVector,
             ParameterVectorElement,
             tuple,
-        ]) -> dict:
+        ],
+    ) -> dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
 
@@ -130,11 +150,15 @@ class PennylaneExecutor(ExecutorBase):
             pennylane_circuit = PennyLaneCircuit(circuit)
             self._circuit_cache[circuit] = pennylane_circuit
 
-        circuit_parameters = [parameter_values[param] for param in pennylane_circuit.parameter_names]
+        circuit_parameters = [
+            parameter_values[param] for param in pennylane_circuit.parameter_names
+        ]
 
-        #if circuit.num_qubits != len(self._device.wires):
+        # if circuit.num_qubits != len(self._device.wires):
 
-        self._device = qml.device("default.qubit", wires=circuit.num_qubits, shots=self._shots, seed = self._random)
+        self._device = qml.device(
+            "default.qubit", wires=circuit.num_qubits, shots=self._shots, seed=self._random
+        )
 
         @qml.qnode(self._device)
         def circuit_func(*args):
@@ -148,9 +172,6 @@ class PennylaneExecutor(ExecutorBase):
 
         # Count occurrences of each bitstring
         return dict(Counter(bitstrings))
-
-
-
 
     def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
@@ -168,7 +189,9 @@ class PennylaneExecutor(ExecutorBase):
             pennylane_circuit = PennyLaneCircuit(circuit)
             self._circuit_cache[circuit] = pennylane_circuit
 
-        circuit_parameters = [parameter_values[param] for param in pennylane_circuit.parameter_names]
+        circuit_parameters = [
+            parameter_values[param] for param in pennylane_circuit.parameter_names
+        ]
 
         if circuit.num_qubits != len(self._device.wires):
             self._device = qml.device(self._device.name, wires=circuit.num_qubits)
@@ -198,4 +221,3 @@ class PennylaneExecutor(ExecutorBase):
         state = state_wrong_sort[indices]
 
         return state
-

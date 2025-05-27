@@ -84,9 +84,11 @@ class QulacsExecutor(ExecutorBase):
         # todo operator cache
         qulacs_observable = QulacsObservable(operator)
 
-        obs_param_list = sum(
-            [list(parameter_values[param]) for param in qulacs_observable.parameter_names], []
-        )
+        obs_param_list = sum([list(parameter_values[param]) for param in qulacs_observable.parameter_names], [])
+        
+        # TODO: performance improvements possible by letting qulacs change the parameters
+        # in the circuit and observable
+        
         circ = qulacs_circuit.get_circuit_func()(
             *[parameter_values[param] for param in qulacs_circuit.parameter_names]
         )

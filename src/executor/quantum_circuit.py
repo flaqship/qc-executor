@@ -7,9 +7,10 @@ from qiskit.circuit import ParameterExpression, Parameter
 
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
-from .base import QuantumOperatorBase
+from .base import QuantumCircuitBase, QuantumOperatorBase
 
-from .base import QuantumCircuitBase
+from .utils.qiskit_hash_functions import _circuit_key
+
 
 
 class QuantumCircuit(QuantumCircuitBase):
@@ -366,8 +367,7 @@ class QuantumCircuit(QuantumCircuitBase):
         raise NotImplementedError
 
     def __hash__(self):
-        # TODO: implement a better hash function
-        return hash(str(self))
+        return hash(_circuit_key(self._qiskit_circuit, include_name=False))
 
     def __str__(self):
         return str(self._qiskit_circuit)

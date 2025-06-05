@@ -11,6 +11,7 @@ from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
 from .base import QuantumOperatorBase
 
+from .utils.qiskit_hash_functions import _observable_key
 
 class QuantumOperator(QuantumOperatorBase):
 
@@ -201,7 +202,7 @@ class QuantumOperator(QuantumOperatorBase):
         raise NotImplementedError
 
     def __hash__(self):
-        return hash(str(self))
+        return hash(_observable_key(self._qiskit_operator))
 
     def __eq__(self, other):
         raise NotImplementedError

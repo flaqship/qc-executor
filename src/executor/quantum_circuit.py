@@ -12,7 +12,6 @@ from .base import QuantumCircuitBase, QuantumOperatorBase
 from .utils.qiskit_hash_functions import _circuit_key
 
 
-
 class QuantumCircuit(QuantumCircuitBase):
     """
     Base class for quantum circuits for different quantum frameworks.

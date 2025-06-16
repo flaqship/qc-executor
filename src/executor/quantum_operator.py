@@ -7,11 +7,10 @@ from qiskit.circuit import ParameterExpression, Parameter
 
 from qiskit.quantum_info import SparsePauliOp
 
-from qiskit import QuantumCircuit as QiskitQuantumCircuit
-
 from .base import QuantumOperatorBase
 
 from .utils.qiskit_hash_functions import _observable_key
+
 
 class QuantumOperator(QuantumOperatorBase):
 
@@ -115,19 +114,23 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Composed operator.
         """
-        raise NotImplementedError
 
-    def append(self, pauli: str, coeff) -> "QuantumOperatorBase":
+        self._qiskit_operator = self._qiskit_operator.compose(other._qiskit_operator)
+
+    def append(self, pauli: str, coeff=None) -> None:
         """
-        Append another operator to the current operator.
+        Append a Pauli operator with a coefficient to the operator.
 
         Args:
-            other (QuantumOperatorBase): Operator to append.
-
-        Returns:
-            Appended operator.
+            pauli (str): Pauli operator to append.
+            coeff (float): Coefficient of the Pauli operator.
         """
-        raise NotImplementedError
+        if coeff is None:
+            coeff = 1.0
+
+        self._qiskit_operator  = SparsePauliOp.from_list(
+            self._qiskit_operator.to_list() + [(pauli, coeff)]
+        )
 
     def simplify(self) -> "QuantumOperatorBase":
         """
@@ -169,7 +172,9 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             List of commuting operators.
         """
-        return self._qiskit_operator.group_commuting()
+        commuting_op = self._qiskit_operator.group_commuting()
+
+        return [self.__class__(paulis=op.paulis, coeffs=op.coeffs) for op in commuting_op]
 
     @property
     def is_unitary(self) -> bool:
@@ -205,7 +210,7 @@ class QuantumOperator(QuantumOperatorBase):
         return hash(_observable_key(self._qiskit_operator))
 
     def __eq__(self, other):
-        raise NotImplementedError
+        return isinstance(other, QuantumOperator) and self._qiskit_operator == other._qiskit_operator
 
     def __str__(self):
         """

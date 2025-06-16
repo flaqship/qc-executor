@@ -106,18 +106,64 @@ class QulacsExecutor(ExecutorBase):
 
         return values
 
+    def expectation_value_v2(
+        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase
+    ) -> float:
+        """
+        Calculate the expectation value of the operator with respect to the circuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The quantum circuit.
+            operator (QuantumOperatorBase): The quantum operator.
+
+        Returns:
+            float: The expectation value.
+        """
+
+        if circuit in self._circuit_cache:
+            qulacs_circuit = self._circuit_cache[circuit]
+        else:
+            qulacs_circuit = QulacsCircuit(circuit)
+            self._circuit_cache[circuit] = qulacs_circuit
+
+        # todo operator cache
+        qulacs_observable = QulacsObservable(operator)
+
+        def expectation_value(**parameter_values):
+
+            obs_param_list = sum([list(parameter_values[param]) for param in qulacs_observable.parameter_names], [])
+
+            # TODO: performance improvements possible by letting qulacs change the parameters
+            # in the circuit and observable
+
+            circ = qulacs_circuit.get_circuit_func()(
+                *[parameter_values[param] for param in qulacs_circuit.parameter_names]
+            )
+            state = QuantumState(circuit.num_qubits)
+            circ.update_quantum_state(state)
+            operators = qulacs_observable.get_observable_func()(*obs_param_list)
+
+            param_values = np.array([o.get_expectation_value(state) for o in operators])
+            values = np.real_if_close(param_values)
+
+            if not qulacs_observable.multiple_observables:
+                return values[0]
+
+            return values
+
+        return expectation_value
+
     def expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
-        parameter,
         *values: Union[
             str,
             ParameterVector,
             ParameterVectorElement,
             tuple,
         ],
-    ) -> dict:
+    ) -> callable:
         """
         Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
 
@@ -177,44 +223,24 @@ class QulacsExecutor(ExecutorBase):
 
             return values
 
-
-        # Pre-process the input data to the format [[x1],[x2]]
-        x_inp, multi_x = adjust_features(x, self._pqc.num_features)
-        # x_inpT = np.transpose(x_inp)
-        param_inp, multi_param = adjust_parameters(param, self._pqc.num_parameters)
-        param_obs_inp, multi_param_op = adjust_parameters(
-            param_obs, self._num_parameters_observable
-        )
-
-        # Check if the order of the circuit arguments is correct
-        # !! DIFFERENT TO THE INPUT ORDER OF THE EVALUATION FUNCTION !!
-        compare_list = []
-        if self.num_parameters > 0:
-            compare_list.append("param")
-        if self.num_features > 0:
-            compare_list.append("x")
-        if self.num_parameters_observable > 0:
-            compare_list.append("param_obs")
-        if self._qulacs_circuit.circuit_arguments != compare_list:
-            raise NotImplementedError("Wrong order of circuit arguments!")
-
-        # return dictionary for input data, it will be empty
-        # if the combination of x,param,param_op is touched the first time
-        if self.caching == True:
-            caching_tuple = (
-                to_tuple(x),
-                to_tuple(param),
-                to_tuple(param_obs),
-                (self._executor.shots == None),
-            )
-            value_dict = self.result_container.get(caching_tuple, {})
+        if circuit in self._circuit_cache:
+            qulacs_circuit = self._circuit_cache[circuit]
         else:
-            value_dict = {}
+            qulacs_circuit = QulacsCircuit(circuit)
+            self._circuit_cache[circuit] = qulacs_circuit
 
-        # Store input data in the dictionary
-        value_dict["x"] = x
-        value_dict["param"] = param
-        value_dict["param_op"] = param_obs
+        # todo operator cache
+        qulacs_observable = QulacsObservable(operator)
+
+        def qulacs_derivative(**parameter_values):
+
+            circuit_parameters = [parameter_values[param] for param in qulacs_circuit.parameter_names]
+            observable_parameters = sum([list(parameter_values[param]) for param in qulacs_observable.parameter_names], [])
+
+            # TODO: multiple outputs
+
+
+
 
         post_processing_values = []
         values = list(values)  # Convert to list to be able to append

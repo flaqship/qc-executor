@@ -8,6 +8,8 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
 
+from ..parameters import Parameter, Parameters
+
 
 class ExecutorBase(ABC):
     """Base class for quantum circuit executors.
@@ -51,43 +53,44 @@ class ExecutorBase(ABC):
 
     @abstractmethod
     def expectation_value(
-        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, parameter
-    ) -> float:
+        self,
+        circuit: Union[QuantumCircuitBase,List[QuantumCircuitBase]],
+        operator: Union[QuantumOperatorBase,List[QuantumOperatorBase]],
+        **parameters
+    ) -> Union[float, np.array]:
         """
         Calculate the expectation value of the operator with respect to the circuit.
 
         Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
+            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum circuit or a list of circuits.
+            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The quantum operator or a list of operators.
+            parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
 
         Returns:
-            float: The expectation value.
+            Union[float,np.array]: The expectation value either as a single float or as an numpy array if multiple circuits/operators are provided.
         """
         raise NotImplementedError
 
     @abstractmethod
     def expectation_value_derivatives(
         self,
-        circuit: QuantumCircuitBase,
-        operator: QuantumOperatorBase,
-        parameter,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
-    ) -> dict:
+        circuit: Union[QuantumCircuitBase,List[QuantumCircuitBase]],
+        operator: Union[QuantumOperatorBase,List[QuantumOperatorBase]],
+        derivative: Union[Parameter, Parameters, tuple],
+        **parameters
+    ) -> Union[float, np.array]:
+
         """
         Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
 
         Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
-            args: Additional arguments for the derivative calculation.
+            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum circuit or a list of circuits.
+            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The quantum operator or a list of operators.
+            derivative (Union[Parameter, Parameters, tuple]): The parameter or parameters with respect to which the derivative is calculated. Tuple for higher-order and mixed derivatives 
+            parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
 
         Returns:
-            List[float]: The derivatives of the expectation value.
+            Union[float, np.array]: The derivative of the expectation value either as a single float or as an numpy array.
         """
         raise NotImplementedError
 
@@ -96,27 +99,33 @@ class ExecutorBase(ABC):
     #    pass
 
     @abstractmethod
-    def sample(self, circuit: QuantumCircuitBase, parameter) -> dict:
+    def sample(self,
+               circuit: Union[QuantumCircuitBase,List[QuantumCircuitBase]],
+               **parameters) -> Union[dict, List[dict]]:
         """
-        Sample the circuit.
+        Computes samples of the quantumstate of the given circuit.
 
         Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
+            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum circuit or a list of circuits.
+            parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
 
         Returns:
-            dict: The samples from the circuit.
+            Union[dict, List[dict]]: The sampled results either as a single dictionary or a list of dictionaries if multiple circuits are provided.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def statevector(self, circuit: QuantumCircuitBase, parameter) -> np.ndarray:
+    def statevector(self,
+                    circuit: Union[QuantumCircuitBase,List[QuantumCircuitBase]],
+                    **parameters) -> np.ndarray:
         """
-        Get the statevector of the circuit.
+        Computes the statevector of the quantum circuit.
 
         Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
+            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum circuit or a list of circuits.
+            parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
 
         Returns:
-            np.ndarray: The statevector of the circuit.
+            np.ndarray: The statevector of the circuit(s).
         """
         raise NotImplementedError

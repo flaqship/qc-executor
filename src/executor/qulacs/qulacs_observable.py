@@ -39,6 +39,7 @@ class QulacsObservable:
         self.new_operators_coeff = []
         self.new_operators_coeff_grad = []
         self.new_operators_used_parameters = []
+        self._qulacs_obs_parameters = {}
         self._free_parameters = set()
         self.build_observable_instructions(self._qiskit_observable)
 
@@ -52,12 +53,12 @@ class QulacsObservable:
     @property
     def parameter_names(self) -> list:
         """List of observable parameter names"""
-        return self._qulacs_obs_parameters
+        return self._qulacs_obs_parameters.keys()
 
-    # @property
-    # def observable_parameter_dimensions(self) -> dict:
-    #     """Dictionary with the dimension of each observable parameter"""
-    #     return self._qulacs_obs_parameters_dimensions
+    @property
+    def parameter_dimensions(self) -> dict:
+        """Dictionary with the dimension of each circuit parameter"""
+        return self._qulacs_obs_parameters
 
     @property
     def hash(self) -> str:
@@ -94,12 +95,15 @@ class QulacsObservable:
 
         self._symbol_tuple_obs = tuple()
 
-        self._qulacs_obs_parameters = []
+        self._qulacs_obs_parameters = {}
 
         for observable in observables:
             for param in observable.parameters:
-                if param.vector.name not in self._qulacs_obs_parameters:
-                    self._qulacs_obs_parameters.append(param.vector.name)
+                name = param.vector.name
+                if name not in self._qulacs_obs_parameters:
+                    self._qulacs_obs_parameters[name] = 1
+                else:
+                    self._qulacs_obs_parameters[name] += 1
 
         def sort_parameters_after_index(parameter_vector):
             index_list = [p.index for p in parameter_vector]
@@ -194,7 +198,6 @@ class QulacsObservable:
             for i, observable in enumerate(self.new_operators):
                 operator = GeneralQuantumOperator(self.num_qubits)
                 for j, op in enumerate(observable):
-
                     operator.add_operator(self.new_operators_coeff[i][j](*args), op)
                 list_operators.append(operator)
 
@@ -234,7 +237,7 @@ class QulacsObservable:
 
             # Collects the args values connected to the observable parameters
             obs_param_list = sum(
-                [list(args[i]) for i in range(len(self._qulacs_obs_parameters))], []
+                [list(args[i]) for i in range(len(self.parameter_names))], []
             )
 
             outer_jacobians = []

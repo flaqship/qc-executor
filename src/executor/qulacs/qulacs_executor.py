@@ -2,7 +2,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from typing import List, Union
 from collections import Counter
-
+from itertools import product
 from qiskit.circuit import ParameterExpression, Parameter, ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
@@ -63,6 +63,48 @@ class QulacsExecutor(ExecutorBase):
         """Return True if the execution access a remote backend."""
         return False
 
+
+    def _preprocess_circuits(self, circuit: QuantumCircuitBase):
+
+        multiple_circuits = True
+        circuits = circuit
+        if not isinstance(circuit,List):
+            circuits = [circuit]
+            multiple_circuits = True
+
+        qulacs_circuits = []
+
+        # Check the cache for already converted circuits
+        for circ in circuits:
+            if circ in self._circuit_cache:
+                qulacs_circuits.append(self._circuit_cache[circ])
+            else:
+                qulacs_circuit = QulacsCircuit(circ)
+                self._circuit_cache[circ] = qulacs_circuit
+                qulacs_circuits.append(qulacs_circuit)
+
+        return qulacs_circuits, multiple_circuits
+
+    def _preprocess_operators(self, operator: QuantumOperatorBase):
+
+        # todo operator cache
+        multiple_operators = True
+        operators = operator
+        if not isinstance(operator, List):
+            operators = [operator]
+            multiple_operators = False
+        qulacs_observables = []
+
+        for op in operators:
+            if op in self._operator_cache:
+                qulacs_observables.append(self._operator_cache[op])
+            else:
+                qulacs_observable = QulacsObservable(op)
+                self._operator_cache[op] = qulacs_observable
+                qulacs_observables.append(qulacs_observable)
+
+        return qulacs_observables, multiple_operators
+
     def expectation_value(
         self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
     ) -> float:
@@ -77,32 +119,70 @@ class QulacsExecutor(ExecutorBase):
             float: The expectation value.
         """
 
-        if circuit in self._circuit_cache:
-            qulacs_circuit = self._circuit_cache[circuit]
-        else:
-            qulacs_circuit = QulacsCircuit(circuit)
-            self._circuit_cache[circuit] = qulacs_circuit
-
         # todo operator cache
-        qulacs_observable = QulacsObservable(operator)
-
-        obs_param_list = sum([list(parameter_values[param]) for param in qulacs_observable.parameter_names], [])
+        qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
+        qulacs_observables, multiple_operators = self._preprocess_operators(operator)
         
-        # TODO: performance improvements possible by letting qulacs change the parameters
-        # in the circuit and observable
-        
-        circ = qulacs_circuit.get_circuit_func()(
-            *[parameter_values[param] for param in qulacs_circuit.parameter_names]
-        )
-        state = QuantumState(circuit.num_qubits)
-        circ.update_quantum_state(state)
-        operators = qulacs_observable.get_observable_func()(*obs_param_list)
+        values = []
+        reshape_list = []
 
-        param_values = np.array([o.get_expectation_value(state) for o in operators])
-        values = np.real_if_close(param_values)
+        # TODO: fix sorting of circuits and observables and multiple parameters
 
-        if not qulacs_observable.multiple_observables:
-            return values[0]
+        for qulacs_circuit in qulacs_circuits:
+
+            circuit_parameters = []
+            multiple_circuit_parameters = []
+            circuit_parameters_dimension = []
+
+            for param in qulacs_circuit.parameter_names:
+                if param not in parameter_values:
+                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+
+                param_values, multiple_params = adjust_features(parameter_values[param], qulacs_circuit.parameter_dimensions[param])
+                circuit_parameters.append(param_values)
+                multiple_circuit_parameters.append(multiple_params)
+                circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
+
+            circuit_parameter_tuples = product(*circuit_parameters)
+
+            for cp in circuit_parameter_tuples:
+
+                qulacs_circuit_object = qulacs_circuit.get_circuit_func()(*cp)
+                state = QuantumState(qulacs_circuit.num_qubits)
+                qulacs_circuit_object.update_quantum_state(state)
+
+                for qulacs_observable in qulacs_observables:
+
+                    # TODO: check for multiple parameter sets for circuits
+                    observable_parameters = []
+                    multiple_observable_parameters = []
+                    observable_parameters_dimension = []
+                    for param in qulacs_observable.parameter_names:
+                        if param not in parameter_values:
+                            raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+
+                        param_values, multiple_params = adjust_features(parameter_values[param], qulacs_observable.parameter_dimensions[param])
+                        observable_parameters.append(param_values)
+                        multiple_observable_parameters.append(multiple_params)
+                        observable_parameters_dimension.append(qulacs_observable.parameter_dimensions[param])
+
+                    observable_parameter_tuples = product(*observable_parameters)
+
+                    for op in observable_parameter_tuples:
+
+                        qulacs_observable_object = qulacs_observable.get_observable_func()(*op[0])
+
+                        values.append(np.real_if_close(np.array([o.get_expectation_value(state) for o in qulacs_observable_object])))
+                    # check for multiple parameter sets
+
+        values = np.array(values)
+        if not multiple_circuits:
+            values = values[0]
+            if not multiple_operators:
+                values = values[0]
+        else:
+            if not multiple_operators:
+                values = values.reshape(-1)
 
         return values
 

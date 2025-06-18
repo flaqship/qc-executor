@@ -37,7 +37,7 @@ class QulacsCircuit:
         self._func_grad_list = []
         self._free_parameters = set()
         self._used_parameters = []
-        self._qulacs_gates_parameters = []
+        self._qulacs_gates_parameters = {}
         self._symbol_tuple_circuit = tuple()
         self._rebuild_circuit_func = True
         self._circuit_func = None
@@ -60,6 +60,11 @@ class QulacsCircuit:
     @property
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
+        return self._qulacs_gates_parameters.keys()
+    
+    @property
+    def parameter_dimensions(self) -> dict:
+        """Dictionary with the dimension of each circuit parameter"""
         return self._qulacs_gates_parameters
 
     # @property
@@ -110,7 +115,7 @@ class QulacsCircuit:
         # Change sign because of the way Qulacs defines the rotation gates
         angle = -angle
 
-        if isinstance(angle, float):
+        if isinstance(angle, (float,int)):
             # Single float value
             func_list_element = angle
             func_grad_list_element = None
@@ -140,6 +145,11 @@ class QulacsCircuit:
                     func_grad_list_element.append(
                         lambdify(self._symbol_tuple_circuit, sympify(param_grad._symbol_expr))
                     )
+        else:
+            raise TypeError(
+                f"Unsupported type for angle: {type(angle)}. "
+                "Expected float, int, ParameterVectorElement or ParameterExpression."
+            )
 
         return func_list_element, func_grad_list_element, used_parameters, parameterized
 
@@ -284,12 +294,15 @@ class QulacsCircuit:
         self._func_list = []
         self._func_grad_list = []
         self._free_parameters = set()
-        self._qulacs_gates_parameters = []
+        self._qulacs_gates_parameters = {}
         self._symbol_tuple_circuit = tuple()
 
         for param in circuit.parameters:
-            if param.vector.name not in self._qulacs_gates_parameters:
-                self._qulacs_gates_parameters.append(param.vector.name)
+            name = param.vector.name
+            if name not in self._qulacs_gates_parameters:
+                self._qulacs_gates_parameters[name] = 1
+            else:
+                self._qulacs_gates_parameters[name] += 1
 
         self._symbol_tuple_circuit = tuple([sympify(p._symbol_expr) for p in circuit.parameters])
 
@@ -362,7 +375,7 @@ class QulacsCircuit:
 
             # Collects the args values connected to the circuit parameters
             circ_param_list = sum(
-                [list(args[i]) for i in range(len(self._qulacs_gates_parameters))], []
+                [list(args[i]) for i in range(len(self.parameter_names))], []
             )
 
             if is_parameterized:
@@ -374,7 +387,7 @@ class QulacsCircuit:
             for i, op in enumerate(self._operation_list):
                 if self._func_list[i] is None:
                     qiskit_qulacs_gate_dict[op](circuit, *self._qubit_list[i])
-                elif isinstance(self._func_list[i], float):
+                elif isinstance(self._func_list[i], (float, int)):
                     qiskit_qulacs_gate_dict[op](circuit, self._func_list[i], *self._qubit_list[i])
                 else:
                     value = self._func_list[i](*circ_param_list)
@@ -421,7 +434,7 @@ class QulacsCircuit:
 
             # Collects the args values connected to the circuit parameters
             circ_param_list = sum(
-                [list(args[i]) for i in range(len(self._qulacs_gates_parameters))], []
+                [list(args[i]) for i in range(len(self.parameter_names))], []
             )
 
             relevant_operations = [

@@ -12,7 +12,7 @@ from qoqo.measurements import PauliZProduct, PauliZProductInput
 from ..base import QuantumOperatorBase
 
 
-class QulacsObservable:
+class QoqoObservable:
 
     def __init__(
         self,

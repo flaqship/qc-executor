@@ -1,9 +1,8 @@
 import numpy as np
-from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import Union
 from collections import Counter
 
-from qiskit.circuit import ParameterExpression, Parameter, ParameterVector
+from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
@@ -15,7 +14,7 @@ from .qoqo_circuit import QoqoCircuit
 from .qoqo_observable import QoqoObservable
 
 
-class QulacsExecutor(ExecutorBase):
+class QoqoExecutor(ExecutorBase):
     """Base class for quantum circuit executors.
 
     Args:

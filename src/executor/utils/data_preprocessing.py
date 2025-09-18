@@ -109,7 +109,7 @@ def convert_to_float64(x: Union[float, np.ndarray, list]) -> np.ndarray:
     return x
 
 
-def to_tuple(x: Union[float, np.ndarray, list, tuple], flatten: bool = True) -> Tuple:
+def to_tuple(x: Union[int, str, float, np.ndarray, list, tuple], flatten: bool = True) -> Tuple:
     """Function for converting data into hashable tuples
 
     Args:
@@ -129,7 +129,7 @@ def to_tuple(x: Union[float, np.ndarray, list, tuple], flatten: bool = True) -> 
                 else:
                     yield i
 
-        if isinstance(x, float):
+        if isinstance(x, (float, int, str)):
             return tuple([x])
         elif len(np.shape(x)) == 1:
             return tuple(list(x))

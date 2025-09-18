@@ -1,19 +1,19 @@
 import numpy as np
-from abc import ABC, abstractmethod
-from typing import List, Union
+import re
+from typing import List, Union, Tuple
 from collections import Counter
 from itertools import product
-from qiskit.circuit import ParameterExpression, Parameter, ParameterVector
+
+from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
-from qulacs import QuantumState, GradCalculator, GeneralQuantumOperator
-
-from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
-
-from ..utils.data_preprocessing import adjust_features, adjust_parameters, to_tuple
+from qulacs import QuantumState
 
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_observable import QulacsObservable
+
+from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
+from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
 class QulacsExecutor(ExecutorBase):
@@ -43,10 +43,13 @@ class QulacsExecutor(ExecutorBase):
         self._circuit_cache = {}
         self._operator_cache = {}
 
+        self.result_container = {}
+
         if seed is not None:
             self._random = np.random.default_rng(seed)
         else:
             self._random = np.random.default_rng()
+
 
     @property
     def shots(self) -> Union[int, None]:
@@ -64,8 +67,17 @@ class QulacsExecutor(ExecutorBase):
         return False
 
 
-    def _preprocess_circuits(self, circuit: QuantumCircuitBase):
+    def _preprocess_circuits(self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]) -> Tuple[List[QulacsCircuit], bool]:
+        """ Preprocess the circuit(s) and convert them to Qulacs format.
 
+        Args:
+            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum
+                circuit(s) to preprocess.
+
+        Returns:
+            Tuple[List[QulacsCircuit], bool]: A tuple containing a list of QulacsCircuit
+                objects and a boolean indicating whether multiple circuits were provided.
+        """
         multiple_circuits = True
         circuits = circuit
         if not isinstance(circuit,List):
@@ -85,9 +97,17 @@ class QulacsExecutor(ExecutorBase):
 
         return qulacs_circuits, multiple_circuits
 
-    def _preprocess_operators(self, operator: QuantumOperatorBase):
+    def _preprocess_operators(self, operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]]) -> Tuple[List[QulacsObservable], bool] :
+        """ Preprocess the operator(s) and convert them to Qulacs format.
 
-        # todo operator cache
+        Args:
+            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The quantum
+                operator(s) to preprocess.
+
+        Returns:
+            Tuple[List[QulacsObservable], bool]: A tuple containing a list of QulacsObservable
+                objects and a boolean indicating whether multiple operators were provided.
+        """
         multiple_operators = True
         operators = operator
         if not isinstance(operator, List):
@@ -169,7 +189,6 @@ class QulacsExecutor(ExecutorBase):
                     observable_parameter_tuples = product(*observable_parameters)
 
                     for op in observable_parameter_tuples:
-
                         qulacs_observable_object = qulacs_observable.get_observable_func()(*op[0])
                         # not sure about the [0] here, but it works for single operators
                         observable_values.append(np.real_if_close(np.array([o.get_expectation_value(state) for o in qulacs_observable_object][0])))
@@ -196,53 +215,6 @@ class QulacsExecutor(ExecutorBase):
 
         return values
 
-    def expectation_value_v2(
-        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase
-    ) -> float:
-        """
-        Calculate the expectation value of the operator with respect to the circuit.
-
-        Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
-
-        Returns:
-            float: The expectation value.
-        """
-
-        if circuit in self._circuit_cache:
-            qulacs_circuit = self._circuit_cache[circuit]
-        else:
-            qulacs_circuit = QulacsCircuit(circuit)
-            self._circuit_cache[circuit] = qulacs_circuit
-
-        # todo operator cache
-        qulacs_observable = QulacsObservable(operator)
-
-        def expectation_value(**parameter_values):
-
-            obs_param_list = sum([list(parameter_values[param]) for param in qulacs_observable.parameter_names], [])
-
-            # TODO: performance improvements possible by letting qulacs change the parameters
-            # in the circuit and observable
-
-            circ = qulacs_circuit.get_circuit_func()(
-                *[parameter_values[param] for param in qulacs_circuit.parameter_names]
-            )
-            state = QuantumState(circuit.num_qubits)
-            circ.update_quantum_state(state)
-            operators = qulacs_observable.get_observable_func()(*obs_param_list)
-
-            param_values = np.array([o.get_expectation_value(state) for o in operators])
-            values = np.real_if_close(param_values)
-
-            if not qulacs_observable.multiple_observables:
-                return values[0]
-
-            return values
-
-        return expectation_value
-
     def expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
@@ -253,45 +225,53 @@ class QulacsExecutor(ExecutorBase):
             ParameterVectorElement,
             tuple,
         ],
-    ) -> callable:
+        **parameter_values,
+    ) -> Union[np.array, dict]:
         """
-        Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
+        Calculate the derivatives of the expectation value with respect to the parameters
 
         Args:
             circuit (QuantumCircuitBase): The quantum circuit.
             operator (QuantumOperatorBase): The quantum operator.
-            args: Additional arguments for the derivative calculation.
+            values: Values for which the derivatives are calculated. Can be strings (e.g.
+                "expectation_value" or the name of parameters), or
+                ParameterVectors, ParameterVectorElements. Tuples are used for higher
+                order derivatives.
+            parameter_values: Parameters to evaluate the circuit and observable given as
+                keyword arguments.
 
         Returns:
-            List[float]: The derivatives of the expectation value.
+            Union[np.array, dict]: The derivatives of the expectation value. If a single value
+                is provided, a numpy array is returned. If multiple values are provided, a
+                dictionary with the values as keys and the derivatives as values is returned.
         """
-        
+
         def evaluate_circuit_gradient(
             circuit: QulacsCircuit,
+            observable: QulacsObservable,
+            arguments_circuit,
+            arguments_observable,
             parameters: Union[None, ParameterVectorElement, List[ParameterVectorElement]] = None,
-            **kwargs,
         ) -> np.ndarray:
             """
-            Function to evaluate the Qulacs circuit with the given parameters.
+            Function to evaluate the Qulacs Circuits with the given parameters.
+
+            Computes the gradient of the expectation values of the observables defined in the
+            circuit data structure.
 
             Args:
                 circuit (QulacsCircuit): Qulacs circuit to evaluate
-                parameters (List[float]): List of parameters to evaluate the circuit
+                observable (QulacsObservable): Qulacs observable to evaluate
+                arguments_circuit: Arguments for the circuit
+                arguments_observable: Arguments for the observable
+                parameters (List[float]): List of circuit parameters wrt. the gradient is computed
 
             Returns:
                 np.ndarray: Result of the evaluation
             """
-
-            obs_param_list = sum([list(kwargs[param]) for param in circuit.observable_parameter_names], [])
-
-            qulacs_circuit = circuit.get_circuit_func(parameters)(
-                *[kwargs[param] for param in circuit.circuit_parameter_names]
-            )
-
-            outer_jacobian = circuit.get_gradient_outer_jacobian(parameters)(
-                *[kwargs[param] for param in circuit.circuit_parameter_names]
-            )
-            operators = circuit.get_observable_func()(*obs_param_list)
+            qulacs_circuit = circuit.get_circuit_func(parameters)(*arguments_circuit)
+            outer_jacobian = circuit.get_gradient_outer_jacobian(parameters)(*arguments_circuit)
+            qulacs_observable = observable.get_observable_func()(*arguments_observable[0])
 
             if isinstance(parameters, ParameterVectorElement):
                 parameters = [parameters]
@@ -301,181 +281,203 @@ class QulacsExecutor(ExecutorBase):
 
             if is_parameterized:
                 param_values = np.array(
-                    [outer_jacobian.T @ np.array(qulacs_circuit.backprop(o)) for o in operators]
+                    [outer_jacobian.T @ np.array(qulacs_circuit.backprop(o)) for o in qulacs_observable]
                 )
             else:
                 param_values = np.array([[]])
 
             values = np.real_if_close(param_values)
 
-            if not circuit.multiple_observables:
+            if not observable.multiple_observables:
                 return values[0]
 
             return values
 
-        if circuit in self._circuit_cache:
-            qulacs_circuit = self._circuit_cache[circuit]
-        else:
-            qulacs_circuit = QulacsCircuit(circuit)
-            self._circuit_cache[circuit] = qulacs_circuit
+        def evaluate_operator_gradient(
+            circuit: QulacsCircuit,
+            observable: QulacsObservable,
+            arguments_circuit,
+            arguments_observable,
+            parameters: Union[None, ParameterVectorElement, List[ParameterVectorElement]] = None,
+        ) -> np.ndarray:
+            """
+            Function to evaluate the Qulacs Observables with the given parameters.
 
-        # todo operator cache
-        qulacs_observable = QulacsObservable(operator)
+            Computes the gradient of the expectation values of the observables defined in the
+            circuit data structure.
 
-        def qulacs_derivative(**parameter_values):
+            Args:
+                circuit (QulacsCircuit): Qulacs circuit to evaluate
+                observable (QulacsObservable): Qulacs observable to evaluate
+                arguments_circuit: Arguments for the circuit
+                arguments_observable: Arguments for the observable
+                parameters (List[float]): List of observable parameters wrt. the gradient is computed
 
-            circuit_parameters = [parameter_values[param] for param in qulacs_circuit.parameter_names]
-            observable_parameters = sum([list(parameter_values[param]) for param in qulacs_observable.parameter_names], [])
+            Returns:
+                np.ndarray: Result of the evaluation
+            """
 
-            # TODO: multiple outputs
+            qulacs_circuit = circuit.get_circuit_func(parameters)(*arguments_circuit)
 
+            state = QuantumState(circuit.num_qubits)
+            qulacs_circuit.update_quantum_state(state)
 
+            operators = observable.get_operators_for_gradient(parameters)(*arguments_observable[0])
+            outer_jacobian = observable.get_gradient_outer_jacobian_observables_new(parameters)(*arguments_observable)
 
+            param_obs_values = [
+                outer_jacobian[i].T
+                @ np.array(
+                    [o if isinstance(o, float) else o.get_expectation_value(state) for o in operator]
+                )
+                for i, operator in enumerate(operators)
+            ]
 
-        post_processing_values = []
-        values = list(values)  # Convert to list to be able to append
-        # Sort the values, more complicated because values can be tuples of ParameterVectors
+            values = np.real_if_close(param_obs_values)
+
+            if not observable.multiple_observables:
+                return values[0]
+
+            return values
+
+        def remove_brackets(s: str) -> str:
+            return re.sub(r"\[.*?\]", "", s)
+
+        qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
+        qulacs_observables, multiple_operators = self._preprocess_operators(operator)
+
+        # TODO: multiple circuits and operators not implemented yet
+        qulacs_circuit = qulacs_circuits[0]
+        qulacs_observable = qulacs_observables[0]
+
+        circuit_parameters = []
+        multiple_circuit_parameters = []
+        circuit_parameters_dimension = []
+
+        # preprocess the parameter values
+        for param in qulacs_circuit.parameter_names:
+            if param not in parameter_values:
+                raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+
+            param_values, multiple_params = adjust_features(parameter_values[param], qulacs_circuit.parameter_dimensions[param])
+            circuit_parameters.append(param_values[0])
+            multiple_circuit_parameters.append(multiple_params)
+            circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
+
+        observable_parameters = []
+        multiple_observable_parameters = []
+        observable_parameters_dimension = []
+        for param in qulacs_observable.parameter_names:
+            if param not in parameter_values:
+                raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+
+            param_values, multiple_params = adjust_features(parameter_values[param], qulacs_observable.parameter_dimensions[param])
+            observable_parameters.append(param_values[0])
+            multiple_observable_parameters.append(multiple_params)
+            observable_parameters_dimension.append(qulacs_observable.parameter_dimensions[param])
+
+        result_dict = {}
+
+        if values is None or len(values) == 0:
+            values = ("expectation_value",)
+
+        # Convert and sort the values
+        values = list(values)
         indices = np.argsort([str(t) for t in values])
         values = [values[i] for i in indices]
+        values = [to_tuple(v) for v in values]
+
+        # Loop over all requested derivatives
         for todo in values:
 
-            try:
-                todo_class = get_evaluation_class(todo, self._not_implemented)
-            except RuntimeError as e:
-                raise RuntimeError(
-                    "High order derivatives are not supported with qulacs, please use pennylane"
+            if len(todo) > 1:
+                raise ValueError("Higher order derivatives are not supported with qulacs, "
+                                 "please use pennylane")
+
+            # get the parameter objects for the requested circuit derivatives
+            parameter_vector = []
+            for param in qulacs_circuit._free_parameters:
+                if isinstance(todo[0], str):
+                    if todo[0] == "" or todo[0] == "expectation_value":
+                        pass
+                    elif todo[0] == remove_brackets(param.name):
+                        parameter_vector.append(param)
+                    elif todo[0] == param.name:
+                        parameter_vector.append(param)
+                elif isinstance(todo[0], ParameterVectorElement):
+                    if param == todo[0]:
+                        parameter_vector.append(param)
+                else:
+                    raise ValueError("Unknown parameter type:", type(todo[0]))
+            if len(parameter_vector) > 0:
+                indices = np.argsort([str(t) for t in parameter_vector])
+                parameter_vector = [parameter_vector[i] for i in indices]
+
+            # get the parameter objects for the requested observable derivatives
+            observable_vector = []
+            for param in qulacs_observable._free_parameters:
+                if isinstance(todo[0], str):
+                    if todo[0] == "" or todo[0] == "expectation_value":
+                        pass
+                    elif todo[0] == remove_brackets(param.name):
+                        observable_vector.append(param)
+                    elif todo[0] == param.name:
+                        observable_vector.append(param)
+                elif isinstance(todo[0], ParameterVectorElement):
+                    if param == todo[0]:
+                        observable_vector.append(param)
+                else:
+                    raise ValueError("Unknown parameter type:", type(todo[0]))
+            if len(observable_vector) > 0:
+                indices = np.argsort([str(t) for t in observable_vector])
+                observable_vector = [observable_vector[i] for i in indices]
+
+            # Compute the requested derivatives
+            if len(parameter_vector) == 0 and len(observable_vector) == 0:
+
+                if todo[0] == "fischer":
+                    raise NotImplementedError("Fischer information is not implemented for qulacs executor.")
+
+                if todo[0] != "" and todo[0] != "expectation_value":
+                    raise ValueError(f"Unknown derivative: {todo[0]}")
+
+                # compute expectation value
+                result = self.expectation_value(circuit, operator, **parameter_values)
+
+            elif len(parameter_vector) > 0 and len(observable_vector) == 0:
+                # compute gradient w.r.t. circuit parameters
+                result = evaluate_circuit_gradient(
+                    qulacs_circuit,
+                    qulacs_observable,
+                    tuple(circuit_parameters),
+                    tuple(observable_parameters),
+                    parameter_vector
                 )
-
-            if todo_class.key in value_dict:
-                # Skip if the value is already calculated
-                continue
-
-            if isinstance(todo_class, PostProcessingEvaluation):
-                # In case of post processing, the evaluation function is called later
-                # Add necessary evaluations to the values list
-                for sub_todo in todo_class.evaluation_tuple:
-                    if sub_todo not in values:
-                        values.append(sub_todo)
-                # Create a list of post processing evaluations
-                post_processing_values.append(todo_class)
+            elif len(parameter_vector) == 0 and len(observable_vector) > 0:
+                # compute gradient w.r.t. observable parameters
+                result = evaluate_operator_gradient(
+                    qulacs_circuit,
+                    qulacs_observable,
+                    tuple(circuit_parameters),
+                    tuple(observable_parameters),
+                    observable_vector
+                )
             else:
+                raise ValueError("Higher order derivatives are not supported with qulacs, "
+                                 "please use pennylane")
 
-                if not isinstance(todo_class, DirectEvaluation):
-                    raise ValueError("Wrong evaluation class!")
+            if len(values) == 1:
+                return result
 
-                # Direct evaluation of the QNN
-
-                if todo_class.squared:
-                    qulacs_circuit = self._qulacs_circuit_squared
+            if len(todo) == 1:
+                if todo[0] == "":
+                    result_dict["expectation_value"] = result
                 else:
-                    qulacs_circuit = self._qulacs_circuit
+                    result_dict[todo[0]] = result
+            else:
+                result_dict[todo] = result
 
-                if todo_class.order == 0:
-
-                    # Evaluation of the QNN
-
-                    output = [
-                        evaluate_circuit(
-                            qulacs_circuit, param=param_inp_, x=x_inp_, param_obs=param_obs_inp_
-                        )
-                        for x_inp_ in x_inp
-                        for param_inp_ in param_inp
-                        for param_obs_inp_ in param_obs_inp
-                    ]
-
-                elif todo_class.order == 1:
-
-                    # Evaluation of the first-order derivative of the QNN
-                    derivative_object = None
-                    if todo_class.argnum[0] == 1:
-                        if isinstance(todo_class.key, str):
-                            derivative_object = self._x
-                        else:
-                            derivative_object = todo_class.key
-                        gradient_func = evaluate_circuit_gradient
-                    elif todo_class.argnum[0] == 0:
-                        if isinstance(todo_class.key, str):
-                            derivative_object = self._param
-                        else:
-                            derivative_object = todo_class.key
-                        gradient_func = evaluate_circuit_gradient
-                    elif todo_class.argnum[0] == 2:
-                        if isinstance(todo_class.key, str):
-                            derivative_object = self._param_obs
-                        else:
-                            derivative_object = todo_class.key
-                        gradient_func = evaluate_operator_gradient
-                    else:
-                        raise RuntimeError("Unknown argument number:", todo_class.argnum[0])
-
-                    if isinstance(derivative_object, tuple):
-                        if len(derivative_object) == 1:
-                            derivative_object = derivative_object[0]
-                        else:
-                            raise RuntimeError(
-                                "Higher order derivatives are not supported with qulacs, please use pennylane"
-                            )
-
-                    output = [
-                        gradient_func(
-                            qulacs_circuit,
-                            derivative_object,
-                            param=param_inp_,
-                            x=x_inp_,
-                            param_obs=param_obs_inp_,
-                        )
-                        for x_inp_ in x_inp
-                        for param_inp_ in param_inp
-                        for param_obs_inp_ in param_obs_inp
-                    ]
-
-                else:
-                    raise RuntimeError(
-                        "Higher order derivatives are not supported with qulacs, please use pennylane"
-                    )
-                output = np.array(output)
-
-                # Swap higher order derivatives into correct order
-                index_list = list(range(len(output.shape)))
-                if self.multiple_output:
-                    swap_list = index_list[0:2] + list(reversed(index_list[2:]))
-                else:
-                    swap_list = index_list[0:1] + list(reversed(index_list[1:]))
-
-                output = output.transpose(swap_list)
-
-                # Reshape to correct format
-                reshape_list = []
-                shape = output.shape
-                if multi_x:
-                    reshape_list.append(len(x))
-                if multi_param:
-                    reshape_list.append(len(param))
-                if multi_param_op:
-                    reshape_list.append(len(param_obs))
-                if self.multiple_output:
-                    reshape_list.append(shape[1])
-                if self.multiple_output:
-                    reshape_list += list(shape[2:])
-                else:
-                    reshape_list += list(shape[1:])
-
-                if len(reshape_list) == 0:
-                    value_dict[todo_class.key] = output.reshape(-1)[0]
-                else:
-                    value_dict[todo_class.key] = output.reshape(reshape_list)
-
-        # Do the post processing of the derivatives
-        # Calculate the variance of the QNN output, the Laplace operation, or pick single elements
-        for post in post_processing_values:
-            value_dict[post.key] = post.evaluation_function(value_dict)
-
-        # Store the updated dictionary for the theta value
-        if self.caching:
-            self.result_container[caching_tuple] = value_dict
-
-        return value_dict
-
+        return result_dict
 
 
     def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:

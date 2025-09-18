@@ -203,109 +203,108 @@ class PennylaneExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
-        parameter,
         *values: Union[
             str,
             ParameterVector,
             ParameterVectorElement,
             tuple,
         ],
-    ) -> dict:
+        **parameter_values,
+    ) -> Union[np.array, dict]:
         """
-        Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
+        Calculate the derivatives of the expectation value with respect to the parameters
 
         Args:
             circuit (QuantumCircuitBase): The quantum circuit.
             operator (QuantumOperatorBase): The quantum operator.
-            args: Additional arguments for the derivative calculation.
+            values: Values for which the derivatives are calculated. Can be strings (e.g.
+                "expectation_value" or the name of parameters), or
+                ParameterVectors, ParameterVectorElements. Tuples are used for higher
+                order derivatives.
+            parameter_values: Parameters to evaluate the circuit and observable given as
+                keyword arguments.
 
         Returns:
-            List[float]: The derivatives of the expectation value.
+            Union[np.array, dict]: The derivatives of the expectation value. If a single value
+                is provided, a numpy array is returned. If multiple values are provided, a
+                dictionary with the values as keys and the derivatives as values is returned.
         """
-        raise NotImplementedError
 
-    def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
-        """
-        Sample the circuit.
 
-        Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
-
-        Returns:
-            dict: The samples from the circuit.
-        """
+        def remove_brackets(s: str) -> str:
+            return re.sub(r"\[.*?\]", "", s)
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
+        pennylane_observables, multiple_operators = self._preprocess_operators(operator)
 
-        sample_vectors = []
-        for pennylane_circuit in pennylane_circuits:
+        # TODO: multiple circuits and operators not implemented yet
+        pennylane_circuit = pennylane_circuits[0]
+        pennylane_observable = pennylane_observables[0]
 
-            circuit_parameters = []
-            multiple_circuit_parameters = []
-            circuit_parameters_dimension = []
-            circuit_values = []
-            for param in pennylane_circuit.parameter_names:
-                if param not in parameter_values:
-                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
-                param_values, multiple_params = adjust_features(parameter_values[param], pennylane_circuit.parameter_dimensions[param])
-                circuit_parameters.append(param_values)
-                multiple_circuit_parameters.append(multiple_params)
-                circuit_parameters_dimension.append(pennylane_circuit.parameter_dimensions[param])
+        circuit_parameters = []
+        multiple_circuit_parameters = []
+        circuit_parameters_dimension = []
 
-            circuit_parameter_tuples = product(*circuit_parameters)
+        # preprocess the parameter values
+        for param in pennylane_circuit.parameter_names:
+            if param not in parameter_values:
+                raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
-            device = qml.device(
-                self._device.name, wires=circuit.num_qubits, shots=self._shots, seed=self._random
+            param_values, multiple_params = adjust_features(parameter_values[param], pennylane_circuit.parameter_dimensions[param])
+            circuit_parameters.append(param_values[0])
+            multiple_circuit_parameters.append(multiple_params)
+            circuit_parameters_dimension.append(pennylane_circuit.parameter_dimensions[param])
+
+        observable_parameters = []
+        multiple_observable_parameters = []
+        observable_parameters_dimension = []
+        for param in pennylane_observable.parameter_names:
+            if param not in parameter_values:
+                raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+
+            param_values, multiple_params = adjust_features(parameter_values[param], pennylane_observable.parameter_dimensions[param])
+            observable_parameters.append(param_values[0])
+            multiple_observable_parameters.append(multiple_params)
+            observable_parameters_dimension.append(pennylane_observable.parameter_dimensions[param])
+
+        result_dict = {}
+
+        if values is None or len(values) == 0:
+            values = ("expectation_value",)
+
+        # Convert and sort the values
+        values = list(values)
+        indices = np.argsort([str(t) for t in values])
+        values = [values[i] for i in indices]
+        values = [to_tuple(v) for v in values]
+
+        if circuit.num_qubits != len(self._device.wires):
+            self._device = qml.device(self._device.name, wires=circuit.num_qubits)
+
+        @qml.qnode(self._device)
+        def circuit_func(*args):
+            pennylane_circuit.build_pennylane_circuit()(*args)
+            return pennylane_observable.build_pennylane_observable()(
+                *args[len(pennylane_circuit.parameter_names) :]
             )
 
-            @qml.qnode(device)
-            def circuit_func(*args):
-                pennylane_circuit.build_pennylane_circuit()(*args)
-                # has to be replaced by measurements
-                return qml.sample(wires=list(range(circuit.num_qubits)))
+        argnum_dict = {}
+        argnum=0
+        for param in pennylane_circuit.parameter_names:
+            argnum_dict[param] = argnum
+            argnum+=1
+        for param in pennylane_observable.parameter_names:
+            argnum_dict[param] = argnum
+            argnum+=1
 
-            for cp in circuit_parameter_tuples:
-                samples = circuit_func(*cp)
-                # Convert samples to bitstrings
-                bitstrings = ["".join(str(bit) for bit in sample[::-1]) for sample in samples]
-                # Count occurrences of each bitstring
-                circuit_values.append(dict(Counter(bitstrings)))
+        print(argnum_dict)
 
-            sample_vectors.append(circuit_values)
+        # Loop over all requested derivatives
+        for todo in values:
+            print(todo)
 
-        if not multiple_circuits:
-            sample_vectors = sample_vectors[0]
 
-        return sample_vectors
 
-        # if circuit in self._circuit_cache:
-        #     pennylane_circuit = self._circuit_cache[circuit]
-        # else:
-        #     pennylane_circuit = PennyLaneCircuit(circuit)
-        #     self._circuit_cache[circuit] = pennylane_circuit
-
-        # circuit_parameters = [
-        #     parameter_values[param] for param in pennylane_circuit.parameter_names
-        # ]
-
-        # # if circuit.num_qubits != len(self._device.wires):
-
-        # self._device = qml.device(
-        #     self._device.name, wires=circuit.num_qubits, shots=self._shots, seed=self._random
-        # )
-
-        # @qml.qnode(self._device)
-        # def circuit_func(*args):
-        #     pennylane_circuit.build_pennylane_circuit()(*args)
-        #     return qml.sample(wires=list(range(circuit.num_qubits)))
-
-        # samples = circuit_func(*circuit_parameters)
-
-        # # Convert samples to bitstrings
-        # bitstrings = ["".join(str(bit) for bit in sample[::-1]) for sample in samples]
-
-        # # Count occurrences of each bitstring
-        # return dict(Counter(bitstrings))
 
     def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
@@ -327,8 +326,6 @@ class PennylaneExecutor(ExecutorBase):
                 # Shift original indices right to move to the next bit
                 indices >>= 1
             return reversed_indices
-
-
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 

@@ -151,7 +151,7 @@ class PennyLaneObservable:
         return self._pennylane_obs_parameters
 
     @property
-    def observable_parameter_dimensions(self) -> dict:
+    def parameter_dimensions(self) -> dict:
         """Dictionary with the dimension of each observable parameter"""
         return self._pennylane_obs_parameters_dimensions
 

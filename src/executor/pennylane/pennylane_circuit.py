@@ -125,6 +125,12 @@ class PennyLaneCircuit:
 
         # self._pennylane_circuit = self.build_pennylane_circuit()
 
+
+    @property
+    def num_qubits(self) -> int:
+        """Number of qubits in the circuit"""
+        return self._num_qubits
+
     @property
     def pennylane_circuit(self) -> callable:
         """PennyLane circuit that can be called with parameters"""

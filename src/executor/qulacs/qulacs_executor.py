@@ -70,7 +70,7 @@ class QulacsExecutor(ExecutorBase):
         circuits = circuit
         if not isinstance(circuit,List):
             circuits = [circuit]
-            multiple_circuits = True
+            multiple_circuits = False
 
         qulacs_circuits = []
 
@@ -119,14 +119,13 @@ class QulacsExecutor(ExecutorBase):
             float: The expectation value.
         """
 
-        # todo operator cache
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         qulacs_observables, multiple_operators = self._preprocess_operators(operator)
-        
-        values = []
-        reshape_list = []
 
-        # TODO: fix sorting of circuits and observables and multiple parameters
+        values = []
+
+        # TODO: fix support for multiple circuits and operators
+        # Currently only single set of circuit, operator, and paramerters is fully supported!
 
         for qulacs_circuit in qulacs_circuits:
 
@@ -134,6 +133,7 @@ class QulacsExecutor(ExecutorBase):
             multiple_circuit_parameters = []
             circuit_parameters_dimension = []
 
+            circuit_values = []
             for param in qulacs_circuit.parameter_names:
                 if param not in parameter_values:
                     raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
@@ -146,14 +146,14 @@ class QulacsExecutor(ExecutorBase):
             circuit_parameter_tuples = product(*circuit_parameters)
 
             for cp in circuit_parameter_tuples:
+                cp_values = []
 
                 qulacs_circuit_object = qulacs_circuit.get_circuit_func()(*cp)
                 state = QuantumState(qulacs_circuit.num_qubits)
                 qulacs_circuit_object.update_quantum_state(state)
 
                 for qulacs_observable in qulacs_observables:
-
-                    # TODO: check for multiple parameter sets for circuits
+                    observable_values = []
                     observable_parameters = []
                     multiple_observable_parameters = []
                     observable_parameters_dimension = []
@@ -171,11 +171,21 @@ class QulacsExecutor(ExecutorBase):
                     for op in observable_parameter_tuples:
 
                         qulacs_observable_object = qulacs_observable.get_observable_func()(*op[0])
-
-                        values.append(np.real_if_close(np.array([o.get_expectation_value(state) for o in qulacs_observable_object])))
+                        # not sure about the [0] here, but it works for single operators
+                        observable_values.append(np.real_if_close(np.array([o.get_expectation_value(state) for o in qulacs_observable_object][0])))
                     # check for multiple parameter sets
+                    cp_values.append(observable_values)
+                circuit_values.append(cp_values)
+            values.append(circuit_values)
 
         values = np.array(values)
+
+        # Remove the parameter dimension list (has to be fixed for multiple parameters)
+        shape = list(values.shape)
+        shape.pop(1)
+        shape.pop(-1)
+        values = values.reshape(shape)
+
         if not multiple_circuits:
             values = values[0]
             if not multiple_operators:
@@ -505,19 +515,41 @@ class QulacsExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-        if circuit in self._circuit_cache:
-            qulacs_circuit = self._circuit_cache[circuit]
-        else:
-            qulacs_circuit = QulacsCircuit(circuit)
-            self._circuit_cache[circuit] = qulacs_circuit
 
-        qulacs_circuit = qulacs_circuit.get_circuit_func()(
-            *[parameter_values[param] for param in qulacs_circuit.parameter_names]
-        )
-        quantum_state = QuantumState(circuit.num_qubits)
-        qulacs_circuit.update_quantum_state(quantum_state)
+        qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 
-        # Get the state vector
-        state_vector = quantum_state.get_vector()
+        state_vectors = []
+        for qulacs_circuit in qulacs_circuits:
 
-        return state_vector
+            circuit_parameters = []
+            multiple_circuit_parameters = []
+            circuit_parameters_dimension = []
+            circuit_values = []
+            for param in qulacs_circuit.parameter_names:
+                if param not in parameter_values:
+                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+                param_values, multiple_params = adjust_features(parameter_values[param], qulacs_circuit.parameter_dimensions[param])
+                circuit_parameters.append(param_values)
+                multiple_circuit_parameters.append(multiple_params)
+                circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
+
+            circuit_parameter_tuples = product(*circuit_parameters)
+
+            for cp in circuit_parameter_tuples:
+                qulacs_circuit_object = qulacs_circuit.get_circuit_func()(*cp)
+                state = QuantumState(qulacs_circuit.num_qubits)
+                qulacs_circuit_object.update_quantum_state(state)
+
+                circuit_values.append(state.get_vector())
+            state_vectors.append(circuit_values)
+
+        state_vectors = np.array(state_vectors)
+        # Remove the parameter dimension list (has to be fixed for multiple parameters)
+        shape = list(state_vectors.shape)
+        shape.pop(1)
+        state_vectors = state_vectors.reshape(shape)
+
+        if not multiple_circuits:
+            state_vectors = state_vectors[0]
+
+        return state_vectors

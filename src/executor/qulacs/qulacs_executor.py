@@ -50,7 +50,6 @@ class QulacsExecutor(ExecutorBase):
         else:
             self._random = np.random.default_rng()
 
-
     @property
     def shots(self) -> Union[int, None]:
         """Return the number of shots."""
@@ -66,9 +65,10 @@ class QulacsExecutor(ExecutorBase):
         """Return True if the execution access a remote backend."""
         return False
 
-
-    def _preprocess_circuits(self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]) -> Tuple[List[QulacsCircuit], bool]:
-        """ Preprocess the circuit(s) and convert them to Qulacs format.
+    def _preprocess_circuits(
+        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]
+    ) -> Tuple[List[QulacsCircuit], bool]:
+        """Preprocess the circuit(s) and convert them to Qulacs format.
 
         Args:
             circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum
@@ -80,7 +80,7 @@ class QulacsExecutor(ExecutorBase):
         """
         multiple_circuits = True
         circuits = circuit
-        if not isinstance(circuit,List):
+        if not isinstance(circuit, List):
             circuits = [circuit]
             multiple_circuits = False
 
@@ -97,8 +97,10 @@ class QulacsExecutor(ExecutorBase):
 
         return qulacs_circuits, multiple_circuits
 
-    def _preprocess_operators(self, operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]]) -> Tuple[List[QulacsObservable], bool] :
-        """ Preprocess the operator(s) and convert them to Qulacs format.
+    def _preprocess_operators(
+        self, operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]]
+    ) -> Tuple[List[QulacsObservable], bool]:
+        """Preprocess the operator(s) and convert them to Qulacs format.
 
         Args:
             operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The quantum
@@ -156,9 +158,13 @@ class QulacsExecutor(ExecutorBase):
             circuit_values = []
             for param in qulacs_circuit.parameter_names:
                 if param not in parameter_values:
-                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+                    raise ValueError(
+                        f"Parameter '{param}' not found in provided parameter values."
+                    )
 
-                param_values, multiple_params = adjust_features(parameter_values[param], qulacs_circuit.parameter_dimensions[param])
+                param_values, multiple_params = adjust_features(
+                    parameter_values[param], qulacs_circuit.parameter_dimensions[param]
+                )
                 circuit_parameters.append(param_values)
                 multiple_circuit_parameters.append(multiple_params)
                 circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
@@ -179,19 +185,34 @@ class QulacsExecutor(ExecutorBase):
                     observable_parameters_dimension = []
                     for param in qulacs_observable.parameter_names:
                         if param not in parameter_values:
-                            raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+                            raise ValueError(
+                                f"Parameter '{param}' not found in provided parameter values."
+                            )
 
-                        param_values, multiple_params = adjust_features(parameter_values[param], qulacs_observable.parameter_dimensions[param])
+                        param_values, multiple_params = adjust_features(
+                            parameter_values[param], qulacs_observable.parameter_dimensions[param]
+                        )
                         observable_parameters.append(param_values)
                         multiple_observable_parameters.append(multiple_params)
-                        observable_parameters_dimension.append(qulacs_observable.parameter_dimensions[param])
+                        observable_parameters_dimension.append(
+                            qulacs_observable.parameter_dimensions[param]
+                        )
 
                     observable_parameter_tuples = product(*observable_parameters)
 
                     for op in observable_parameter_tuples:
                         qulacs_observable_object = qulacs_observable.get_observable_func()(*op[0])
                         # not sure about the [0] here, but it works for single operators
-                        observable_values.append(np.real_if_close(np.array([o.get_expectation_value(state) for o in qulacs_observable_object][0])))
+                        observable_values.append(
+                            np.real_if_close(
+                                np.array(
+                                    [
+                                        o.get_expectation_value(state)
+                                        for o in qulacs_observable_object
+                                    ][0]
+                                )
+                            )
+                        )
                     # check for multiple parameter sets
                     cp_values.append(observable_values)
                 circuit_values.append(cp_values)
@@ -281,7 +302,10 @@ class QulacsExecutor(ExecutorBase):
 
             if is_parameterized:
                 param_values = np.array(
-                    [outer_jacobian.T @ np.array(qulacs_circuit.backprop(o)) for o in qulacs_observable]
+                    [
+                        outer_jacobian.T @ np.array(qulacs_circuit.backprop(o))
+                        for o in qulacs_observable
+                    ]
                 )
             else:
                 param_values = np.array([[]])
@@ -323,12 +347,17 @@ class QulacsExecutor(ExecutorBase):
             qulacs_circuit.update_quantum_state(state)
 
             operators = observable.get_operators_for_gradient(parameters)(*arguments_observable[0])
-            outer_jacobian = observable.get_gradient_outer_jacobian_observables_new(parameters)(*arguments_observable)
+            outer_jacobian = observable.get_gradient_outer_jacobian_observables_new(parameters)(
+                *arguments_observable
+            )
 
             param_obs_values = [
                 outer_jacobian[i].T
                 @ np.array(
-                    [o if isinstance(o, float) else o.get_expectation_value(state) for o in operator]
+                    [
+                        o if isinstance(o, float) else o.get_expectation_value(state)
+                        for o in operator
+                    ]
                 )
                 for i, operator in enumerate(operators)
             ]
@@ -359,7 +388,9 @@ class QulacsExecutor(ExecutorBase):
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
-            param_values, multiple_params = adjust_features(parameter_values[param], qulacs_circuit.parameter_dimensions[param])
+            param_values, multiple_params = adjust_features(
+                parameter_values[param], qulacs_circuit.parameter_dimensions[param]
+            )
             circuit_parameters.append(param_values[0])
             multiple_circuit_parameters.append(multiple_params)
             circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
@@ -371,7 +402,9 @@ class QulacsExecutor(ExecutorBase):
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
-            param_values, multiple_params = adjust_features(parameter_values[param], qulacs_observable.parameter_dimensions[param])
+            param_values, multiple_params = adjust_features(
+                parameter_values[param], qulacs_observable.parameter_dimensions[param]
+            )
             observable_parameters.append(param_values[0])
             multiple_observable_parameters.append(multiple_params)
             observable_parameters_dimension.append(qulacs_observable.parameter_dimensions[param])
@@ -391,8 +424,10 @@ class QulacsExecutor(ExecutorBase):
         for todo in values:
 
             if len(todo) > 1:
-                raise ValueError("Higher order derivatives are not supported with qulacs, "
-                                 "please use pennylane")
+                raise ValueError(
+                    "Higher order derivatives are not supported with qulacs, "
+                    "please use pennylane"
+                )
 
             # get the parameter objects for the requested circuit derivatives
             parameter_vector = []
@@ -436,7 +471,9 @@ class QulacsExecutor(ExecutorBase):
             if len(parameter_vector) == 0 and len(observable_vector) == 0:
 
                 if todo[0] == "fischer":
-                    raise NotImplementedError("Fischer information is not implemented for qulacs executor.")
+                    raise NotImplementedError(
+                        "Fischer information is not implemented for qulacs executor."
+                    )
 
                 if todo[0] != "" and todo[0] != "expectation_value":
                     raise ValueError(f"Unknown derivative: {todo[0]}")
@@ -451,7 +488,7 @@ class QulacsExecutor(ExecutorBase):
                     qulacs_observable,
                     tuple(circuit_parameters),
                     tuple(observable_parameters),
-                    parameter_vector
+                    parameter_vector,
                 )
             elif len(parameter_vector) == 0 and len(observable_vector) > 0:
                 # compute gradient w.r.t. observable parameters
@@ -460,11 +497,13 @@ class QulacsExecutor(ExecutorBase):
                     qulacs_observable,
                     tuple(circuit_parameters),
                     tuple(observable_parameters),
-                    observable_vector
+                    observable_vector,
                 )
             else:
-                raise ValueError("Higher order derivatives are not supported with qulacs, "
-                                 "please use pennylane")
+                raise ValueError(
+                    "Higher order derivatives are not supported with qulacs, "
+                    "please use pennylane"
+                )
 
             if len(values) == 1:
                 return result
@@ -478,7 +517,6 @@ class QulacsExecutor(ExecutorBase):
                 result_dict[todo] = result
 
         return result_dict
-
 
     def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
         """
@@ -529,8 +567,12 @@ class QulacsExecutor(ExecutorBase):
             circuit_values = []
             for param in qulacs_circuit.parameter_names:
                 if param not in parameter_values:
-                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
-                param_values, multiple_params = adjust_features(parameter_values[param], qulacs_circuit.parameter_dimensions[param])
+                    raise ValueError(
+                        f"Parameter '{param}' not found in provided parameter values."
+                    )
+                param_values, multiple_params = adjust_features(
+                    parameter_values[param], qulacs_circuit.parameter_dimensions[param]
+                )
                 circuit_parameters.append(param_values)
                 multiple_circuit_parameters.append(multiple_params)
                 circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])

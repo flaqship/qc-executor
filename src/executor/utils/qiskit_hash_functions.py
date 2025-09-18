@@ -1,4 +1,3 @@
-
 from collections.abc import Iterable
 
 import numpy as np
@@ -9,6 +8,7 @@ from qiskit.circuit.bit import Bit
 
 # TODO: copied from QISKIT adjust for differnet versions of qiskit!
 
+
 def _bits_key(bits: tuple[Bit, ...], circuit: QuantumCircuit) -> tuple:
     return tuple(
         (
@@ -18,6 +18,7 @@ def _bits_key(bits: tuple[Bit, ...], circuit: QuantumCircuit) -> tuple:
         for bit in bits
     )
 
+
 def _format_params(param):
     if isinstance(param, np.ndarray):
         return param.data.tobytes()
@@ -26,6 +27,7 @@ def _format_params(param):
     elif isinstance(param, Iterable):
         return tuple(param)
     return param
+
 
 def _circuit_key(circuit: QuantumCircuit, include_name=False) -> tuple:
     """Private key function for QuantumCircuit.
@@ -49,7 +51,9 @@ def _circuit_key(circuit: QuantumCircuit, include_name=False) -> tuple:
                 _bits_key(data.qubits, circuit),  # qubits
                 _bits_key(data.clbits, circuit),  # clbits
                 data.operation.name,  # operation.name
-                tuple(_format_params(param) for param in data.operation.params),  # operation.params
+                tuple(
+                    _format_params(param) for param in data.operation.params
+                ),  # operation.params
             )
             for data in circuit.data
         ),

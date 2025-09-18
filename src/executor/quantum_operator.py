@@ -128,7 +128,7 @@ class QuantumOperator(QuantumOperatorBase):
         if coeff is None:
             coeff = 1.0
 
-        self._qiskit_operator  = SparsePauliOp.from_list(
+        self._qiskit_operator = SparsePauliOp.from_list(
             self._qiskit_operator.to_list() + [(pauli, coeff)]
         )
 
@@ -210,7 +210,9 @@ class QuantumOperator(QuantumOperatorBase):
         return hash(_observable_key(self._qiskit_operator))
 
     def __eq__(self, other):
-        return isinstance(other, QuantumOperator) and self._qiskit_operator == other._qiskit_operator
+        return (
+            isinstance(other, QuantumOperator) and self._qiskit_operator == other._qiskit_operator
+        )
 
     def __str__(self):
         """

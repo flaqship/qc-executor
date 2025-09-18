@@ -1,4 +1,3 @@
-
 from uuid import uuid4, UUID
 
 from qiskit.circuit import ParameterVector as QiskitParameterVector
@@ -7,20 +6,18 @@ from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParam
 
 # TODO: copied form Qiskit, adjust to don't break copyright problems
 
+
 class Parameter(QiskitParameterVectorElement):
     pass
 
 
-class Parameters():
+class Parameters:
 
     def __init__(self, name, length=0):
         self._name = name
         self._root_uuid = uuid4()
         root_uuid_int = self._root_uuid.int
-        self._params = [
-            Parameter(self, i, UUID(int=root_uuid_int + i)) for i in range(length)
-        ]
-
+        self._params = [Parameter(self, i, UUID(int=root_uuid_int + i)) for i in range(length)]
 
     @property
     def name(self):

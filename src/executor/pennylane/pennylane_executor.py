@@ -1,11 +1,11 @@
 import numpy as np
-from abc import ABC, abstractmethod
+import re
+import copy
 from typing import List, Union
 from collections import Counter
 from itertools import product
-from qiskit.circuit import ParameterExpression, Parameter, ParameterVector
+from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
-
 
 import pennylane as qml
 import pennylane.numpy as pnp
@@ -15,7 +15,8 @@ from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_observable import PennyLaneObservable
 
-from ..utils.data_preprocessing import adjust_features, adjust_parameters, to_tuple
+from ..utils.data_preprocessing import adjust_features, to_tuple
+
 
 class PennylaneExecutor(ExecutorBase):
     """Base class for quantum circuit executors.
@@ -70,7 +71,7 @@ class PennylaneExecutor(ExecutorBase):
 
         multiple_circuits = True
         circuits = circuit
-        if not isinstance(circuit,List):
+        if not isinstance(circuit, List):
             circuits = [circuit]
             multiple_circuits = False
 
@@ -138,9 +139,13 @@ class PennylaneExecutor(ExecutorBase):
             circuit_values = []
             for param in pennylane_circuit.parameter_names:
                 if param not in parameter_values:
-                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+                    raise ValueError(
+                        f"Parameter '{param}' not found in provided parameter values."
+                    )
 
-                param_values, multiple_params = adjust_features(parameter_values[param], pennylane_circuit.parameter_dimensions[param])
+                param_values, multiple_params = adjust_features(
+                    parameter_values[param], pennylane_circuit.parameter_dimensions[param]
+                )
                 circuit_parameters.append(param_values)
                 multiple_circuit_parameters.append(multiple_params)
                 circuit_parameters_dimension.append(pennylane_circuit.parameter_dimensions[param])
@@ -154,12 +159,18 @@ class PennylaneExecutor(ExecutorBase):
                 observable_parameters_dimension = []
                 for param in pennylane_observable.parameter_names:
                     if param not in parameter_values:
-                        raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
+                        raise ValueError(
+                            f"Parameter '{param}' not found in provided parameter values."
+                        )
 
-                    param_values, multiple_params = adjust_features(parameter_values[param], pennylane_observable.parameter_dimensions[param])
+                    param_values, multiple_params = adjust_features(
+                        parameter_values[param], pennylane_observable.parameter_dimensions[param]
+                    )
                     observable_parameters.append(param_values)
                     multiple_observable_parameters.append(multiple_params)
-                    observable_parameters_dimension.append(pennylane_observable.parameter_dimensions[param])
+                    observable_parameters_dimension.append(
+                        pennylane_observable.parameter_dimensions[param]
+                    )
 
                 observable_parameter_tuples = product(*observable_parameters)
 
@@ -230,7 +241,6 @@ class PennylaneExecutor(ExecutorBase):
                 dictionary with the values as keys and the derivatives as values is returned.
         """
 
-
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?\]", "", s)
 
@@ -250,7 +260,9 @@ class PennylaneExecutor(ExecutorBase):
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
-            param_values, multiple_params = adjust_features(parameter_values[param], pennylane_circuit.parameter_dimensions[param])
+            param_values, multiple_params = adjust_features(
+                parameter_values[param], pennylane_circuit.parameter_dimensions[param]
+            )
             circuit_parameters.append(param_values[0])
             multiple_circuit_parameters.append(multiple_params)
             circuit_parameters_dimension.append(pennylane_circuit.parameter_dimensions[param])
@@ -262,10 +274,14 @@ class PennylaneExecutor(ExecutorBase):
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
-            param_values, multiple_params = adjust_features(parameter_values[param], pennylane_observable.parameter_dimensions[param])
+            param_values, multiple_params = adjust_features(
+                parameter_values[param], pennylane_observable.parameter_dimensions[param]
+            )
             observable_parameters.append(param_values[0])
             multiple_observable_parameters.append(multiple_params)
-            observable_parameters_dimension.append(pennylane_observable.parameter_dimensions[param])
+            observable_parameters_dimension.append(
+                pennylane_observable.parameter_dimensions[param]
+            )
 
         result_dict = {}
 
@@ -281,30 +297,162 @@ class PennylaneExecutor(ExecutorBase):
         if circuit.num_qubits != len(self._device.wires):
             self._device = qml.device(self._device.name, wires=circuit.num_qubits)
 
-        @qml.qnode(self._device)
         def circuit_func(*args):
             pennylane_circuit.build_pennylane_circuit()(*args)
             return pennylane_observable.build_pennylane_observable()(
                 *args[len(pennylane_circuit.parameter_names) :]
             )
 
+        # Create a mapping from parameter names to their argument indices for
+        # PennyLane differentiation routines
         argnum_dict = {}
-        argnum=0
+        argnum = 0
         for param in pennylane_circuit.parameter_names:
             argnum_dict[param] = argnum
-            argnum+=1
+            argnum += 1
         for param in pennylane_observable.parameter_names:
             argnum_dict[param] = argnum
-            argnum+=1
-
-        print(argnum_dict)
+            argnum += 1
 
         # Loop over all requested derivatives
         for todo in values:
-            print(todo)
 
+            pennylane_function = qml.QNode(
+                circuit_func,
+                self._device,
+                diff_method="best",
+                max_diff=len(todo),
+            )
 
+            if todo[0] == "expectation_value" or todo[0] == "":
+                result = np.real_if_close(
+                    np.array(pennylane_function(*circuit_parameters, *observable_parameters))
+                )
+            else:
 
+                # Adjust the parameters to set requires_grad=True later
+                circuit_parameters_adjusted = copy.copy(circuit_parameters)
+                observable_parameters_adjusted = copy.copy(observable_parameters)
+
+                # indices for slicing the result for single parameters
+                slicing = []
+
+                pennylane_derivative = pennylane_function
+                for todo_parameter in todo:
+                    if isinstance(todo_parameter, (ParameterVector, ParameterVectorElement)):
+                        todo_parameter = str(todo_parameter)
+                    todo_parameter_name = remove_brackets(todo_parameter)
+                    if todo_parameter_name == todo_parameter:
+                        slicing.append(None)
+                    else:
+                        slicing.append(int(todo_parameter[todo_parameter.index("[") + 1 : -1]))
+
+                    if todo_parameter_name not in argnum_dict:
+                        raise ValueError(
+                            f"Parameter '{todo_parameter_name}' not found in the circuit or observable."
+                        )
+
+                    arg_index = argnum_dict[todo_parameter_name]
+                    # Set requires_grad=True for the required parameter
+                    if arg_index < len(circuit_parameters):
+                        circuit_parameters_adjusted[arg_index] = pnp.array(
+                            circuit_parameters_adjusted[arg_index], requires_grad=True
+                        )
+                    else:
+                        observable_parameters_adjusted[arg_index - len(circuit_parameters)] = (
+                            pnp.array(
+                                observable_parameters_adjusted[
+                                    arg_index - len(circuit_parameters)
+                                ],
+                                requires_grad=True,
+                            )
+                        )
+                    # Get the derivative function from PennyLane
+                    pennylane_derivative = qml.jacobian(pennylane_derivative, argnum=arg_index)
+
+                # Compute the derivative
+                result = np.real_if_close(
+                    np.array(
+                        pennylane_derivative(
+                            *circuit_parameters_adjusted, *observable_parameters_adjusted
+                        )
+                    )
+                )
+
+                # Slice the result if required
+                indexer = tuple(slice(None) if i is None else i for i in slicing)
+                result = result[indexer]
+
+            if len(values) == 1:
+                return result
+
+            if len(todo) == 1:
+                if todo[0] == "":
+                    result_dict["expectation_value"] = result
+                else:
+                    result_dict[todo[0]] = result
+            else:
+                result_dict[todo] = result
+
+        return result_dict
+
+    def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
+        """
+        Sample the circuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The quantum circuit.
+
+        Returns:
+            dict: The samples from the circuit.
+        """
+
+        pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
+
+        sample_vectors = []
+        for pennylane_circuit in pennylane_circuits:
+
+            circuit_parameters = []
+            multiple_circuit_parameters = []
+            circuit_parameters_dimension = []
+            circuit_values = []
+            for param in pennylane_circuit.parameter_names:
+                if param not in parameter_values:
+                    raise ValueError(
+                        f"Parameter '{param}' not found in provided parameter values."
+                    )
+                param_values, multiple_params = adjust_features(
+                    parameter_values[param], pennylane_circuit.parameter_dimensions[param]
+                )
+                circuit_parameters.append(param_values)
+                multiple_circuit_parameters.append(multiple_params)
+                circuit_parameters_dimension.append(pennylane_circuit.parameter_dimensions[param])
+
+            circuit_parameter_tuples = product(*circuit_parameters)
+
+            device = qml.device(
+                self._device.name, wires=circuit.num_qubits, shots=self._shots, seed=self._random
+            )
+
+            @qml.qnode(device)
+            def circuit_func(*args):
+                pennylane_circuit.build_pennylane_circuit()(*args)
+                # has to be replaced by measurements
+                return qml.sample(wires=list(range(circuit.num_qubits)))
+
+            for cp in circuit_parameter_tuples:
+                samples = circuit_func(*cp)
+                # Convert samples to bitstrings
+                bitstrings = ["".join(str(bit) for bit in sample[::-1]) for sample in samples]
+                # Count occurrences of each bitstring
+                circuit_values.append(dict(Counter(bitstrings)))
+
+            sample_vectors.append(circuit_values)
+
+        if not multiple_circuits:
+            sample_vectors = sample_vectors[0]
+
+        return sample_vectors
 
     def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
@@ -338,8 +486,12 @@ class PennylaneExecutor(ExecutorBase):
             circuit_values = []
             for param in pennylane_circuit.parameter_names:
                 if param not in parameter_values:
-                    raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
-                param_values, multiple_params = adjust_features(parameter_values[param], pennylane_circuit.parameter_dimensions[param])
+                    raise ValueError(
+                        f"Parameter '{param}' not found in provided parameter values."
+                    )
+                param_values, multiple_params = adjust_features(
+                    parameter_values[param], pennylane_circuit.parameter_dimensions[param]
+                )
                 circuit_parameters.append(param_values)
                 multiple_circuit_parameters.append(multiple_params)
                 circuit_parameters_dimension.append(pennylane_circuit.parameter_dimensions[param])

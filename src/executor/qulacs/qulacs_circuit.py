@@ -61,7 +61,7 @@ class QulacsCircuit:
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
         return self._qulacs_gates_parameters.keys()
-    
+
     @property
     def parameter_dimensions(self) -> dict:
         """Dictionary with the dimension of each circuit parameter"""
@@ -115,7 +115,7 @@ class QulacsCircuit:
         # Change sign because of the way Qulacs defines the rotation gates
         angle = -angle
 
-        if isinstance(angle, (float,int)):
+        if isinstance(angle, (float, int)):
             # Single float value
             func_list_element = angle
             func_grad_list_element = None
@@ -374,9 +374,7 @@ class QulacsCircuit:
         def qulacs_circuit(*args):
 
             # Collects the args values connected to the circuit parameters
-            circ_param_list = sum(
-                [list(args[i]) for i in range(len(self.parameter_names))], []
-            )
+            circ_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
 
             if is_parameterized:
                 circuit = ParametricQuantumCircuit(self.num_qubits)
@@ -433,9 +431,7 @@ class QulacsCircuit:
         def outer_jacobian(*args):
 
             # Collects the args values connected to the circuit parameters
-            circ_param_list = sum(
-                [list(args[i]) for i in range(len(self.parameter_names))], []
-            )
+            circ_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
 
             relevant_operations = [
                 i

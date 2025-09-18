@@ -236,9 +236,7 @@ class QulacsObservable:
         def outer_jacobian(*args):
 
             # Collects the args values connected to the observable parameters
-            obs_param_list = sum(
-                [list(args[i]) for i in range(len(self.parameter_names))], []
-            )
+            obs_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
 
             outer_jacobians = []
 

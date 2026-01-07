@@ -34,7 +34,7 @@ dependencies = [
     "qiskit-ibm-runtime>=0.18.0",
     "qulacs>=0.6.4.1",
 ]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.9,<=3.13"
 dynamic = ["version", "description"]
 
 [project.optional-dependencies]

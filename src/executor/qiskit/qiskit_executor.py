@@ -116,22 +116,77 @@ class QiskitExecutor(ExecutorBase):
 
         return circuit_tree, operator_tree
 
-    def _prepare_parameter_dict(self, **parameters) -> dict:
+    def _prepare_parameter_dict(self, circuit, operator, **parameters) -> dict:
         """
         Prepare parameter dictionary for OpTree evaluation.
 
         Args:
+            circuit: The quantum circuit(s)
+            operator: The quantum operator(s)
             **parameters: Keyword arguments with parameter values
 
         Returns:
             Dictionary compatible with OpTree evaluation
         """
         param_dict = {}
-        for key, value in parameters.items():
-            if isinstance(value, (list, np.ndarray)):
-                param_dict[key] = np.array(value)
+
+        # helper to get the underlying qiskit objects
+        def _unwrap(obj):
+            if hasattr(obj, "_qiskit_circuit"):
+                return obj._qiskit_circuit
+            elif hasattr(obj, "_qiskit_operator"):
+                return obj._qiskit_operator
             else:
-                param_dict[key] = value
+                return obj
+
+        # collect all qiskit circuits / operators (handle lists)
+        circuits = []
+        if isinstance(circuit, list):
+            circuits = [_unwrap(c) for c in circuit]
+        else:
+            circuits = [_unwrap(circuit)]
+
+        operators = []
+        if isinstance(operator, list):
+            operators = [_unwrap(o) for o in operator]
+        else:
+            operators = [_unwrap(operator)]
+
+        # generic processor for any qiskit object that has .parameters (QuantumCircuit, SparsePauliOp, ...)
+        def _process_qiskit_params(qobj):
+            for p in qobj.parameters:
+                name = p.vector.name
+                if name not in parameters:
+                    # no value provided for this parameter vector name -> skip
+                    continue
+
+                supplied = parameters[name]
+                # normalize to numpy for easy indexing
+                if isinstance(supplied, (list, tuple, np.ndarray)):
+                    arr = np.asarray(supplied)
+                    # try to index by the parameter's index (e.g., theta[0], theta[1], ...)
+                    try:
+                        val = arr[p.index]
+                    except Exception:
+                        # if arr is length 1, accept scalar broadcast
+                        if arr.size == 1:
+                            val = arr.flat[0]
+                        else:
+                            raise ValueError(
+                                f"Provided values for parameter '{name}' have length {arr.size} "
+                                f"but parameter index {p.index} is requested."
+                            )
+                else:
+                    # scalar provided -> use it for every element of the ParameterVector
+                    val = supplied
+
+                param_dict[p] = val
+
+        for qc in circuits:
+            _process_qiskit_params(qc)
+        for op in operators:
+            _process_qiskit_params(op)
+
         return param_dict
 
     def expectation_value(
@@ -155,7 +210,7 @@ class QiskitExecutor(ExecutorBase):
         circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
 
         # Prepare parameter dictionary
-        param_dict = self._prepare_parameter_dict(**parameter_values)
+        param_dict = self._prepare_parameter_dict(circuit, operator, **parameter_values)
 
         # Use OpTree evaluation with Estimator
         result = OpTree.evaluate.evaluate_with_estimator(

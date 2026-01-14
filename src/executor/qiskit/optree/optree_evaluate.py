@@ -2,16 +2,22 @@ import numpy as np
 from typing import Union, List, Tuple
 
 import time
-from packaging import version
 
 from qiskit.circuit import QuantumCircuit
-from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression, Clbit
-from qiskit.primitives import BackendEstimator
+from qiskit.primitives import (
+    BackendEstimator,
+    BitArray,
+    BaseSampler,
+    BaseSamplerV1,
+    BaseSamplerV2,
+    BaseEstimatorV1,
+    BaseEstimatorV2,
+)
 from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
 from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
 from qiskit.primitives.base import SamplerResult
-from ...util.decompose_to_std import decompose_to_std
+from ...utils import decompose_to_std
 
 from .optree import (
     OpTreeNodeBase,
@@ -25,18 +31,6 @@ from .optree import (
     OpTreeExpectationValue,
     OpTreeMeasuredOperator,
 )
-
-QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
-
-if QISKIT_SMALLER_1_2:
-
-    class BitArray:
-        """Dummy BitArray."""
-
-else:
-    from qiskit.primitives import BitArray
-
-from ..executor import BaseSamplerV1, BaseEstimatorV1, BaseSamplerV2, BaseEstimatorV2
 
 
 def _check_tree_for_matrix_compatibility(element: Union[OpTreeNodeBase, OpTreeLeafBase]):
@@ -860,12 +854,7 @@ def _transform_operator_to_zbasis(
         terms. If no transformation is needed, the input operator is returned without any changes.
     """
 
-    if QISKIT_SMALLER_1_2:
-        measurement_circuit = BackendEstimator._measurement_circuit
-    else:
-        from qiskit.primitives.backend_estimator_v2 import (
-            _measurement_circuit as measurement_circuit,
-        )
+    measurement_circuit = BackendEstimator._measurement_circuit
 
     # Adjust measurements to be possible in Z basis
     if isinstance(operator, OpTreeOperator):
@@ -1011,7 +1000,7 @@ class OpTreeEvaluate:
         operator: Union[OpTreeNodeBase, OpTreeOperator, SparsePauliOp, OpTreeMeasuredOperator],
         dictionary_circuit: Union[dict, List[dict]],
         dictionary_operator: Union[dict, List[dict]],
-        sampler: Union[BaseSamplerV1, BaseSamplerV2],
+        sampler: BaseSampler,
         dictionaries_combined: bool = False,
         detect_duplicates: bool = True,
     ) -> Union[float, np.ndarray]:

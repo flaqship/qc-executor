@@ -11,7 +11,6 @@ import numpy as np
 from executor.qiskit.optree import OpTreeDerivative
 from executor.qiskit.optree import OpTreeEvaluate
 from executor.qiskit.optree.optree import (
-    OpTree,
     OpTreeCircuit,
     OpTreeList,
     OpTreeNodeBase,
@@ -79,14 +78,14 @@ class QiskitExecutor(ExecutorBase):
     def _convert_to_optree(
         self,
         circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
-    ) -> Tuple[Union[OpTreeCircuit, OpTreeNodeBase], Union[OpTreeOperator, OpTreeNodeBase]]:
+        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase], None] = None,
+    ) -> Tuple[Union[OpTreeCircuit, OpTreeNodeBase], Union[OpTreeOperator, OpTreeNodeBase, None]]:
         """
         Convert circuits and operators to OpTree format.
 
         Args:
             circuit: Circuit(s) to convert
-            operator: Operator(s) to convert
+            operator: Operator(s) to convert (optional)
 
         Returns:
             Tuple of (circuit_tree, operator_tree)
@@ -105,6 +104,9 @@ class QiskitExecutor(ExecutorBase):
             circuit_tree = OpTreeCircuit(circ)
 
         # Convert operators to OpTree
+        if operator is None:
+            return circuit_tree, None
+
         if isinstance(operator, List):
             operator_tree = OpTreeList(
                 [
@@ -118,9 +120,14 @@ class QiskitExecutor(ExecutorBase):
 
         return circuit_tree, operator_tree
 
-    def _prepare_parameter_dict(self, circuit, operator, **parameters) -> dict:
+    def _prepare_parameter_dicts(
+        self,
+        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
+        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase], None] = None,
+        **parameters,
+    ) -> Tuple[dict, dict]:
         """
-        Prepare parameter dictionary for OpTree evaluation.
+        Prepare separate parameter dictionaries for circuits and operators.
 
         Args:
             circuit: The quantum circuit(s)
@@ -128,18 +135,29 @@ class QiskitExecutor(ExecutorBase):
             **parameters: Keyword arguments with parameter values
 
         Returns:
-            Dictionary compatible with OpTree evaluation
+            Tuple of (circuit_param_dict, operator_param_dict)
         """
-        param_dict = {}
 
         # helper to get the underlying qiskit objects
         def _unwrap(obj):
+            """Extract underlying qiskit object"""
             if hasattr(obj, "_qiskit_circuit"):
                 return obj._qiskit_circuit
             elif hasattr(obj, "_qiskit_operator"):
                 return obj._qiskit_operator
             else:
                 return obj
+
+        def _collect_objects(obj_or_list):
+            """Convert to list of objects"""
+            if isinstance(obj_or_list, list):
+                return [_unwrap(o) for o in obj_or_list]
+            else:
+                return [_unwrap(obj_or_list)]
+
+        # Collect all circuits and operators
+        circuits = _collect_objects(circuit)
+        operators = _collect_objects(operator) if operator is not None else []
 
         # collect all qiskit circuits / operators (handle lists)
         circuits = []
@@ -149,47 +167,48 @@ class QiskitExecutor(ExecutorBase):
             circuits = [_unwrap(circuit)]
 
         operators = []
-        if isinstance(operator, list):
-            operators = [_unwrap(o) for o in operator]
-        else:
-            operators = [_unwrap(operator)]
+        if operator is not None:
+            if isinstance(operator, list):
+                operators = [_unwrap(o) for o in operator]
+            else:
+                operators = [_unwrap(operator)]
 
-        # generic processor for any qiskit object that has .parameters (QuantumCircuit, SparsePauliOp, ...)
-        def _process_qiskit_params(qobj):
-            for p in qobj.parameters:
-                name = p.vector.name
-                if name not in parameters:
-                    # no value provided for this parameter vector name -> skip
-                    continue
+        def _build_param_dict(qiskit_objects):
+            """Build parameter dict for list of qiskit objects"""
+            param_dict = {}
 
-                supplied = parameters[name]
-                # normalize to numpy for easy indexing
-                if isinstance(supplied, (list, tuple, np.ndarray)):
-                    arr = np.asarray(supplied)
-                    # try to index by the parameter's index (e.g., theta[0], theta[1], ...)
-                    try:
-                        val = arr[p.index]
-                    except Exception:
-                        # if arr is length 1, accept scalar broadcast
-                        if arr.size == 1:
-                            val = arr.flat[0]
-                        else:
-                            raise ValueError(
-                                f"Provided values for parameter '{name}' have length {arr.size} "
-                                f"but parameter index {p.index} is requested."
-                            )
-                else:
-                    # scalar provided -> use it for every element of the ParameterVector
-                    val = supplied
+            for qobj in qiskit_objects:
+                for p in qobj.parameters:
+                    name = p.vector.name
+                    if name not in parameters:
+                        continue
 
-                param_dict[p] = val
+                    supplied = parameters[name]
 
-        for qc in circuits:
-            _process_qiskit_params(qc)
-        for op in operators:
-            _process_qiskit_params(op)
+                    # Normalize to numpy
+                    if isinstance(supplied, (list, tuple, np.ndarray)):
+                        arr = np.asarray(supplied)
+                        try:
+                            val = arr[p.index]
+                        except (IndexError, TypeError):
+                            if arr.size == 1:
+                                val = arr.flat[0]
+                            else:
+                                raise ValueError(
+                                    f"Provided values for parameter '{name}' have length {arr.size} "
+                                    f"but parameter index {p.index} is requested."
+                                )
+                    else:
+                        val = supplied
 
-        return param_dict
+                    param_dict[p] = val
+
+            return param_dict
+
+        circuit_dict = _build_param_dict(circuits)
+        operator_dict = _build_param_dict(operators) if operators else {}
+
+        return circuit_dict, operator_dict
 
     def expectation_value(
         self,
@@ -211,15 +230,17 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format
         circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
 
-        # Prepare parameter dictionary
-        param_dict = self._prepare_parameter_dict(circuit, operator, **parameter_values)
+        # Prepare separate parameter dictionaries
+        circuit_dict, operator_dict = self._prepare_parameter_dicts(
+            circuit, operator, **parameter_values
+        )
 
         # Use OpTree evaluation with Estimator
         result = OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
             operator=operator_tree,
-            dictionary_circuit=param_dict,
-            dictionary_operator=param_dict,
+            dictionary_circuit=circuit_dict,
+            dictionary_operator=operator_dict,
             estimator=self._estimator,
             dictionaries_combined=False,
             detect_duplicates=True,
@@ -254,8 +275,10 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format
         circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
 
-        # Prepare parameter dictionary
-        param_dict = self._prepare_parameter_dict(circuit, operator, **parameter_values)
+        # Prepare separate parameter dictionaries
+        circuit_dict, operator_dict = self._prepare_parameter_dicts(
+            circuit, operator, **parameter_values
+        )
 
         # Build list of parameters to differentiate
         if isinstance(circuit, list):
@@ -275,9 +298,8 @@ class QiskitExecutor(ExecutorBase):
             else:
                 raise ValueError(f"Unknown derivative parameter type: {type(dp)}")
 
-        # Differentiate circuit
+        # Differentiate circuit and operator separately
         circuit_derivative = OpTreeDerivative.differentiate(circuit_tree, params_to_diff)
-        # Differentiate operator
         operator_derivative = OpTreeDerivative.differentiate(operator_tree, params_to_diff)
 
         results_list = []
@@ -285,7 +307,7 @@ class QiskitExecutor(ExecutorBase):
         num_params = len(params_to_diff)
 
         for i in range(num_params):
-            # Extract derivative
+            # Extract i-th derivative
             if isinstance(circuit_derivative, OpTreeList) and len(circuit_derivative.children) > 0:
                 circ_deriv_i = (
                     circuit_derivative.children[i]
@@ -310,8 +332,8 @@ class QiskitExecutor(ExecutorBase):
             result1 = OpTreeEvaluate.evaluate_with_estimator(
                 circuit=circ_deriv_i,
                 operator=operator_tree,
-                dictionary_circuit=param_dict,
-                dictionary_operator=param_dict,
+                dictionary_circuit=circuit_dict,
+                dictionary_operator=operator_dict,
                 estimator=self._estimator,
                 detect_duplicates=True,
             )
@@ -321,8 +343,8 @@ class QiskitExecutor(ExecutorBase):
                 result2 = OpTreeEvaluate.evaluate_with_estimator(
                     circuit=circuit_tree,
                     operator=op_deriv_i,
-                    dictionary_circuit=param_dict,
-                    dictionary_operator=param_dict,
+                    dictionary_circuit=circuit_dict,
+                    dictionary_operator=operator_dict,
                     estimator=self._estimator,
                     detect_duplicates=True,
                 )
@@ -355,22 +377,12 @@ class QiskitExecutor(ExecutorBase):
         if self._shots is None:
             raise ValueError("Shots must be set for sampling")
 
-        # Convert to OpTree format
-        if isinstance(circuit, List):
-            circuit_tree = OpTreeList(
-                [
-                    OpTreeCircuit(c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c)
-                    for c in circuit
-                ]
-            )
-        else:
-            circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-            circuit_tree = OpTreeCircuit(circ)
+        # Convert to OpTree format (just for consistent handling)
+        circuit_tree, _ = self._convert_to_optree(circuit, operator=None)
 
-        # Prepare parameter dictionary
-        param_dict = self._prepare_parameter_dict(**parameter_values)
+        # Prepare parameter dictionary (only for circuits)
+        circuit_dict, _ = self._prepare_parameter_dicts(circuit, operator=None, **parameter_values)
 
-        # For sampling, we need to manually handle since OpTree sampler is for expectation values
         # Extract circuits from OpTree
         circuits = []
         if isinstance(circuit_tree, OpTreeCircuit):
@@ -378,26 +390,42 @@ class QiskitExecutor(ExecutorBase):
         else:
             circuits = [child.circuit for child in circuit_tree.children]
 
-        # Bind parameters
+        # Bind parameters to circuits
         bound_circuits = []
         for circ in circuits:
-            bound_circ = circ.assign_parameters(
-                {p: param_dict.get(p.vector.name, [0])[0] for p in circ.parameters}, inplace=False
-            )
+            # Bind only parameters that exist in this circuit
+            params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
+
+            if params_to_bind:
+                bound_circ = circ.assign_parameters(params_to_bind, inplace=False)
+            else:
+                bound_circ = circ
+
             # Add measurements if not present
             if bound_circ.num_clbits == 0:
                 bound_circ.measure_all()
+
             bound_circuits.append(bound_circ)
 
         # Run sampler
         job = self._sampler.run(bound_circuits, shots=self._shots)
         result = job.result()
 
-        # Extract counts
+        # Extract counts from PrimitiveResult
+        counts_list = []
+        for pub_result in result:
+            # Get BitArray data
+            bit_array = pub_result.data.meas
+
+            # Convert BitArray to counts dictionary
+            counts = bit_array.get_counts()
+            counts_list.append(counts)
+
+        # Return format
         if len(bound_circuits) == 1:
-            return result.quasi_dists[0].binary_probabilities()
+            return counts_list[0]
         else:
-            return [qd.binary_probabilities() for qd in result.quasi_dists]
+            return counts_list
 
     def statevector(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
@@ -412,29 +440,28 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             Statevector(s) as numpy array(s).
         """
-        # Convert to OpTree format (for consistent handling)
-        if isinstance(circuit, List):
-            circuit_tree = OpTreeList(
-                [
-                    OpTreeCircuit(c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c)
-                    for c in circuit
-                ]
-            )
-            circuits = [child.circuit for child in circuit_tree.children]
-        else:
-            circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-            circuits = [circ]
+        # Convert to OpTree format
+        circuit_tree, _ = self._convert_to_optree(circuit, operator=None)
 
-        # Prepare parameter dictionary
-        param_dict = self._prepare_parameter_dict(**parameter_values)
+        # Prepare parameter dictionary (only for circuits)
+        circuit_dict, _ = self._prepare_parameter_dicts(circuit, operator=None, **parameter_values)
+
+        # Extract circuits
+        if isinstance(circuit_tree, OpTreeCircuit):
+            circuits = [circuit_tree.circuit]
+        else:
+            circuits = [child.circuit for child in circuit_tree.children]
 
         # Compute statevectors
         statevectors = []
         for circ in circuits:
             # Bind parameters
-            bound_circ = circ.assign_parameters(
-                {p: param_dict.get(p.vector.name, [0])[0] for p in circ.parameters}, inplace=False
-            )
+            params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
+
+            if params_to_bind:
+                bound_circ = circ.assign_parameters(params_to_bind, inplace=False)
+            else:
+                bound_circ = circ
 
             # Get statevector
             sv = Statevector(bound_circ)

@@ -8,6 +8,8 @@ from qiskit.quantum_info import Statevector
 from qiskit.circuit import ParameterVectorElement
 import numpy as np
 
+from executor.qiskit.optree import OpTreeDerivative
+from executor.qiskit.optree import OpTreeEvaluate
 from executor.qiskit.optree.optree import (
     OpTree,
     OpTreeCircuit,
@@ -213,7 +215,7 @@ class QiskitExecutor(ExecutorBase):
         param_dict = self._prepare_parameter_dict(circuit, operator, **parameter_values)
 
         # Use OpTree evaluation with Estimator
-        result = OpTree.evaluate.evaluate_with_estimator(
+        result = OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
             operator=operator_tree,
             dictionary_circuit=param_dict,
@@ -277,11 +279,11 @@ class QiskitExecutor(ExecutorBase):
         expectation_tree = OpTree.gen_expectation_tree(circuit_tree, operator_tree)
 
         # Calculate derivative using OpTree
-        derivative_tree = OpTree.derivative.differentiate(expectation_tree, params_to_diff)
+        derivative_tree = OpTreeDerivative.differentiate(expectation_tree, params_to_diff)
 
         # Evaluate the derivative tree
         if len(params_to_diff) == 1 and len(derivative_params) == 1:
-            result = OpTree.evaluate.evaluate_tree_with_estimator(
+            result = OpTreeEvaluate.evaluate_tree_with_estimator(
                 expectation_tree=derivative_tree,
                 dictionary=param_dict,
                 estimator=self._estimator,
@@ -298,7 +300,7 @@ class QiskitExecutor(ExecutorBase):
                 else:
                     deriv_subtree = derivative_tree
 
-                result = OpTree.evaluate.evaluate_tree_with_estimator(
+                result = OpTreeEvaluate.evaluate_tree_with_estimator(
                     expectation_tree=deriv_subtree,
                     dictionary=param_dict,
                     estimator=self._estimator,

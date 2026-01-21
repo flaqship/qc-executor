@@ -454,14 +454,6 @@ def _simplify_operator(
 class OpTree:
     """Static class containing functions for working with OpTrees objects."""
 
-    from .optree_derivative import OpTreeDerivative
-
-    derivative = OpTreeDerivative
-
-    from .optree_evaluate import OpTreeEvaluate
-
-    evaluate = OpTreeEvaluate
-
     @staticmethod
     def hash_circuit(circuit: QuantumCircuit) -> tuple:
         """Hashes a circuit using the qiskit _circuit_key function.

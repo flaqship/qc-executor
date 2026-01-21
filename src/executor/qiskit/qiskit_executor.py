@@ -247,15 +247,15 @@ class QiskitExecutor(ExecutorBase):
             Derivative values.
         """
 
+        # If no derivative parameters specified, return expectation value
+        if len(derivative_params) == 0:
+            return self.expectation_value(circuit, operator, **parameter_values)
+
         # Convert to OpTree format
         circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
 
         # Prepare parameter dictionary
-        param_dict = self._prepare_parameter_dict(**parameter_values)
-
-        # If no derivative parameters specified, return expectation value
-        if len(derivative_params) == 0:
-            return self.expectation_value(circuit, operator, **parameter_values)
+        param_dict = self._prepare_parameter_dict(circuit, operator, **parameter_values)
 
         # Build list of parameters to differentiate
         if isinstance(circuit, list):
@@ -275,39 +275,68 @@ class QiskitExecutor(ExecutorBase):
             else:
                 raise ValueError(f"Unknown derivative parameter type: {type(dp)}")
 
-        # Generate expectation value tree
-        expectation_tree = OpTree.gen_expectation_tree(circuit_tree, operator_tree)
+        # Differentiate circuit
+        circuit_derivative = OpTreeDerivative.differentiate(circuit_tree, params_to_diff)
+        # Differentiate operator
+        operator_derivative = OpTreeDerivative.differentiate(operator_tree, params_to_diff)
 
-        # Calculate derivative using OpTree
-        derivative_tree = OpTreeDerivative.differentiate(expectation_tree, params_to_diff)
+        results_list = []
 
-        # Evaluate the derivative tree
-        if len(params_to_diff) == 1 and len(derivative_params) == 1:
-            result = OpTreeEvaluate.evaluate_tree_with_estimator(
-                expectation_tree=derivative_tree,
-                dictionary=param_dict,
+        num_params = len(params_to_diff)
+
+        for i in range(num_params):
+            # Extract derivative
+            if isinstance(circuit_derivative, OpTreeList) and len(circuit_derivative.children) > 0:
+                circ_deriv_i = (
+                    circuit_derivative.children[i]
+                    if i < len(circuit_derivative.children)
+                    else circuit_tree
+                )
+            else:
+                circ_deriv_i = circuit_derivative if i == 0 else circuit_tree
+
+            if (
+                isinstance(operator_derivative, OpTreeList)
+                and len(operator_derivative.children) > 0
+            ):
+                op_deriv_i = (
+                    operator_derivative.children[i]
+                    if i < len(operator_derivative.children)
+                    else operator_tree
+                )
+            else:
+                op_deriv_i = operator_derivative if i == 0 else operator_tree
+
+            result1 = OpTreeEvaluate.evaluate_with_estimator(
+                circuit=circ_deriv_i,
+                operator=operator_tree,
+                dictionary_circuit=param_dict,
+                dictionary_operator=param_dict,
                 estimator=self._estimator,
                 detect_duplicates=True,
             )
-            return result
+
+            result2 = 0.0
+            if operator_tree != op_deriv_i:
+                result2 = OpTreeEvaluate.evaluate_with_estimator(
+                    circuit=circuit_tree,
+                    operator=op_deriv_i,
+                    dictionary_circuit=param_dict,
+                    dictionary_operator=param_dict,
+                    estimator=self._estimator,
+                    detect_duplicates=True,
+                )
+
+            results_list.append(result1 + result2)
+
+        if len(derivative_params) == 1:
+            return results_list[0] if len(results_list) > 0 else 0.0
         else:
             # Multiple parameters - return dict
             result_dict = {}
             for i, dp in enumerate(derivative_params):
-                # Extract the i-th derivative from the tree
-                if hasattr(derivative_tree, "children"):
-                    deriv_subtree = derivative_tree.children[i]
-                else:
-                    deriv_subtree = derivative_tree
-
-                result = OpTreeEvaluate.evaluate_tree_with_estimator(
-                    expectation_tree=deriv_subtree,
-                    dictionary=param_dict,
-                    estimator=self._estimator,
-                    detect_duplicates=True,
-                )
-                result_dict[dp] = result
-
+                if i < len(results_list):
+                    result_dict[dp] = results_list[i]
             return result_dict
 
     def sample(

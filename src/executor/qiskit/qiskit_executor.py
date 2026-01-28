@@ -3,7 +3,12 @@ from executor.base.circuit_base import QuantumCircuitBase
 from executor.base.executor_base import ExecutorBase
 from executor.base.operator_base import QuantumOperatorBase
 from qiskit_aer import AerSimulator, StatevectorSimulator
-from qiskit.primitives import BackendEstimatorV2, BackendSamplerV2
+from qiskit.primitives import (
+    BackendEstimatorV2,
+    BackendSamplerV2,
+    StatevectorEstimator,
+    StatevectorSampler,
+)
 from qiskit.quantum_info import Statevector
 from qiskit.circuit import ParameterVectorElement
 import numpy as np
@@ -43,17 +48,22 @@ class QiskitExecutor(ExecutorBase):
             shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
         )
 
-        self._backend = backend
-
         # Initialize backend and primitives
         if backend == "statevector":
-            self._backend = StatevectorSimulator()
-        else:
+            if shots is None:
+                self._estimator = StatevectorEstimator()
+                self._sampler = StatevectorSampler()
+                self._backend = None
+            else:
+                self._backend = StatevectorSimulator()
+                self._estimator = BackendEstimatorV2(backend=self._backend)
+                self._sampler = BackendSamplerV2(backend=self._backend)
+        elif backend == "aer":
             self._backend = AerSimulator()
-
-        # Initialize Qiskit primitives
-        self._estimator = BackendEstimatorV2(backend=self._backend)
-        self._sampler = BackendSamplerV2(backend=self._backend)
+            self._estimator = BackendEstimatorV2(self._backend)
+            self._sampler = BackendSamplerV2(self._backend)
+        else:
+            raise ValueError(f"Unknown backend: {backend}")
 
         if seed is not None:
             self._random = np.random.default_rng(seed)

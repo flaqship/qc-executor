@@ -1,20 +1,14 @@
-import numpy as np
-from typing import Union, List
-from sympy import lambdify, sympify
-
-from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit import Clbit, ParameterExpression
-from qiskit.quantum_info import SparsePauliOp
-
-from qiskit.compiler import transpile
+from typing import Callable
 
 import pennylane as qml
 import pennylane.numpy as pnp
+from qiskit.circuit import Clbit, ParameterExpression
+from qiskit.compiler import transpile
+from sympy import lambdify, sympify
 
 from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
-
-from ..utils.decompose_to_std import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
+from ..utils.decompose_to_std import decompose_to_std
 
 
 def _get_sympy_interface():
@@ -99,8 +93,8 @@ def _get_sympy_interface():
 class PennyLaneCircuit:
 
     def __init__(
-        self,
-        circuit: QuantumCircuit,
+            self,
+            circuit: QuantumCircuit,
     ) -> None:
 
         # Transpile circuit to supported basis gates and expand blocks automatically
@@ -131,7 +125,7 @@ class PennyLaneCircuit:
         return self._num_qubits
 
     @property
-    def pennylane_circuit(self) -> callable:
+    def pennylane_circuit(self) -> Callable:
         """PennyLane circuit that can be called with parameters"""
         return self._pennylane_circuit
 
@@ -146,11 +140,11 @@ class PennyLaneCircuit:
         return self._pennylane_gates_parameters_dimensions
 
     @property
-    def hash(self) -> str:
+    def hash(self) -> int:
         """Hashable object of the circuit and observable for caching"""
         return hash(str(self._qiskit_circuit))
 
-    def get_pennylane_circuit(self) -> callable:
+    def get_pennylane_circuit(self) -> Callable:
         """Builds and returns the PennyLane circuit as callable function"""
         self._pennylane_circuit = self.build_pennylane_circuit()
         return self._pennylane_circuit
@@ -158,7 +152,7 @@ class PennyLaneCircuit:
     def __call__(self, *args, **kwargs):
         return self._pennylane_circuit(*args, **kwargs)
 
-    def _build_circuit_instructions(self, circuit: QuantumCircuit) -> tuple:
+    def _build_circuit_instructions(self, circuit: QuantumCircuit) -> None:
         """
         Function to build the instructions for the PennyLane circuit from the Qiskit circuit.
 
@@ -302,7 +296,7 @@ class PennyLaneCircuit:
                             # conditions involving multiple classical bits -> convert to integer
                             val = 0
                             for j in range(len(self._pennylane_conditions[i][0])):
-                                val += 2**j * measurements[self._pennylane_conditions[i][0][j]]
+                                val += 2 ** j * measurements[self._pennylane_conditions[i][0][j]]
                         else:
                             val = measurements[self._pennylane_conditions[i][0]]
 

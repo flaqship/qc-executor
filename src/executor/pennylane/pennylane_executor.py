@@ -1,20 +1,18 @@
-import numpy as np
-import re
 import copy
-from typing import List, Union
+import re
 from collections import Counter
 from itertools import product
+from typing import List, Union
+
+import numpy as np
+import pennylane as qml
+import pennylane.numpy as pnp
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
-import pennylane as qml
-import pennylane.numpy as pnp
-
-from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
-
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_observable import PennyLaneObservable
-
+from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
 from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
@@ -30,12 +28,12 @@ class PennylaneExecutor(ExecutorBase):
     """
 
     def __init__(
-        self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
-        caching: Union[bool, None] = None,
-        cache_dir: str = "cache",
+            self,
+            shots: Union[int, None] = None,
+            seed: Union[int, None] = None,
+            log_file: Union[str, None] = None,
+            caching: Union[bool, None] = None,
+            cache_dir: str = "cache",
     ):
 
         super().__init__(
@@ -109,7 +107,7 @@ class PennylaneExecutor(ExecutorBase):
         return qulacs_observables, multiple_operators
 
     def expectation_value(
-        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
+            self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
         Calculate the expectation value of the operator with respect to the circuit.
@@ -178,7 +176,7 @@ class PennylaneExecutor(ExecutorBase):
                 def circuit_func(*args):
                     pennylane_circuit.build_pennylane_circuit()(*args)
                     return pennylane_observable.build_pennylane_observable()(
-                        *args[len(pennylane_circuit.parameter_names) :]
+                        *args[len(pennylane_circuit.parameter_names):]
                     )
 
                 for cp in circuit_parameter_tuples:
@@ -211,16 +209,16 @@ class PennylaneExecutor(ExecutorBase):
         return values
 
     def expectation_value_derivatives(
-        self,
-        circuit: QuantumCircuitBase,
-        operator: QuantumOperatorBase,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
-        **parameter_values,
+            self,
+            circuit: QuantumCircuitBase,
+            operator: QuantumOperatorBase,
+            *values: Union[
+                str,
+                ParameterVector,
+                ParameterVectorElement,
+                tuple,
+            ],
+            **parameter_values,
     ) -> Union[np.array, dict]:
         """
         Calculate the derivatives of the expectation value with respect to the parameters
@@ -242,7 +240,7 @@ class PennylaneExecutor(ExecutorBase):
         """
 
         def remove_brackets(s: str) -> str:
-            return re.sub(r"\[.*?\]", "", s)
+            return re.sub(r"\[.*?]", "", s)
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         pennylane_observables, multiple_operators = self._preprocess_operators(operator)
@@ -300,7 +298,7 @@ class PennylaneExecutor(ExecutorBase):
         def circuit_func(*args):
             pennylane_circuit.build_pennylane_circuit()(*args)
             return pennylane_observable.build_pennylane_observable()(
-                *args[len(pennylane_circuit.parameter_names) :]
+                *args[len(pennylane_circuit.parameter_names):]
             )
 
         # Create a mapping from parameter names to their argument indices for
@@ -345,7 +343,7 @@ class PennylaneExecutor(ExecutorBase):
                     if todo_parameter_name == todo_parameter:
                         slicing.append(None)
                     else:
-                        slicing.append(int(todo_parameter[todo_parameter.index("[") + 1 : -1]))
+                        slicing.append(int(todo_parameter[todo_parameter.index("[") + 1: -1]))
 
                     if todo_parameter_name not in argnum_dict:
                         raise ValueError(
@@ -363,7 +361,7 @@ class PennylaneExecutor(ExecutorBase):
                             pnp.array(
                                 observable_parameters_adjusted[
                                     arg_index - len(circuit_parameters)
-                                ],
+                                    ],
                                 requires_grad=True,
                             )
                         )

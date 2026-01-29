@@ -1,4 +1,16 @@
+"""
+Test suite for PennyLane circuit conversion.
+
+This module tests the PennyLaneCircuit class which converts Qiskit quantum circuits
+to PennyLane format, including:
+- Non-parametric gates (H, X, Y, Z, CNOT, etc.)
+- Parametric gates (RX, RY, RZ, etc.)
+- Parameter expressions
+- Circuit properties and methods
+"""
+
 import numpy as np
+import pytest
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit
@@ -8,219 +20,326 @@ from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 class TestPennyLaneCircuit:
     """Test suite for PennyLane circuit conversion."""
 
-    def test_simple_circuit_initialization(self):
-        """Test basic circuit initialization."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
+    # Basic Circuit Tests (Non-Parametric Gates)
 
+    def test_empty_circuit(self):
+        """Test conversion of an empty circuit."""
+        qc = QuantumCircuit(2)
         plc = PennyLaneCircuit(qc)
+
         assert plc.num_qubits == 2
-        assert plc is not None
+        assert len(plc.parameter_names) == 0
+        assert isinstance(plc.hash, int)
 
-    def test_circuit_with_parameters(self):
-        """Test circuit with parameters."""
-        x = ParameterVector('x', 2)
-        qc = QuantumCircuit(2)
-        qc.rx(0, x[0])
-        qc.ry(1, x[1])
-
-        plc = PennyLaneCircuit(qc)
-        assert plc.num_qubits == 2
-        assert 'x' in plc.parameter_names
-        assert plc.parameter_dimensions['x'] == 2
-
-    def test_circuit_with_multiple_parameter_vectors(self):
-        """Test circuit with multiple parameter vectors."""
-        x = ParameterVector('x', 2)
-        p = ParameterVector('p', 2)
-
-        qc = QuantumCircuit(2)
-        qc.rx(0, x[0])
-        qc.ry(1, p[0])
-        qc.rz(0, x[1])
-        qc.rz(1, p[1])
-
-        plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
-        assert 'p' in plc.parameter_names
-        assert plc.parameter_dimensions['x'] == 2
-        assert plc.parameter_dimensions['p'] == 2
-
-    def test_circuit_with_parametrized_gate(self):
-        """Test circuit with parametrized two-qubit gates."""
-        x = ParameterVector('x', 1)
-        p = ParameterVector('p', 2)
-
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cry(0, 1, p[0] * x[0])
-        qc.crx(1, 0, p[1] * x[0])
-
-        plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
-        assert 'p' in plc.parameter_names
-
-    def test_build_pennylane_circuit(self):
-        """Test building executable PennyLane circuit."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-
-        plc = PennyLaneCircuit(qc)
-        pennylane_circuit = plc.build_pennylane_circuit()
-
-        assert callable(pennylane_circuit)
-
-    def test_get_pennylane_circuit(self):
-        """Test get_pennylane_circuit method."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-
-        plc = PennyLaneCircuit(qc)
-        pennylane_circuit = plc.get_pennylane_circuit()
-
-        assert callable(pennylane_circuit)
-
-    def test_circuit_hash_property(self):
-        """Test that circuit has a hash property."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-
-        plc = PennyLaneCircuit(qc)
-        hash_value = plc.hash
-
-        assert hash_value is not None
-        assert isinstance(hash_value, int)
-
-    def test_circuit_with_single_qubit_gates(self):
-        """Test circuit with various single-qubit gates."""
+    def test_single_hadamard_gate(self):
+        """Test circuit with a single Hadamard gate."""
         qc = QuantumCircuit(1)
         qc.h(0)
-        qc.x(0)
-        qc.y(0)
-        qc.z(0)
-        qc.s(0)
-        qc.t(0)
 
         plc = PennyLaneCircuit(qc)
         assert plc.num_qubits == 1
+        assert len(plc.parameter_names) == 0
 
-    def test_circuit_with_two_qubit_gates(self):
-        """Test circuit with various two-qubit gates."""
+    def test_bell_state_circuit(self):
+        """Test Bell state preparation: H(0), CNOT(0,1)."""
         qc = QuantumCircuit(2)
+        qc.h(0)
         qc.cx(0, 1)
-        qc.cy(0, 1)
-        qc.cz(0, 1)
-        qc.swap(0, 1)
 
         plc = PennyLaneCircuit(qc)
         assert plc.num_qubits == 2
+        assert len(plc.parameter_names) == 0
 
-    def test_circuit_with_rotation_gates(self):
-        """Test circuit with rotation gates."""
-        theta = np.pi / 4
+    @pytest.mark.parametrize("gate_name", ["x", "y", "z", "s", "t"])
+    def test_single_qubit_gates(self, gate_name):
+        """Test individual single-qubit Pauli and phase gates."""
         qc = QuantumCircuit(1)
-        qc.rx(0, theta)
-        qc.ry(0, theta)
-        qc.rz(0, theta)
+        getattr(qc, gate_name)(0)
 
         plc = PennyLaneCircuit(qc)
         assert plc.num_qubits == 1
+        assert len(plc.parameter_names) == 0
 
-    def test_circuit_with_controlled_rotation_gates(self):
-        """Test circuit with controlled rotation gates."""
-        theta = np.pi / 4
+    @pytest.mark.parametrize("gate_name,num_qubits", [
+        ("cx", 2),  # CNOT
+        ("cy", 2),  # Controlled-Y
+        ("cz", 2),  # Controlled-Z
+        ("swap", 2),  # SWAP
+    ])
+    def test_two_qubit_gates(self, gate_name, num_qubits):
+        """Test two-qubit gates."""
+        qc = QuantumCircuit(num_qubits)
+        getattr(qc, gate_name)(0, 1)
+
+        plc = PennyLaneCircuit(qc)
+        assert plc.num_qubits == num_qubits
+        assert len(plc.parameter_names) == 0
+
+    def test_multi_qubit_chain(self):
+        """Test a chain of CNOT gates across multiple qubits."""
+        qc = QuantumCircuit(4)
+        qc.h(0)
+        qc.cx(0, 1)
+        qc.cx(1, 2)
+        qc.cx(2, 3)
+
+        plc = PennyLaneCircuit(qc)
+        assert plc.num_qubits == 4
+
+    # Parametric Gates Tests
+
+    @pytest.mark.parametrize("theta,gate_name", [
+        (np.pi / 4, "rx"),
+        (np.pi / 2, "ry"),
+        (np.pi, "rz"),
+        (0.5, "rx"),
+        (2 * np.pi, "ry"),
+    ])
+    def test_single_qubit_rotation_gates_with_float(self, theta, gate_name):
+        """Test single-qubit rotation gates with float angle."""
+        qc = QuantumCircuit(1)
+        getattr(qc, gate_name)(0, theta)
+
+        plc = PennyLaneCircuit(qc)
+        assert plc.num_qubits == 1
+        # Float parameters are not tracked as parameters
+        assert len(plc.parameter_names) == 0
+
+    @pytest.mark.parametrize("theta,gate_name", [
+        (np.pi / 4, "crx"),
+        (np.pi / 2, "cry"),
+        (np.pi, "crz"),
+    ])
+    def test_controlled_rotation_gates_with_float(self, theta, gate_name):
+        """Test controlled rotation gates with float angle."""
         qc = QuantumCircuit(2)
-        qc.crx(0, 1, theta)
-        qc.cry(0, 1, theta)
-        qc.crz(0, 1, theta)
+        getattr(qc, gate_name)(0, 1, theta)
 
         plc = PennyLaneCircuit(qc)
         assert plc.num_qubits == 2
+        assert len(plc.parameter_names) == 0
 
-    def test_circuit_with_phase_gates(self):
-        """Test circuit with phase gates."""
-        theta = np.pi / 4
-        qc = QuantumCircuit(2)
+    @pytest.mark.parametrize("theta", [np.pi / 4, np.pi / 2, np.pi, 0.25])
+    def test_phase_gate_with_float(self, theta):
+        """Test phase shift gate with float angle."""
+        qc = QuantumCircuit(1)
         qc.p(0, theta)
+
+        plc = PennyLaneCircuit(qc)
+        assert plc.num_qubits == 1
+        assert len(plc.parameter_names) == 0
+
+    @pytest.mark.parametrize("theta", [np.pi / 4, np.pi / 2])
+    def test_controlled_phase_gate_with_float(self, theta):
+        """Test controlled phase shift gate with float angle."""
+        qc = QuantumCircuit(2)
         qc.cp(0, 1, theta)
 
         plc = PennyLaneCircuit(qc)
         assert plc.num_qubits == 2
+        assert len(plc.parameter_names) == 0
 
-    def test_circuit_with_parameter_expression(self):
-        """Test circuit with parameter expressions."""
+    # Parameter Vector Tests
+
+    def test_single_parameter(self):
+        """Test circuit with a single parameter."""
+        x = ParameterVector('x', 1)
+        qc = QuantumCircuit(1)
+        qc.rx(0, x[0])
+
+        plc = PennyLaneCircuit(qc)
+        assert 'x' in plc.parameter_names
+        assert plc.parameter_dimensions['x'] == 1
+
+    def test_multiple_parameters_same_vector(self):
+        """Test circuit with multiple parameters from the same vector."""
+        x = ParameterVector('x', 3)
+        qc = QuantumCircuit(3)
+        qc.rx(0, x[0])
+        qc.ry(1, x[1])
+        qc.rz(2, x[2])
+
+        plc = PennyLaneCircuit(qc)
+        assert 'x' in plc.parameter_names
+        assert plc.parameter_dimensions['x'] == 3
+
+    def test_multiple_parameter_vectors(self):
+        """Test circuit with multiple different parameter vectors."""
+        x = ParameterVector('x', 2)
+        y = ParameterVector('y', 1)
+        qc = QuantumCircuit(3)
+        qc.rx(0, x[0])
+        qc.ry(1, x[1])
+        qc.rz(2, y[0])
+
+        plc = PennyLaneCircuit(qc)
+        assert 'x' in plc.parameter_names
+        assert 'y' in plc.parameter_names
+        assert plc.parameter_dimensions['x'] == 2
+        assert plc.parameter_dimensions['y'] == 1
+
+    def test_parametric_two_qubit_gates(self):
+        """Test two-qubit gates with parameters."""
+        theta = ParameterVector('theta', 3)
+        qc = QuantumCircuit(2)
+        qc.crx(0, 1, theta[0])
+        qc.cry(0, 1, theta[1])
+        qc.crz(0, 1, theta[2])
+
+        plc = PennyLaneCircuit(qc)
+        assert 'theta' in plc.parameter_names
+        assert plc.parameter_dimensions['theta'] == 3
+
+    # Parameter Expression Tests
+
+    def test_parameter_arithmetic_multiplication(self):
+        """Test parameter expression with multiplication: 2 * x[0]."""
         x = ParameterVector('x', 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0])
-        qc.ry(0, x[0] + 0.5)
 
         plc = PennyLaneCircuit(qc)
         assert 'x' in plc.parameter_names
 
-    def test_circuit_num_qubits_property(self):
-        """Test num_qubits property."""
-        for n_qubits in [1, 2, 3, 5]:
-            qc = QuantumCircuit(n_qubits)
-            plc = PennyLaneCircuit(qc)
-            assert plc.num_qubits == n_qubits
+    def test_parameter_arithmetic_addition(self):
+        """Test parameter expression with addition: x[0] + 0.5."""
+        x = ParameterVector('x', 1)
+        qc = QuantumCircuit(1)
+        qc.rx(0, x[0] + 0.5)
 
-    def test_circuit_parameter_names_property(self):
-        """Test parameter_names property."""
-        x = ParameterVector('x', 2)
-        y = ParameterVector('y', 3)
+        plc = PennyLaneCircuit(qc)
+        assert 'x' in plc.parameter_names
 
+    def test_parameter_arithmetic_subtraction(self):
+        """Test parameter expression with subtraction: x[0] - 0.2."""
+        x = ParameterVector('x', 1)
+        qc = QuantumCircuit(1)
+        qc.rx(0, x[0] - 0.2)
+
+        plc = PennyLaneCircuit(qc)
+        assert 'x' in plc.parameter_names
+
+    def test_parameter_arithmetic_division(self):
+        """Test parameter expression with division: x[0] / 2."""
+        x = ParameterVector('x', 1)
+        qc = QuantumCircuit(1)
+        qc.rx(0, x[0] / 2)
+
+        plc = PennyLaneCircuit(qc)
+        assert 'x' in plc.parameter_names
+
+    def test_parameter_multiplication_between_vectors(self):
+        """Test parameter expression multiplying two different vectors: x[0] * y[0]."""
+        x = ParameterVector('x', 1)
+        y = ParameterVector('y', 1)
         qc = QuantumCircuit(2)
-        qc.rx(0, x[0])
-        qc.ry(1, y[0])
+        qc.h(0)
+        qc.crx(0, 1, x[0] * y[0])
 
         plc = PennyLaneCircuit(qc)
         assert 'x' in plc.parameter_names
         assert 'y' in plc.parameter_names
 
-    def test_circuit_parameter_dimensions_property(self):
-        """Test parameter_dimensions property."""
-        x = ParameterVector('x', 3)
-
-        qc = QuantumCircuit(2)
-        qc.rx(0, x[0])
-        qc.ry(1, x[1])
-        qc.rz(0, x[2])
-
-        plc = PennyLaneCircuit(qc)
-        assert plc.parameter_dimensions['x'] == 3
-
-    def test_circuit_call_method(self):
-        """Test that circuit can be called directly."""
+    def test_complex_parameter_expression(self):
+        """Test complex parameter expression: 2 * x[0] - 1."""
         x = ParameterVector('x', 1)
         qc = QuantumCircuit(1)
-        qc.rx(0, x[0])
+        qc.rx(0, 2 * x[0] - 1)
 
         plc = PennyLaneCircuit(qc)
-        plc._pennylane_circuit = plc.build_pennylane_circuit()
+        assert 'x' in plc.parameter_names
 
-        # Call should work (though may not produce output without device)
-        assert callable(plc)
+    # Properties and Methods Tests
 
-
-    def test_empty_circuit(self):
-        """Test empty circuit."""
-        qc = QuantumCircuit(2)
-
+    def test_num_qubits_property(self):
+        """Test that num_qubits property returns correct value."""
+        qc = QuantumCircuit(5)
         plc = PennyLaneCircuit(qc)
-        assert plc.num_qubits == 2
-        assert len(plc.parameter_names) == 0
+        assert plc.num_qubits == 5
 
-    def test_circuit_with_no_parameters(self):
-        """Test circuit without parameters."""
+    def test_parameter_names_property_empty(self):
+        """Test parameter_names property for non-parametric circuit."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        qc.x(1)
-
         plc = PennyLaneCircuit(qc)
+
+        assert isinstance(plc.parameter_names, list)
         assert len(plc.parameter_names) == 0
-        assert len(plc.parameter_dimensions) == 0
+
+    def test_parameter_names_property_with_params(self):
+        """Test parameter_names property for parametric circuit."""
+        x = ParameterVector('x', 2)
+        y = ParameterVector('y', 1)
+        qc = QuantumCircuit(2)
+        qc.rx(0, x[0])
+        qc.ry(1, x[1])
+        qc.rz(0, y[0])
+        plc = PennyLaneCircuit(qc)
+
+        assert 'x' in plc.parameter_names
+        assert 'y' in plc.parameter_names
+
+    def test_parameter_dimensions_property(self):
+        """Test parameter_dimensions property."""
+        x = ParameterVector('x', 3)
+        qc = QuantumCircuit(3)
+        qc.rx(0, x[0])
+        qc.rx(1, x[1])
+        qc.rx(2, x[2])
+        plc = PennyLaneCircuit(qc)
+
+        assert isinstance(plc.parameter_dimensions, dict)
+        assert plc.parameter_dimensions['x'] == 3
+
+    def test_hash_property(self):
+        """Test that hash property returns a valid integer."""
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        plc = PennyLaneCircuit(qc)
+
+        hash_value = plc.hash
+        assert isinstance(hash_value, int)
+
+    def test_hash_consistency(self):
+        """Test that hash remains consistent for the same circuit."""
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        plc = PennyLaneCircuit(qc)
+
+        hash1 = plc.hash
+        hash2 = plc.hash
+        assert hash1 == hash2
+
+    def test_build_pennylane_circuit_method(self):
+        """Test that build_pennylane_circuit() returns callable."""
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        plc = PennyLaneCircuit(qc)
+
+        pennylane_circuit = plc.build_pennylane_circuit()
+        assert callable(pennylane_circuit)
+
+    def test_get_pennylane_circuit_method(self):
+        """Test that get_pennylane_circuit() returns callable and sets property."""
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        plc = PennyLaneCircuit(qc)
+
+        pennylane_circuit = plc.get_pennylane_circuit()
+        assert callable(pennylane_circuit)
+        assert hasattr(plc, '_pennylane_circuit')
+
+    def test_call_method(self):
+        """Test that PennyLaneCircuit instance is callable after building."""
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        plc = PennyLaneCircuit(qc)
+
+        plc._pennylane_circuit = plc.build_pennylane_circuit()
+        assert callable(plc)

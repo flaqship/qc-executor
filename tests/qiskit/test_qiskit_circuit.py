@@ -11,8 +11,7 @@ def _make_parametrized_circuit(length=3, vector_name="vec"):
     vec = ParameterVector(vector_name, length)
     qc = QuantumCircuit(1)
     for i in range(length):
-        qc.ry(0, vec[i])  # use each parameter so it is present in circuit.parameters
-    # return circuit and the ParameterVectorElement list (each has .vector and .index)
+        qc.ry(0, vec[i])
     return qc
 
 

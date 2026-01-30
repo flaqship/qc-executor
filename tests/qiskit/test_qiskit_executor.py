@@ -1,8 +1,6 @@
 import numpy as np
-import pytest
 from qiskit.circuit import ParameterVector
 
-from executor.parameters import Parameters
 from executor.qiskit.qiskit_executor import QiskitExecutor
 from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor import QuantumCircuit

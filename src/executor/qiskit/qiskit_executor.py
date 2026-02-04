@@ -1,17 +1,18 @@
+import numpy as np
 from typing import List, Tuple, Union
+from packaging import version
+
 from executor.base.circuit_base import QuantumCircuitBase
 from executor.base.executor_base import ExecutorBase
 from executor.base.operator_base import QuantumOperatorBase
-from qiskit_aer import AerSimulator, StatevectorSimulator
+from qiskit_aer import AerSimulator
 from qiskit.primitives import (
-    BackendEstimatorV2,
-    BackendSamplerV2,
     StatevectorEstimator,
     StatevectorSampler,
 )
+from qiskit import __version__ as qiskit_version
 from qiskit.quantum_info import Statevector
-from qiskit.circuit import ParameterVectorElement
-import numpy as np
+
 
 from executor.qiskit.optree import OpTreeDerivative
 from executor.qiskit.optree import OpTreeEvaluate
@@ -21,6 +22,29 @@ from executor.qiskit.optree.optree import (
     OpTreeNodeBase,
     OpTreeOperator,
 )
+
+QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
+QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
+
+if QISKIT_SMALLER_1_2:
+    # pylint: disable=ungrouped-imports
+    from qiskit.primitives import (
+        BackendEstimator as BackendEstimator,
+        BackendSampler as BackendSampler,
+    )
+elif QISKIT_SMALLER_2_0:
+    # pylint: disable=ungrouped-imports
+    from qiskit.primitives import (
+        BackendEstimatorV2 as BackendEstimator,
+        BackendSamplerV2 as BackendSampler,
+    )
+    from qiskit.circuit import ParameterExpression as ParameterVectorElement
+else:
+    from qiskit.primitives import (
+        BackendEstimatorV2 as BackendEstimator,
+        BackendSamplerV2 as BackendSampler,
+    )
+    from qiskit.circuit import ParameterVectorElement
 
 
 class QiskitExecutor(ExecutorBase):
@@ -55,13 +79,21 @@ class QiskitExecutor(ExecutorBase):
                 self._sampler = StatevectorSampler()
                 self._backend = None
             else:
-                self._backend = StatevectorSimulator()
-                self._estimator = BackendEstimatorV2(backend=self._backend)
-                self._sampler = BackendSamplerV2(backend=self._backend)
+                self._backend = AerSimulator(method="statevector")
+                if QISKIT_SMALLER_2_0:
+                    self._estimator = BackendEstimator(backend=self._backend)
+                    self._sampler = BackendSampler(backend=self._backend)
+                else:
+                    self._estimator = BackendEstimator(backend=self._backend)
+                    self._sampler = BackendSampler(backend=self._backend)
         elif backend == "aer":
             self._backend = AerSimulator()
-            self._estimator = BackendEstimatorV2(self._backend)
-            self._sampler = BackendSamplerV2(self._backend)
+            if QISKIT_SMALLER_2_0:
+                self._estimator = BackendEstimator(self._backend)
+                self._sampler = BackendSampler(self._backend)
+            else:
+                self._estimator = BackendEstimator(backend=self._backend)
+                self._sampler = BackendSampler(backend=self._backend)
         else:
             raise ValueError(f"Unknown backend: {backend}")
 
@@ -219,6 +251,27 @@ class QiskitExecutor(ExecutorBase):
         operator_dict = _build_param_dict(operators) if operators else {}
 
         return circuit_dict, operator_dict
+
+    def _extract_counts(self, pub_result, n_qubits=None):
+        """
+        Extract counts from the primitive result object.
+        """
+        # --- Qiskit 2.x ---
+        if (
+            hasattr(pub_result, "__iter__")
+            and len(pub_result) > 0
+            and hasattr(pub_result[0], "data")
+        ):
+            first = pub_result[0]  # SamplerPubResult
+            meas = first.data.meas  # BitArray
+            return [meas.get_counts()]
+
+        # --- Qiskit 1.x ---
+        if hasattr(pub_result, "quasi_dists"):
+            qd = pub_result.quasi_dists[0]
+            shots = pub_result.metadata[0]["shots"]
+            counts = {format(k, f"0{n_qubits}b"): int(round(v * shots)) for k, v in qd.items()}
+            return [counts]
 
     def expectation_value(
         self,
@@ -421,17 +474,7 @@ class QiskitExecutor(ExecutorBase):
         job = self._sampler.run(bound_circuits, shots=self._shots)
         result = job.result()
 
-        # Extract counts from PrimitiveResult
-        counts_list = []
-        for pub_result in result:
-            # Get BitArray data
-            bit_array = pub_result.data.meas
-
-            # Convert BitArray to counts dictionary
-            counts = bit_array.get_counts()
-            counts_list.append(counts)
-
-        return counts_list
+        return self._extract_counts(result, circuit.num_qubits)
 
     def statevector(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values

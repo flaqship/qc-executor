@@ -9,6 +9,13 @@ from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression, Clbit
 from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
 from qiskit.primitives.base import SamplerResult
+from qiskit.primitives import (
+    BaseSamplerV1,
+    BaseSamplerV2,
+    BaseEstimatorV1,
+    BaseEstimatorV2,
+)
+
 from ...utils.decompose_to_std import decompose_to_std
 
 from .optree import (
@@ -42,15 +49,6 @@ else:
     def _pauli_expval_with_variance(counts, paulis):
         """Dummy function for Qiskit >= 2.0."""
         pass
-
-
-from ..executor import (
-    QISKIT_SMALLER_2_0,
-    BaseSamplerV1,
-    BaseEstimatorV1,
-    BaseSamplerV2,
-    BaseEstimatorV2,
-)
 
 
 def _check_tree_for_matrix_compatibility(element: Union[OpTreeNodeBase, OpTreeLeafBase]):

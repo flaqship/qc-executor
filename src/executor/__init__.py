@@ -1,6 +1,6 @@
 """A library for quantum machine learning following the scikit-learn standard."""
 
-from . import base, pennylane, qiskit, qulacs
+from . import base, pennylane, qiskit, qulacs, pauli_propagation
 from .quantum_circuit import QuantumCircuit
 from .quantum_operator import QuantumOperator
 from .parameters import Parameters
@@ -12,6 +12,7 @@ __all__ = [
     "pennylane",
     "qiskit",
     "qulacs",
+    "pauli_propagation",
     "QuantumCircuit",
     "QuantumOperator",
     "Parameters",

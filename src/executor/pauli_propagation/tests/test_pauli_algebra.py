@@ -37,9 +37,9 @@ class TestUintType:
         assert get_uint_type(17) == np.uint64
         assert get_uint_type(32) == np.uint64
 
-    def test_too_many_qubits(self):
-        with pytest.raises(ValueError, match="Too many qubits"):
-            get_uint_type(33)
+    def test_large_qubit_fallback(self):
+        assert get_uint_type(33) == int
+        assert get_uint_type(100) == int
 
 
 class TestSymbolConversion:

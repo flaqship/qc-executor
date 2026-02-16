@@ -35,7 +35,7 @@ def get_uint_type(nqubits: int):
     elif nbits <= 64:
         return np.uint64
     else:
-        raise ValueError(f"Too many qubits ({nqubits}). Maximum is 32 qubits (64 bits).")
+        return int
 
 
 def symbol_to_int(symbol: str) -> int:

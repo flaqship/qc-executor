@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from .gates import Gate, PauliRotation, CliffordGate
 from .pauli_types import PauliSum
 from .pauli_algebra import pauli_sum_product
+from .truncation import truncate_combined
 
 
 class PropagationCache:
@@ -139,6 +140,8 @@ def propagate(
     gates: List[Gate],
     observable: PauliSum,
     parameters: Optional[Dict[str, float]] = None,
+    max_weight: Optional[int] = None,
+    truncate_threshold: Optional[float] = None,
 ) -> PauliSum:
     """Propagate observable through circuit (Heisenberg picture).
 
@@ -151,6 +154,8 @@ def propagate(
         gates: List of gates (in circuit order)
         observable: Initial observable (PauliSum)
         parameters: Dict mapping parameter names to values
+        max_weight: Optional[int] = None,
+        truncate_threshold: Optional[float] = None,
 
     Returns:
         Evolved observable
@@ -158,6 +163,7 @@ def propagate(
     if parameters is None:
         parameters = {}
 
+    do_truncate = max_weight is not None or truncate_threshold is not None
     result = observable.copy()
 
     # Apply gates in reverse order (Heisenberg picture)
@@ -178,5 +184,14 @@ def propagate(
             result = propagate_single_gate(gate, result, param_value)
         else:
             result = propagate_single_gate(gate, result)
+
+        # Truncate after each gate to prevent term explosion
+        if do_truncate:
+            result, _ = truncate_combined(
+                result,
+                min_coeff=truncate_threshold if truncate_threshold else 1e-15,
+                max_weight=max_weight,
+                inplace=True,
+            )
 
     return result

@@ -236,9 +236,14 @@ class PauliPropagationExecutor(ExecutorBase):
         observable = convert_operator(operator, nqubits)
 
         # Propagate observable through circuit (Heisenberg picture)
-        propagated = propagate(gates, observable, bound_params)
+        # Pass truncation params so terms are pruned during propagation
+        propagated = propagate(
+            gates, observable, bound_params,
+            max_weight=self.max_weight,
+            truncate_threshold=self.truncate_threshold,
+        )
 
-        # Apply truncation if enabled
+        # Final truncation pass (cheap cleanup)
         if self.truncate_threshold is not None or self.max_weight is not None:
             propagated, stats = truncate_combined(
                 propagated,

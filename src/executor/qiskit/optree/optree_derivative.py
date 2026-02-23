@@ -19,6 +19,78 @@ from .optree import (
 )
 
 
+def _is_linear_in_parameter(
+    param_expr: ParameterExpression, parameter: ParameterExpression
+) -> bool:
+    """
+    Check if a parameter appears linearly in a parameter expression.
+
+    A parameter is linear if it appears with polynomial degree ≤ 1.
+    We check this by computing the second derivative - for linear expressions
+    the second derivative is always zero.
+
+    Args:
+        param_expr: The parameter expression to check (e.g., gate.params[0])
+        parameter: The parameter to check linearity for
+
+    Returns:
+        True if parameter appears linearly (degree ≤ 1), False otherwise
+    """
+    # If parameter not in expression, it's trivially linear (degree 0)
+    if parameter not in param_expr.parameters:
+        return True
+
+    # For linear expressions: d²f/dx² = 0
+    # First derivative
+    first_derivative = param_expr.gradient(parameter)
+
+    # If first derivative is a constant (not a ParameterExpression), it's linear
+    if not isinstance(first_derivative, ParameterExpression):
+        return True
+
+    # If first derivative still contains the parameter, check second derivative
+    if parameter not in first_derivative.parameters:
+        # First derivative doesn't contain parameter -> linear
+        return True
+
+    # Compute second derivative
+    second_derivative = first_derivative.gradient(parameter)
+
+    # Check if second derivative is zero (or very close to zero)
+    if isinstance(second_derivative, (int, float)):
+        return abs(second_derivative) < 1e-10
+    elif isinstance(second_derivative, ParameterExpression):
+        # If second derivative still has parameters, it's nonlinear
+        return False
+    else:
+        return True
+
+
+def _has_nonlinear_parameters(circuit: QuantumCircuit, parameter: ParameterExpression) -> bool:
+    """
+    Check if a parameter appears nonlinearly anywhere in the circuit.
+
+    Args:
+        circuit: The quantum circuit to check
+        parameter: The parameter to check for nonlinearity
+
+    Returns:
+        True if parameter appears nonlinearly, False otherwise
+    """
+    for inst in circuit.data:
+        if len(inst.operation.params) > 0:
+            param_expr = inst.operation.params[0]
+
+            # Check if it's a parameter expression and contains our parameter
+            if isinstance(param_expr, ParameterExpression):
+                if parameter in param_expr.parameters:
+                    # Check if it's nonlinear
+                    if not _is_linear_in_parameter(param_expr, parameter):
+                        return True
+
+    return False
+
+
 def _circuit_parameter_shift(
     element: Union[OpTreeCircuit, QuantumCircuit, OpTreeValue],
     parameter: ParameterExpression,
@@ -60,6 +132,12 @@ def _circuit_parameter_shift(
     # Return None when the parameter is not in the circuit
     if parameter not in circuit.parameters:
         return OpTreeValue(0.0)
+
+    # Check for nonlinear parameters
+    if _has_nonlinear_parameters(circuit, parameter):
+        raise ValueError(
+            "Nonlinear parameter dependency detected. The parameter-shift rule only supports linear parameters."
+        )
 
     shift_sum = OpTreeSum()
 

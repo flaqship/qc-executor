@@ -17,6 +17,7 @@ from qiskit.primitives import (
 )
 
 from ...utils.decompose_to_std import decompose_to_std
+from ...utils.data_preprocessing import ensure_complex_coeffs
 
 from .optree import (
     OpTreeNodeBase,
@@ -398,11 +399,14 @@ def _build_operator_list(
                 raise ValueError("element must be a OpTreeLeafOperator or a SparsePauliOp")
 
             # Assign parameters
-            operator = operator.assign_parameters(
-                [dictionary[p] for p in operator.parameters], inplace=False
+            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
+            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+            operator = ensure_complex_coeffs(
+                operator.assign_parameters(
+                    [dictionary[p] for p in operator.parameters], inplace=False
+                ).simplify()
             )
-
-            # TODO check if it makes a difference in speed if not complex numbers are used
 
             if len(operator.parameters) != 0:
                 raise ValueError("Not all parameters are assigned in the operator!")
@@ -682,9 +686,15 @@ def _build_expectation_list(
                 circuit_eval_counter += 1
 
             # Assign parameters to operator
-            operator = operator.assign_parameters(
-                [dictionary[p] for p in operator.parameters], inplace=False
+            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
+            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+            operator = ensure_complex_coeffs(
+                operator.assign_parameters(
+                    [dictionary[p] for p in operator.parameters], inplace=False
+                ).simplify()
             )
+
             if len(operator.parameters) != 0:
                 raise ValueError("Not all parameters are assigned in the operator!")
 

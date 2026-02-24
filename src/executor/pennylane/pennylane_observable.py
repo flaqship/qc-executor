@@ -1,14 +1,13 @@
-import numpy as np
 from typing import Union, List
-from sympy import lambdify, sympify
 
-from qiskit.circuit import ParameterExpression
-from qiskit.quantum_info import SparsePauliOp
-
+import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
 import pennylane.pauli as pauli
 from pennylane.operation import Observable as PennyLaneObservable
+from qiskit.circuit import ParameterExpression
+from qiskit.quantum_info import SparsePauliOp
+from sympy import lambdify, sympify
 
 from ..base import QuantumOperatorBase
 
@@ -119,11 +118,11 @@ class PennyLaneObservable:
     """
 
     def __init__(
-        self,
-        observable: Union[
-            QuantumOperatorBase,
-            List[QuantumOperatorBase],
-        ],
+            self,
+            observable: Union[
+                QuantumOperatorBase,
+                List[QuantumOperatorBase],
+            ],
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
@@ -156,7 +155,7 @@ class PennyLaneObservable:
         return self._pennylane_obs_parameters_dimensions
 
     @property
-    def hash(self) -> str:
+    def hash(self) -> int:
         """Hashable object of the circuit and observable for caching"""
         return hash(str(self._qiskit_observable))
 

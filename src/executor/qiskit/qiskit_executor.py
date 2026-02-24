@@ -373,7 +373,7 @@ class QiskitExecutor(ExecutorBase):
 
     def sample(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
-    ) -> Union[dict, List[dict]]:
+    ) -> List[dict]:
         """
         Sample from the circuit using OpTree and Qiskit Sampler.
 
@@ -431,11 +431,7 @@ class QiskitExecutor(ExecutorBase):
             counts = bit_array.get_counts()
             counts_list.append(counts)
 
-        # Return format
-        if len(bound_circuits) == 1:
-            return counts_list[0]
-        else:
-            return counts_list
+        return counts_list
 
     def statevector(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values

@@ -41,7 +41,7 @@ class QiskitCircuit:
     @property
     def hash(self) -> int:
         """Hash of the circuit for caching."""
-        return hash(self._qiskit_circuit)
+        return hash(str(self._qiskit_circuit))
 
     @property
     def parameter_names(self) -> List[str]:

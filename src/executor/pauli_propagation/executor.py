@@ -11,7 +11,7 @@ import numpy as np
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from .operator_converter import convert_operator
 from .pauli_types import PauliSum
-from .propagation import batch_propagate, propagate
+from .propagation import propagate
 from .qiskit_converter import bind_parameters, convert_circuit
 from .state_overlap import overlap_with_zero
 from .truncation import TruncationStats, truncate_by_coeff, truncate_combined
@@ -185,11 +185,6 @@ class PauliPropagationExecutor(ExecutorBase):
         Accepts both the library's QuantumCircuit/QuantumOperator wrappers
         and raw Qiskit types.
 
-        When multiple operators are provided, all operators for a given circuit
-        are propagated in a single gate-loop pass via batch_propagate(), which
-        is approximately N times faster than N individual propagate() calls for
-        N operators.
-
         Args:
             circuit: Quantum circuit(s) to execute
             operator: Observable operator(s) to measure
@@ -207,50 +202,12 @@ class PauliPropagationExecutor(ExecutorBase):
 
         results = []
 
-        if is_single_operator:
-            # Fast path: single operator — use existing per-circuit logic
-            for circ in circuits:
-                raw_circ = _unwrap_circuit(circ)
-                raw_op = _unwrap_operator(operators[0])
+        for circ in circuits:
+            raw_circ = _unwrap_circuit(circ)
+            for op in operators:
+                raw_op = _unwrap_operator(op)
                 exp_val = self._compute_single_expectation(raw_circ, raw_op, parameters)
                 results.append(exp_val)
-        else:
-            # Batch path: multiple operators share one gate-loop pass per circuit.
-            # Operator conversion only depends on nqubits (same for all circuits),
-            # so convert once before the circuit loop.
-            nqubits = _unwrap_circuit(circuits[0]).num_qubits
-            observables = [convert_operator(_unwrap_operator(op), nqubits) for op in operators]
-
-            for circ in circuits:
-                raw_circ = _unwrap_circuit(circ)
-
-                # Convert circuit and bind parameters once for all operators
-                gates = convert_circuit(raw_circ)
-                bound_params = bind_parameters(gates, parameters)
-
-                # Single gate-loop pass over all observables
-                propagated_list = batch_propagate(
-                    gates,
-                    observables,
-                    bound_params,
-                    max_weight=self.max_weight,
-                    truncate_threshold=self.truncate_threshold,
-                )
-
-                # Post-truncation and expectation value extraction
-                for propagated in propagated_list:
-                    if self.truncate_threshold is not None or self.max_weight is not None:
-                        propagated, stats = truncate_combined(
-                            propagated,
-                            min_coeff=(
-                                self.truncate_threshold if self.truncate_threshold else 1e-15
-                            ),
-                            max_weight=self.max_weight,
-                            inplace=True,
-                        )
-                        self.last_truncation_stats = stats
-
-                    results.append(overlap_with_zero(propagated))
 
         # Return format based on input
         if is_single_circuit and is_single_operator:

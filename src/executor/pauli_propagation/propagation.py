@@ -3,11 +3,13 @@
 Propagates observables through quantum circuits in the Heisenberg picture.
 """
 
+from typing import Dict, List, Optional
+
 import numpy as np
-from typing import List, Dict, Optional
-from .gates import Gate, PauliRotation, CliffordGate
-from .pauli_types import PauliSum
+
+from .gates import CliffordGate, Gate, PauliRotation
 from .pauli_algebra import pauli_sum_product
+from .pauli_types import PauliSum
 from .truncation import truncate_combined
 
 
@@ -173,13 +175,13 @@ def propagate(
             param_value = None
             if gate.param_name and gate.param_name in parameters:
                 param_value = parameters[gate.param_name]
-            elif hasattr(gate, 'param_value') and gate.param_value is not None:
+            elif hasattr(gate, "param_value") and gate.param_value is not None:
                 # Use concrete value stored in gate
                 param_value = gate.param_value
             else:
                 # Try to infer parameter from gate type
                 # This is a fallback; ideally param_name should be set
-                param_value = parameters.get('theta', None)
+                param_value = parameters.get("theta", None)
 
             result = propagate_single_gate(gate, result, param_value)
         else:
@@ -195,3 +197,72 @@ def propagate(
             )
 
     return result
+
+
+def batch_propagate(
+    gates: List[Gate],
+    observables: List[PauliSum],
+    parameters: Optional[Dict[str, float]] = None,
+    max_weight: Optional[int] = None,
+    truncate_threshold: Optional[float] = None,
+) -> List[PauliSum]:
+    """Propagate multiple observables through a circuit in a single gate-loop pass.
+
+    Instead of calling propagate() N times (one per observable), this function
+    iterates once over the reversed gate list and applies each gate to all
+    observables simultaneously. This yields an ~N× speedup for N observables
+    sharing the same circuit and parameters.
+
+    Truncation is applied independently to each PauliSum after every gate,
+    preserving the same approximation behaviour as individual propagate() calls.
+
+    Args:
+        gates: List of gates (in circuit order)
+        observables: List of initial observables (PauliSum), one per operator
+        parameters: Dict mapping parameter names to values
+        max_weight: Maximum Pauli weight for truncation (None = no limit)
+        truncate_threshold: Coefficient threshold for truncation (None = no truncation)
+
+    Returns:
+        List of evolved PauliSums, one per input observable, in the same order
+    """
+    if not observables:
+        return []
+
+    if parameters is None:
+        parameters = {}
+
+    do_truncate = max_weight is not None or truncate_threshold is not None
+
+    # Copy all observables so inputs are not mutated
+    results = [obs.copy() for obs in observables]
+
+    # Single pass over gates (in reverse for Heisenberg picture)
+    for gate in reversed(gates):
+        # Resolve parameter value once per gate (shared across all observables)
+        if gate.is_parametric():
+            param_value = None
+            if gate.param_name and gate.param_name in parameters:
+                param_value = parameters[gate.param_name]
+            elif hasattr(gate, "param_value") and gate.param_value is not None:
+                param_value = gate.param_value
+            else:
+                param_value = parameters.get("theta", None)
+
+            results = [propagate_single_gate(gate, r, param_value) for r in results]
+        else:
+            results = [propagate_single_gate(gate, r) for r in results]
+
+        # Truncate each PauliSum independently after every gate
+        if do_truncate:
+            results = [
+                truncate_combined(
+                    r,
+                    min_coeff=truncate_threshold if truncate_threshold else 1e-15,
+                    max_weight=max_weight,
+                    inplace=True,
+                )[0]
+                for r in results
+            ]
+
+    return results

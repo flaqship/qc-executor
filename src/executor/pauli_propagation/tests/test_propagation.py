@@ -1,14 +1,13 @@
 """Tests for propagation module."""
 
-import pytest
 import numpy as np
-from executor.pauli_propagation.gates import PauliRotation, CliffordGate
-from executor.pauli_propagation.propagation import (
-    propagate_single_gate,
-    propagate,
-    PropagationCache,
-)
+import pytest
+
+from executor.pauli_propagation.gates import CliffordGate, PauliRotation
 from executor.pauli_propagation.pauli_types import PauliSum
+from executor.pauli_propagation.propagation import (PropagationCache,
+                                                    batch_propagate, propagate,
+                                                    propagate_single_gate)
 
 
 class TestPropagationCache:
@@ -37,7 +36,7 @@ class TestPropagatePauliRotation:
 
     def test_rz_commutes_with_z(self):
         """RZ(θ) doesn't change Z observable."""
-        rz = PauliRotation(['Z'], 0, nqubits=1, param_name='theta')
+        rz = PauliRotation(["Z"], 0, nqubits=1, param_name="theta")
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
@@ -49,7 +48,7 @@ class TestPropagatePauliRotation:
 
     def test_rx_on_z_observable(self):
         """RX(θ) rotates Z observable: Z → cos(θ)Z + sin(θ)Y."""
-        rx = PauliRotation(['X'], 0, nqubits=1)
+        rx = PauliRotation(["X"], 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
@@ -70,7 +69,7 @@ class TestPropagatePauliRotation:
 
     def test_ry_on_x_observable(self):
         """RY(θ) rotates X observable: X → cos(θ)X - sin(θ)Z."""
-        ry = PauliRotation(['Y'], 0, nqubits=1)
+        ry = PauliRotation(["Y"], 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("X", 1.0)
 
@@ -83,7 +82,7 @@ class TestPropagatePauliRotation:
 
     def test_rx_pi_flips_z_to_minus_z(self):
         """RX(π) flips Z → -Z."""
-        rx = PauliRotation(['X'], 0, nqubits=1)
+        rx = PauliRotation(["X"], 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
@@ -95,7 +94,7 @@ class TestPropagatePauliRotation:
 
     def test_rx_pi_over_2_on_z(self):
         """RX(π/2) rotates Z → Y."""
-        rx = PauliRotation(['X'], 0, nqubits=1)
+        rx = PauliRotation(["X"], 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
@@ -109,7 +108,7 @@ class TestPropagatePauliRotation:
 
     def test_parametric_gate_requires_parameter(self):
         """Parametric gates require parameter value."""
-        rx = PauliRotation(['X'], 0, nqubits=1)
+        rx = PauliRotation(["X"], 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
@@ -122,7 +121,7 @@ class TestPropagateClifford:
 
     def test_hadamard_on_x(self):
         """H transforms X → Z."""
-        h = CliffordGate('H', 0, nqubits=1)
+        h = CliffordGate("H", 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("X", 2.0)
 
@@ -133,7 +132,7 @@ class TestPropagateClifford:
 
     def test_hadamard_on_z(self):
         """H transforms Z → X."""
-        h = CliffordGate('H', 0, nqubits=1)
+        h = CliffordGate("H", 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("Z", 3.0)
 
@@ -144,7 +143,7 @@ class TestPropagateClifford:
 
     def test_hadamard_on_sum(self):
         """H transforms sum of Paulis."""
-        h = CliffordGate('H', 0, nqubits=1)
+        h = CliffordGate("H", 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("X", 1.0)
         observable.add_term("Z", 1.0)
@@ -158,7 +157,7 @@ class TestPropagateClifford:
 
     def test_s_gate_on_x(self):
         """S transforms X → Y."""
-        s = CliffordGate('S', 0, nqubits=1)
+        s = CliffordGate("S", 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("X", 1.0)
 
@@ -169,7 +168,7 @@ class TestPropagateClifford:
 
     def test_swap_gate(self):
         """SWAP exchanges observables on two qubits."""
-        swap = CliffordGate('SWAP', [0, 1], nqubits=2)
+        swap = CliffordGate("SWAP", [0, 1], nqubits=2)
         observable = PauliSum(2)
         observable.add_term("XY", 1.0)
 
@@ -195,7 +194,7 @@ class TestPropagate:
 
     def test_single_gate_propagation(self):
         """Single gate propagation."""
-        h = CliffordGate('H', 0, nqubits=2)
+        h = CliffordGate("H", 0, nqubits=2)
         observable = PauliSum(2)
         observable.add_term("XI", 1.0)
 
@@ -207,8 +206,8 @@ class TestPropagate:
 
     def test_two_gate_sequence(self):
         """Two gate sequence (Heisenberg: apply in reverse)."""
-        h1 = CliffordGate('H', 0, nqubits=2)
-        h2 = CliffordGate('H', 0, nqubits=2)
+        h1 = CliffordGate("H", 0, nqubits=2)
+        h2 = CliffordGate("H", 0, nqubits=2)
         observable = PauliSum(2)
         observable.add_term("XI", 1.0)
 
@@ -222,11 +221,11 @@ class TestPropagate:
 
     def test_propagate_with_parameters(self):
         """Propagate with parametric gates."""
-        rx = PauliRotation(['X'], 0, nqubits=1, param_name='angle')
+        rx = PauliRotation(["X"], 0, nqubits=1, param_name="angle")
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
-        result = propagate([rx], observable, parameters={'angle': 0.0})
+        result = propagate([rx], observable, parameters={"angle": 0.0})
 
         # RX(0) doesn't change anything
         assert len(result) == 1
@@ -234,8 +233,8 @@ class TestPropagate:
 
     def test_mixed_gate_types(self):
         """Mix of parametric and non-parametric gates."""
-        rx = PauliRotation(['X'], 0, nqubits=1, param_name='theta')
-        h = CliffordGate('H', 0, nqubits=1)
+        rx = PauliRotation(["X"], 0, nqubits=1, param_name="theta")
+        h = CliffordGate("H", 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("Z", 1.0)
 
@@ -243,7 +242,87 @@ class TestPropagate:
         # Heisenberg: apply RX first (to observable), then H
         # RX(0) on Z: Z → Z
         # H on Z: Z → X
-        result = propagate([h, rx], observable, parameters={'theta': 0.0})
+        result = propagate([h, rx], observable, parameters={"theta": 0.0})
 
         assert len(result) == 1
         assert np.isclose(result.get_coeff("X"), 1.0)
+
+
+class TestBatchPropagate:
+    """Tests for batch_propagate: must match N individual propagate() calls."""
+
+    def test_empty_list_returns_empty(self):
+        """batch_propagate with no observables returns empty list."""
+        h = CliffordGate("H", 0, nqubits=1)
+        result = batch_propagate([h], [])
+        assert result == []
+
+    def test_single_observable_matches_propagate(self):
+        """batch_propagate with one observable is identical to propagate()."""
+        h = CliffordGate("H", 0, nqubits=1)
+        obs = PauliSum(1)
+        obs.add_term("Z", 1.0)
+
+        single = propagate([h], obs.copy())
+        batch = batch_propagate([h], [obs.copy()])
+
+        assert len(batch) == 1
+        for term, coeff in single:
+            assert np.isclose(batch[0].get_coeff(term), coeff)
+
+    def test_multiple_observables_match_individual_propagate(self):
+        """batch_propagate results must match individual propagate() calls."""
+        rx = PauliRotation(["X"], 0, nqubits=1, param_name="theta")
+        h = CliffordGate("H", 0, nqubits=1)
+        gates = [h, rx]
+        params = {"theta": np.pi / 4}
+
+        obs_z = PauliSum(1)
+        obs_z.add_term("Z", 1.0)
+
+        obs_x = PauliSum(1)
+        obs_x.add_term("X", 1.0)
+
+        obs_zx = PauliSum(1)
+        obs_zx.add_term("Z", 0.5)
+        obs_zx.add_term("X", 0.5)
+
+        observables = [obs_z.copy(), obs_x.copy(), obs_zx.copy()]
+        expected = [
+            propagate(gates, obs_z.copy(), params),
+            propagate(gates, obs_x.copy(), params),
+            propagate(gates, obs_zx.copy(), params),
+        ]
+
+        batch_results = batch_propagate(gates, observables, params)
+
+        assert len(batch_results) == 3
+        for i, (expected_ps, batch_ps) in enumerate(zip(expected, batch_results)):
+            for term, coeff in expected_ps:
+                assert np.isclose(
+                    batch_ps.get_coeff(term), coeff
+                ), f"Mismatch at observable {i}, term {term}"
+
+    def test_does_not_mutate_input_observables(self):
+        """batch_propagate must not modify the input PauliSums."""
+        h = CliffordGate("H", 0, nqubits=1)
+        obs = PauliSum(1)
+        obs.add_term("Z", 1.0)
+        original_coeff = obs.get_coeff("Z")
+
+        batch_propagate([h], [obs])
+
+        assert np.isclose(obs.get_coeff("Z"), original_coeff)
+
+    def test_parametric_gates_correct_values(self):
+        """Parametric gates in batch_propagate use correct parameter values."""
+        rz = PauliRotation(["Z"], 0, nqubits=1, param_name="phi")
+        obs_x = PauliSum(1)
+        obs_x.add_term("X", 1.0)
+        params = {"phi": np.pi / 3}
+
+        single = propagate([rz], obs_x.copy(), params)
+        batch = batch_propagate([rz], [obs_x.copy()], params)
+
+        for term, coeff in single:
+            assert np.isclose(batch[0].get_coeff(term), coeff)

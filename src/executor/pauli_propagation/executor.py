@@ -215,17 +215,18 @@ class PauliPropagationExecutor(ExecutorBase):
                 exp_val = self._compute_single_expectation(raw_circ, raw_op, parameters)
                 results.append(exp_val)
         else:
-            # Batch path: multiple operators share one gate-loop pass per circuit
+            # Batch path: multiple operators share one gate-loop pass per circuit.
+            # Operator conversion only depends on nqubits (same for all circuits),
+            # so convert once before the circuit loop.
+            nqubits = _unwrap_circuit(circuits[0]).num_qubits
+            observables = [convert_operator(_unwrap_operator(op), nqubits) for op in operators]
+
             for circ in circuits:
                 raw_circ = _unwrap_circuit(circ)
-                nqubits = raw_circ.num_qubits
 
                 # Convert circuit and bind parameters once for all operators
                 gates = convert_circuit(raw_circ)
                 bound_params = bind_parameters(gates, parameters)
-
-                # Convert all operators to PauliSums
-                observables = [convert_operator(_unwrap_operator(op), nqubits) for op in operators]
 
                 # Single gate-loop pass over all observables
                 propagated_list = batch_propagate(

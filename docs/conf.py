@@ -8,8 +8,8 @@ import executor  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 project = "executor"
-copyright = "2024, Fraunhofer IPA"
-author = "David Kreplin, Moritz Willmann, Jan Schnabel, Manuel Hagelüken, Marco Roth"
+copyright = "2026, Fraunhofer IPA"
+author = "David Kreplin, Moritz Willmann, Marco Roth, Dennis Kleinhans, Florian Wieland"
 release = executor.__version__
 version = executor.__version__
 

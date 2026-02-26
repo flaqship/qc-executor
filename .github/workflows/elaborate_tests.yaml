@@ -1,8 +1,11 @@
 name: Elaborate Tests
 
+# Triggered when a maintainer adds the 'run-elaborate-tests' label to a PR,
+# and on every subsequent commit (synchronize) while the label is still present.
+# Also runs nightly on the default branch.
 on:
   pull_request:
-    types: [review_requested]
+    types: [labeled, synchronize]
   schedule:
     - cron: "23 1 * * *"
 
@@ -17,6 +20,14 @@ jobs:
   pytest_full:
     name: Tests + Examples on ubuntu-latest with Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    # Only run for PRs from the same repo (not untrusted forks) with the label set.
+    # Nightly schedule bypasses the PR label check.
+    if: |
+      github.event_name == 'schedule' ||
+      (
+        contains(github.event.pull_request.labels.*.name, 'run-elaborate-tests') &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
 
     strategy:
       matrix:
@@ -42,6 +53,12 @@ jobs:
   pytest_windows:
     name: Tests on windows-latest with Python ${{ matrix.python-version }}
     runs-on: windows-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (
+        contains(github.event.pull_request.labels.*.name, 'run-elaborate-tests') &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
 
     strategy:
       matrix:
@@ -64,6 +81,12 @@ jobs:
   pytest_macos:
     name: Tests on macos-latest with Python ${{ matrix.python-version }}
     runs-on: macos-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (
+        contains(github.event.pull_request.labels.*.name, 'run-elaborate-tests') &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
 
     strategy:
       matrix:

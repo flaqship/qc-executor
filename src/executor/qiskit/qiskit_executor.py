@@ -299,10 +299,7 @@ class QiskitExecutor(ExecutorBase):
                         f"Unsupported sampler result format: 'metadata[{idx}][\"shots\"]' is missing."
                     )
                 shots = metadata[idx]["shots"]
-                counts = {
-                    format(k, f"0{n_qubits}b"): int(round(v * shots))
-                    for k, v in qd.items()
-                }
+                counts = {format(k, f"0{n_qubits}b"): int(round(v * shots)) for k, v in qd.items()}
                 counts_list.append(counts)
             return counts_list
 

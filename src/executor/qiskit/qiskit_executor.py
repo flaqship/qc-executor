@@ -14,6 +14,7 @@ from qiskit.quantum_info import Statevector
 from qiskit.circuit import ParameterVectorElement
 import numpy as np
 
+from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor.qiskit.optree import OpTreeDerivative
 from executor.qiskit.optree import OpTreeEvaluate
 from executor.qiskit.optree.optree import (
@@ -482,7 +483,7 @@ class QiskitExecutor(ExecutorBase):
         return statevectors
 
     @classmethod
-    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> QiskitQuantumCircuit:
+    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
 
         Can be called on the class or on an executor instance:
@@ -496,6 +497,6 @@ class QiskitExecutor(ExecutorBase):
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
 
         Returns:
-            QiskitQuantumCircuit: The corresponding Qiskit QuantumCircuit.
+            QiskitCircuit: The corresponding QiskitCircuit.
         """
-        return circuit._qiskit_circuit
+        return QiskitCircuit(circuit)

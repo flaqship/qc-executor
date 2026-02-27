@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit
@@ -358,11 +357,11 @@ class TestQiskitCircuit:
 
 
 class TestTranspileCircuitQiskit:
-    def test_returns_qiskit_quantum_circuit(self):
-        """Test that transpile_circuit returns a Qiskit QuantumCircuit."""
+    def test_returns_qiskit_circuit(self):
+        """Test that transpile_circuit returns a QiskitCircuit."""
         qc = QuantumCircuit(2)
         result = QiskitExecutor.transpile_circuit(qc)
-        assert isinstance(result, QiskitQuantumCircuit)
+        assert isinstance(result, QiskitCircuit)
 
     def test_empty_circuit(self):
         """Test transpile_circuit with an empty circuit."""
@@ -392,7 +391,7 @@ class TestTranspileCircuitQiskit:
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         result = QiskitExecutor.transpile_circuit(qc)
-        assert len(result.parameters) == 2
+        assert len(result.free_parameters) == 2
 
     def test_callable_on_instance(self):
         """Test that transpile_circuit can also be called on an executor instance."""
@@ -400,4 +399,4 @@ class TestTranspileCircuitQiskit:
         qc = QuantumCircuit(2)
         qc.h(0)
         result = executor.transpile_circuit(qc)
-        assert isinstance(result, QiskitQuantumCircuit)
+        assert isinstance(result, QiskitCircuit)

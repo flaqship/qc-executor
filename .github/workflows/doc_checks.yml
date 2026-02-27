@@ -17,8 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: sQUlearn/sphinx-action@master
+      - uses: actions/setup-python@v5
         with:
-          docs-folder: "docs/"
-          pre-build-command: "pip install uv && uv sync --group docs && uv pip install -e ."
-          build-command: "sphinx-build -b html . _build -W --keep-going"
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --group docs
+          uv pip install -e .
+
+      - name: Build documentation
+        working-directory: docs/
+        run: sphinx-build -b html . _build -W --keep-going

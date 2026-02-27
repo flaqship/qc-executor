@@ -1,6 +1,7 @@
 import numpy as np
 from typing import List, Union, Set
 import copy
+import sympy as sp
 
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import ParameterExpression, ParameterVector
@@ -17,76 +18,6 @@ from .optree import (
     OpTreeExpectationValue,
     OpTreeMeasuredOperator,
 )
-
-
-def _is_linear_in_parameter(
-    param_expr: ParameterExpression, parameter: ParameterExpression
-) -> bool:
-    """
-    Check if a parameter appears linearly in a parameter expression.
-
-    A parameter is linear if it appears with polynomial degree ≤ 1.
-    We check this by computing the second derivative - for linear expressions
-    the second derivative is always zero.
-
-    Args:
-        param_expr: The parameter expression to check (e.g., gate.params[0])
-        parameter: The parameter to check linearity for
-
-    Returns:
-        True if parameter appears linearly (degree ≤ 1), False otherwise
-    """
-    # If parameter not in expression, it's trivially linear (degree 0)
-    if parameter not in param_expr.parameters:
-        return True
-
-    # For linear expressions: d²f/dx² = 0
-    # First derivative
-    first_derivative = param_expr.gradient(parameter)
-
-    # If first derivative is a constant (not a ParameterExpression), it's linear
-    if not isinstance(first_derivative, ParameterExpression):
-        return True
-
-    # If first derivative still contains the parameter, check second derivative
-    if parameter not in first_derivative.parameters:
-        # First derivative doesn't contain parameter -> linear
-        return True
-
-    # Compute second derivative
-    second_derivative = first_derivative.gradient(parameter)
-
-    # Check if second derivative is zero (or very close to zero)
-    if isinstance(second_derivative, (int, float)):
-        return abs(second_derivative) < 1e-10
-    elif isinstance(second_derivative, ParameterExpression):
-        # If second derivative still has parameters, it's nonlinear
-        return False
-    else:
-        return True
-
-
-def _has_nonlinear_parameters(circuit: QuantumCircuit, parameter: ParameterExpression) -> bool:
-    """
-    Check if a parameter appears nonlinearly anywhere in the circuit.
-
-    Args:
-        circuit: The quantum circuit to check
-        parameter: The parameter to check for nonlinearity
-
-    Returns:
-        True if parameter appears nonlinearly, False otherwise
-    """
-    for inst in circuit.data:
-        for param_expr in inst.operation.params:
-            # Check if it's a parameter expression and contains our parameter
-            if isinstance(param_expr, ParameterExpression):
-                if parameter in param_expr.parameters:
-                    # Check if it's nonlinear
-                    if not _is_linear_in_parameter(param_expr, parameter):
-                        return True
-
-    return False
 
 
 def _circuit_parameter_shift(
@@ -131,12 +62,6 @@ def _circuit_parameter_shift(
     if parameter not in circuit.parameters:
         return OpTreeValue(0.0)
 
-    # Check for nonlinear parameters
-    if _has_nonlinear_parameters(circuit, parameter):
-        raise ValueError(
-            "Nonlinear parameter dependency detected. The parameter-shift rule only supports linear parameters."
-        )
-
     shift_sum = OpTreeSum()
 
     primitives_v2 = False
@@ -165,6 +90,41 @@ def _circuit_parameter_shift(
             m = iref_to_data_index[id(original_gate)]
 
         fac = original_gate.params[0].gradient(parameter)
+
+        # Check if the gate parameter is a polynomial of degree at most 1 in the parameter
+        # For parameter shift rule to work, the parameter must enter linearly: f(p) = a*p + b
+        if (
+            isinstance(original_gate.params[0], ParameterExpression)
+            and parameter in original_gate.params[0].parameters
+        ):
+            # Use sympy to check if the expression is a polynomial of degree <= 1
+            try:
+                # Convert to sympy expression
+                sympy_expr = original_gate.params[0].sympify()
+
+                # Create sympy symbol for the parameter
+                param_symbol = sp.Symbol(str(parameter))
+
+                # Check if it's a polynomial and get its degree
+                poly = sp.Poly(sympy_expr, param_symbol)
+                degree = poly.degree()
+
+                if degree > 1:
+                    raise ValueError(
+                        f"Parameter shift rule cannot be applied to non-linear parameters. "
+                        f"Parameter '{parameter}' appears in a non-linear function in gate "
+                        f"'{original_gate.name}' with parameter expression '{original_gate.params[0]}'. "
+                        f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work. "
+                        f"Found polynomial degree {degree} > 1."
+                    )
+            except (sp.PolynomialError, sp.GeneratorsNeeded) as e:
+                # If it's not a polynomial (e.g., sin, cos, arccos), it's definitely non-linear
+                raise ValueError(
+                    f"Parameter shift rule cannot be applied to non-linear parameters. "
+                    f"Parameter '{parameter}' appears in a non-polynomial function in gate "
+                    f"'{original_gate.name}' with parameter expression '{original_gate.params[0]}'. "
+                    f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work."
+                )
 
         # Copy the circuit for the shifted ones
         pshift_circ = copy.deepcopy(circuit)

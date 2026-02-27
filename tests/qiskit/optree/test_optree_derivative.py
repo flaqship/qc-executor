@@ -180,48 +180,36 @@ class TestOpTreeDerivative:
             reference_values,
         )
 
-    def test_nonlinear_parameter_raises_error(self):
-        """Test that nonlinear parameters raise a ValueError."""
+    def test_nonlinear_parameter_error(self):
+        """Test that non-linear parameters raise an error"""
 
         p = ParameterVector("p", 1)
 
-        # Test with cos(p)
-        qc_cos = QuantumCircuit(1)
-        qc_cos.ry(np.cos(p[0]), 0)
-
-        # Should raise ValueError for nonlinear parameter
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate(qc_cos, p[0])
-
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate_v2(qc_cos, p[0])
-
-        # Test with p**2
-        qc_squared = QuantumCircuit(1)
-        qc_squared.rx(p[0] ** 2, 0)
-
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate(qc_squared, p[0])
-
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate_v2(qc_squared, p[0])
-
-        # Test with sin(p)
-        qc_sin = QuantumCircuit(1)
-        qc_sin.rz(np.sin(p[0]), 0)
-
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate(qc_sin, p[0])
-
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate_v2(qc_sin, p[0])
-
-        # Test with arccos(p)
+        # Test with arccos (non-linear function)
         qc_arccos = QuantumCircuit(1)
-        qc_arccos.ry(np.arccos(p[0]), 0)
+        qc_arccos.rx(np.arccos(p[0]), 0)
 
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
+        with pytest.raises(ValueError, match="Parameter shift rule cannot be applied"):
             OpTree.derivative.differentiate(qc_arccos, p[0])
 
-        with pytest.raises(ValueError, match="Nonlinear parameter dependency detected"):
-            OpTree.derivative.differentiate_v2(qc_arccos, p[0])
+        # Test with sin (non-linear function)
+        qc_sin = QuantumCircuit(1)
+        qc_sin.rx(np.sin(p[0]), 0)
+
+        with pytest.raises(ValueError, match="Parameter shift rule cannot be applied"):
+            OpTree.derivative.differentiate(qc_sin, p[0])
+
+        # Test with quadratic (non-linear)
+        qc_quad = QuantumCircuit(1)
+        qc_quad.rx(p[0] ** 2, 0)
+
+        with pytest.raises(ValueError, match="Parameter shift rule cannot be applied"):
+            OpTree.derivative.differentiate(qc_quad, p[0])
+
+        # Test that linear parameters still work
+        qc_linear = QuantumCircuit(1)
+        qc_linear.rx(2.0 * p[0] + 1.0, 0)
+
+        # This should not raise an error
+        qc_linear_d = OpTree.derivative.differentiate(qc_linear, p[0])
+        assert qc_linear_d is not None

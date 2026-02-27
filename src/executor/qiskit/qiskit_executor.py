@@ -494,16 +494,8 @@ class QiskitExecutor(ExecutorBase):
 
         return statevectors
 
-    @classmethod
-    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> QiskitCircuit:
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
-
-        Can be called on the class or on an executor instance:
-
-        .. code-block:: python
-
-            executor = QiskitExecutor(shots=1024)
-            qiskit_circuit = executor.transpile_circuit(quantum_circuit)
 
         Args:
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.

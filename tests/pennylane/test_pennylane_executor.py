@@ -17,6 +17,7 @@ from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
 from executor.pennylane.pennylane_executor import PennylaneExecutor
+from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 
 
 def _build_circuit(num_qubits, operations):
@@ -635,12 +636,12 @@ class TestPennylaneExecutor:
         # Two distinct circuits → two distinct cache entries
         assert len(executor._result_cache) == 2
 
-    def test_transpile_circuit_returns_circuit(self):
-        """Test that transpile_circuit returns the circuit unchanged by default."""
+    def test_transpile_circuit_returns_pennylane_circuit(self):
+        """Test that transpile_circuit converts a QuantumCircuit to a PennyLaneCircuit."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         executor = PennylaneExecutor()
         result = executor.transpile_circuit(qc)
-        assert result is qc
+        assert isinstance(result, PennyLaneCircuit)
 
     def test_transpile_circuit_result_caching(self):
         """Test that repeated transpile_circuit calls use the result cache."""
@@ -659,5 +660,5 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("h", [0])])
         executor = PennylaneExecutor()  # caching=None by default
         result = executor.transpile_circuit(qc)
-        assert result is qc
+        assert isinstance(result, PennyLaneCircuit)
         assert executor._result_cache is None

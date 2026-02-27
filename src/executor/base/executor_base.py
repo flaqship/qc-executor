@@ -329,22 +329,14 @@ class ExecutorBase(ABC):
     ) -> Union[dict, List[dict]]:
         raise NotImplementedError
 
-    @classmethod
     @abstractmethod
-    def transpile_circuit(cls, circuit: QuantumCircuitBase):
-        """Transpile a generic QuantumCircuit to the framework-specific circuit representation.
+    def _statevector(
+        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameters
+    ) -> np.ndarray:
+        raise NotImplementedError
 
-        Can be called on the class or on an executor instance:
-
-        .. code-block:: python
-
-            executor = ConcreteExecutor(...)
-            circuit = executor.transpile_circuit(quantum_circuit)
-
-        Args:
-            circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
-
-        Returns:
-            The framework-specific circuit representation.
-        """
+    @abstractmethod
+    def _transpile_circuit(
+        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]
+    ) -> Union[QuantumCircuitBase, List[QuantumCircuitBase]]:
         raise NotImplementedError

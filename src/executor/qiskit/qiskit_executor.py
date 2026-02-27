@@ -485,6 +485,13 @@ class QiskitExecutor(ExecutorBase):
     def transpile_circuit(cls, circuit: QuantumCircuitBase) -> QiskitQuantumCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
 
+        Can be called on the class or on an executor instance:
+
+        .. code-block:: python
+
+            executor = QiskitExecutor(shots=1024)
+            qiskit_circuit = executor.transpile_circuit(quantum_circuit)
+
         Args:
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
 

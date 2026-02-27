@@ -134,6 +134,13 @@ class ExecutorBase(ABC):
     def transpile_circuit(cls, circuit: QuantumCircuitBase):
         """Transpile a generic QuantumCircuit to the framework-specific circuit representation.
 
+        Can be called on the class or on an executor instance:
+
+        .. code-block:: python
+
+            executor = ConcreteExecutor(...)
+            circuit = executor.transpile_circuit(quantum_circuit)
+
         Args:
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
 

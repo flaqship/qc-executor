@@ -6,7 +6,7 @@ import sympy as sp
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.compiler import transpile
+from qiskit import transpile
 
 from .optree import (
     OpTreeNodeBase,

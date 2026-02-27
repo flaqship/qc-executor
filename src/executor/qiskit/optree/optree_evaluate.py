@@ -2,15 +2,14 @@ import numpy as np
 from typing import Union, List, Tuple
 
 import time
-from packaging import version
 
 from qiskit.circuit import QuantumCircuit
-from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression, Clbit
 from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
 
 from ...utils.decompose_to_std import decompose_to_std
 from ...utils.data_preprocessing import ensure_complex_coeffs
+from ...utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
 
 from .optree import (
     OpTreeNodeBase,
@@ -24,9 +23,6 @@ from .optree import (
     OpTreeExpectationValue,
     OpTreeMeasuredOperator,
 )
-
-QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
-QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 
 # Qiskit primitive imports are split across three version brackets:
 #
@@ -429,7 +425,7 @@ def _build_operator_list(
             # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
             operator = ensure_complex_coeffs(
                 operator.assign_parameters(
-                    [dictionary[p] for p in operator.parameters], inplace=False
+                    [dictionary[p] for p in operator.parameters]
                 ).simplify()
             )
 
@@ -716,7 +712,7 @@ def _build_expectation_list(
             # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
             operator = ensure_complex_coeffs(
                 operator.assign_parameters(
-                    [dictionary[p] for p in operator.parameters], inplace=False
+                    [dictionary[p] for p in operator.parameters]
                 ).simplify()
             )
 
@@ -1018,7 +1014,9 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
         circ = circ_in.copy()
         if not final_measurements:
             # Add measurements to all non measured qubits if not measured
-            new_creg = circ._create_creg(len(qubits), "meas")
+            from qiskit.circuit import ClassicalRegister
+
+            new_creg = ClassicalRegister(len(qubits), "meas")
             circ.add_register(new_creg)
             if not final_measurements:
                 circ.measure(qubits, new_creg)
@@ -1033,9 +1031,13 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
 
         circ_new = QuantumCircuit(circ.num_qubits)
         if not final_measurements:
-            new_creg = circ_new._create_creg(circ.num_qubits, "meas")
+            from qiskit.circuit import ClassicalRegister
+
+            new_creg = ClassicalRegister(circ.num_qubits, "meas")
         else:
-            new_creg = circ_new._create_creg(circ_in.num_clbits, "meas")
+            from qiskit.circuit import ClassicalRegister
+
+            new_creg = ClassicalRegister(circ_in.num_clbits, "meas")
         circ_new.add_register(new_creg)
         for instruction, qargs, cargs in circ.data:
             if (
@@ -1163,7 +1165,7 @@ class OpTreeEvaluate:
                     else:
                         total_circuit_list.append(
                             _measure_all_unmeasured(
-                                circ_unmeasured.compose(measure, inplace=False),
+                                circ_unmeasured.compose(measure),
                                 final_measurements=True,
                             )
                         )

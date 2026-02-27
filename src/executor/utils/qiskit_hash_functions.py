@@ -1,12 +1,10 @@
 import numpy as np
 from collections.abc import Iterable
-from packaging import version
 
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
-from qiskit import __version__ as qiskit_version
 
-QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
+from .qiskit_compat import QISKIT_SMALLER_2_0
 
 if QISKIT_SMALLER_2_0:
     # pylint: disable=ungrouped-imports
@@ -61,7 +59,9 @@ else:
                 )
                 for data in circuit.data
             ),
-            None if circuit._op_start_times is None else tuple(circuit._op_start_times),
+            None
+            if getattr(circuit, "_op_start_times", None) is None
+            else tuple(circuit._op_start_times),
         )
         if functional:
             return functional_key

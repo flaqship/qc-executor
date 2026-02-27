@@ -1,6 +1,6 @@
 import numpy as np
 from typing import List, Union, Iterable
-from sympy import lambdify, sympify
+from sympy import lambdify
 
 from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.circuit import ParameterExpression, ParameterVector
@@ -11,6 +11,7 @@ from qulacs import Observable, GradCalculator, GeneralQuantumOperator, PauliOper
 
 
 from ..base import QuantumOperatorBase
+from ..utils.qiskit_compat import _param_to_sympy, _param_free_symbols
 
 
 class QulacsObservable:
@@ -113,7 +114,7 @@ class QulacsObservable:
         self._symbol_tuple_obs = tuple(
             sum(
                 [
-                    [sympify(p._symbol_expr) for p in sort_parameters_after_index(obs.parameters)]
+                    [_param_to_sympy(p) for p in sort_parameters_after_index(obs.parameters)]
                     for obs in observables
                 ],
                 [],
@@ -127,7 +128,7 @@ class QulacsObservable:
         self.new_operators_used_parameters = []
         for observable in observables:
 
-            paulis = [str(p[::-1]) for p in observable._pauli_list]
+            paulis = [str(p[::-1]) for p in observable.paulis]
             coeff = list(np.real_if_close([c for c in observable.coeffs]))
 
             new_operator = []
@@ -145,7 +146,7 @@ class QulacsObservable:
                 if isinstance(c, ParameterVectorElement):
                     # Single parameter vector element
                     new_operators_coeff.append(
-                        lambdify(self._symbol_tuple_obs, sympify(c._symbol_expr))
+                        lambdify(self._symbol_tuple_obs, _param_to_sympy(c))
                     )
                     new_operators_coeff_grad.append([lambda *arg: 1.0])
                     self._free_parameters.add(c)
@@ -154,11 +155,11 @@ class QulacsObservable:
                 elif isinstance(c, ParameterExpression):
                     # Parameter is in a expression (equation)
                     new_operators_coeff.append(
-                        lambdify(self._symbol_tuple_obs, sympify(c._symbol_expr))
+                        lambdify(self._symbol_tuple_obs, _param_to_sympy(c))
                     )
                     func_grad_list_element = []
                     used_parameters_obs_element = []
-                    for param_element in c._parameter_symbols.keys():
+                    for param_element in _param_free_symbols(c):
                         self._free_parameters.add(param_element)
                         used_parameters_obs_element.append(param_element)
                         # information about the gradient of the parameter expression
@@ -174,7 +175,7 @@ class QulacsObservable:
                             )
                         else:
                             func_grad_list_element.append(
-                                lambdify(self._symbol_tuple_obs, sympify(param_grad._symbol_expr))
+                                lambdify(self._symbol_tuple_obs, _param_to_sympy(param_grad))
                             )
                     new_operators_coeff_grad.append(func_grad_list_element)
                     new_operators_used_parameters.append(used_parameters_obs_element)

@@ -266,6 +266,12 @@ class OpTreeOperator(OpTreeLeafBase):
         """Returns the operator that is represented by the leaf."""
         return self._operator
 
+    @operator.setter
+    def operator(self, value: SparsePauliOp) -> None:
+        """Sets the operator and updates the hash."""
+        self._operator = value
+        self._hashvalue = OpTree.hash_operator(value)
+
     @property
     def hashvalue(self) -> tuple:
         """Returns the hashvalue of the circuit."""
@@ -780,64 +786,66 @@ class OpTree:
         elif isinstance(element, OpTreeCircuit):
             # Assign the parameters to the circuit
             if inplace:
-                element.circuit.assign_parameters(
-                    [dictionary[p] for p in element.circuit.parameters], inplace=True
+                element.circuit = element.circuit.assign_parameters(
+                    [dictionary[p] for p in element.circuit.parameters]
                 )
             else:
                 return OpTreeCircuit(
                     element.circuit.assign_parameters(
-                        [dictionary[p] for p in element.circuit.parameters], inplace=False
+                        [dictionary[p] for p in element.circuit.parameters]
                     )
                 )
         elif isinstance(element, QuantumCircuit):
             # Assign the parameters to the circuit
             if inplace:
-                element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=True
+                raise ValueError(
+                    "Cannot assign parameters inplace to a bare QuantumCircuit. "
+                    "Use inplace=False instead."
                 )
             else:
                 return element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=False
+                    [dictionary[p] for p in element.parameters]
                 )
         elif isinstance(element, (OpTreeExpectationValue, OpTreeMeasuredOperator)):
             # Assign the parameters to the circuit and operator
             if inplace:
-                element.circuit.assign_parameters(
-                    [dictionary[p] for p in element.circuit.parameters], inplace=True
+                element._circuit.circuit = element.circuit.assign_parameters(
+                    [dictionary[p] for p in element.circuit.parameters]
                 )
-                element.operator.assign_parameters(
-                    [dictionary[p] for p in element.operator.parameters], inplace=True
+                element._operator.operator = element.operator.assign_parameters(
+                    [dictionary[p] for p in element.operator.parameters]
                 )
             else:
                 return OpTreeExpectationValue(
                     element.circuit.assign_parameters(
-                        [dictionary[p] for p in element.circuit.parameters], inplace=False
+                        [dictionary[p] for p in element.circuit.parameters]
                     ),
                     element.operator.assign_parameters(
-                        [dictionary[p] for p in element.operator.parameters], inplace=False
+                        [dictionary[p] for p in element.operator.parameters]
                     ),
                 )
         elif isinstance(element, OpTreeOperator):
             # Assign the parameters to the operator
             if inplace:
-                element.operator.assign_parameters(
-                    [dictionary[p] for p in element.operator.parameters], inplace=True
+                element.operator = element.operator.assign_parameters(
+                    [dictionary[p] for p in element.operator.parameters]
                 )
             else:
                 return OpTreeOperator(
                     element.operator.assign_parameters(
-                        [dictionary[p] for p in element.operator.parameters], inplace=False
+                        [dictionary[p] for p in element.operator.parameters]
                     )
                 )
         elif isinstance(element, SparsePauliOp):
             # Assign the parameters to the operator
             if inplace:
-                element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=True
+                raise ValueError(
+                    "Cannot assign parameters inplace to a bare SparsePauliOp. "
+                    "Use inplace=False instead."
                 )
             else:
                 return element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=False
+                    [dictionary[p] for p in element.parameters]
                 )
         else:
             raise ValueError(

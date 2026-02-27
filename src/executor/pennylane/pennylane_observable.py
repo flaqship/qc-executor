@@ -6,9 +6,10 @@ import pennylane.numpy as pnp
 import pennylane.pauli as pauli
 from qiskit.circuit import ParameterExpression
 from qiskit.quantum_info import SparsePauliOp
-from sympy import lambdify, sympify
+from sympy import lambdify
 
 from ..base import QuantumOperatorBase
+from ..utils.qiskit_compat import _param_to_sympy, _param_is_constant
 
 
 def _get_sympy_interface():
@@ -204,7 +205,7 @@ class PennyLaneObservable:
         symbol_tuple = tuple(
             sum(
                 [
-                    [sympify(p._symbol_expr) for p in sort_parameters_after_index(obs.parameters)]
+                    [_param_to_sympy(p) for p in sort_parameters_after_index(obs.parameters)]
                     for obs in observable
                 ],
                 [],
@@ -216,9 +217,9 @@ class PennyLaneObservable:
             pennylane_obs_param_function_ = []
             for coeff in obs.coeffs:
                 if isinstance(coeff, ParameterExpression):
-                    if coeff._symbol_expr == None:
-                        coeff = coeff._coeff
-                        if isinstance(coeff, np.complex128) or isinstance(coeff, np.complex64):
+                    if _param_is_constant(coeff):
+                        coeff = complex(coeff)
+                        if isinstance(coeff, (np.complex128, np.complex64, complex)):
                             if np.imag(coeff) != 0:
                                 raise ValueError(
                                     "Imaginary part of observable coefficient is not supported"
@@ -227,7 +228,7 @@ class PennyLaneObservable:
                         else:
                             coeff = float(coeff)
                     else:
-                        symbol_expr = sympify(coeff._symbol_expr)
+                        symbol_expr = _param_to_sympy(coeff)
                         f = lambdify(symbol_tuple, symbol_expr, modules=modules, printer=printer)
                         pennylane_obs_param_function_.append(f)
                 else:
@@ -245,7 +246,7 @@ class PennyLaneObservable:
         # Convert Pauli strings into PennyLane Pauli words
         for obs in observable:
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(str(p[::-1])) for p in obs._pauli_list]
+                [pauli.string_to_pauli_word(str(p[::-1])) for p in obs.paulis]
             )
 
         if not islist:

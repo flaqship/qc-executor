@@ -1,6 +1,5 @@
 import numpy as np
 from typing import List, Tuple, Union
-from packaging import version
 
 from executor.base.circuit_base import QuantumCircuitBase
 from executor.base.executor_base import ExecutorBase
@@ -10,9 +9,9 @@ from qiskit.primitives import (
     StatevectorEstimator,
     StatevectorSampler,
 )
-from qiskit import __version__ as qiskit_version
 from qiskit.quantum_info import Statevector
 
+from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
 
 from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor.qiskit.optree import OpTreeDerivative
@@ -23,9 +22,6 @@ from executor.qiskit.optree.optree import (
     OpTreeNodeBase,
     OpTreeOperator,
 )
-
-QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
-QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 
 if QISKIT_SMALLER_1_2:
     # pylint: disable=ungrouped-imports
@@ -505,7 +501,7 @@ class QiskitExecutor(ExecutorBase):
             params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
 
             if params_to_bind:
-                bound_circ = circ.assign_parameters(params_to_bind, inplace=False)
+                bound_circ = circ.assign_parameters(params_to_bind)
             else:
                 bound_circ = circ
 
@@ -553,7 +549,7 @@ class QiskitExecutor(ExecutorBase):
             params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
 
             if params_to_bind:
-                bound_circ = circ.assign_parameters(params_to_bind, inplace=False)
+                bound_circ = circ.assign_parameters(params_to_bind)
             else:
                 bound_circ = circ
 

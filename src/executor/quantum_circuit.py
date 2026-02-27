@@ -328,7 +328,7 @@ class QuantumCircuit(QuantumCircuitBase):
     def compose(self, qc: "QuantumCircuit", qubits: List[int]) -> "QuantumCircuit":
         """Compose two quantum circuits."""
         if isinstance(qc, QuantumCircuit):
-            self._qiskit_circuit.compose(qc._qiskit_circuit, qubits, inplace=True)
+            self._qiskit_circuit = self._qiskit_circuit.compose(qc._qiskit_circuit, qubits)
         else:
             raise ValueError("The circuit to compose must be a QuantumCircuit object")
 
@@ -338,7 +338,7 @@ class QuantumCircuit(QuantumCircuitBase):
         Args:
             parameters (np.array): parameters to assign to the circuit
         """
-        self._qiskit_circuit.assign_parameters(parameters, inplace=True)
+        self._qiskit_circuit = self._qiskit_circuit.assign_parameters(parameters)
 
     def invert(self) -> "QuantumCircuitBase":
         """Invert the circuit."""
@@ -366,7 +366,7 @@ class QuantumCircuit(QuantumCircuitBase):
         raise NotImplementedError
 
     def __hash__(self):
-        return hash(_circuit_key(self._qiskit_circuit, include_name=False))
+        return hash(_circuit_key(self._qiskit_circuit))
 
     def __str__(self):
         return str(self._qiskit_circuit)

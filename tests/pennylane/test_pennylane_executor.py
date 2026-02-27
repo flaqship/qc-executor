@@ -566,3 +566,98 @@ class TestPennylaneExecutor:
         assert executor._max_cache_size is None
         assert executor._circuit_cache.max_size is None
         assert executor._operator_cache.max_size is None
+
+    # ========================================================================
+    # Result-level Caching Tests
+    # ========================================================================
+
+    def test_result_cache_disabled_by_default(self):
+        """Test that result cache is None when caching is not enabled."""
+        executor = PennylaneExecutor()
+        assert executor._result_cache is None
+
+    def test_result_cache_disabled_when_caching_false(self):
+        """Test that result cache is None when caching=False."""
+        executor = PennylaneExecutor(caching=False)
+        assert executor._result_cache is None
+
+    def test_result_cache_enabled_when_caching_true(self):
+        """Test that result cache is created when caching=True."""
+        executor = PennylaneExecutor(caching=True)
+        assert executor._result_cache is not None
+
+    def test_result_cache_respects_max_cache_size(self):
+        """Test that result cache respects max_cache_size."""
+        executor = PennylaneExecutor(caching=True, max_cache_size=5)
+        assert executor._result_cache.max_size == 5
+
+    def test_expectation_value_result_caching(self):
+        """Test that repeated expectation_value calls use the result cache."""
+        qc = _build_circuit(1, [("h", [0])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = PennylaneExecutor(caching=True)
+        result1 = executor.expectation_value(qc, op)
+
+        # Cache should contain one entry
+        assert len(executor._result_cache) == 1
+
+        # Second call with same args must not add a new entry
+        result2 = executor.expectation_value(qc, op)
+        assert len(executor._result_cache) == 1
+
+        # Both calls must return the same value
+        assert np.isclose(result1, result2, atol=1e-10)
+
+    def test_statevector_result_caching(self):
+        """Test that repeated statevector calls use the result cache."""
+        qc = _build_circuit(1, [("h", [0])])
+
+        executor = PennylaneExecutor(caching=True)
+        sv1 = executor.statevector(qc)
+        assert len(executor._result_cache) == 1
+
+        sv2 = executor.statevector(qc)
+        assert len(executor._result_cache) == 1
+
+        np.testing.assert_array_equal(sv1, sv2)
+
+    def test_different_args_produce_distinct_cache_entries(self):
+        """Test that calls with different arguments create separate cache entries."""
+        qc1 = _build_circuit(1, [("h", [0])])
+        qc2 = _build_circuit(1, [("x", [0])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = PennylaneExecutor(caching=True)
+        executor.expectation_value(qc1, op)
+        executor.expectation_value(qc2, op)
+
+        # Two distinct circuits → two distinct cache entries
+        assert len(executor._result_cache) == 2
+
+    def test_transpile_circuit_returns_circuit(self):
+        """Test that transpile_circuit returns the circuit unchanged by default."""
+        qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        executor = PennylaneExecutor()
+        result = executor.transpile_circuit(qc)
+        assert result is qc
+
+    def test_transpile_circuit_result_caching(self):
+        """Test that repeated transpile_circuit calls use the result cache."""
+        qc = _build_circuit(1, [("h", [0])])
+        executor = PennylaneExecutor(caching=True)
+
+        result1 = executor.transpile_circuit(qc)
+        assert len(executor._result_cache) == 1
+
+        result2 = executor.transpile_circuit(qc)
+        assert len(executor._result_cache) == 1
+        assert result1 is result2
+
+    def test_transpile_circuit_no_cache_when_caching_disabled(self):
+        """Test that transpile_circuit doesn't cache when caching is disabled."""
+        qc = _build_circuit(1, [("h", [0])])
+        executor = PennylaneExecutor()  # caching=None by default
+        result = executor.transpile_circuit(qc)
+        assert result is qc
+        assert executor._result_cache is None

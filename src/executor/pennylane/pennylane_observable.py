@@ -4,7 +4,6 @@ import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
 import pennylane.pauli as pauli
-from pennylane.operation import Observable as PennyLaneObservable
 from qiskit.circuit import ParameterExpression
 from qiskit.quantum_info import SparsePauliOp
 from sympy import lambdify, sympify

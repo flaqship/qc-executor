@@ -128,3 +128,23 @@ class ExecutorBase(ABC):
             np.ndarray: The statevector of the circuit(s).
         """
         raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def transpile_circuit(cls, circuit: QuantumCircuitBase):
+        """Transpile a generic QuantumCircuit to the framework-specific circuit representation.
+
+        Can be called on the class or on an executor instance:
+
+        .. code-block:: python
+
+            executor = ConcreteExecutor(...)
+            circuit = executor.transpile_circuit(quantum_circuit)
+
+        Args:
+            circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
+
+        Returns:
+            The framework-specific circuit representation.
+        """
+        raise NotImplementedError

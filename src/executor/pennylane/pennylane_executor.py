@@ -522,3 +522,15 @@ class PennylaneExecutor(ExecutorBase):
             state_vectors = state_vectors[0]
 
         return state_vectors
+
+    @classmethod
+    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> PennyLaneCircuit:
+        """Transpile a generic QuantumCircuit to a PennyLaneCircuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
+
+        Returns:
+            PennyLaneCircuit: The corresponding PennyLaneCircuit.
+        """
+        return PennyLaneCircuit(circuit)

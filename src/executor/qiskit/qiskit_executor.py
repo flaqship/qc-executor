@@ -2,6 +2,7 @@ from typing import List, Tuple, Union
 from executor.base.circuit_base import QuantumCircuitBase
 from executor.base.executor_base import ExecutorBase
 from executor.base.operator_base import QuantumOperatorBase
+from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit_aer import AerSimulator, StatevectorSimulator
 from qiskit.primitives import (
     BackendEstimatorV2,
@@ -479,3 +480,15 @@ class QiskitExecutor(ExecutorBase):
             return statevectors[0]
 
         return statevectors
+
+    @classmethod
+    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> QiskitQuantumCircuit:
+        """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
+
+        Returns:
+            QiskitQuantumCircuit: The corresponding Qiskit QuantumCircuit.
+        """
+        return circuit._qiskit_circuit

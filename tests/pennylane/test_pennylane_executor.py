@@ -17,6 +17,7 @@ from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
 from executor.pennylane.pennylane_executor import PennylaneExecutor
+from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 
 
 def _build_circuit(num_qubits, operations):
@@ -446,3 +447,218 @@ class TestPennylaneExecutor:
         """Test that remote property returns False."""
         executor = PennylaneExecutor()
         assert executor.remote is False
+
+    # ========================================================================
+    # Logging Tests
+    # ========================================================================
+
+    def _close_file_handlers(self, executor):
+        """Helper to close and remove file handlers from an executor's logger."""
+        for handler in executor._logger.handlers[:]:
+            handler.close()
+            executor._logger.removeHandler(handler)
+
+    def test_logging_default_level(self):
+        """Test that default logging level is WARNING."""
+        import logging
+
+        executor = PennylaneExecutor()
+        assert executor._logger.level == logging.WARNING
+
+    def test_logging_info_level(self):
+        """Test that INFO logging level is set correctly."""
+        import logging
+
+        executor = PennylaneExecutor(log_level="INFO")
+        assert executor._logger.level == logging.INFO
+
+    def test_logging_debug_level(self):
+        """Test that DEBUG logging level is set correctly."""
+        import logging
+
+        executor = PennylaneExecutor(log_level="DEBUG")
+        assert executor._logger.level == logging.DEBUG
+
+    def test_logging_error_level(self):
+        """Test that ERROR logging level is set correctly."""
+        import logging
+
+        executor = PennylaneExecutor(log_level="ERROR")
+        assert executor._logger.level == logging.ERROR
+
+    def test_logging_invalid_level_raises(self):
+        """Test that an invalid log_level raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid log_level"):
+            PennylaneExecutor(log_level="VERBOSE")
+
+    def test_logging_to_file(self, tmp_path):
+        """Test that log messages are written to the specified log file."""
+        import logging
+
+        log_file = str(tmp_path / "executor.log")
+        executor = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        executor._logger.info("test log message")
+
+        with open(log_file) as f:
+            content = f.read()
+        assert "test log message" in content
+
+        self._close_file_handlers(executor)
+
+    def test_logging_no_duplicate_handlers(self, tmp_path):
+        """Test that creating two executors with the same log file does not add duplicate handlers."""
+        log_file = str(tmp_path / "executor.log")
+        executor1 = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        handler_count_before = len(executor1._logger.handlers)
+
+        executor2 = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        assert len(executor2._logger.handlers) == handler_count_before
+
+        self._close_file_handlers(executor1)
+
+    # ========================================================================
+    # Cache Size Tests
+    # ========================================================================
+
+    def test_cache_size_restriction_circuits(self):
+        """Test that circuit cache respects max_cache_size with FIFO eviction."""
+        executor = PennylaneExecutor(max_cache_size=2)
+
+        qc1 = _build_circuit(1, [])
+        qc2 = _build_circuit(2, [])
+        qc3 = _build_circuit(3, [])
+
+        executor._preprocess_circuits(qc1)
+        executor._preprocess_circuits(qc2)
+        assert len(executor._circuit_cache) == 2
+
+        # Adding a third circuit should evict the oldest (qc1)
+        executor._preprocess_circuits(qc3)
+        assert len(executor._circuit_cache) == 2
+        assert qc1 not in executor._circuit_cache
+        assert qc2 in executor._circuit_cache
+        assert qc3 in executor._circuit_cache
+        # qc2 was inserted before qc3, so it should be first in the ordered dict
+        assert list(executor._circuit_cache.keys()) == [qc2, qc3]
+
+    def test_cache_size_restriction_operators(self):
+        """Test that operator cache respects max_cache_size with FIFO eviction."""
+        executor = PennylaneExecutor(max_cache_size=2)
+
+        op1 = QuantumOperator(["Z"], [1.0])
+        op2 = QuantumOperator(["X"], [1.0])
+        op3 = QuantumOperator(["Y"], [1.0])
+
+        executor._preprocess_operators(op1)
+        executor._preprocess_operators(op2)
+        assert len(executor._operator_cache) == 2
+
+        # Adding a third operator should evict the oldest (op1)
+        executor._preprocess_operators(op3)
+        assert len(executor._operator_cache) == 2
+        assert op1 not in executor._operator_cache
+        assert op2 in executor._operator_cache
+        assert op3 in executor._operator_cache
+        assert list(executor._operator_cache.keys()) == [op2, op3]
+
+    def test_unlimited_cache_size_by_default(self):
+        """Test that cache is unlimited when max_cache_size is not specified."""
+        executor = PennylaneExecutor()
+        assert executor._max_cache_size is None
+        assert executor._circuit_cache.max_size is None
+        assert executor._operator_cache.max_size is None
+
+    # ========================================================================
+    # Result-level Caching Tests
+    # ========================================================================
+
+    def test_result_cache_disabled_by_default(self):
+        """Test that result cache is None when caching is not enabled."""
+        executor = PennylaneExecutor()
+        assert executor._result_cache is None
+
+    def test_result_cache_disabled_when_caching_false(self):
+        """Test that result cache is None when caching=False."""
+        executor = PennylaneExecutor(caching=False)
+        assert executor._result_cache is None
+
+    def test_result_cache_enabled_when_caching_true(self):
+        """Test that result cache is created when caching=True."""
+        executor = PennylaneExecutor(caching=True)
+        assert executor._result_cache is not None
+
+    def test_result_cache_respects_max_cache_size(self):
+        """Test that result cache respects max_cache_size."""
+        executor = PennylaneExecutor(caching=True, max_cache_size=5)
+        assert executor._result_cache.max_size == 5
+
+    def test_expectation_value_result_caching(self):
+        """Test that repeated expectation_value calls use the result cache."""
+        qc = _build_circuit(1, [("h", [0])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = PennylaneExecutor(caching=True)
+        result1 = executor.expectation_value(qc, op)
+
+        # Cache should contain one entry
+        assert len(executor._result_cache) == 1
+
+        # Second call with same args must not add a new entry
+        result2 = executor.expectation_value(qc, op)
+        assert len(executor._result_cache) == 1
+
+        # Both calls must return the same value
+        assert np.isclose(result1, result2, atol=1e-10)
+
+    def test_statevector_result_caching(self):
+        """Test that repeated statevector calls use the result cache."""
+        qc = _build_circuit(1, [("h", [0])])
+
+        executor = PennylaneExecutor(caching=True)
+        sv1 = executor.statevector(qc)
+        assert len(executor._result_cache) == 1
+
+        sv2 = executor.statevector(qc)
+        assert len(executor._result_cache) == 1
+
+        np.testing.assert_array_equal(sv1, sv2)
+
+    def test_different_args_produce_distinct_cache_entries(self):
+        """Test that calls with different arguments create separate cache entries."""
+        qc1 = _build_circuit(1, [("h", [0])])
+        qc2 = _build_circuit(1, [("x", [0])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = PennylaneExecutor(caching=True)
+        executor.expectation_value(qc1, op)
+        executor.expectation_value(qc2, op)
+
+        # Two distinct circuits → two distinct cache entries
+        assert len(executor._result_cache) == 2
+
+    def test_transpile_circuit_returns_pennylane_circuit(self):
+        """Test that transpile_circuit converts a QuantumCircuit to a PennyLaneCircuit."""
+        qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        executor = PennylaneExecutor()
+        result = executor.transpile_circuit(qc)
+        assert isinstance(result, PennyLaneCircuit)
+
+    def test_transpile_circuit_result_caching(self):
+        """Test that repeated transpile_circuit calls use the result cache."""
+        qc = _build_circuit(1, [("h", [0])])
+        executor = PennylaneExecutor(caching=True)
+
+        result1 = executor.transpile_circuit(qc)
+        assert len(executor._result_cache) == 1
+
+        result2 = executor.transpile_circuit(qc)
+        assert len(executor._result_cache) == 1
+        assert result1 is result2
+
+    def test_transpile_circuit_no_cache_when_caching_disabled(self):
+        """Test that transpile_circuit doesn't cache when caching is disabled."""
+        qc = _build_circuit(1, [("h", [0])])
+        executor = PennylaneExecutor()  # caching=None by default
+        result = executor.transpile_circuit(qc)
+        assert isinstance(result, PennyLaneCircuit)
+        assert executor._result_cache is None

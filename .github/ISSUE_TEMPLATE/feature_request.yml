@@ -1,0 +1,38 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this feature solve? Why is it useful?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: A rough API sketch or pseudocode is very helpful.
+      render: python
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Affected Backend(s)
+      multiple: true
+      options:
+        - PennyLane
+        - Qiskit
+        - Qulacs
+        - All backends / core
+        - New backend
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches did you consider?

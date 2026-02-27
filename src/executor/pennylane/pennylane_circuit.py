@@ -93,8 +93,8 @@ def _get_sympy_interface():
 class PennyLaneCircuit:
 
     def __init__(
-            self,
-            circuit: QuantumCircuit,
+        self,
+        circuit: QuantumCircuit,
     ) -> None:
 
         # Transpile circuit to supported basis gates and expand blocks automatically
@@ -296,7 +296,7 @@ class PennyLaneCircuit:
                             # conditions involving multiple classical bits -> convert to integer
                             val = 0
                             for j in range(len(self._pennylane_conditions[i][0])):
-                                val += 2 ** j * measurements[self._pennylane_conditions[i][0][j]]
+                                val += 2**j * measurements[self._pennylane_conditions[i][0][j]]
                         else:
                             val = measurements[self._pennylane_conditions[i][0]]
 

@@ -118,11 +118,11 @@ class PennyLaneObservable:
     """
 
     def __init__(
-            self,
-            observable: Union[
-                QuantumOperatorBase,
-                List[QuantumOperatorBase],
-            ],
+        self,
+        observable: Union[
+            QuantumOperatorBase,
+            List[QuantumOperatorBase],
+        ],
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):

@@ -8,13 +8,6 @@ from qiskit.circuit import QuantumCircuit
 from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression, Clbit
 from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
-from qiskit.primitives.base import SamplerResult
-from qiskit.primitives import (
-    BaseSamplerV1,
-    BaseSamplerV2,
-    BaseEstimatorV1,
-    BaseEstimatorV2,
-)
 
 from ...utils.decompose_to_std import decompose_to_std
 from ...utils.data_preprocessing import ensure_complex_coeffs
@@ -40,12 +33,29 @@ if QISKIT_SMALLER_1_2:
     class BitArray:
         """Dummy BitArray."""
 
+    class BaseSamplerV2:
+        """Dummy BaseSamplerV2."""
+
+    class BaseEstimatorV2:
+        """Dummy BaseEstimatorV2."""
+
 else:
-    from qiskit.primitives import BitArray
+    from qiskit.primitives import BitArray, BaseSamplerV2, BaseEstimatorV2
 
 if QISKIT_SMALLER_2_0:
+    from qiskit.primitives.base import SamplerResult
+    from qiskit.primitives import BaseSamplerV1, BaseEstimatorV1
     from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
 else:
+
+    class SamplerResult:
+        """Dummy SamplerResult."""
+
+    class BaseSamplerV1:
+        """Dummy BaseSamplerV1."""
+
+    class BaseEstimatorV1:
+        """Dummy BaseEstimatorV1."""
 
     def _pauli_expval_with_variance(counts, paulis):
         """Dummy function for Qiskit >= 2.0."""

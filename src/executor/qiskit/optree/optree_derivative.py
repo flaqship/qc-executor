@@ -78,9 +78,7 @@ def _has_nonlinear_parameters(circuit: QuantumCircuit, parameter: ParameterExpre
         True if parameter appears nonlinearly, False otherwise
     """
     for inst in circuit.data:
-        if len(inst.operation.params) > 0:
-            param_expr = inst.operation.params[0]
-
+        for param_expr in inst.operation.params:
             # Check if it's a parameter expression and contains our parameter
             if isinstance(param_expr, ParameterExpression):
                 if parameter in param_expr.parameters:

@@ -613,3 +613,22 @@ class QulacsExecutor(ExecutorBase):
             state_vectors = state_vectors[0]
 
         return state_vectors
+
+    @classmethod
+    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> QulacsCircuit:
+        """Transpile a generic QuantumCircuit to a QulacsCircuit.
+
+        Can be called on the class or on an executor instance:
+
+        .. code-block:: python
+
+            executor = QulacsExecutor()
+            qulacs_circuit = executor.transpile_circuit(quantum_circuit)
+
+        Args:
+            circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
+
+        Returns:
+            QulacsCircuit: The corresponding QulacsCircuit.
+        """
+        return QulacsCircuit(circuit)

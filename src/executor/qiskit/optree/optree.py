@@ -5,6 +5,8 @@ from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.circuit import ParameterExpression
 
+from ...utils.qiskit_hash_functions import _circuit_key, _observable_key
+
 
 class OpTreeElementBase:
     """Base class for elements of the OpTree."""
@@ -264,6 +266,12 @@ class OpTreeOperator(OpTreeLeafBase):
         """Returns the operator that is represented by the leaf."""
         return self._operator
 
+    @operator.setter
+    def operator(self, value: SparsePauliOp) -> None:
+        """Sets the operator and updates the hash."""
+        self._operator = value
+        self._hashvalue = OpTree.hash_operator(value)
+
     @property
     def hashvalue(self) -> tuple:
         """Returns the hashvalue of the circuit."""
@@ -454,6 +462,14 @@ def _simplify_operator(
 class OpTree:
     """Static class containing functions for working with OpTrees objects."""
 
+    from .optree_derivative import OpTreeDerivative
+
+    derivative = OpTreeDerivative
+
+    from .optree_evaluate import OpTreeEvaluate
+
+    evaluate = OpTreeEvaluate
+
     @staticmethod
     def hash_circuit(circuit: QuantumCircuit) -> tuple:
         """Hashes a circuit using the qiskit _circuit_key function.
@@ -465,9 +481,6 @@ class OpTree:
             a tuple containing the circuit information that can be used for comparison.
 
         """
-        # TODO: can be replaced by whatever hash function is used in qiskit in the future.
-        from qiskit.primitives.utils import _circuit_key
-
         return _circuit_key(circuit)
         # return blake2b(str(_circuit_key(circuit)).encode("utf-8"), digest_size=20).hexdigest() # faster for comparison slower for generation
 
@@ -481,9 +494,6 @@ class OpTree:
         Returns:
             A tuple containing the operator information that can be used for comparison.
         """
-        # TODO: can be replaced by whatever hash function is used in qiskit in the future.
-        from qiskit.primitives.utils import _observable_key
-
         return _observable_key(operator)
 
     @staticmethod
@@ -776,65 +786,63 @@ class OpTree:
         elif isinstance(element, OpTreeCircuit):
             # Assign the parameters to the circuit
             if inplace:
-                element.circuit.assign_parameters(
-                    [dictionary[p] for p in element.circuit.parameters], inplace=True
+                element.circuit = element.circuit.assign_parameters(
+                    [dictionary[p] for p in element.circuit.parameters]
                 )
             else:
                 return OpTreeCircuit(
                     element.circuit.assign_parameters(
-                        [dictionary[p] for p in element.circuit.parameters], inplace=False
+                        [dictionary[p] for p in element.circuit.parameters]
                     )
                 )
         elif isinstance(element, QuantumCircuit):
             # Assign the parameters to the circuit
             if inplace:
-                element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=True
+                raise ValueError(
+                    "Cannot assign parameters inplace to a bare QuantumCircuit. "
+                    "Use inplace=False instead."
                 )
             else:
-                return element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=False
-                )
+                return element.assign_parameters([dictionary[p] for p in element.parameters])
         elif isinstance(element, (OpTreeExpectationValue, OpTreeMeasuredOperator)):
             # Assign the parameters to the circuit and operator
             if inplace:
-                element.circuit.assign_parameters(
-                    [dictionary[p] for p in element.circuit.parameters], inplace=True
+                element._circuit.circuit = element.circuit.assign_parameters(
+                    [dictionary[p] for p in element.circuit.parameters]
                 )
-                element.operator.assign_parameters(
-                    [dictionary[p] for p in element.operator.parameters], inplace=True
+                element._operator.operator = element.operator.assign_parameters(
+                    [dictionary[p] for p in element.operator.parameters]
                 )
             else:
                 return OpTreeExpectationValue(
                     element.circuit.assign_parameters(
-                        [dictionary[p] for p in element.circuit.parameters], inplace=False
+                        [dictionary[p] for p in element.circuit.parameters]
                     ),
                     element.operator.assign_parameters(
-                        [dictionary[p] for p in element.operator.parameters], inplace=False
+                        [dictionary[p] for p in element.operator.parameters]
                     ),
                 )
         elif isinstance(element, OpTreeOperator):
             # Assign the parameters to the operator
             if inplace:
-                element.operator.assign_parameters(
-                    [dictionary[p] for p in element.operator.parameters], inplace=True
+                element.operator = element.operator.assign_parameters(
+                    [dictionary[p] for p in element.operator.parameters]
                 )
             else:
                 return OpTreeOperator(
                     element.operator.assign_parameters(
-                        [dictionary[p] for p in element.operator.parameters], inplace=False
+                        [dictionary[p] for p in element.operator.parameters]
                     )
                 )
         elif isinstance(element, SparsePauliOp):
             # Assign the parameters to the operator
             if inplace:
-                element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=True
+                raise ValueError(
+                    "Cannot assign parameters inplace to a bare SparsePauliOp. "
+                    "Use inplace=False instead."
                 )
             else:
-                return element.assign_parameters(
-                    [dictionary[p] for p in element.parameters], inplace=False
-                )
+                return element.assign_parameters([dictionary[p] for p in element.parameters])
         else:
             raise ValueError(
                 "element must be a OpTreeNodeBase, OpTreeLeafCircuit or a QuantumCircuit"

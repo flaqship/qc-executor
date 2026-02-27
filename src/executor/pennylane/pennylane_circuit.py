@@ -3,12 +3,13 @@ from typing import Callable
 import pennylane as qml
 import pennylane.numpy as pnp
 from qiskit.circuit import Clbit, ParameterExpression
-from qiskit.compiler import transpile
-from sympy import lambdify, sympify
+from qiskit import transpile
+from sympy import lambdify
 
 from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
+from ..utils.qiskit_compat import _param_to_sympy, _param_is_constant, _param_to_float
 
 
 def _get_sympy_interface():
@@ -174,7 +175,7 @@ class PennyLaneCircuit:
         self._pennylane_gates_parameters = []
         self._pennylane_gates_parameters_dimensions = {}
 
-        symbol_tuple = tuple([sympify(p._symbol_expr) for p in circuit.parameters])
+        symbol_tuple = tuple([_param_to_sympy(p) for p in circuit.parameters])
 
         for param in circuit.parameters:
             if param.vector.name not in self._pennylane_gates_parameters:
@@ -208,10 +209,10 @@ class PennyLaneCircuit:
                 param_tuple = ()
                 for param in op.operation.params:
                     if isinstance(param, ParameterExpression):
-                        if param._symbol_expr == None:
-                            param = param._coeff
+                        if _param_is_constant(param):
+                            param = _param_to_float(param)
                         else:
-                            symbol_expr = sympify(param._symbol_expr)
+                            symbol_expr = _param_to_sympy(param)
                             f = lambdify(
                                 symbol_tuple, symbol_expr, modules=modules, printer=printer
                             )

@@ -1,10 +1,11 @@
 import logging
+import os
 import numpy as np
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import List, Union
 
-from qiskit.circuit import ParameterExpression, Parameter, ParameterVector
+from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .circuit_base import QuantumCircuitBase
@@ -22,6 +23,8 @@ class _BoundedCache(OrderedDict):
 
     def __init__(self, max_size: Union[int, None] = None):
         super().__init__()
+        if max_size is not None and (not isinstance(max_size, int) or max_size <= 0):
+            raise ValueError(f"max_size must be None or a positive integer, got {max_size!r}.")
         self.max_size = max_size
 
     def __setitem__(self, key, value):
@@ -87,16 +90,24 @@ class ExecutorBase(ABC):
         self._logger = logging.getLogger(logger_name)
         self._logger.setLevel(level)
         if log_file is not None:
-            # Avoid registering duplicate file handlers for the same path
-            existing_paths = {
-                h.baseFilename for h in self._logger.handlers if isinstance(h, logging.FileHandler)
-            }
-            if log_file not in existing_paths:
-                handler = logging.FileHandler(log_file)
+            log_file_abs = os.path.abspath(log_file)
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            # Avoid registering duplicate file handlers for the same path;
+            # update level/formatter on an existing handler instead.
+            existing_handler = next(
+                (
+                    h
+                    for h in self._logger.handlers
+                    if isinstance(h, logging.FileHandler) and h.baseFilename == log_file_abs
+                ),
+                None,
+            )
+            if existing_handler is not None:
+                existing_handler.setLevel(level)
+                existing_handler.setFormatter(formatter)
+            else:
+                handler = logging.FileHandler(log_file_abs)
                 handler.setLevel(level)
-                formatter = logging.Formatter(
-                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-                )
                 handler.setFormatter(formatter)
                 self._logger.addHandler(handler)
 
@@ -120,7 +131,9 @@ class ExecutorBase(ABC):
 
         def _to_hashable(v):
             if isinstance(v, np.ndarray):
-                return v.tobytes()
+                # Include dtype, shape, and strides (memory layout) to avoid collisions
+                # between arrays that share the same raw bytes but differ structurally.
+                return (v.dtype.str, v.shape, v.strides, v.tobytes())
             elif isinstance(v, (list, tuple)):
                 return tuple(_to_hashable(i) for i in v)
             else:
@@ -281,7 +294,8 @@ class ExecutorBase(ABC):
 
         Subclasses may override :meth:`_transpile_circuit` to apply
         backend-specific optimisations (e.g. gate decomposition, qubit
-        routing).  The default implementation returns the circuit unchanged.
+        routing).  When a list of circuits is provided, each circuit is
+        transpiled and cached individually.
 
         Args:
             circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The
@@ -292,6 +306,12 @@ class ExecutorBase(ABC):
                 circuit(s).
         """
         self._logger.info("Transpiling circuit")
+        if isinstance(circuit, list):
+            return [self._transpile_single_cached(c) for c in circuit]
+        return self._transpile_single_cached(circuit)
+
+    def _transpile_single_cached(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
+        """Transpile a single circuit, consulting the result cache if enabled."""
         if self._result_cache is not None:
             key = self._make_result_key("transpile_circuit", circuit)
             if key in self._result_cache:
@@ -338,7 +358,5 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _transpile_circuit(
-        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]
-    ) -> Union[QuantumCircuitBase, List[QuantumCircuitBase]]:
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
         raise NotImplementedError

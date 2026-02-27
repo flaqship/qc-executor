@@ -545,7 +545,7 @@ class QulacsExecutor(ExecutorBase):
             dict: The samples from the circuit.
         """
 
-        statevector = self._statevector(circuit, **parameter_values)
+        statevector = self.statevector(circuit, **parameter_values)
 
         # Get the probabilities
         probabilities = np.square(np.abs(statevector))

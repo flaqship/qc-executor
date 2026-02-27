@@ -28,34 +28,49 @@ from .optree import (
 QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
 QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 
+# Qiskit primitive imports are split across three version brackets:
+#
+#   < 1.2:  BaseSamplerV2 and BitArray do not exist yet
+#   < 2.0:  BaseEstimatorV1, BaseSamplerV1, SamplerResult and
+#           _pauli_expval_with_variance are available; BaseEstimatorV2
+#           is present but NOT re-exported from qiskit.primitives —
+#           it must be imported from qiskit.primitives.base directly
+#           via the QISKIT_SMALLER_2_0 block below
+#   >= 2.0: V1 primitives and SamplerResult are removed;
+#           BaseEstimatorV2 is now a first-class export of qiskit.primitives
+
+# BitArray and BaseSamplerV2: introduced in Qiskit 1.2
 if QISKIT_SMALLER_1_2:
 
     class BitArray:
-        """Dummy BitArray."""
+        """Dummy BitArray for Qiskit < 1.2."""
 
     class BaseSamplerV2:
-        """Dummy BaseSamplerV2."""
-
-    class BaseEstimatorV2:
-        """Dummy BaseEstimatorV2."""
+        """Dummy BaseSamplerV2 for Qiskit < 1.2."""
 
 else:
-    from qiskit.primitives import BitArray, BaseSamplerV2, BaseEstimatorV2
+    from qiskit.primitives import BitArray, BaseSamplerV2
 
+# V1 primitives exist only below 2.0; BaseEstimatorV2 is imported here
+# for ALL Qiskit 1.x versions because it is not re-exported from the
+# top-level qiskit.primitives package until 2.0.
 if QISKIT_SMALLER_2_0:
     from qiskit.primitives.base import SamplerResult
-    from qiskit.primitives import BaseSamplerV1, BaseEstimatorV1
+    from qiskit.primitives import BaseSamplerV1, BaseEstimatorV1, BaseEstimatorV2
     from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
 else:
+    # In Qiskit >= 2.0, BaseEstimatorV2 is a proper top-level export;
+    # V1 primitives and SamplerResult no longer exist.
+    from qiskit.primitives import BaseEstimatorV2
 
     class SamplerResult:
-        """Dummy SamplerResult."""
+        """Dummy SamplerResult for Qiskit >= 2.0."""
 
     class BaseSamplerV1:
-        """Dummy BaseSamplerV1."""
+        """Dummy BaseSamplerV1 for Qiskit >= 2.0."""
 
     class BaseEstimatorV1:
-        """Dummy BaseEstimatorV1."""
+        """Dummy BaseEstimatorV1 for Qiskit >= 2.0."""
 
     def _pauli_expval_with_variance(counts, paulis):
         """Dummy function for Qiskit >= 2.0."""

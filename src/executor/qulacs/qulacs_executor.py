@@ -23,8 +23,12 @@ class QulacsExecutor(ExecutorBase):
         shots (int, optional): Number of shots for sampling. Defaults to None.
         seed (int, optional): Random seed for reproducibility. Defaults to None.
         log_file (str, optional): Path to the log file. Defaults to None.
+        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
+            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
+        max_cache_size (int, optional): Maximum number of entries kept in each
+            in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
     def __init__(
@@ -32,16 +36,24 @@ class QulacsExecutor(ExecutorBase):
         shots: Union[int, None] = None,
         seed: Union[int, None] = None,
         log_file: Union[str, None] = None,
+        log_level: str = "WARNING",
         caching: Union[bool, None] = None,
         cache_dir: str = "cache",
+        max_cache_size: Union[int, None] = None,
     ):
 
         super().__init__(
-            shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
+            shots=shots,
+            seed=seed,
+            log_file=log_file,
+            log_level=log_level,
+            caching=caching,
+            cache_dir=cache_dir,
+            max_cache_size=max_cache_size,
         )
 
-        self._circuit_cache = {}
-        self._operator_cache = {}
+        self._circuit_cache = self._make_cache()
+        self._operator_cache = self._make_cache()
 
         self.result_container = {}
 
@@ -89,8 +101,10 @@ class QulacsExecutor(ExecutorBase):
         # Check the cache for already converted circuits
         for circ in circuits:
             if circ in self._circuit_cache:
+                self._logger.debug("Circuit cache hit for %s", circ)
                 qulacs_circuits.append(self._circuit_cache[circ])
             else:
+                self._logger.debug("Circuit cache miss – converting circuit %s", circ)
                 qulacs_circuit = QulacsCircuit(circ)
                 self._circuit_cache[circ] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
@@ -119,15 +133,17 @@ class QulacsExecutor(ExecutorBase):
 
         for op in operators:
             if op in self._operator_cache:
+                self._logger.debug("Operator cache hit for %s", op)
                 qulacs_observables.append(self._operator_cache[op])
             else:
+                self._logger.debug("Operator cache miss – converting operator %s", op)
                 qulacs_observable = QulacsObservable(op)
                 self._operator_cache[op] = qulacs_observable
                 qulacs_observables.append(qulacs_observable)
 
         return qulacs_observables, multiple_operators
 
-    def expectation_value(
+    def _expectation_value(
         self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
@@ -236,7 +252,7 @@ class QulacsExecutor(ExecutorBase):
 
         return values
 
-    def expectation_value_derivatives(
+    def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
@@ -479,7 +495,7 @@ class QulacsExecutor(ExecutorBase):
                     raise ValueError(f"Unknown derivative: {todo[0]}")
 
                 # compute expectation value
-                result = self.expectation_value(circuit, operator, **parameter_values)
+                result = self._expectation_value(circuit, operator, **parameter_values)
 
             elif len(parameter_vector) > 0 and len(observable_vector) == 0:
                 # compute gradient w.r.t. circuit parameters
@@ -518,7 +534,7 @@ class QulacsExecutor(ExecutorBase):
 
         return result_dict
 
-    def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
+    def _sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
         """
         Sample the circuit.
 
@@ -529,7 +545,7 @@ class QulacsExecutor(ExecutorBase):
             dict: The samples from the circuit.
         """
 
-        statevector = self.statevector(circuit, **parameter_values)
+        statevector = self._statevector(circuit, **parameter_values)
 
         # Get the probabilities
         probabilities = np.square(np.abs(statevector))
@@ -545,7 +561,7 @@ class QulacsExecutor(ExecutorBase):
         counts = dict(Counter(samples))
         return counts
 
-    def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
+    def _statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
         Get the statevector of the circuit.
 

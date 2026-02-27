@@ -123,7 +123,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return qulacs_observables, multiple_operators
 
-    def expectation_value(
+    def _expectation_value(
         self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
@@ -137,7 +137,6 @@ class PennylaneExecutor(ExecutorBase):
             float: The expectation value.
         """
 
-        self._logger.info("Computing expectation value")
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         pennylane_observables, multiple_operators = self._preprocess_operators(operator)
 
@@ -226,7 +225,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return values
 
-    def expectation_value_derivatives(
+    def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
@@ -412,7 +411,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return result_dict
 
-    def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
+    def _sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
         """
         Sample the circuit.
 
@@ -423,7 +422,6 @@ class PennylaneExecutor(ExecutorBase):
             dict: The samples from the circuit.
         """
 
-        self._logger.info("Sampling circuit (shots=%s)", self._shots)
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 
         sample_vectors = []
@@ -471,7 +469,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return sample_vectors
 
-    def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
+    def _statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
         Get the statevector of the circuit.
 
@@ -481,8 +479,6 @@ class PennylaneExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-
-        self._logger.info("Computing statevector")
 
         def reverse_bits_array(n, num_bits):
             indices = np.arange(n)

@@ -30,8 +30,12 @@ class QiskitExecutor(ExecutorBase):
         shots (int, optional): Number of shots for sampling. Defaults to None.
         seed (int, optional): Random seed for reproducibility. Defaults to None.
         log_file (str, optional): Path to the log file. Defaults to None.
+        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
+            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
+        max_cache_size (int, optional): Maximum number of entries kept in each
+            in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
     def __init__(
@@ -39,13 +43,21 @@ class QiskitExecutor(ExecutorBase):
         shots: Union[int, None] = None,
         seed: Union[int, None] = None,
         log_file: Union[str, None] = None,
+        log_level: str = "WARNING",
         caching: Union[bool, None] = None,
         cache_dir: str = "cache",
+        max_cache_size: Union[int, None] = None,
         backend: str = "statevector",
     ):
 
         super().__init__(
-            shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
+            shots=shots,
+            seed=seed,
+            log_file=log_file,
+            log_level=log_level,
+            caching=caching,
+            cache_dir=cache_dir,
+            max_cache_size=max_cache_size,
         )
 
         # Initialize backend and primitives
@@ -220,7 +232,7 @@ class QiskitExecutor(ExecutorBase):
 
         return circuit_dict, operator_dict
 
-    def expectation_value(
+    def _expectation_value(
         self,
         circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
         operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
@@ -258,7 +270,7 @@ class QiskitExecutor(ExecutorBase):
 
         return result
 
-    def expectation_value_derivatives(
+    def _expectation_value_derivatives(
         self,
         circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
         operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
@@ -280,7 +292,7 @@ class QiskitExecutor(ExecutorBase):
 
         # If no derivative parameters specified, return expectation value
         if len(derivative_params) == 0:
-            return self.expectation_value(circuit, operator, **parameter_values)
+            return self._expectation_value(circuit, operator, **parameter_values)
 
         # Convert to OpTree format
         circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
@@ -371,7 +383,7 @@ class QiskitExecutor(ExecutorBase):
                     result_dict[dp] = results_list[i]
             return result_dict
 
-    def sample(
+    def _sample(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
     ) -> List[dict]:
         """
@@ -433,7 +445,7 @@ class QiskitExecutor(ExecutorBase):
 
         return counts_list
 
-    def statevector(
+    def _statevector(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
     ) -> np.ndarray:
         """

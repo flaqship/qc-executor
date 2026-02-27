@@ -1,4 +1,7 @@
+import logging
+
 import numpy as np
+import pytest
 from qiskit.circuit import ParameterVector
 
 from executor.qiskit.qiskit_executor import QiskitExecutor
@@ -43,6 +46,91 @@ class TestQiskitExecutor:
             cache_dir="/tmp/cache",
         )
         assert executor.shots == 2048
+
+    # ========================================================================
+    # Logging Tests
+    # ========================================================================
+
+    def test_logging_default_level(self):
+        """Test that default logging level is WARNING."""
+        executor = QiskitExecutor()
+        assert executor._logger.level == logging.WARNING
+
+    def test_logging_info_level(self):
+        """Test that INFO logging level is set correctly."""
+        executor = QiskitExecutor(log_level="INFO")
+        assert executor._logger.level == logging.INFO
+
+    def test_logging_debug_level(self):
+        """Test that DEBUG logging level is set correctly."""
+        executor = QiskitExecutor(log_level="DEBUG")
+        assert executor._logger.level == logging.DEBUG
+
+    def test_logging_invalid_level_raises(self):
+        """Test that an invalid log_level raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid log_level"):
+            QiskitExecutor(log_level="VERBOSE")
+
+    def test_logging_to_file(self, tmp_path):
+        """Test that log messages are written to the specified log file."""
+        log_file = str(tmp_path / "qiskit_executor.log")
+        executor = QiskitExecutor(log_level="INFO", log_file=log_file)
+        executor._logger.info("qiskit test log message")
+
+        with open(log_file) as f:
+            content = f.read()
+        assert "qiskit test log message" in content
+
+        for handler in executor._logger.handlers[:]:
+            handler.close()
+            executor._logger.removeHandler(handler)
+
+    def test_logging_centralized_expectation_value(self, tmp_path):
+        """Test that expectation_value emits an INFO log via the base class."""
+        log_file = str(tmp_path / "qiskit_ev.log")
+        executor = QiskitExecutor(log_level="INFO", log_file=log_file)
+
+        qc = _build_circuit(1, [("h", [0])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor.expectation_value(qc, op)
+
+        with open(log_file) as f:
+            content = f.read()
+        assert "Computing expectation value" in content
+
+        for handler in executor._logger.handlers[:]:
+            handler.close()
+            executor._logger.removeHandler(handler)
+
+    def test_logging_centralized_statevector(self, tmp_path):
+        """Test that statevector emits an INFO log via the base class."""
+        log_file = str(tmp_path / "qiskit_sv.log")
+        executor = QiskitExecutor(log_level="INFO", log_file=log_file)
+
+        qc = _build_circuit(1, [])
+        executor.statevector(qc)
+
+        with open(log_file) as f:
+            content = f.read()
+        assert "Computing statevector" in content
+
+        for handler in executor._logger.handlers[:]:
+            handler.close()
+            executor._logger.removeHandler(handler)
+
+    # ========================================================================
+    # Cache Size Tests
+    # ========================================================================
+
+    def test_max_cache_size_accepted(self):
+        """Test that max_cache_size parameter is accepted."""
+        executor = QiskitExecutor(max_cache_size=64)
+        assert executor._max_cache_size == 64
+
+    def test_unlimited_cache_size_by_default(self):
+        """Test that cache is unlimited when max_cache_size is not specified."""
+        executor = QiskitExecutor()
+        assert executor._max_cache_size is None
 
     def test_expectation_value_bell_state_z_basis(self):
         """Test expectation value of Bell state with Z operators."""

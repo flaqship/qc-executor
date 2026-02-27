@@ -60,12 +60,15 @@ class TestPennyLaneCircuit:
         assert plc.num_qubits == 1
         assert len(plc.parameter_names) == 0
 
-    @pytest.mark.parametrize("gate_name,num_qubits", [
-        ("cx", 2),  # CNOT
-        ("cy", 2),  # Controlled-Y
-        ("cz", 2),  # Controlled-Z
-        ("swap", 2),  # SWAP
-    ])
+    @pytest.mark.parametrize(
+        "gate_name,num_qubits",
+        [
+            ("cx", 2),  # CNOT
+            ("cy", 2),  # Controlled-Y
+            ("cz", 2),  # Controlled-Z
+            ("swap", 2),  # SWAP
+        ],
+    )
     def test_two_qubit_gates(self, gate_name, num_qubits):
         """Test two-qubit gates."""
         qc = QuantumCircuit(num_qubits)
@@ -88,13 +91,16 @@ class TestPennyLaneCircuit:
 
     # Parametric Gates Tests
 
-    @pytest.mark.parametrize("theta,gate_name", [
-        (np.pi / 4, "rx"),
-        (np.pi / 2, "ry"),
-        (np.pi, "rz"),
-        (0.5, "rx"),
-        (2 * np.pi, "ry"),
-    ])
+    @pytest.mark.parametrize(
+        "theta,gate_name",
+        [
+            (np.pi / 4, "rx"),
+            (np.pi / 2, "ry"),
+            (np.pi, "rz"),
+            (0.5, "rx"),
+            (2 * np.pi, "ry"),
+        ],
+    )
     def test_single_qubit_rotation_gates_with_float(self, theta, gate_name):
         """Test single-qubit rotation gates with float angle."""
         qc = QuantumCircuit(1)
@@ -105,11 +111,14 @@ class TestPennyLaneCircuit:
         # Float parameters are not tracked as parameters
         assert len(plc.parameter_names) == 0
 
-    @pytest.mark.parametrize("theta,gate_name", [
-        (np.pi / 4, "crx"),
-        (np.pi / 2, "cry"),
-        (np.pi, "crz"),
-    ])
+    @pytest.mark.parametrize(
+        "theta,gate_name",
+        [
+            (np.pi / 4, "crx"),
+            (np.pi / 2, "cry"),
+            (np.pi, "crz"),
+        ],
+    )
     def test_controlled_rotation_gates_with_float(self, theta, gate_name):
         """Test controlled rotation gates with float angle."""
         qc = QuantumCircuit(2)
@@ -143,111 +152,111 @@ class TestPennyLaneCircuit:
 
     def test_single_parameter(self):
         """Test circuit with a single parameter."""
-        x = ParameterVector('x', 1)
+        x = ParameterVector("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0])
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
-        assert plc.parameter_dimensions['x'] == 1
+        assert "x" in plc.parameter_names
+        assert plc.parameter_dimensions["x"] == 1
 
     def test_multiple_parameters_same_vector(self):
         """Test circuit with multiple parameters from the same vector."""
-        x = ParameterVector('x', 3)
+        x = ParameterVector("x", 3)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(2, x[2])
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
-        assert plc.parameter_dimensions['x'] == 3
+        assert "x" in plc.parameter_names
+        assert plc.parameter_dimensions["x"] == 3
 
     def test_multiple_parameter_vectors(self):
         """Test circuit with multiple different parameter vectors."""
-        x = ParameterVector('x', 2)
-        y = ParameterVector('y', 1)
+        x = ParameterVector("x", 2)
+        y = ParameterVector("y", 1)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(2, y[0])
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
-        assert 'y' in plc.parameter_names
-        assert plc.parameter_dimensions['x'] == 2
-        assert plc.parameter_dimensions['y'] == 1
+        assert "x" in plc.parameter_names
+        assert "y" in plc.parameter_names
+        assert plc.parameter_dimensions["x"] == 2
+        assert plc.parameter_dimensions["y"] == 1
 
     def test_parametric_two_qubit_gates(self):
         """Test two-qubit gates with parameters."""
-        theta = ParameterVector('theta', 3)
+        theta = ParameterVector("theta", 3)
         qc = QuantumCircuit(2)
         qc.crx(0, 1, theta[0])
         qc.cry(0, 1, theta[1])
         qc.crz(0, 1, theta[2])
 
         plc = PennyLaneCircuit(qc)
-        assert 'theta' in plc.parameter_names
-        assert plc.parameter_dimensions['theta'] == 3
+        assert "theta" in plc.parameter_names
+        assert plc.parameter_dimensions["theta"] == 3
 
     # Parameter Expression Tests
 
     def test_parameter_arithmetic_multiplication(self):
         """Test parameter expression with multiplication: 2 * x[0]."""
-        x = ParameterVector('x', 1)
+        x = ParameterVector("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0])
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
+        assert "x" in plc.parameter_names
 
     def test_parameter_arithmetic_addition(self):
         """Test parameter expression with addition: x[0] + 0.5."""
-        x = ParameterVector('x', 1)
+        x = ParameterVector("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] + 0.5)
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
+        assert "x" in plc.parameter_names
 
     def test_parameter_arithmetic_subtraction(self):
         """Test parameter expression with subtraction: x[0] - 0.2."""
-        x = ParameterVector('x', 1)
+        x = ParameterVector("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] - 0.2)
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
+        assert "x" in plc.parameter_names
 
     def test_parameter_arithmetic_division(self):
         """Test parameter expression with division: x[0] / 2."""
-        x = ParameterVector('x', 1)
+        x = ParameterVector("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] / 2)
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
+        assert "x" in plc.parameter_names
 
     def test_parameter_multiplication_between_vectors(self):
         """Test parameter expression multiplying two different vectors: x[0] * y[0]."""
-        x = ParameterVector('x', 1)
-        y = ParameterVector('y', 1)
+        x = ParameterVector("x", 1)
+        y = ParameterVector("y", 1)
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.crx(0, 1, x[0] * y[0])
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
-        assert 'y' in plc.parameter_names
+        assert "x" in plc.parameter_names
+        assert "y" in plc.parameter_names
 
     def test_complex_parameter_expression(self):
         """Test complex parameter expression: 2 * x[0] - 1."""
-        x = ParameterVector('x', 1)
+        x = ParameterVector("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0] - 1)
 
         plc = PennyLaneCircuit(qc)
-        assert 'x' in plc.parameter_names
+        assert "x" in plc.parameter_names
 
     # Properties and Methods Tests
 
@@ -269,20 +278,20 @@ class TestPennyLaneCircuit:
 
     def test_parameter_names_property_with_params(self):
         """Test parameter_names property for parametric circuit."""
-        x = ParameterVector('x', 2)
-        y = ParameterVector('y', 1)
+        x = ParameterVector("x", 2)
+        y = ParameterVector("y", 1)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(0, y[0])
         plc = PennyLaneCircuit(qc)
 
-        assert 'x' in plc.parameter_names
-        assert 'y' in plc.parameter_names
+        assert "x" in plc.parameter_names
+        assert "y" in plc.parameter_names
 
     def test_parameter_dimensions_property(self):
         """Test parameter_dimensions property."""
-        x = ParameterVector('x', 3)
+        x = ParameterVector("x", 3)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.rx(1, x[1])
@@ -290,7 +299,7 @@ class TestPennyLaneCircuit:
         plc = PennyLaneCircuit(qc)
 
         assert isinstance(plc.parameter_dimensions, dict)
-        assert plc.parameter_dimensions['x'] == 3
+        assert plc.parameter_dimensions["x"] == 3
 
     def test_hash_property(self):
         """Test that hash property returns a valid integer."""
@@ -332,7 +341,7 @@ class TestPennyLaneCircuit:
 
         pennylane_circuit = plc.get_pennylane_circuit()
         assert callable(pennylane_circuit)
-        assert hasattr(plc, '_pennylane_circuit')
+        assert hasattr(plc, "_pennylane_circuit")
 
     def test_call_method(self):
         """Test that PennyLaneCircuit instance is callable after building."""

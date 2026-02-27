@@ -1,9 +1,10 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
 
 [project]
 name = "executor"
+description = "Abstraction layer for quantum circuits and operators across multiple backends."
 readme = "README.md"
 authors = [
     {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
@@ -18,11 +19,18 @@ maintainers = [
 ]
 license = {file = "LICENSE.txt"}
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-keywords = ["quantum", "circuit", "executor"]
+keywords = ["quantum", "circuit", "executor", "pennylane", "qiskit", "qulacs"]
 dependencies = [
     "dill>=0.3.4",
     "mapomatic>=0.10.0",
@@ -34,25 +42,52 @@ dependencies = [
     "qiskit-ibm-runtime>=0.18.0",
     "qulacs>=0.6.4.1",
 ]
-requires-python = ">=3.9,<=3.13"
-dynamic = ["version", "description"]
+requires-python = ">=3.10"
+dynamic = ["version"]
 
-[project.optional-dependencies]
+# Future plugin registration – uncomment and extend when the factory/plugin
+# architecture is implemented (each backend will live in its own package):
+#
+# [project.entry-points."executor.backends"]
+# pennylane = "executor.pennylane:PennylaneExecutor"
+# qiskit    = "executor.qiskit:QiskitExecutor"
+# qulacs    = "executor.qulacs:QulacsExecutor"
+
+[dependency-groups]
 dev = [
-    "black",
-    "flit",
-    "nbmake",
+    "black[jupyter]",
     "pylint",
     "pytest",
+    "nbmake",
+]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-autodoc-typehints",
+]
+examples = [
+    "nbmake",
+    "jupyter",
 ]
 
+[tool.uv]
+managed = true
+
+[tool.hatch.version]
+path = "src/executor/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/executor"]
+
 [tool.black]
-line-length=99
+line-length = 99
 
 [tool.pylint]
-max-line-length=99
+max-line-length = 99
 
 [tool.pylint.main]
 extension-pkg-allow-list = [
     "numpy",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

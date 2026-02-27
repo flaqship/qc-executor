@@ -16,8 +16,17 @@ import pennylane as qml
 import pytest
 
 from executor.pennylane.pennylane_gates import (
-    RXX, RYY, RZZ, RZX, reset, tdg, sdg, cs, csx,
-    qiskit_pennylane_gate_dict, pennylane_target
+    RXX,
+    RYY,
+    RZZ,
+    RZX,
+    reset,
+    tdg,
+    sdg,
+    cs,
+    csx,
+    qiskit_pennylane_gate_dict,
+    pennylane_target,
 )
 
 
@@ -160,24 +169,52 @@ class TestPennyLaneGates:
         assert qiskit_pennylane_gate_dict is not None
         assert len(qiskit_pennylane_gate_dict) > 0
 
-    @pytest.mark.parametrize("gate_name", [
-        "id", "h", "x", "y", "z", "s", "t", "sx",  # Single-qubit gates
-        "rx", "ry", "rz", "p",  # Single-qubit parametric gates
-        "cx", "cy", "cz", "swap", "ccx",  # Multi-qubit gates
-        "cp", "crx", "cry", "crz",  # Multi-qubit parametric gates
-    ])
+    @pytest.mark.parametrize(
+        "gate_name",
+        [
+            "id",
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "t",
+            "sx",  # Single-qubit gates
+            "rx",
+            "ry",
+            "rz",
+            "p",  # Single-qubit parametric gates
+            "cx",
+            "cy",
+            "cz",
+            "swap",
+            "ccx",  # Multi-qubit gates
+            "cp",
+            "crx",
+            "cry",
+            "crz",  # Multi-qubit parametric gates
+        ],
+    )
     def test_standard_gates_in_dictionary(self, gate_name):
         """Test that standard gates are in the dictionary and callable."""
         assert gate_name in qiskit_pennylane_gate_dict
         gate_func = qiskit_pennylane_gate_dict[gate_name]
         assert callable(gate_func)
 
-    @pytest.mark.parametrize("gate_name", [
-        "rxx", "ryy", "rzz", "rzx",  # Custom two-qubit rotations
-        "tdg", "sdg",  # Adjoint gates
-        "cs", "csx",  # Controlled gates
-        "reset",  # Reset gate
-    ])
+    @pytest.mark.parametrize(
+        "gate_name",
+        [
+            "rxx",
+            "ryy",
+            "rzz",
+            "rzx",  # Custom two-qubit rotations
+            "tdg",
+            "sdg",  # Adjoint gates
+            "cs",
+            "csx",  # Controlled gates
+            "reset",  # Reset gate
+        ],
+    )
     def test_custom_gates_in_dictionary(self, gate_name):
         """Test that custom gates are in the dictionary and callable."""
         assert gate_name in qiskit_pennylane_gate_dict
@@ -197,7 +234,7 @@ class TestPennyLaneGates:
 
     def test_pennylane_target_has_operations(self):
         """Test that PennyLane target has operations attribute."""
-        assert hasattr(pennylane_target, 'operations')
+        assert hasattr(pennylane_target, "operations")
         assert len(pennylane_target.operations) > 0
 
     def test_pennylane_target_contains_gates(self):

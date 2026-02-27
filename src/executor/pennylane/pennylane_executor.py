@@ -23,8 +23,12 @@ class PennylaneExecutor(ExecutorBase):
         shots (int, optional): Number of shots for sampling. Defaults to None.
         seed (int, optional): Random seed for reproducibility. Defaults to None.
         log_file (str, optional): Path to the log file. Defaults to None.
+        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
+            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
+        max_cache_size (int, optional): Maximum number of entries kept in each
+            in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
     def __init__(
@@ -32,16 +36,24 @@ class PennylaneExecutor(ExecutorBase):
         shots: Union[int, None] = None,
         seed: Union[int, None] = None,
         log_file: Union[str, None] = None,
+        log_level: str = "WARNING",
         caching: Union[bool, None] = None,
         cache_dir: str = "cache",
+        max_cache_size: Union[int, None] = None,
     ):
 
         super().__init__(
-            shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
+            shots=shots,
+            seed=seed,
+            log_file=log_file,
+            log_level=log_level,
+            caching=caching,
+            cache_dir=cache_dir,
+            max_cache_size=max_cache_size,
         )
 
-        self._circuit_cache = {}
-        self._operator_cache = {}
+        self._circuit_cache = self._make_cache()
+        self._operator_cache = self._make_cache()
 
         if seed is not None:
             self._random = np.random.default_rng(seed)
@@ -49,6 +61,7 @@ class PennylaneExecutor(ExecutorBase):
             self._random = np.random.default_rng()
 
         self._device = qml.device("default.qubit", wires=1)
+        self._logger.debug("PennylaneExecutor initialised (shots=%s, seed=%s)", shots, seed)
 
     @property
     def shots(self) -> Union[int, None]:
@@ -78,8 +91,10 @@ class PennylaneExecutor(ExecutorBase):
         # Check the cache for already converted circuits
         for circ in circuits:
             if circ in self._circuit_cache:
+                self._logger.debug("Circuit cache hit for %s", circ)
                 qulacs_circuits.append(self._circuit_cache[circ])
             else:
+                self._logger.debug("Circuit cache miss – converting circuit %s", circ)
                 qulacs_circuit = PennyLaneCircuit(circ)
                 self._circuit_cache[circ] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
@@ -98,15 +113,17 @@ class PennylaneExecutor(ExecutorBase):
 
         for op in operators:
             if op in self._operator_cache:
+                self._logger.debug("Operator cache hit for %s", op)
                 qulacs_observables.append(self._operator_cache[op])
             else:
+                self._logger.debug("Operator cache miss – converting operator %s", op)
                 qulacs_observable = PennyLaneObservable(op)
                 self._operator_cache[op] = qulacs_observable
                 qulacs_observables.append(qulacs_observable)
 
         return qulacs_observables, multiple_operators
 
-    def expectation_value(
+    def _expectation_value(
         self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
@@ -208,7 +225,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return values
 
-    def expectation_value_derivatives(
+    def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
@@ -394,7 +411,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return result_dict
 
-    def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
+    def _sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
         """
         Sample the circuit.
 
@@ -452,7 +469,7 @@ class PennylaneExecutor(ExecutorBase):
 
         return sample_vectors
 
-    def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
+    def _statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
         Get the statevector of the circuit.
 
@@ -523,16 +540,8 @@ class PennylaneExecutor(ExecutorBase):
 
         return state_vectors
 
-    @classmethod
-    def transpile_circuit(cls, circuit: QuantumCircuitBase) -> PennyLaneCircuit:
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> PennyLaneCircuit:
         """Transpile a generic QuantumCircuit to a PennyLaneCircuit.
-
-        Can be called on the class or on an executor instance:
-
-        .. code-block:: python
-
-            executor = PennylaneExecutor()
-            pennylane_circuit = executor.transpile_circuit(quantum_circuit)
 
         Args:
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.

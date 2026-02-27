@@ -356,23 +356,26 @@ class TestPennyLaneCircuit:
 
 
 class TestTranspileCircuitPennyLane:
+    def setup_method(self):
+        self.executor = PennylaneExecutor()
+
     def test_returns_pennylane_circuit(self):
         """Test that transpile_circuit returns a PennyLaneCircuit."""
         qc = QuantumCircuit(2)
-        result = PennylaneExecutor.transpile_circuit(qc)
+        result = self.executor.transpile_circuit(qc)
         assert isinstance(result, PennyLaneCircuit)
 
     def test_empty_circuit(self):
         """Test transpile_circuit with an empty circuit."""
         qc = QuantumCircuit(2)
-        result = PennylaneExecutor.transpile_circuit(qc)
+        result = self.executor.transpile_circuit(qc)
         assert result.num_qubits == 2
 
     def test_single_gate_circuit(self):
         """Test transpile_circuit with a single Hadamard gate."""
         qc = QuantumCircuit(1)
         qc.h(0)
-        result = PennylaneExecutor.transpile_circuit(qc)
+        result = self.executor.transpile_circuit(qc)
         assert result.num_qubits == 1
 
     def test_bell_state_circuit(self):
@@ -380,7 +383,7 @@ class TestTranspileCircuitPennyLane:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        result = PennylaneExecutor.transpile_circuit(qc)
+        result = self.executor.transpile_circuit(qc)
         assert result.num_qubits == 2
 
     def test_parameterized_circuit_preserves_parameters(self):
@@ -389,7 +392,7 @@ class TestTranspileCircuitPennyLane:
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
-        result = PennylaneExecutor.transpile_circuit(qc)
+        result = self.executor.transpile_circuit(qc)
         assert "x" in result.parameter_names
         assert result.parameter_dimensions["x"] == 2
 
@@ -398,14 +401,6 @@ class TestTranspileCircuitPennyLane:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        result = PennylaneExecutor.transpile_circuit(qc)
+        result = self.executor.transpile_circuit(qc)
         circuit_func = result.build_pennylane_circuit()
         assert callable(circuit_func)
-
-    def test_callable_on_instance(self):
-        """Test that transpile_circuit can also be called on an executor instance."""
-        executor = PennylaneExecutor()
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        result = executor.transpile_circuit(qc)
-        assert isinstance(result, PennyLaneCircuit)

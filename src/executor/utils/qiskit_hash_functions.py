@@ -4,9 +4,9 @@ import numpy as np
 
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.circuit.bit import Bit
+from qiskit.circuit import Bit
 
-# TODO: copied from QISKIT adjust for differnet versions of qiskit!
+# TODO: copied from QISKIT adjust for different versions of qiskit!
 
 
 def _bits_key(bits: tuple[Bit, ...], circuit: QuantumCircuit) -> tuple:

@@ -89,9 +89,7 @@ class ExecutorBase(ABC):
         if log_file is not None:
             # Avoid registering duplicate file handlers for the same path
             existing_paths = {
-                h.baseFilename
-                for h in self._logger.handlers
-                if isinstance(h, logging.FileHandler)
+                h.baseFilename for h in self._logger.handlers if isinstance(h, logging.FileHandler)
             }
             if log_file not in existing_paths:
                 handler = logging.FileHandler(log_file)
@@ -133,8 +131,10 @@ class ExecutorBase(ABC):
                     # Fall back to object identity for unhashable types
                     return id(v)
 
-        return (method_name,) + tuple(_to_hashable(a) for a in args) + tuple(
-            sorted((k, _to_hashable(v)) for k, v in kwargs.items())
+        return (
+            (method_name,)
+            + tuple(_to_hashable(a) for a in args)
+            + tuple(sorted((k, _to_hashable(v)) for k, v in kwargs.items()))
         )
 
     @property
@@ -213,7 +213,9 @@ class ExecutorBase(ABC):
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for expectation_value_derivatives")
                 return self._result_cache[key]
-            result = self._expectation_value_derivatives(circuit, operator, *derivative, **parameters)
+            result = self._expectation_value_derivatives(
+                circuit, operator, *derivative, **parameters
+            )
             self._result_cache[key] = result
             return result
         return self._expectation_value_derivatives(circuit, operator, *derivative, **parameters)

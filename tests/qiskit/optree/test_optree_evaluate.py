@@ -144,7 +144,7 @@ class TestOpTreeEvaluation:
 
     def test_estimator_xy(self, _create_random_circuits, _create_operator_xy):
         """
-        Tests the estimator with Z basis operators
+        Tests the estimator with XY/YX basis operators
 
         Args:
             _create_random_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.

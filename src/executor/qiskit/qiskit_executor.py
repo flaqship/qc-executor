@@ -32,6 +32,7 @@ if QISKIT_SMALLER_1_2:
         BackendEstimator as BackendEstimator,
         BackendSampler as BackendSampler,
     )
+    from qiskit.circuit import ParameterExpression as ParameterVectorElement
 elif QISKIT_SMALLER_2_0:
     # pylint: disable=ungrouped-imports
     from qiskit.primitives import (
@@ -257,21 +258,52 @@ class QiskitExecutor(ExecutorBase):
         Extract counts from the primitive result object.
         """
         # --- Qiskit 2.x ---
+        # Expect an iterable of SamplerPubResult-like objects, each with data.meas.get_counts().
         if (
             hasattr(pub_result, "__iter__")
+            and not isinstance(pub_result, (str, dict))
             and len(pub_result) > 0
             and hasattr(pub_result[0], "data")
         ):
-            first = pub_result[0]  # SamplerPubResult
-            meas = first.data.meas  # BitArray
-            return [meas.get_counts()]
+            counts_list = []
+            for i, pub in enumerate(pub_result):
+                data = getattr(pub, "data", None)
+                meas = getattr(data, "meas", None) if data is not None else None
+                if meas is None or not hasattr(meas, "get_counts"):
+                    raise ValueError(
+                        f"Unsupported sampler result format at pub index {i}: "
+                        f"'data.meas.get_counts()' is not available "
+                        f"(got type {type(pub)!r})."
+                    )
+                counts_list.append(meas.get_counts())
+            return counts_list
 
         # --- Qiskit 1.x ---
+        # Expect an object with quasi_dists and metadata per circuit.
         if hasattr(pub_result, "quasi_dists"):
-            qd = pub_result.quasi_dists[0]
-            shots = pub_result.metadata[0]["shots"]
-            counts = {format(k, f"0{n_qubits}b"): int(round(v * shots)) for k, v in qd.items()}
-            return [counts]
+            quasi_dists = pub_result.quasi_dists
+            metadata = getattr(pub_result, "metadata", None)
+            if metadata is None:
+                raise ValueError(
+                    "Unsupported sampler result format: 'metadata' attribute is missing for quasi_dists."
+                )
+            counts_list = []
+            for idx, qd in enumerate(quasi_dists):
+                if idx >= len(metadata):
+                    raise ValueError(
+                        f"Unsupported sampler result format: 'metadata' has {len(metadata)} "
+                        f"entries but quasi_dists has {len(quasi_dists)}."
+                    )
+                if "shots" not in metadata[idx]:
+                    raise ValueError(
+                        f"Unsupported sampler result format: 'metadata[{idx}][\"shots\"]' is missing."
+                    )
+                shots = metadata[idx]["shots"]
+                counts = {format(k, f"0{n_qubits}b"): int(round(v * shots)) for k, v in qd.items()}
+                counts_list.append(counts)
+            return counts_list
+
+        raise ValueError("Unsupported primitive result format: cannot extract counts.")
 
     def expectation_value(
         self,

@@ -446,3 +446,123 @@ class TestPennylaneExecutor:
         """Test that remote property returns False."""
         executor = PennylaneExecutor()
         assert executor.remote is False
+
+    # ========================================================================
+    # Logging Tests
+    # ========================================================================
+
+    def _close_file_handlers(self, executor):
+        """Helper to close and remove file handlers from an executor's logger."""
+        for handler in executor._logger.handlers[:]:
+            handler.close()
+            executor._logger.removeHandler(handler)
+
+    def test_logging_default_level(self):
+        """Test that default logging level is WARNING."""
+        import logging
+
+        executor = PennylaneExecutor()
+        assert executor._logger.level == logging.WARNING
+
+    def test_logging_info_level(self):
+        """Test that INFO logging level is set correctly."""
+        import logging
+
+        executor = PennylaneExecutor(log_level="INFO")
+        assert executor._logger.level == logging.INFO
+
+    def test_logging_debug_level(self):
+        """Test that DEBUG logging level is set correctly."""
+        import logging
+
+        executor = PennylaneExecutor(log_level="DEBUG")
+        assert executor._logger.level == logging.DEBUG
+
+    def test_logging_error_level(self):
+        """Test that ERROR logging level is set correctly."""
+        import logging
+
+        executor = PennylaneExecutor(log_level="ERROR")
+        assert executor._logger.level == logging.ERROR
+
+    def test_logging_invalid_level_raises(self):
+        """Test that an invalid log_level raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid log_level"):
+            PennylaneExecutor(log_level="VERBOSE")
+
+    def test_logging_to_file(self, tmp_path):
+        """Test that log messages are written to the specified log file."""
+        import logging
+
+        log_file = str(tmp_path / "executor.log")
+        executor = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        executor._logger.info("test log message")
+
+        with open(log_file) as f:
+            content = f.read()
+        assert "test log message" in content
+
+        self._close_file_handlers(executor)
+
+    def test_logging_no_duplicate_handlers(self, tmp_path):
+        """Test that creating two executors with the same log file does not add duplicate handlers."""
+        log_file = str(tmp_path / "executor.log")
+        executor1 = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        handler_count_before = len(executor1._logger.handlers)
+
+        executor2 = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        assert len(executor2._logger.handlers) == handler_count_before
+
+        self._close_file_handlers(executor1)
+
+    # ========================================================================
+    # Cache Size Tests
+    # ========================================================================
+
+    def test_cache_size_restriction_circuits(self):
+        """Test that circuit cache respects max_cache_size with FIFO eviction."""
+        executor = PennylaneExecutor(max_cache_size=2)
+
+        qc1 = _build_circuit(1, [])
+        qc2 = _build_circuit(2, [])
+        qc3 = _build_circuit(3, [])
+
+        executor._preprocess_circuits(qc1)
+        executor._preprocess_circuits(qc2)
+        assert len(executor._circuit_cache) == 2
+
+        # Adding a third circuit should evict the oldest (qc1)
+        executor._preprocess_circuits(qc3)
+        assert len(executor._circuit_cache) == 2
+        assert qc1 not in executor._circuit_cache
+        assert qc2 in executor._circuit_cache
+        assert qc3 in executor._circuit_cache
+        # qc2 was inserted before qc3, so it should be first in the ordered dict
+        assert list(executor._circuit_cache.keys()) == [qc2, qc3]
+
+    def test_cache_size_restriction_operators(self):
+        """Test that operator cache respects max_cache_size with FIFO eviction."""
+        executor = PennylaneExecutor(max_cache_size=2)
+
+        op1 = QuantumOperator(["Z"], [1.0])
+        op2 = QuantumOperator(["X"], [1.0])
+        op3 = QuantumOperator(["Y"], [1.0])
+
+        executor._preprocess_operators(op1)
+        executor._preprocess_operators(op2)
+        assert len(executor._operator_cache) == 2
+
+        # Adding a third operator should evict the oldest (op1)
+        executor._preprocess_operators(op3)
+        assert len(executor._operator_cache) == 2
+        assert op1 not in executor._operator_cache
+        assert op2 in executor._operator_cache
+        assert op3 in executor._operator_cache
+        assert list(executor._operator_cache.keys()) == [op2, op3]
+
+    def test_unlimited_cache_size_by_default(self):
+        """Test that cache is unlimited when max_cache_size is not specified."""
+        executor = PennylaneExecutor()
+        assert executor._max_cache_size is None
+        assert executor._circuit_cache.max_size is None
+        assert executor._operator_cache.max_size is None

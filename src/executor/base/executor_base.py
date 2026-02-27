@@ -1,5 +1,7 @@
+import logging
 import numpy as np
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from typing import List, Union
 
 from qiskit.circuit import ParameterExpression, Parameter, ParameterVector
@@ -11,6 +13,23 @@ from .operator_base import QuantumOperatorBase
 from ..parameters import Parameter, Parameters
 
 
+class _BoundedCache(OrderedDict):
+    """An ordered dictionary that evicts the oldest entry when a size limit is reached.
+
+    Args:
+        max_size (int, optional): Maximum number of entries. Defaults to None (unlimited).
+    """
+
+    def __init__(self, max_size: Union[int, None] = None):
+        super().__init__()
+        self.max_size = max_size
+
+    def __setitem__(self, key, value):
+        if self.max_size is not None and key not in self and len(self) >= self.max_size:
+            self.popitem(last=False)  # evict oldest entry
+        super().__setitem__(key, value)
+
+
 class ExecutorBase(ABC):
     """Base class for quantum circuit executors.
 
@@ -18,8 +37,12 @@ class ExecutorBase(ABC):
         shots (int, optional): Number of shots for sampling. Defaults to None.
         seed (int, optional): Random seed for reproducibility. Defaults to None.
         log_file (str, optional): Path to the log file. Defaults to None.
+        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
+            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
+        max_cache_size (int, optional): Maximum number of entries kept in each
+            in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
     def __init__(
@@ -27,14 +50,52 @@ class ExecutorBase(ABC):
         shots: Union[int, None] = None,
         seed: Union[int, None] = None,
         log_file: Union[str, None] = None,
+        log_level: str = "WARNING",
         caching: Union[bool, None] = None,
         cache_dir: str = "cache",
+        max_cache_size: Union[int, None] = None,
     ):
         self._shots = shots
         self._seed = seed
         self._log_file = log_file
         self._caching = caching
         self._cache_dir = cache_dir
+        self._max_cache_size = max_cache_size
+
+        # Validate and resolve log level
+        _valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        log_level_upper = log_level.upper()
+        if log_level_upper not in _valid_levels:
+            raise ValueError(
+                f"Invalid log_level '{log_level}'. "
+                f"Must be one of: {', '.join(sorted(_valid_levels))}."
+            )
+        level = getattr(logging, log_level_upper)
+
+        # Set up logger using a dotted hierarchy so handlers can be
+        # configured at the 'executor' package level by callers.
+        logger_name = f"{type(self).__module__}.{type(self).__qualname__}"
+        self._logger = logging.getLogger(logger_name)
+        self._logger.setLevel(level)
+        if log_file is not None:
+            # Avoid registering duplicate file handlers for the same path
+            existing_paths = {
+                h.baseFilename
+                for h in self._logger.handlers
+                if isinstance(h, logging.FileHandler)
+            }
+            if log_file not in existing_paths:
+                handler = logging.FileHandler(log_file)
+                handler.setLevel(level)
+                formatter = logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+                handler.setFormatter(formatter)
+                self._logger.addHandler(handler)
+
+    def _make_cache(self) -> _BoundedCache:
+        """Create a new bounded cache with the configured size limit."""
+        return _BoundedCache(self._max_cache_size)
 
     @property
     def shots(self) -> Union[int, None]:

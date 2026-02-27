@@ -59,9 +59,11 @@ else:
                 )
                 for data in circuit.data
             ),
-            None
-            if getattr(circuit, "_op_start_times", None) is None
-            else tuple(circuit._op_start_times),
+            (
+                None
+                if getattr(circuit, "_op_start_times", None) is None
+                else tuple(circuit._op_start_times)
+            ),
         )
         if functional:
             return functional_key

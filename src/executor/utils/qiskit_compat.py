@@ -20,6 +20,7 @@ QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 
 # ── ParameterExpression helpers ────────────────────────────────────────────
 
+
 def _param_to_sympy(param: ParameterExpression):
     """Convert a ``ParameterExpression`` to a *sympy* expression.
 

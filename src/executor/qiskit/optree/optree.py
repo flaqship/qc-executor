@@ -803,9 +803,7 @@ class OpTree:
                     "Use inplace=False instead."
                 )
             else:
-                return element.assign_parameters(
-                    [dictionary[p] for p in element.parameters]
-                )
+                return element.assign_parameters([dictionary[p] for p in element.parameters])
         elif isinstance(element, (OpTreeExpectationValue, OpTreeMeasuredOperator)):
             # Assign the parameters to the circuit and operator
             if inplace:
@@ -844,9 +842,7 @@ class OpTree:
                     "Use inplace=False instead."
                 )
             else:
-                return element.assign_parameters(
-                    [dictionary[p] for p in element.parameters]
-                )
+                return element.assign_parameters([dictionary[p] for p in element.parameters])
         else:
             raise ValueError(
                 "element must be a OpTreeNodeBase, OpTreeLeafCircuit or a QuantumCircuit"

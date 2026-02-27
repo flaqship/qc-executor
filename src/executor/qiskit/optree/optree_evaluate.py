@@ -424,9 +424,7 @@ def _build_operator_list(
             # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
             # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
             operator = ensure_complex_coeffs(
-                operator.assign_parameters(
-                    [dictionary[p] for p in operator.parameters]
-                ).simplify()
+                operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
             )
 
             if len(operator.parameters) != 0:
@@ -711,9 +709,7 @@ def _build_expectation_list(
             # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
             # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
             operator = ensure_complex_coeffs(
-                operator.assign_parameters(
-                    [dictionary[p] for p in operator.parameters]
-                ).simplify()
+                operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
             )
 
             if len(operator.parameters) != 0:

@@ -166,7 +166,6 @@ class TestExecutorIntegration:
             # PennyLane not installed - should not be in backends
             assert "pennylane" not in backends
     
-    @pytest.mark.skip(reason="Backend registration happens in step 6")
     def test_qulacs_backend_available(self):
         """Test that qulacs backend is available if installed."""
         backends = Executor.available_backends()

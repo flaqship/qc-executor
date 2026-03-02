@@ -1,6 +1,8 @@
 """A library for quantum machine learning following the scikit-learn standard."""
 
-from . import base, pennylane, qiskit, qulacs
+import importlib
+
+from . import base
 from .quantum_circuit import QuantumCircuit
 from .quantum_operator import QuantumOperator
 from .parameters import Parameters
@@ -18,3 +20,14 @@ __all__ = [
     "QuantumOperator",
     "Parameters",
 ]
+
+_LAZY_SUBMODULES = {"pennylane", "qiskit", "qulacs"}
+
+
+def __getattr__(name: str):
+    """Lazily import backend submodules on first access (PEP 562)."""
+    if name in _LAZY_SUBMODULES:
+        module = importlib.import_module(f".{name}", __name__)
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -4,6 +4,7 @@ from . import base, pennylane, qiskit, qulacs
 from .quantum_circuit import QuantumCircuit
 from .quantum_operator import QuantumOperator
 from .parameters import Parameters
+from .factory import create_executor
 
 __version__ = "0.1.0"
 
@@ -15,4 +16,5 @@ __all__ = [
     "QuantumCircuit",
     "QuantumOperator",
     "Parameters",
+    "create_executor",
 ]

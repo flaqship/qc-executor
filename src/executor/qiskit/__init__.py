@@ -1,20 +1,29 @@
 from .qiskit_circuit import QiskitCircuit
-from .qiskit_executor import QiskitExecutor
 from .qiskit_observable import QiskitObservable
 
 # Register QiskitExecutor with the factory
 from executor.factory import Executor
 
-@Executor.register("qiskit")
-class _RegisteredQiskitExecutor(QiskitExecutor):
-    """QiskitExecutor registered with the factory."""
-    pass
+try:
+    from .qiskit_executor import QiskitExecutor
+except ImportError as e:
+    import warnings
 
-# Replace QiskitExecutor reference to ensure decorator is applied
-QiskitExecutor = _RegisteredQiskitExecutor
+    warnings.warn(
+        f"Qiskit executor backend not available: {e}. "
+        "Install with: pip install executor[qiskit-full]",
+        ImportWarning,
+    )
 
-__all__ = [
-    "QiskitCircuit",
-    "QiskitExecutor",
-    "QiskitObservable",
-]
+    __all__ = [
+        "QiskitCircuit",
+        "QiskitObservable",
+    ]
+else:
+    Executor.register("qiskit")(QiskitExecutor)
+
+    __all__ = [
+        "QiskitCircuit",
+        "QiskitExecutor",
+        "QiskitObservable",
+    ]

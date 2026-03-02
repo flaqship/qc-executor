@@ -117,6 +117,23 @@ class TestExecutorFactory:
             error_msg = str(e)
             assert "Available backends:" in error_msg
             assert "pip install executor[nonexistent_backend_xyz]" in error_msg
+
+    def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
+        """Test that qiskit backend install hint points to qiskit-full."""
+        original_registry = Executor._registry.copy()
+        original_discovered = Executor._plugins_discovered
+
+        try:
+            Executor._registry = {k: v for k, v in Executor._registry.items() if k != "qiskit"}
+            Executor._plugins_discovered = True
+
+            with pytest.raises(ValueError) as exc_info:
+                Executor.create("qiskit")
+
+            assert "pip install executor[qiskit-full]" in str(exc_info.value)
+        finally:
+            Executor._registry = original_registry
+            Executor._plugins_discovered = original_discovered
     
     def test_create_with_kwargs(self):
         """Test that create passes kwargs to backend constructor."""
@@ -149,11 +166,11 @@ class TestExecutorIntegration:
     
     def test_create_qiskit(self):
         """Test creating QiskitExecutor via factory."""
-        executor = Executor.create("qiskit", shots=1024)
+        executor = Executor.create("qiskit")
         
         from executor.qiskit import QiskitExecutor
         assert isinstance(executor, QiskitExecutor)
-        assert executor.shots == 1024
+        assert executor.shots is None
     
     def test_pennylane_backend_available(self):
         """Test that pennylane backend is available if installed."""

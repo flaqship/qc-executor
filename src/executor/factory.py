@@ -21,6 +21,11 @@ class Executor:
     
     _registry: dict[str, Type["ExecutorBase"]] = {}
     _plugins_discovered: bool = False
+    _backend_extra_map: dict[str, str] = {
+        "qiskit": "qiskit-full",
+        "pennylane": "pennylane",
+        "qulacs": "qulacs",
+    }
     
     def __init__(self):
         """Executor cannot be instantiated. Use Executor.create() instead."""
@@ -91,11 +96,12 @@ class Executor:
         if backend not in cls._registry:
             available = cls.available_backends()
             available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
+            extra_name = cls._backend_extra_map.get(backend, backend)
             
             raise ValueError(
                 f"Backend '{backend}' not found. "
                 f"Available backends: {available_str}. "
-                f"Install with: pip install executor[{backend}]"
+                f"Install with: pip install executor[{extra_name}]"
             )
         
         # Create and return backend instance

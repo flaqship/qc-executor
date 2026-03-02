@@ -4,7 +4,6 @@ from typing import List, Tuple, Union
 from executor.base.circuit_base import QuantumCircuitBase
 from executor.base.executor_base import ExecutorBase
 from executor.base.operator_base import QuantumOperatorBase
-from qiskit_aer import AerSimulator
 from qiskit.primitives import (
     StatevectorEstimator,
     StatevectorSampler,
@@ -22,6 +21,18 @@ from executor.qiskit.optree.optree import (
     OpTreeNodeBase,
     OpTreeOperator,
 )
+
+
+def _load_aer_simulator():
+    try:
+        from qiskit_aer import AerSimulator
+    except ImportError as e:
+        raise ImportError(
+            "qiskit-aer is required for 'backend=\"aer\"' and for shot-based "
+            "sampling with 'backend=\"statevector\"'. Install with: "
+            "pip install executor[qiskit-full]"
+        ) from e
+    return AerSimulator
 
 if QISKIT_SMALLER_1_2:
     # pylint: disable=ungrouped-imports
@@ -89,6 +100,7 @@ class QiskitExecutor(ExecutorBase):
                 self._sampler = StatevectorSampler()
                 self._backend = None
             else:
+                AerSimulator = _load_aer_simulator()
                 self._backend = AerSimulator(method="statevector")
                 if QISKIT_SMALLER_2_0:
                     self._estimator = BackendEstimator(backend=self._backend)
@@ -97,6 +109,7 @@ class QiskitExecutor(ExecutorBase):
                     self._estimator = BackendEstimator(backend=self._backend)
                     self._sampler = BackendSampler(backend=self._backend)
         elif backend == "aer":
+            AerSimulator = _load_aer_simulator()
             self._backend = AerSimulator()
             if QISKIT_SMALLER_2_0:
                 self._estimator = BackendEstimator(self._backend)

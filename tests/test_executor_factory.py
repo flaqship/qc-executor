@@ -1,0 +1,182 @@
+"""Tests for the Executor factory class."""
+
+import pytest
+from executor.factory import Executor
+from executor.base.executor_base import ExecutorBase
+
+
+class MockExecutor(ExecutorBase):
+    """Mock executor for testing."""
+    
+    def __init__(self, shots=None, **kwargs):
+        """Initialize mock executor."""
+        super().__init__(shots=shots, **kwargs)
+    
+    def _expectation_value(self, circuit, operator, parameters=None):
+        """Mock implementation."""
+        return 0.5
+    
+    def _expectation_value_derivatives(self, circuit, operator, parameters=None):
+        """Mock implementation."""
+        import numpy as np
+        return np.array([0.1, 0.2])
+    
+    def _sample(self, circuit, parameters=None):
+        """Mock implementation."""
+        return {"00": 500, "11": 500}
+    
+    def _statevector(self, circuit, parameters=None):
+        """Mock implementation."""
+        import numpy as np
+        return np.array([1.0, 0.0])
+    
+    def _transpile_circuit(self, circuit):
+        """Mock implementation."""
+        return circuit
+
+
+class TestExecutorFactory:
+    """Test cases for Executor factory."""
+    
+    def test_executor_not_instantiable(self):
+        """Test that Executor cannot be instantiated directly."""
+        with pytest.raises(TypeError, match="cannot be instantiated"):
+            Executor()
+    
+    def test_register_decorator(self):
+        """Test that @Executor.register decorator works."""
+        # Register a mock backend
+        @Executor.register("mock_test")
+        class TestExecutor(ExecutorBase):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+            
+            def _expectation_value(self, circuit, operator, parameters=None):
+                return 0.0
+            
+            def _expectation_value_derivatives(self, circuit, operator, parameters=None):
+                import numpy as np
+                return np.array([0.0])
+            
+            def _sample(self, circuit, parameters=None):
+                return {}
+            
+            def _statevector(self, circuit, parameters=None):
+                import numpy as np
+                return np.array([1.0])
+            
+            def _transpile_circuit(self, circuit):
+                return circuit
+        
+        # Check if backend is registered
+        assert "mock_test" in Executor.available_backends()
+        
+        # Clean up
+        if "mock_test" in Executor._registry:
+            del Executor._registry["mock_test"]
+    
+    def test_register_validates_base_class(self):
+        """Test that register checks for ExecutorBase inheritance."""
+        with pytest.raises(TypeError, match="must inherit from ExecutorBase"):
+            @Executor.register("invalid")
+            class InvalidExecutor:
+                pass
+    
+    def test_available_backends_empty(self):
+        """Test available_backends when no backends are registered."""
+        # Save current registry
+        original_registry = Executor._registry.copy()
+        original_discovered = Executor._plugins_discovered
+        
+        try:
+            # Clear registry
+            Executor._registry.clear()
+            Executor._plugins_discovered = False
+            
+            # Discover plugins (will populate registry)
+            backends = Executor.available_backends()
+            
+            # Should have at least one backend after discovery
+            assert isinstance(backends, list)
+            
+        finally:
+            # Restore original registry
+            Executor._registry = original_registry
+            Executor._plugins_discovered = original_discovered
+    
+    def test_create_unknown_backend(self):
+        """Test that create raises helpful error for unknown backend."""
+        with pytest.raises(ValueError, match="Backend 'nonexistent' not found"):
+            Executor.create("nonexistent")
+    
+    def test_create_unknown_backend_message_includes_available(self):
+        """Test that error message includes available backends."""
+        try:
+            Executor.create("nonexistent_backend_xyz")
+        except ValueError as e:
+            error_msg = str(e)
+            assert "Available backends:" in error_msg
+            assert "pip install executor[nonexistent_backend_xyz]" in error_msg
+    
+    def test_create_with_kwargs(self):
+        """Test that create passes kwargs to backend constructor."""
+        # Register mock backend
+        @Executor.register("mock_kwargs")
+        class MockKwargsExecutor(MockExecutor):
+            pass
+        
+        try:
+            # Create with kwargs
+            executor = Executor.create("mock_kwargs", shots=1024, seed=42)
+            
+            # Verify it's the right type
+            assert isinstance(executor, MockKwargsExecutor)
+            assert executor.shots == 1024
+            
+        finally:
+            # Clean up
+            if "mock_kwargs" in Executor._registry:
+                del Executor._registry["mock_kwargs"]
+
+
+class TestExecutorIntegration:
+    """Integration tests with actual backends."""
+    
+    @pytest.mark.skip(reason="Backend registration happens in step 4")
+    def test_qiskit_in_available_backends(self):
+        """Test that qiskit backend is available."""
+        backends = Executor.available_backends()
+        assert "qiskit" in backends
+    
+    @pytest.mark.skip(reason="Backend registration happens in step 4")
+    def test_create_qiskit(self):
+        """Test creating QiskitExecutor via factory."""
+        executor = Executor.create("qiskit", shots=1024)
+        
+        from executor.qiskit import QiskitExecutor
+        assert isinstance(executor, QiskitExecutor)
+        assert executor.shots == 1024
+    
+    @pytest.mark.skip(reason="Backend registration happens in step 5")
+    def test_pennylane_backend_available(self):
+        """Test that pennylane backend is available if installed."""
+        backends = Executor.available_backends()
+        
+        try:
+            import pennylane
+            assert "pennylane" in backends
+        except ImportError:
+            # PennyLane not installed - should not be in backends
+            assert "pennylane" not in backends
+    
+    @pytest.mark.skip(reason="Backend registration happens in step 6")
+    def test_qulacs_backend_available(self):
+        """Test that qulacs backend is available if installed."""
+        backends = Executor.available_backends()
+        
+        try:
+            import qulacs
+            assert "qulacs" in backends
+        except ImportError:
+            # Qulacs not installed - should not be in backends
+            assert "qulacs" not in backends

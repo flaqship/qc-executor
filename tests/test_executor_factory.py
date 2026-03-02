@@ -142,13 +142,11 @@ class TestExecutorFactory:
 class TestExecutorIntegration:
     """Integration tests with actual backends."""
     
-    @pytest.mark.skip(reason="Backend registration happens in step 4")
     def test_qiskit_in_available_backends(self):
         """Test that qiskit backend is available."""
         backends = Executor.available_backends()
         assert "qiskit" in backends
     
-    @pytest.mark.skip(reason="Backend registration happens in step 4")
     def test_create_qiskit(self):
         """Test creating QiskitExecutor via factory."""
         executor = Executor.create("qiskit", shots=1024)

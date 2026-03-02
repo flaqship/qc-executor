@@ -155,7 +155,6 @@ class TestExecutorIntegration:
         assert isinstance(executor, QiskitExecutor)
         assert executor.shots == 1024
     
-    @pytest.mark.skip(reason="Backend registration happens in step 5")
     def test_pennylane_backend_available(self):
         """Test that pennylane backend is available if installed."""
         backends = Executor.available_backends()

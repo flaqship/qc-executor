@@ -3,6 +3,7 @@
 import importlib
 import importlib.util
 import sys
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -11,7 +12,7 @@ import pytest
 # eager backend imports (which may fail if specific backend versions are not installed).
 _spec = importlib.util.spec_from_file_location(
     "executor.factory",
-    str(__import__("pathlib").Path(__file__).resolve().parent.parent / "src" / "executor" / "factory.py"),
+    str(Path(__file__).resolve().parent.parent / "src" / "executor" / "factory.py"),
 )
 _factory_mod = importlib.util.module_from_spec(_spec)
 sys.modules["executor.factory"] = _factory_mod

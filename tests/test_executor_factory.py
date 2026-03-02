@@ -176,3 +176,52 @@ class TestExecutorIntegration:
         except ImportError:
             # Qulacs not installed - should not be in backends
             assert "qulacs" not in backends
+
+
+class TestExecutorBackendSwitching:
+    """Test backend switching functionality."""
+    
+    def test_get_config(self):
+        """Test that get_config returns executor configuration."""
+        executor = Executor.create("qiskit", shots=1024, seed=42, caching=True)
+        
+        config = executor.get_config()
+        
+        assert config['shots'] == 1024
+        assert config['seed'] == 42
+        assert config['caching'] is True
+        assert 'log_level' in config
+        assert 'cache_dir' in config
+    
+    def test_switch_backend_preserves_config(self):
+        """Test that switch_backend preserves configuration."""
+        executor = Executor.create("qiskit", shots=1024, seed=42)
+        
+        # Switch to pennylane (if available)
+        try:
+            import pennylane
+            new_executor = executor.switch_backend("pennylane")
+            
+            assert new_executor.shots == 1024
+            assert new_executor._seed == 42
+            
+            from executor.pennylane import PennyLaneExecutor
+            assert isinstance(new_executor, PennyLaneExecutor)
+        except ImportError:
+            # PennyLane not installed - just verify method exists
+            assert hasattr(executor, 'switch_backend')
+    
+    def test_switch_backend_with_overrides(self):
+        """Test that switch_backend can override configuration."""
+        executor = Executor.create("qiskit", shots=1024, seed=42)
+        
+        # Switch with overrides
+        try:
+            import pennylane
+            new_executor = executor.switch_backend("pennylane", shots=2048, seed=99)
+            
+            assert new_executor.shots == 2048
+            assert new_executor._seed == 99
+        except ImportError:
+            # PennyLane not installed - skip this test
+            pass

@@ -323,6 +323,65 @@ class ExecutorBase(ABC):
         return self._transpile_circuit(circuit)
 
     # ------------------------------------------------------------------
+    # Backend switching – allows changing backend while preserving configuration
+    # ------------------------------------------------------------------
+
+    def get_config(self) -> dict:
+        """Get the current executor configuration.
+        
+        Returns:
+            dict: Dictionary containing the executor configuration parameters
+                (shots, seed, log_file, log_level, caching, cache_dir, max_cache_size)
+        
+        Example:
+            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
+            >>> config = executor.get_config()
+            >>> print(config)  # {'shots': 1024, 'seed': 42, ...}
+        """
+        return {
+            'shots': self._shots,
+            'seed': self._seed,
+            'log_file': self._log_file,
+            'log_level': logging.getLevelName(self._logger.level),
+            'caching': self._caching,
+            'cache_dir': self._cache_dir,
+            'max_cache_size': self._max_cache_size,
+        }
+    
+    def switch_backend(self, backend: str, **overrides) -> 'ExecutorBase':
+        """Switch to a different backend while preserving configuration.
+        
+        Creates a new executor instance with the specified backend, copying
+        the current configuration and applying any overrides.
+        
+        Args:
+            backend: Name of the backend to switch to (e.g., "qiskit", "pennylane", "qulacs")
+            **overrides: Configuration parameters to override (e.g., shots=2048)
+        
+        Returns:
+            ExecutorBase: New executor instance with the specified backend
+        
+        Example:
+            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
+            >>> pennylane_executor = executor.switch_backend("pennylane")
+            >>> # pennylane_executor has shots=1024, seed=42
+            >>> 
+            >>> # Override specific parameters
+            >>> qulacs_executor = executor.switch_backend("qulacs", shots=2048)
+            >>> # qulacs_executor has shots=2048, seed=42
+        """
+        # Lazy import to avoid circular dependencies
+        from executor import Executor
+        
+        # Get current config and apply overrides
+        config = self.get_config()
+        config.update(overrides)
+        
+        # Create new executor with specified backend
+        self._logger.info(f"Switching backend from {type(self).__name__} to {backend}")
+        return Executor.create(backend, **config)
+
+    # ------------------------------------------------------------------
     # Abstract implementation hooks – subclasses override these.
     # ------------------------------------------------------------------
 

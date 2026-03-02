@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from executor._factory import create_executor
+from executor.factory import create_executor
 
 
 class TestCreateExecutor:
@@ -104,13 +104,16 @@ class TestCreateExecutor:
         # Remove cached backend modules to check they aren't re-imported
         removed = {}
         for mod_name in list(sys.modules):
-            if mod_name.startswith(("executor.pennylane.", "executor.qiskit.", "executor.qulacs.")):
+            if mod_name.startswith(
+                ("executor.pennylane.", "executor.qiskit.", "executor.qulacs.")
+            ):
                 removed[mod_name] = sys.modules.pop(mod_name)
 
         try:
             # Re-import the factory module
             import importlib
-            importlib.reload(__import__("executor._factory"))
+
+            importlib.reload(__import__("executor.factory"))
 
             # Backend executor modules should not be in sys.modules
             for mod_name in (
@@ -118,9 +121,9 @@ class TestCreateExecutor:
                 "executor.qiskit.qiskit_executor",
                 "executor.qulacs.qulacs_executor",
             ):
-                assert mod_name not in sys.modules, (
-                    f"{mod_name} was eagerly imported by the factory module"
-                )
+                assert (
+                    mod_name not in sys.modules
+                ), f"{mod_name} was eagerly imported by the factory module"
         finally:
             # Restore removed modules
             sys.modules.update(removed)

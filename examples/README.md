@@ -7,7 +7,7 @@ This directory contains Jupyter notebooks demonstrating the use of the `executor
 ```
 examples/
 ├── pennylane/
-│   └── 01_basic_usage.ipynb   – PennylaneExecutor: expectation values, derivatives, sampling
+│   └── 01_basic_usage.ipynb   – PennyLaneExecutor: expectation values, derivatives, sampling
 ├── qiskit/
 │   └── 01_basic_usage.ipynb   – QiskitExecutor: expectation values, derivatives, sampling
 └── qulacs/

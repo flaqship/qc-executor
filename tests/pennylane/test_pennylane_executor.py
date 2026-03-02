@@ -1,7 +1,7 @@
 """
 Test suite for PennyLane executor.
 
-This module tests the PennylaneExecutor class which executes quantum circuits
+This module tests the PennyLaneExecutor class which executes quantum circuits
 using PennyLane backend, including:
 - Expectation value computation
 - Sampling
@@ -16,7 +16,7 @@ import pytest
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
-from executor.pennylane.pennylane_executor import PennylaneExecutor
+from executor.pennylane.pennylane_executor import PennyLaneExecutor
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 
 
@@ -45,24 +45,24 @@ class TestPennylaneExecutor:
 
     def test_initialization_default(self):
         """Test executor initialization with default parameters."""
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         assert executor is not None
         assert executor.shots is None
 
     def test_initialization_with_shots(self):
         """Test executor initialization with shots parameter."""
-        executor = PennylaneExecutor(shots=1000)
+        executor = PennyLaneExecutor(shots=1000)
         assert executor.shots == 1000
 
     def test_initialization_with_seed(self):
         """Test executor initialization with seed parameter."""
-        executor = PennylaneExecutor(seed=42)
+        executor = PennyLaneExecutor(seed=42)
         assert executor is not None
         assert executor.shots is None
 
     def test_initialization_with_all_params(self):
         """Test executor initialization with all parameters."""
-        executor = PennylaneExecutor(shots=500, seed=123, log_file="test.log")
+        executor = PennyLaneExecutor(shots=500, seed=123, log_file="test.log")
         assert executor.shots == 500
 
     # Expectation Value Tests
@@ -72,7 +72,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         op = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op)
 
         assert isinstance(result, (float, np.ndarray))
@@ -83,7 +83,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         op = QuantumOperator(["ZZ"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op)
 
         assert isinstance(result, (float, np.ndarray))
@@ -94,7 +94,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("h", [0])])
         op = QuantumOperator(["X"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op)
 
         assert isinstance(result, (float, np.ndarray))
@@ -105,7 +105,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("h", [0]), ("s", [0])])
         op = QuantumOperator(["Y"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op)
 
         assert isinstance(result, (float, np.ndarray))
@@ -117,7 +117,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op, x=[np.pi])
 
         assert isinstance(result, (float, np.ndarray))
@@ -129,7 +129,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
         op = QuantumOperator(["ZZ"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op, x=[0.0, 0.0])
 
         assert isinstance(result, (float, np.ndarray))
@@ -141,7 +141,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         op = QuantumOperator(["ZI", "IZ"], [pop[0], pop[1]])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op, pop=[0.5, 0.5])
 
         assert isinstance(result, (float, np.ndarray))
@@ -153,7 +153,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [pop[0]])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op, x=[0.0], pop=[1.0])
 
         assert isinstance(result, (float, np.ndarray))
@@ -164,7 +164,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(3, [("h", [0]), ("cx", [0, 1]), ("cx", [1, 2])])
         op = QuantumOperator(["ZZZ"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, op)
 
         assert isinstance(result, (float, np.ndarray))
@@ -175,7 +175,7 @@ class TestPennylaneExecutor:
         """Test sampling from Bell state (should get 00 and 11)."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
 
-        executor = PennylaneExecutor(shots=1000, seed=42)
+        executor = PennyLaneExecutor(shots=1000, seed=42)
         result = executor.sample(qc)
 
         assert isinstance(result, list)
@@ -189,7 +189,7 @@ class TestPennylaneExecutor:
         """Test sampling after X gate (should get all 1s)."""
         qc = _build_circuit(2, [("x", [0]), ("x", [1])])
 
-        executor = PennylaneExecutor(shots=100, seed=42)
+        executor = PennyLaneExecutor(shots=100, seed=42)
         result = executor.sample(qc)
 
         samples = result[0]
@@ -201,7 +201,7 @@ class TestPennylaneExecutor:
         x = ParameterVector("x", 1)
         qc = _build_circuit(2, [("rx", [0, x[0]])])
 
-        executor = PennylaneExecutor(shots=1000, seed=42)
+        executor = PennyLaneExecutor(shots=1000, seed=42)
         result = executor.sample(qc, x=[np.pi])
 
         samples = result[0]
@@ -215,7 +215,7 @@ class TestPennylaneExecutor:
         # Use 2 qubits to avoid scalar sample issues
         qc = _build_circuit(2, [("h", [0])])
 
-        executor = PennylaneExecutor(shots=1000, seed=42)
+        executor = PennyLaneExecutor(shots=1000, seed=42)
         result = executor.sample(qc)
 
         samples = result[0]
@@ -231,7 +231,7 @@ class TestPennylaneExecutor:
         """Test statevector of empty circuit (should be |00...0>)."""
         qc = _build_circuit(2, [])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         statevector = executor.statevector(qc)
 
         assert isinstance(statevector, np.ndarray)
@@ -244,7 +244,7 @@ class TestPennylaneExecutor:
         """Test statevector after X gate (should be |1>)."""
         qc = _build_circuit(1, [("x", [0])])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         statevector = executor.statevector(qc)
 
         assert isinstance(statevector, np.ndarray)
@@ -256,7 +256,7 @@ class TestPennylaneExecutor:
         """Test statevector of Hadamard state (should be equal superposition)."""
         qc = _build_circuit(1, [("h", [0])])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         statevector = executor.statevector(qc)
 
         assert isinstance(statevector, np.ndarray)
@@ -269,7 +269,7 @@ class TestPennylaneExecutor:
         """Test statevector of Bell state."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         statevector = executor.statevector(qc)
 
         assert isinstance(statevector, np.ndarray)
@@ -283,7 +283,7 @@ class TestPennylaneExecutor:
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         statevector = executor.statevector(qc, x=[np.pi / 2])
 
         assert isinstance(statevector, np.ndarray)
@@ -296,7 +296,7 @@ class TestPennylaneExecutor:
         x = ParameterVector("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         statevector = executor.statevector(qc, x=[0.5, 0.3])
 
         assert isinstance(statevector, np.ndarray)
@@ -312,7 +312,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value_derivatives(qc, op, "x", x=[0.0])
 
         assert isinstance(result, (float, np.ndarray))
@@ -323,7 +323,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
         op = QuantumOperator(["ZI"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value_derivatives(qc, op, "x[0]", x=[0.0, 0.0])
 
         assert isinstance(result, (float, np.ndarray))
@@ -334,7 +334,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.expectation_value_derivatives(qc, op, "expectation_value", "x", x=[0.0])
 
         assert isinstance(result, dict)
@@ -346,7 +346,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("ry", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         derivative = executor.expectation_value_derivatives(qc, op, "x", x=[0.0])
 
         assert isinstance(derivative, (float, np.ndarray))
@@ -361,7 +361,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
 
         with pytest.raises(ValueError, match="Parameter 'x' not found"):
             executor.expectation_value(qc, op)  # Missing x parameter
@@ -371,7 +371,7 @@ class TestPennylaneExecutor:
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
-        executor = PennylaneExecutor(shots=1000)
+        executor = PennyLaneExecutor(shots=1000)
 
         with pytest.raises(ValueError, match="Parameter 'x' not found"):
             executor.sample(qc)  # Missing x parameter
@@ -381,7 +381,7 @@ class TestPennylaneExecutor:
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
 
         with pytest.raises(ValueError, match="Parameter 'x' not found"):
             executor.statevector(qc)  # Missing x parameter
@@ -392,7 +392,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
 
         with pytest.raises(ValueError, match="Parameter 'x' not found"):
             executor.expectation_value_derivatives(qc, op, "x")  # Missing x parameter
@@ -402,7 +402,7 @@ class TestPennylaneExecutor:
     def test_circuit_caching(self):
         """Test that circuits are properly cached."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
 
         # First call should add to cache
         executor._preprocess_circuits(qc)
@@ -416,7 +416,7 @@ class TestPennylaneExecutor:
     def test_operator_caching(self):
         """Test that operators are properly cached."""
         op = QuantumOperator(["ZI"], [1.0])
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
 
         # First call should add to cache
         executor._preprocess_operators(op)
@@ -433,19 +433,19 @@ class TestPennylaneExecutor:
 
     def test_shots_property_getter(self):
         """Test that shots property returns correct value."""
-        executor = PennylaneExecutor(shots=500)
+        executor = PennyLaneExecutor(shots=500)
         assert executor.shots == 500
 
     def test_shots_property_setter_raises_error(self):
         """Test that shots setter raises NotImplementedError."""
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
 
         with pytest.raises(NotImplementedError):
             executor.shots = 1000
 
     def test_remote_property(self):
         """Test that remote property returns False."""
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         assert executor.remote is False
 
     # ========================================================================
@@ -462,41 +462,41 @@ class TestPennylaneExecutor:
         """Test that default logging level is WARNING."""
         import logging
 
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         assert executor._logger.level == logging.WARNING
 
     def test_logging_info_level(self):
         """Test that INFO logging level is set correctly."""
         import logging
 
-        executor = PennylaneExecutor(log_level="INFO")
+        executor = PennyLaneExecutor(log_level="INFO")
         assert executor._logger.level == logging.INFO
 
     def test_logging_debug_level(self):
         """Test that DEBUG logging level is set correctly."""
         import logging
 
-        executor = PennylaneExecutor(log_level="DEBUG")
+        executor = PennyLaneExecutor(log_level="DEBUG")
         assert executor._logger.level == logging.DEBUG
 
     def test_logging_error_level(self):
         """Test that ERROR logging level is set correctly."""
         import logging
 
-        executor = PennylaneExecutor(log_level="ERROR")
+        executor = PennyLaneExecutor(log_level="ERROR")
         assert executor._logger.level == logging.ERROR
 
     def test_logging_invalid_level_raises(self):
         """Test that an invalid log_level raises ValueError."""
         with pytest.raises(ValueError, match="Invalid log_level"):
-            PennylaneExecutor(log_level="VERBOSE")
+            PennyLaneExecutor(log_level="VERBOSE")
 
     def test_logging_to_file(self, tmp_path):
         """Test that log messages are written to the specified log file."""
         import logging
 
         log_file = str(tmp_path / "executor.log")
-        executor = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        executor = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("test log message")
 
         with open(log_file) as f:
@@ -508,10 +508,10 @@ class TestPennylaneExecutor:
     def test_logging_no_duplicate_handlers(self, tmp_path):
         """Test that creating two executors with the same log file does not add duplicate handlers."""
         log_file = str(tmp_path / "executor.log")
-        executor1 = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        executor1 = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         handler_count_before = len(executor1._logger.handlers)
 
-        executor2 = PennylaneExecutor(log_level="INFO", log_file=log_file)
+        executor2 = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         assert len(executor2._logger.handlers) == handler_count_before
 
         self._close_file_handlers(executor1)
@@ -522,7 +522,7 @@ class TestPennylaneExecutor:
 
     def test_cache_size_restriction_circuits(self):
         """Test that circuit cache respects max_cache_size with FIFO eviction."""
-        executor = PennylaneExecutor(max_cache_size=2)
+        executor = PennyLaneExecutor(max_cache_size=2)
 
         qc1 = _build_circuit(1, [])
         qc2 = _build_circuit(2, [])
@@ -543,7 +543,7 @@ class TestPennylaneExecutor:
 
     def test_cache_size_restriction_operators(self):
         """Test that operator cache respects max_cache_size with FIFO eviction."""
-        executor = PennylaneExecutor(max_cache_size=2)
+        executor = PennyLaneExecutor(max_cache_size=2)
 
         op1 = QuantumOperator(["Z"], [1.0])
         op2 = QuantumOperator(["X"], [1.0])
@@ -563,7 +563,7 @@ class TestPennylaneExecutor:
 
     def test_unlimited_cache_size_by_default(self):
         """Test that cache is unlimited when max_cache_size is not specified."""
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         assert executor._max_cache_size is None
         assert executor._circuit_cache.max_size is None
         assert executor._operator_cache.max_size is None
@@ -574,22 +574,22 @@ class TestPennylaneExecutor:
 
     def test_result_cache_disabled_by_default(self):
         """Test that result cache is None when caching is not enabled."""
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         assert executor._result_cache is None
 
     def test_result_cache_disabled_when_caching_false(self):
         """Test that result cache is None when caching=False."""
-        executor = PennylaneExecutor(caching=False)
+        executor = PennyLaneExecutor(caching=False)
         assert executor._result_cache is None
 
     def test_result_cache_enabled_when_caching_true(self):
         """Test that result cache is created when caching=True."""
-        executor = PennylaneExecutor(caching=True)
+        executor = PennyLaneExecutor(caching=True)
         assert executor._result_cache is not None
 
     def test_result_cache_respects_max_cache_size(self):
         """Test that result cache respects max_cache_size."""
-        executor = PennylaneExecutor(caching=True, max_cache_size=5)
+        executor = PennyLaneExecutor(caching=True, max_cache_size=5)
         assert executor._result_cache.max_size == 5
 
     def test_expectation_value_result_caching(self):
@@ -597,7 +597,7 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("h", [0])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor(caching=True)
+        executor = PennyLaneExecutor(caching=True)
         result1 = executor.expectation_value(qc, op)
 
         # Cache should contain one entry
@@ -614,7 +614,7 @@ class TestPennylaneExecutor:
         """Test that repeated statevector calls use the result cache."""
         qc = _build_circuit(1, [("h", [0])])
 
-        executor = PennylaneExecutor(caching=True)
+        executor = PennyLaneExecutor(caching=True)
         sv1 = executor.statevector(qc)
         assert len(executor._result_cache) == 1
 
@@ -629,7 +629,7 @@ class TestPennylaneExecutor:
         qc2 = _build_circuit(1, [("x", [0])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennylaneExecutor(caching=True)
+        executor = PennyLaneExecutor(caching=True)
         executor.expectation_value(qc1, op)
         executor.expectation_value(qc2, op)
 
@@ -639,14 +639,14 @@ class TestPennylaneExecutor:
     def test_transpile_circuit_returns_pennylane_circuit(self):
         """Test that transpile_circuit converts a QuantumCircuit to a PennyLaneCircuit."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        executor = PennylaneExecutor()
+        executor = PennyLaneExecutor()
         result = executor.transpile_circuit(qc)
         assert isinstance(result, PennyLaneCircuit)
 
     def test_transpile_circuit_result_caching(self):
         """Test that repeated transpile_circuit calls use the result cache."""
         qc = _build_circuit(1, [("h", [0])])
-        executor = PennylaneExecutor(caching=True)
+        executor = PennyLaneExecutor(caching=True)
 
         result1 = executor.transpile_circuit(qc)
         assert len(executor._result_cache) == 1
@@ -658,7 +658,7 @@ class TestPennylaneExecutor:
     def test_transpile_circuit_no_cache_when_caching_disabled(self):
         """Test that transpile_circuit doesn't cache when caching is disabled."""
         qc = _build_circuit(1, [("h", [0])])
-        executor = PennylaneExecutor()  # caching=None by default
+        executor = PennyLaneExecutor()  # caching=None by default
         result = executor.transpile_circuit(qc)
         assert isinstance(result, PennyLaneCircuit)
         assert executor._result_cache is None

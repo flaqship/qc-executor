@@ -15,7 +15,7 @@ from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
-from executor.pennylane.pennylane_executor import PennylaneExecutor
+from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 class TestPennyLaneCircuit:
@@ -357,7 +357,7 @@ class TestPennyLaneCircuit:
 
 class TestTranspileCircuitPennyLane:
     def setup_method(self):
-        self.executor = PennylaneExecutor()
+        self.executor = PennyLaneExecutor()
 
     def test_returns_pennylane_circuit(self):
         """Test that transpile_circuit returns a PennyLaneCircuit."""

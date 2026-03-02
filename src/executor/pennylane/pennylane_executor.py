@@ -16,7 +16,7 @@ from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
 from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
-class PennylaneExecutor(ExecutorBase):
+class PennyLaneExecutor(ExecutorBase):
     """Base class for quantum circuit executors.
 
     Args:
@@ -61,7 +61,7 @@ class PennylaneExecutor(ExecutorBase):
             self._random = np.random.default_rng()
 
         self._device = qml.device("default.qubit", wires=1)
-        self._logger.debug("PennylaneExecutor initialised (shots=%s, seed=%s)", shots, seed)
+        self._logger.debug("PennyLaneExecutor initialised (shots=%s, seed=%s)", shots, seed)
 
     @property
     def shots(self) -> Union[int, None]:

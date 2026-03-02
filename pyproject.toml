@@ -49,7 +49,7 @@ dynamic = ["version"]
 # architecture is implemented (each backend will live in its own package):
 #
 # [project.entry-points."executor.backends"]
-# pennylane = "executor.pennylane:PennylaneExecutor"
+# pennylane = "executor.pennylane:PennyLaneExecutor"
 # qiskit    = "executor.qiskit:QiskitExecutor"
 # qulacs    = "executor.qulacs:QulacsExecutor"
 
@@ -67,6 +67,8 @@ docs = [
 examples = [
     "nbmake",
     "jupyter",
+    "matplotlib",
+    "pylatexenc",
 ]
 
 [tool.uv]

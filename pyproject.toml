@@ -35,23 +35,27 @@ dependencies = [
     "dill>=0.3.4",
     "mapomatic>=0.10.0",
     "numpy>=1.20",
-    "pennylane>=0.34.0",
     "qiskit>=1.0.0",
-    "qiskit-aer>=0.12.0",
-    "qiskit-ibm-runtime>=0.18.0",
-    "qulacs>=0.6.4.1",
     "sympy>=1.8",
 ]
 requires-python = ">=3.10"
 dynamic = ["version"]
 
-# Future plugin registration – uncomment and extend when the factory/plugin
-# architecture is implemented (each backend will live in its own package):
-#
-# [project.entry-points."executor.backends"]
-# pennylane = "executor.pennylane:PennyLaneExecutor"
-# qiskit    = "executor.qiskit:QiskitExecutor"
-# qulacs    = "executor.qulacs:QulacsExecutor"
+[project.optional-dependencies]
+pennylane = ["pennylane>=0.34.0"]
+qulacs = ["qulacs>=0.6.4.1"]
+qiskit-full = ["qiskit-aer>=0.12.0", "qiskit-ibm-runtime>=0.18.0"]
+all = [
+    "pennylane>=0.34.0",
+    "qulacs>=0.6.4.1",
+    "qiskit-aer>=0.12.0",
+    "qiskit-ibm-runtime>=0.18.0",
+]
+
+[project.entry-points."executor.backends"]
+pennylane = "executor.pennylane:PennyLaneExecutor"
+qiskit = "executor.qiskit:QiskitExecutor"
+qulacs = "executor.qulacs:QulacsExecutor"
 
 [dependency-groups]
 dev = [

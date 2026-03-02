@@ -39,9 +39,7 @@ def create_executor(backend: str, **kwargs):
     key = backend.lower()
     if key not in _BACKENDS:
         supported = ", ".join(sorted(_BACKENDS))
-        raise ValueError(
-            f"Unknown backend {backend!r}. Supported backends are: {supported}"
-        )
+        raise ValueError(f"Unknown backend {backend!r}. Supported backends are: {supported}")
 
     info = _BACKENDS[key]
     try:

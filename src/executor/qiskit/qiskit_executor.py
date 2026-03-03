@@ -34,6 +34,7 @@ def _load_aer_simulator():
         ) from e
     return AerSimulator
 
+
 if QISKIT_SMALLER_1_2:
     # pylint: disable=ungrouped-imports
     from qiskit.primitives import (

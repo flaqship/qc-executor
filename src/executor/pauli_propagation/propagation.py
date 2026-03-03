@@ -138,6 +138,26 @@ def _propagate_clifford(gate: CliffordGate, psum: PauliSum) -> PauliSum:
     return result
 
 
+def _resolve_param_value(
+    gate: Gate,
+    parameters: Dict[str, float],
+) -> Optional[float]:
+    """Resolve the parameter value for a parametric gate.
+
+    Args:
+        gate: Parametric gate whose parameter value should be resolved
+        parameters: Dict mapping parameter names to values
+
+    Returns:
+        Resolved parameter value, or None if not found
+    """
+    if gate.param_name and gate.param_name in parameters:
+        return parameters[gate.param_name]
+    if hasattr(gate, "param_value") and gate.param_value is not None:
+        return gate.param_value
+    return parameters.get("theta", None)
+
+
 def propagate(
     gates: List[Gate],
     observable: PauliSum,
@@ -171,18 +191,7 @@ def propagate(
     # Apply gates in reverse order (Heisenberg picture)
     for gate in reversed(gates):
         if gate.is_parametric():
-            # Get parameter value
-            param_value = None
-            if gate.param_name and gate.param_name in parameters:
-                param_value = parameters[gate.param_name]
-            elif hasattr(gate, "param_value") and gate.param_value is not None:
-                # Use concrete value stored in gate
-                param_value = gate.param_value
-            else:
-                # Try to infer parameter from gate type
-                # This is a fallback; ideally param_name should be set
-                param_value = parameters.get("theta", None)
-
+            param_value = _resolve_param_value(gate, parameters)
             result = propagate_single_gate(gate, result, param_value)
         else:
             result = propagate_single_gate(gate, result)
@@ -241,14 +250,7 @@ def batch_propagate(
     for gate in reversed(gates):
         # Resolve parameter value once per gate (shared across all observables)
         if gate.is_parametric():
-            param_value = None
-            if gate.param_name and gate.param_name in parameters:
-                param_value = parameters[gate.param_name]
-            elif hasattr(gate, "param_value") and gate.param_value is not None:
-                param_value = gate.param_value
-            else:
-                param_value = parameters.get("theta", None)
-
+            param_value = _resolve_param_value(gate, parameters)
             results = [propagate_single_gate(gate, r, param_value) for r in results]
         else:
             results = [propagate_single_gate(gate, r) for r in results]

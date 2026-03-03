@@ -214,12 +214,20 @@ def propagate(
 
     Since we store gates in forward order, we apply them in reverse.
 
+    Symmetry merging (if enabled):
+        If observable has active symmetry, terms are merged:
+        1. Initially (before gate loop) - reduces input term count
+        2. After each gate - prevents term explosion during propagation
+
+        This grouping of equivalent Pauli strings significantly reduces
+        computational cost for equivariant circuits and large molecules.
+
     Args:
         gates: List of gates (in circuit order)
         observable: Initial observable (PauliSum)
         parameters: Dict mapping parameter names to values
-        max_weight: Optional[int] = None,
-        truncate_threshold: Optional[float] = None,
+        max_weight: Maximum Pauli weight for truncation (None = no limit)
+        truncate_threshold: Coefficient threshold for truncation (None = no truncation)
 
     Returns:
         Evolved observable
@@ -230,6 +238,10 @@ def propagate(
     do_truncate = max_weight is not None or truncate_threshold is not None
     result = observable.copy()
 
+    # Initial symmetry merging (preprocessing step)
+    # Reduces input terms before propagation starts
+    _apply_symmetry_merging(result)
+
     # Apply gates in reverse order (Heisenberg picture)
     for gate in reversed(gates):
         if gate.is_parametric():
@@ -238,7 +250,13 @@ def propagate(
         else:
             result = propagate_single_gate(gate, result)
 
+        # Apply symmetry merging after each gate (inline merging)
+        # Groups equivalent terms before they explode
+        _apply_symmetry_merging(result)
+
         # Truncate after each gate to prevent term explosion
+        # Note: symmetry merging happens BEFORE truncation
+        # This allows truncation to work on already-reduced term set
         if do_truncate:
             result, _ = truncate_combined(
                 result,

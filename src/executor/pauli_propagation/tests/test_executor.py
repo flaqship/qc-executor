@@ -812,8 +812,8 @@ class TestBatchExpectationValue:
 
         ops = [SparsePauliOp("Z"), SparsePauliOp("X")]
 
-        # At theta=pi/2: |+y> state
-        # <Z> = cos(pi/2) = 0, <X> = 0 (|+y> is eigenstate of Y, not X)
+        # At theta=pi/2: RY(pi/2)|0> = |+x> (up to global phase)
+        # <Z> = 0, <X> = 1; here we only check batch vs single-call consistency
         results = executor.expectation_value(circuit, ops, theta=np.pi / 2)
 
         single_z = executor.expectation_value(circuit, ops[0], theta=np.pi / 2)

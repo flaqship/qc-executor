@@ -258,7 +258,7 @@ def batch_propagate(
             results = [
                 truncate_combined(
                     r,
-                    min_coeff=truncate_threshold if truncate_threshold else 1e-15,
+                    min_coeff=truncate_threshold if truncate_threshold is not None else 1e-15,
                     max_weight=max_weight,
                     inplace=True,
                 )[0]

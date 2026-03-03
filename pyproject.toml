@@ -73,6 +73,7 @@ examples = [
     "jupyter",
     "matplotlib",
     "pylatexenc",
+    "qulacsvis>=0.7.6",
 ]
 
 [tool.uv]

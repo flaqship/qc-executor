@@ -35,6 +35,48 @@ class PropagationCache:
         self.auxsum = PauliSum(self.nqubits)
 
 
+def _apply_symmetry_merging(psum: PauliSum) -> None:
+    """Merge Pauli terms by canonical symmetry (in-place).
+
+    Groups terms that are equivalent under PauliSum's symmetry strategy
+    and combines their coefficients.
+
+    Algorithm:
+        1. For each term in psum.terms:
+            a. Compute canonical representative via symmetry strategy
+            b. Accumulate coefficient under canonical term
+        2. Replace psum.terms with merged dictionary
+
+    Time: O(T * n) where T = number of terms, n = number of qubits
+    Space: O(T) for intermediate merged_terms dict
+
+    Example:
+        If psum has terms XXY, XYX, YXX with PermutationSymmetry:
+            - All three map to canonical XXY
+            - Coefficients are summed under canonical term
+            - Result has only one term with combined coefficient
+
+    Args:
+        psum: PauliSum to merge (modified in-place)
+    """
+    if not psum.has_active_symmetry:
+        return  # No merging needed
+
+    merged_terms = {}
+    for term, coeff in psum.terms.items():
+        # Compute canonical representative using symmetry strategy
+        canonical = psum.symmetry.canonical_representative(term, psum.nqubits)
+
+        # Accumulate coefficient under canonical term
+        if canonical in merged_terms:
+            merged_terms[canonical] += coeff
+        else:
+            merged_terms[canonical] = coeff
+
+    # Replace terms dict with merged version
+    psum.terms = merged_terms
+
+
 def propagate_single_gate(
     gate: Gate,
     psum: PauliSum,

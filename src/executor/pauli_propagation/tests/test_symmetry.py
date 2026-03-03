@@ -16,14 +16,14 @@ class TestNoSymmetry:
     def test_canonical_identity(self):
         """NoSymmetry should return input unchanged."""
         sym = NoSymmetry()
-        assert sym.canonical_representative(0b11100100) == 0b11100100
-        assert sym.canonical_representative(0b00000000) == 0b00000000
-        assert sym.canonical_representative(0xFFFFFFFF) == 0xFFFFFFFF
+        assert sym.canonical_representative(0b11100100, 4) == 0b11100100
+        assert sym.canonical_representative(0b00000000, 4) == 0b00000000
+        assert sym.canonical_representative(0xFFFFFFFF, 16) == 0xFFFFFFFF
 
-    def test_description(self):
-        """NoSymmetry should have descriptive string."""
+    def test_name(self):
+        """NoSymmetry should have descriptive name."""
         sym = NoSymmetry()
-        assert "identity" in sym.describe().lower()
+        assert "no" in sym.name.lower() or "identity" in sym.name.lower()
 
 
 class TestPermutationSymmetry:
@@ -31,36 +31,39 @@ class TestPermutationSymmetry:
 
     def test_all_identical_paulis(self):
         """All-X, all-Y, all-Z should be canonical (lexicographically first)."""
-        sym = PermutationSymmetry(nqubits=4)
+        sym = PermutationSymmetry()
+        nqubits = 4
 
         # XXXX = 01010101 in binary (2 bits per X)
-        assert sym.canonical_representative(0b01010101) == 0b01010101
+        assert sym.canonical_representative(0b01010101, nqubits) == 0b01010101
 
         # YYYY = 10101010
-        assert sym.canonical_representative(0b10101010) == 0b10101010
+        assert sym.canonical_representative(0b10101010, nqubits) == 0b10101010
 
         # ZZZZ = 11111111
-        assert sym.canonical_representative(0b11111111) == 0b11111111
+        assert sym.canonical_representative(0b11111111, nqubits) == 0b11111111
 
         # IIII = 00000000
-        assert sym.canonical_representative(0b00000000) == 0b00000000
+        assert sym.canonical_representative(0b00000000, nqubits) == 0b00000000
 
     def test_two_qubit_permutations(self):
         """2-qubit case: IX and XI should map to same canonical form."""
-        sym = PermutationSymmetry(nqubits=2)
+        sym = PermutationSymmetry()
+        nqubits = 2
 
         # IX = 0b0001 = 1 (little-endian: qubit 0 = X, qubit 1 = I)
         # XI = 0b0100 = 4 (little-endian: qubit 0 = I, qubit 1 = X)
         # Canonical should be IX (I comes before X in sorted order)
-        ix_canonical = sym.canonical_representative(0b0001)
-        xi_canonical = sym.canonical_representative(0b0100)
+        ix_canonical = sym.canonical_representative(0b0001, nqubits)
+        xi_canonical = sym.canonical_representative(0b0100, nqubits)
 
         assert ix_canonical == xi_canonical
         assert ix_canonical == 0b0001  # IX is canonical (I before X)
 
     def test_three_qubit_multiset(self):
         """3-qubit: XIZ, IXZ, ZIX, etc. should all map to same canonical."""
-        sym = PermutationSymmetry(nqubits=3)
+        sym = PermutationSymmetry()
+        nqubits = 3
 
         # Multiset {I, X, Z} has 3! = 6 permutations
         # Canonical form is IXZ (sorted order)
@@ -79,20 +82,21 @@ class TestPermutationSymmetry:
         xzi = 0b001101
         zxi = 0b000111
 
-        canonical = sym.canonical_representative(ixz)
+        canonical = sym.canonical_representative(ixz, nqubits)
 
-        assert sym.canonical_representative(xiz) == canonical
-        assert sym.canonical_representative(zix) == canonical
-        assert sym.canonical_representative(izx) == canonical
-        assert sym.canonical_representative(xzi) == canonical
-        assert sym.canonical_representative(zxi) == canonical
+        assert sym.canonical_representative(xiz, nqubits) == canonical
+        assert sym.canonical_representative(zix, nqubits) == canonical
+        assert sym.canonical_representative(izx, nqubits) == canonical
+        assert sym.canonical_representative(xzi, nqubits) == canonical
+        assert sym.canonical_representative(zxi, nqubits) == canonical
 
         # Canonical should be IXZ (I=00, X=01, Z=11 sorted)
         assert canonical == ixz
 
     def test_repeated_paulis(self):
         """Terms with repeated Paulis (e.g., XXY, XYX, YXX) should merge."""
-        sym = PermutationSymmetry(nqubits=3)
+        sym = PermutationSymmetry()
+        nqubits = 3
 
         # XXY = X(q0) X(q1) Y(q2) = 0b100101
         # XYX = X(q0) Y(q1) X(q2) = 0b011001
@@ -102,22 +106,24 @@ class TestPermutationSymmetry:
         xyx = 0b011001
         yxx = 0b010110
 
-        canonical = sym.canonical_representative(xxy)
+        canonical = sym.canonical_representative(xxy, nqubits)
 
-        assert sym.canonical_representative(xyx) == canonical
-        assert sym.canonical_representative(yxx) == canonical
+        assert sym.canonical_representative(xyx, nqubits) == canonical
+        assert sym.canonical_representative(yxx, nqubits) == canonical
 
         # Canonical form should be XXY (sorted: X, X, Y)
         assert canonical == xxy
 
     def test_all_identities(self):
         """All-identity should be unchanged."""
-        sym = PermutationSymmetry(nqubits=5)
-        assert sym.canonical_representative(0b0000000000) == 0b0000000000
+        sym = PermutationSymmetry()
+        nqubits = 5
+        assert sym.canonical_representative(0b0000000000, nqubits) == 0b0000000000
 
     def test_single_non_identity(self):
         """Single non-identity Pauli should be canonical at first position."""
-        sym = PermutationSymmetry(nqubits=3)
+        sym = PermutationSymmetry()
+        nqubits = 3
 
         # IIX = 0b010000
         # IXI = 0b000100
@@ -128,15 +134,16 @@ class TestPermutationSymmetry:
         ixi = 0b000100
         xii = 0b000001
 
-        canonical = sym.canonical_representative(iix)
+        canonical = sym.canonical_representative(iix, nqubits)
 
-        assert sym.canonical_representative(ixi) == canonical
-        assert sym.canonical_representative(xii) == canonical
+        assert sym.canonical_representative(ixi, nqubits) == canonical
+        assert sym.canonical_representative(xii, nqubits) == canonical
         assert canonical == iix
 
     def test_large_system(self):
         """Verify correctness on larger systems (10 qubits)."""
-        sym = PermutationSymmetry(nqubits=10)
+        sym = PermutationSymmetry()
+        nqubits = 10
 
         # Create two permutations of the same multiset
         # Multiset: 5 I's, 3 X's, 1 Y, 1 Z
@@ -157,16 +164,16 @@ class TestPermutationSymmetry:
         )
 
         # Both should map to same canonical (sorted: 5 I's, 3 X's, 1 Y, 1 Z)
-        canonical1 = sym.canonical_representative(term1)
-        canonical2 = sym.canonical_representative(term2)
+        canonical1 = sym.canonical_representative(term1, nqubits)
+        canonical2 = sym.canonical_representative(term2, nqubits)
 
         assert canonical1 == canonical2
 
-    def test_description(self):
-        """PermutationSymmetry should describe S_n symmetry."""
-        sym = PermutationSymmetry(nqubits=5)
-        desc = sym.describe()
-        assert "permutation" in desc.lower() or "s_5" in desc.lower()
+    def test_name(self):
+        """PermutationSymmetry should have descriptive name."""
+        sym = PermutationSymmetry()
+        name = sym.name
+        assert "permutation" in name.lower()
 
 
 class TestCompositeSymmetry:
@@ -175,17 +182,18 @@ class TestCompositeSymmetry:
     def test_empty_composition(self):
         """Empty composition should act like NoSymmetry."""
         sym = CompositeSymmetry([])
-        assert sym.canonical_representative(0b11001100) == 0b11001100
+        assert sym.canonical_representative(0b11001100, 4) == 0b11001100
 
     def test_single_strategy(self):
         """Single strategy should behave identically to that strategy."""
-        perm_sym = PermutationSymmetry(nqubits=3)
+        perm_sym = PermutationSymmetry()
         comp_sym = CompositeSymmetry([perm_sym])
+        nqubits = 3
 
         test_term = 0b110001  # XIZ
-        assert comp_sym.canonical_representative(test_term) == perm_sym.canonical_representative(
-            test_term
-        )
+        assert comp_sym.canonical_representative(
+            test_term, nqubits
+        ) == perm_sym.canonical_representative(test_term, nqubits)
 
     def test_composition_order(self):
         """Composition should apply strategies in order."""
@@ -194,41 +202,42 @@ class TestCompositeSymmetry:
         class IncrementSymmetry:
             """Test strategy that increments the term."""
 
-            def canonical_representative(self, term: int) -> int:
+            def canonical_representative(self, term: int, nqubits: int) -> int:
                 return term + 1
 
-            def describe(self) -> str:
-                return "Increment by 1"
+            @property
+            def name(self) -> str:
+                return "increment"
 
         class DoubleSymmetry:
             """Test strategy that doubles the term."""
 
-            def canonical_representative(self, term: int) -> int:
+            def canonical_representative(self, term: int, nqubits: int) -> int:
                 return term * 2
 
-            def describe(self) -> str:
-                return "Double the value"
+            @property
+            def name(self) -> str:
+                return "double"
 
         # Order 1: Increment then Double
         comp1 = CompositeSymmetry([IncrementSymmetry(), DoubleSymmetry()])
         # Input 5 -> Increment -> 6 -> Double -> 12
-        assert comp1.canonical_representative(5) == 12
+        assert comp1.canonical_representative(5, 1) == 12
 
         # Order 2: Double then Increment
         comp2 = CompositeSymmetry([DoubleSymmetry(), IncrementSymmetry()])
         # Input 5 -> Double -> 10 -> Increment -> 11
-        assert comp2.canonical_representative(5) == 11
+        assert comp2.canonical_representative(5, 1) == 11
 
-    def test_description(self):
+    def test_name(self):
         """CompositeSymmetry should describe all composed strategies."""
-        perm = PermutationSymmetry(nqubits=3)
+        perm = PermutationSymmetry()
         nosym = NoSymmetry()
         comp = CompositeSymmetry([perm, nosym])
 
-        desc = comp.describe()
-        assert "composite" in desc.lower()
-        assert "permutation" in desc.lower()
-        assert "identity" in desc.lower()
+        name = comp.name
+        assert "composite" in name.lower()
+        assert "permutation" in name.lower()
 
 
 class TestPauliSumSymmetryIntegration:
@@ -243,7 +252,7 @@ class TestPauliSumSymmetryIntegration:
 
     def test_pauli_sum_with_permutation_symmetry(self):
         """PauliSum should accept PermutationSymmetry."""
-        sym = PermutationSymmetry(nqubits=3)
+        sym = PermutationSymmetry()
         ps = PauliSum(nqubits=3, symmetry=sym)
 
         assert ps.symmetry is sym
@@ -251,7 +260,7 @@ class TestPauliSumSymmetryIntegration:
 
     def test_pauli_sum_copy_preserves_symmetry(self):
         """Copying PauliSum should preserve symmetry."""
-        sym = PermutationSymmetry(nqubits=3)
+        sym = PermutationSymmetry()
         ps1 = PauliSum(nqubits=3, symmetry=sym)
         ps1.add_term("XYZ", 1.0)
 
@@ -261,7 +270,7 @@ class TestPauliSumSymmetryIntegration:
 
     def test_manual_merging_with_symmetry(self):
         """Manually merging equivalent terms should work with symmetry."""
-        sym = PermutationSymmetry(nqubits=3)
+        sym = PermutationSymmetry()
         ps = PauliSum(nqubits=3, symmetry=sym)
 
         # Add three permutations of IXZ
@@ -298,7 +307,7 @@ class TestPropagationSymmetryIntegration:
 
         # Observable: Z on qubit 0 (will become -Z after X gate, but with permutation
         # symmetry on 2 qubits, Z on qubit 0 and Z on qubit 1 should merge)
-        sym = PermutationSymmetry(nqubits=2)
+        sym = PermutationSymmetry()
         observable = PauliSum(nqubits=2, symmetry=sym)
         observable.add_term("ZI", 1.0)
         observable.add_term("IZ", 1.0)
@@ -330,7 +339,7 @@ class TestPropagationSymmetryIntegration:
 
         gates = [Gate.H(0), Gate.CNOT(0, 1)]
 
-        sym = PermutationSymmetry(nqubits=2)
+        sym = PermutationSymmetry()
 
         obs1 = PauliSum(nqubits=2, symmetry=sym)
         obs1.add_term("ZI", 1.0)
@@ -366,7 +375,7 @@ class TestExecutorSymmetryIntegration:
         from executor.pauli_propagation.executor import \
             PauliPropagationExecutor
 
-        sym = PermutationSymmetry(nqubits=2)
+        sym = PermutationSymmetry()
         executor = PauliPropagationExecutor(symmetry_strategy=sym)
 
         assert executor.symmetry_strategy is sym
@@ -390,7 +399,7 @@ class TestExecutorSymmetryIntegration:
 
         # Execute with and without symmetry
         executor_no_sym = PauliPropagationExecutor()
-        executor_with_sym = PauliPropagationExecutor(symmetry_strategy=PermutationSymmetry(2))
+        executor_with_sym = PauliPropagationExecutor(symmetry_strategy=PermutationSymmetry())
 
         result_no_sym = executor_no_sym.expectation_value(qc, operator)
         result_with_sym = executor_with_sym.expectation_value(qc, operator)
@@ -407,15 +416,16 @@ class TestSymmetryPerformance:
         """Measure overhead of NoSymmetry (should be negligible)."""
         sym = NoSymmetry()
         test_term = 0x123456
+        nqubits = 12
 
         # Warm-up
         for _ in range(100):
-            sym.canonical_representative(test_term)
+            sym.canonical_representative(test_term, nqubits)
 
         # Benchmark
         start = time.perf_counter()
         for _ in range(10000):
-            sym.canonical_representative(test_term)
+            sym.canonical_representative(test_term, nqubits)
         elapsed = time.perf_counter() - start
 
         # Should be extremely fast (< 1 ms for 10k calls)
@@ -428,14 +438,14 @@ class TestSymmetryPerformance:
         times = []
 
         for nqubits in nqubits_list:
-            sym = PermutationSymmetry(nqubits)
+            sym = PermutationSymmetry()
             # Create test term with mixed Paulis
             test_term = sum((i % 4) << (2 * i) for i in range(nqubits))
 
             # Benchmark
             start = time.perf_counter()
             for _ in range(1000):
-                sym.canonical_representative(test_term)
+                sym.canonical_representative(test_term, nqubits)
             elapsed = time.perf_counter() - start
 
             times.append(elapsed)
@@ -453,7 +463,7 @@ class TestSymmetryPerformance:
             _apply_symmetry_merging
 
         nqubits = 10
-        sym = PermutationSymmetry(nqubits)
+        sym = PermutationSymmetry()
 
         # Create PauliSum with many equivalent terms (permutations)
         ps = PauliSum(nqubits, symmetry=sym)

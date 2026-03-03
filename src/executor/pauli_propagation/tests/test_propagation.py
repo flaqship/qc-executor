@@ -267,6 +267,7 @@ class TestBatchPropagate:
         batch = batch_propagate([h], [obs.copy()])
 
         assert len(batch) == 1
+        assert len(batch[0]) == len(single)
         for term, coeff in single:
             assert np.isclose(batch[0].get_coeff(term), coeff)
 
@@ -298,6 +299,7 @@ class TestBatchPropagate:
 
         assert len(batch_results) == 3
         for i, (expected_ps, batch_ps) in enumerate(zip(expected, batch_results)):
+            assert len(batch_ps) == len(expected_ps), f"Term count mismatch at observable {i}"
             for term, coeff in expected_ps:
                 assert np.isclose(
                     batch_ps.get_coeff(term), coeff
@@ -324,5 +326,6 @@ class TestBatchPropagate:
         single = propagate([rz], obs_x.copy(), params)
         batch = batch_propagate([rz], [obs_x.copy()], params)
 
+        assert len(batch[0]) == len(single)
         for term, coeff in single:
             assert np.isclose(batch[0].get_coeff(term), coeff)

@@ -88,3 +88,38 @@ class SymmetryStrategy(ABC):
         Used for debugging, logging, and statistics tracking.
         """
         pass
+
+
+class NoSymmetry(SymmetryStrategy):
+    """Identity symmetry strategy (no merging).
+
+    This strategy performs no merging - each Pauli term is its own canonical
+    representative. Used as the default symmetry when no specific symmetry
+    is requested.
+
+    Useful for:
+        - Backward compatibility (default behavior)
+        - Baseline comparisons (measuring impact of symmetry merging)
+        - Debugging (disable merging without changing code structure)
+
+    Performance:
+        - O(1) per canonical call (identity function)
+        - Zero computational overhead
+    """
+
+    def canonical_representative(self, term: int, nqubits: int) -> int:
+        """Return term unchanged (identity function).
+
+        Args:
+            term: Pauli term encoded as integer
+            nqubits: Number of qubits (unused)
+
+        Returns:
+            The input term unchanged
+        """
+        return term
+
+    @property
+    def name(self) -> str:
+        """Return 'no_symmetry' as identifier."""
+        return "no_symmetry"

@@ -319,7 +319,7 @@ class CompositeSymmetry(SymmetryStrategy):
         Args:
             *strategies: Variable number of SymmetryStrategy instances to compose
         """
-        self.strategies = strategies
+        self.strategies = list(strategies)  # Convert tuple to list
 
     def canonical_representative(self, term: int, nqubits: int) -> int:
         """Apply all strategies sequentially to compute canonical form.

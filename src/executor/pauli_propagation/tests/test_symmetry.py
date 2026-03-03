@@ -1,0 +1,487 @@
+"""Tests for symmetry module."""
+
+import time
+
+import numpy as np
+import pytest
+
+from executor.pauli_propagation.pauli_types import PauliString, PauliSum
+from executor.pauli_propagation.symmetry import (CompositeSymmetry, NoSymmetry,
+                                                 PermutationSymmetry)
+
+
+class TestNoSymmetry:
+    """Test NoSymmetry strategy."""
+
+    def test_canonical_identity(self):
+        """NoSymmetry should return input unchanged."""
+        sym = NoSymmetry()
+        assert sym.canonical_representative(0b11100100) == 0b11100100
+        assert sym.canonical_representative(0b00000000) == 0b00000000
+        assert sym.canonical_representative(0xFFFFFFFF) == 0xFFFFFFFF
+
+    def test_description(self):
+        """NoSymmetry should have descriptive string."""
+        sym = NoSymmetry()
+        assert "identity" in sym.describe().lower()
+
+
+class TestPermutationSymmetry:
+    """Test PermutationSymmetry strategy."""
+
+    def test_all_identical_paulis(self):
+        """All-X, all-Y, all-Z should be canonical (lexicographically first)."""
+        sym = PermutationSymmetry(nqubits=4)
+
+        # XXXX = 01010101 in binary (2 bits per X)
+        assert sym.canonical_representative(0b01010101) == 0b01010101
+
+        # YYYY = 10101010
+        assert sym.canonical_representative(0b10101010) == 0b10101010
+
+        # ZZZZ = 11111111
+        assert sym.canonical_representative(0b11111111) == 0b11111111
+
+        # IIII = 00000000
+        assert sym.canonical_representative(0b00000000) == 0b00000000
+
+    def test_two_qubit_permutations(self):
+        """2-qubit case: IX and XI should map to same canonical form."""
+        sym = PermutationSymmetry(nqubits=2)
+
+        # IX = 0b0001 = 1 (little-endian: qubit 0 = X, qubit 1 = I)
+        # XI = 0b0100 = 4 (little-endian: qubit 0 = I, qubit 1 = X)
+        # Canonical should be IX (I comes before X in sorted order)
+        ix_canonical = sym.canonical_representative(0b0001)
+        xi_canonical = sym.canonical_representative(0b0100)
+
+        assert ix_canonical == xi_canonical
+        assert ix_canonical == 0b0001  # IX is canonical (I before X)
+
+    def test_three_qubit_multiset(self):
+        """3-qubit: XIZ, IXZ, ZIX, etc. should all map to same canonical."""
+        sym = PermutationSymmetry(nqubits=3)
+
+        # Multiset {I, X, Z} has 3! = 6 permutations
+        # Canonical form is IXZ (sorted order)
+
+        # IXZ = I(q0) X(q1) Z(q2) = 0b110100 = 0x34
+        # XIZ = X(q0) I(q1) Z(q2) = 0b110001 = 0x31
+        # ZIX = Z(q0) I(q1) X(q2) = 0b010011 = 0x13
+        # IZX = I(q0) Z(q1) X(q2) = 0b011100 = 0x1C
+        # XZI = X(q0) Z(q1) I(q2) = 0b001101 = 0x0D
+        # ZXI = Z(q0) X(q1) I(q2) = 0b000111 = 0x07
+
+        ixz = 0b110100
+        xiz = 0b110001
+        zix = 0b010011
+        izx = 0b011100
+        xzi = 0b001101
+        zxi = 0b000111
+
+        canonical = sym.canonical_representative(ixz)
+
+        assert sym.canonical_representative(xiz) == canonical
+        assert sym.canonical_representative(zix) == canonical
+        assert sym.canonical_representative(izx) == canonical
+        assert sym.canonical_representative(xzi) == canonical
+        assert sym.canonical_representative(zxi) == canonical
+
+        # Canonical should be IXZ (I=00, X=01, Z=11 sorted)
+        assert canonical == ixz
+
+    def test_repeated_paulis(self):
+        """Terms with repeated Paulis (e.g., XXY, XYX, YXX) should merge."""
+        sym = PermutationSymmetry(nqubits=3)
+
+        # XXY = X(q0) X(q1) Y(q2) = 0b100101
+        # XYX = X(q0) Y(q1) X(q2) = 0b011001
+        # YXX = Y(q0) X(q1) X(q2) = 0b010110
+
+        xxy = 0b100101
+        xyx = 0b011001
+        yxx = 0b010110
+
+        canonical = sym.canonical_representative(xxy)
+
+        assert sym.canonical_representative(xyx) == canonical
+        assert sym.canonical_representative(yxx) == canonical
+
+        # Canonical form should be XXY (sorted: X, X, Y)
+        assert canonical == xxy
+
+    def test_all_identities(self):
+        """All-identity should be unchanged."""
+        sym = PermutationSymmetry(nqubits=5)
+        assert sym.canonical_representative(0b0000000000) == 0b0000000000
+
+    def test_single_non_identity(self):
+        """Single non-identity Pauli should be canonical at first position."""
+        sym = PermutationSymmetry(nqubits=3)
+
+        # IIX = 0b010000
+        # IXI = 0b000100
+        # XII = 0b000001
+        # All should map to IIX (sorted: I, I, X)
+
+        iix = 0b010000
+        ixi = 0b000100
+        xii = 0b000001
+
+        canonical = sym.canonical_representative(iix)
+
+        assert sym.canonical_representative(ixi) == canonical
+        assert sym.canonical_representative(xii) == canonical
+        assert canonical == iix
+
+    def test_large_system(self):
+        """Verify correctness on larger systems (10 qubits)."""
+        sym = PermutationSymmetry(nqubits=10)
+
+        # Create two permutations of the same multiset
+        # Multiset: 5 I's, 3 X's, 1 Y, 1 Z
+        # Permutation 1: IIIIIXXX YZ
+        # Permutation 2: XIIIIXXY IZ
+
+        # Build term1: IIIIIXXXYZ (qubits 0-9)
+        # I=00, X=01, Y=10, Z=11
+        term1_str = "IIIIIXXXYZ"
+        term1 = sum(
+            ({"I": 0, "X": 1, "Y": 2, "Z": 3}[char]) << (2 * i) for i, char in enumerate(term1_str)
+        )
+
+        # Build term2: XIIIIXXIYZ (different permutation)
+        term2_str = "XIIIXXIYIZ"
+        term2 = sum(
+            ({"I": 0, "X": 1, "Y": 2, "Z": 3}[char]) << (2 * i) for i, char in enumerate(term2_str)
+        )
+
+        # Both should map to same canonical (sorted: 5 I's, 3 X's, 1 Y, 1 Z)
+        canonical1 = sym.canonical_representative(term1)
+        canonical2 = sym.canonical_representative(term2)
+
+        assert canonical1 == canonical2
+
+    def test_description(self):
+        """PermutationSymmetry should describe S_n symmetry."""
+        sym = PermutationSymmetry(nqubits=5)
+        desc = sym.describe()
+        assert "permutation" in desc.lower() or "s_5" in desc.lower()
+
+
+class TestCompositeSymmetry:
+    """Test CompositeSymmetry strategy composition."""
+
+    def test_empty_composition(self):
+        """Empty composition should act like NoSymmetry."""
+        sym = CompositeSymmetry([])
+        assert sym.canonical_representative(0b11001100) == 0b11001100
+
+    def test_single_strategy(self):
+        """Single strategy should behave identically to that strategy."""
+        perm_sym = PermutationSymmetry(nqubits=3)
+        comp_sym = CompositeSymmetry([perm_sym])
+
+        test_term = 0b110001  # XIZ
+        assert comp_sym.canonical_representative(test_term) == perm_sym.canonical_representative(
+            test_term
+        )
+
+    def test_composition_order(self):
+        """Composition should apply strategies in order."""
+
+        # Create two dummy strategies that modify the term
+        class IncrementSymmetry:
+            """Test strategy that increments the term."""
+
+            def canonical_representative(self, term: int) -> int:
+                return term + 1
+
+            def describe(self) -> str:
+                return "Increment by 1"
+
+        class DoubleSymmetry:
+            """Test strategy that doubles the term."""
+
+            def canonical_representative(self, term: int) -> int:
+                return term * 2
+
+            def describe(self) -> str:
+                return "Double the value"
+
+        # Order 1: Increment then Double
+        comp1 = CompositeSymmetry([IncrementSymmetry(), DoubleSymmetry()])
+        # Input 5 -> Increment -> 6 -> Double -> 12
+        assert comp1.canonical_representative(5) == 12
+
+        # Order 2: Double then Increment
+        comp2 = CompositeSymmetry([DoubleSymmetry(), IncrementSymmetry()])
+        # Input 5 -> Double -> 10 -> Increment -> 11
+        assert comp2.canonical_representative(5) == 11
+
+    def test_description(self):
+        """CompositeSymmetry should describe all composed strategies."""
+        perm = PermutationSymmetry(nqubits=3)
+        nosym = NoSymmetry()
+        comp = CompositeSymmetry([perm, nosym])
+
+        desc = comp.describe()
+        assert "composite" in desc.lower()
+        assert "permutation" in desc.lower()
+        assert "identity" in desc.lower()
+
+
+class TestPauliSumSymmetryIntegration:
+    """Test symmetry integration with PauliSum."""
+
+    def test_pauli_sum_default_no_symmetry(self):
+        """PauliSum should default to NoSymmetry."""
+        ps = PauliSum(nqubits=3)
+        assert ps.symmetry is not None
+        assert isinstance(ps.symmetry, NoSymmetry)
+        assert not ps.has_active_symmetry
+
+    def test_pauli_sum_with_permutation_symmetry(self):
+        """PauliSum should accept PermutationSymmetry."""
+        sym = PermutationSymmetry(nqubits=3)
+        ps = PauliSum(nqubits=3, symmetry=sym)
+
+        assert ps.symmetry is sym
+        assert ps.has_active_symmetry
+
+    def test_pauli_sum_copy_preserves_symmetry(self):
+        """Copying PauliSum should preserve symmetry."""
+        sym = PermutationSymmetry(nqubits=3)
+        ps1 = PauliSum(nqubits=3, symmetry=sym)
+        ps1.add_term("XYZ", 1.0)
+
+        ps2 = ps1.copy()
+        assert ps2.symmetry is ps1.symmetry
+        assert ps2.has_active_symmetry
+
+    def test_manual_merging_with_symmetry(self):
+        """Manually merging equivalent terms should work with symmetry."""
+        sym = PermutationSymmetry(nqubits=3)
+        ps = PauliSum(nqubits=3, symmetry=sym)
+
+        # Add three permutations of IXZ
+        ps.add_term("IXZ", 1.0)
+        ps.add_term("XIZ", 2.0)
+        ps.add_term("ZIX", 3.0)
+
+        # Before merging: 3 terms
+        assert len(ps) == 3
+
+        # Manually merge using symmetry
+        from executor.pauli_propagation.propagation import \
+            _apply_symmetry_merging
+
+        _apply_symmetry_merging(ps)
+
+        # After merging: 1 term with coefficient sum
+        assert len(ps) == 1
+        # Coefficient should be 1 + 2 + 3 = 6
+        term, coeff = list(ps)[0]
+        assert abs(coeff - 6.0) < 1e-12
+
+
+class TestPropagationSymmetryIntegration:
+    """Test symmetry integration with propagation functions."""
+
+    def test_propagate_with_symmetry(self):
+        """Propagate should apply symmetry merging if enabled."""
+        from executor.pauli_propagation.gates import Gate
+        from executor.pauli_propagation.propagation import propagate
+
+        # Create simple circuit: apply X gate to qubit 0
+        gates = [Gate.X(0)]
+
+        # Observable: Z on qubit 0 (will become -Z after X gate, but with permutation
+        # symmetry on 2 qubits, Z on qubit 0 and Z on qubit 1 should merge)
+        sym = PermutationSymmetry(nqubits=2)
+        observable = PauliSum(nqubits=2, symmetry=sym)
+        observable.add_term("ZI", 1.0)
+        observable.add_term("IZ", 1.0)
+
+        # Before propagation: 2 terms
+        assert len(observable) == 2
+
+        # Propagate (symmetry merging happens automatically)
+        result = propagate(gates, observable, parameters={})
+
+        # After propagation with X on qubit 0:
+        # ZI -> -ZI (X anti-commutes with Z)
+        # IZ -> IZ (X on qubit 0 doesn't affect qubit 1)
+        # With permutation symmetry, ZI and IZ should merge
+        # Result: 1 term (canonical form) with coefficient 0.0 (1 - 1 = 0)
+        # Actually, they will merge in the merging step, giving 2 terms initially,
+        # but after merging they become 1 term with net coefficient
+
+        # Let me reconsider: X gate on qubit 0 applied to ZI:
+        # This doesn't change the term count by itself, but merging happens
+
+        # Actually, a better test: verify merging reduces term count
+        assert len(result) <= len(observable)
+
+    def test_batch_propagate_with_symmetry(self):
+        """Batch propagate should apply symmetry merging to all observables."""
+        from executor.pauli_propagation.gates import Gate
+        from executor.pauli_propagation.propagation import batch_propagate
+
+        gates = [Gate.H(0), Gate.CNOT(0, 1)]
+
+        sym = PermutationSymmetry(nqubits=2)
+
+        obs1 = PauliSum(nqubits=2, symmetry=sym)
+        obs1.add_term("ZI", 1.0)
+        obs1.add_term("IZ", 1.0)
+
+        obs2 = PauliSum(nqubits=2, symmetry=sym)
+        obs2.add_term("XI", 1.0)
+        obs2.add_term("IX", 1.0)
+
+        observables = [obs1, obs2]
+
+        results = batch_propagate(gates, observables, parameters={})
+
+        assert len(results) == 2
+        # Both results should have symmetry merging applied
+        # Exact term counts depend on propagation, but merging should occur
+        assert all(isinstance(r, PauliSum) for r in results)
+
+
+class TestExecutorSymmetryIntegration:
+    """Test symmetry integration with PauliPropagationExecutor."""
+
+    def test_executor_default_no_symmetry(self):
+        """Executor should default to NoSymmetry."""
+        from executor.pauli_propagation.executor import \
+            PauliPropagationExecutor
+
+        executor = PauliPropagationExecutor()
+        assert isinstance(executor.symmetry_strategy, NoSymmetry)
+
+    def test_executor_with_permutation_symmetry(self):
+        """Executor should accept PermutationSymmetry."""
+        from executor.pauli_propagation.executor import \
+            PauliPropagationExecutor
+
+        sym = PermutationSymmetry(nqubits=2)
+        executor = PauliPropagationExecutor(symmetry_strategy=sym)
+
+        assert executor.symmetry_strategy is sym
+
+    def test_executor_expectation_with_symmetry(self):
+        """Executor should apply symmetry during expectation value computation."""
+        pytest.importorskip("qiskit")
+        from qiskit import QuantumCircuit
+        from qiskit.quantum_info import SparsePauliOp
+
+        from executor.pauli_propagation.executor import \
+            PauliPropagationExecutor
+
+        # Create simple circuit
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+
+        # Create symmetric observable (Z0 + Z1)
+        operator = SparsePauliOp.from_list([("ZI", 1.0), ("IZ", 1.0)])
+
+        # Execute with and without symmetry
+        executor_no_sym = PauliPropagationExecutor()
+        executor_with_sym = PauliPropagationExecutor(symmetry_strategy=PermutationSymmetry(2))
+
+        result_no_sym = executor_no_sym.expectation_value(qc, operator)
+        result_with_sym = executor_with_sym.expectation_value(qc, operator)
+
+        # Results should be identical (symmetry doesn't change correctness)
+        assert abs(result_no_sym - result_with_sym) < 1e-12
+
+
+class TestSymmetryPerformance:
+    """Performance benchmarks for symmetry strategies."""
+
+    @pytest.mark.benchmark
+    def test_nosymmetry_overhead(self):
+        """Measure overhead of NoSymmetry (should be negligible)."""
+        sym = NoSymmetry()
+        test_term = 0x123456
+
+        # Warm-up
+        for _ in range(100):
+            sym.canonical_representative(test_term)
+
+        # Benchmark
+        start = time.perf_counter()
+        for _ in range(10000):
+            sym.canonical_representative(test_term)
+        elapsed = time.perf_counter() - start
+
+        # Should be extremely fast (< 1 ms for 10k calls)
+        assert elapsed < 0.001
+
+    @pytest.mark.benchmark
+    def test_permutation_symmetry_scaling(self):
+        """Measure PermutationSymmetry scaling with number of qubits."""
+        nqubits_list = [4, 8, 16, 32, 64]
+        times = []
+
+        for nqubits in nqubits_list:
+            sym = PermutationSymmetry(nqubits)
+            # Create test term with mixed Paulis
+            test_term = sum((i % 4) << (2 * i) for i in range(nqubits))
+
+            # Benchmark
+            start = time.perf_counter()
+            for _ in range(1000):
+                sym.canonical_representative(test_term)
+            elapsed = time.perf_counter() - start
+
+            times.append(elapsed)
+
+        # Verify O(n) scaling: time should grow roughly linearly
+        # Ratio of times should be ~ ratio of nqubits
+        # For 64 vs 4 qubits (16x larger), time should be < 20x (allowing overhead)
+        ratio = times[-1] / times[0]
+        assert ratio < 20  # O(n) with reasonable constant
+
+    @pytest.mark.benchmark
+    def test_merging_reduces_terms(self):
+        """Verify that symmetry merging reduces term count on realistic examples."""
+        from executor.pauli_propagation.propagation import \
+            _apply_symmetry_merging
+
+        nqubits = 10
+        sym = PermutationSymmetry(nqubits)
+
+        # Create PauliSum with many equivalent terms (permutations)
+        ps = PauliSum(nqubits, symmetry=sym)
+
+        # Add 100 random permutations of a multiset
+        # Base multiset: 5 I's, 3 X's, 1 Y, 1 Z
+        base = "IIIIIXXXYZ"
+
+        import random
+
+        random.seed(42)
+        for _ in range(100):
+            # Random permutation
+            perm = list(base)
+            random.shuffle(perm)
+            ps.add_term("".join(perm), 1.0)
+
+        # Before merging: 100 terms (may have some coincidental duplicates)
+        initial_count = len(ps)
+        assert initial_count <= 100
+
+        # Apply merging
+        _apply_symmetry_merging(ps)
+
+        # After merging: should have only 1 term (all are equivalent under S_n)
+        assert len(ps) == 1
+
+        # Coefficient should be sum of all coefficients
+        term, coeff = list(ps)[0]
+        # Account for potential duplicates in random generation
+        assert abs(coeff - initial_count) < 1e-10

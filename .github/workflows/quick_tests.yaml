@@ -28,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync --all-extras --group dev
 
       - name: Test with pytest
         run: uv run pytest tests/

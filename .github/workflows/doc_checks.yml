@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install uv
-          uv sync --group docs
+          uv sync --all-extras --group docs
           uv pip install -e .
 
       - name: Build documentation

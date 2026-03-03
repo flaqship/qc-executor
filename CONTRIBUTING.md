@@ -10,7 +10,7 @@ Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/) ins
 ```bash
 git clone https://github.com/flaqship/Executor.git
 cd Executor
-uv sync --group dev
+uv sync --all-extras --group dev
 ```
 
 Run the test suite:

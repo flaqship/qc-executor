@@ -297,7 +297,7 @@ class TestPauliSumSymmetryIntegration:
         # After merging: 1 term with coefficient sum
         assert len(ps) == 1
         # Coefficient should be 1 + 2 + 3 = 6
-        term, coeff = list(ps)[0]
+        _, coeff = list(ps)[0]
         assert abs(coeff - 6.0) < 1e-12
 
 
@@ -499,6 +499,6 @@ class TestSymmetryPerformance:
         assert len(ps) == 1
 
         # Coefficient should be sum of all coefficients
-        term, coeff = list(ps)[0]
+        _, coeff = list(ps)[0]
         # Account for potential duplicates in random generation
         assert abs(coeff - initial_count) < 1e-10

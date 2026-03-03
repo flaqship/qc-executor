@@ -78,7 +78,7 @@ class SymmetryStrategy(ABC):
         Returns:
             Canonical representative (integer, same encoding as input)
         """
-        pass
+        ...
 
     @property
     @abstractmethod
@@ -87,7 +87,7 @@ class SymmetryStrategy(ABC):
 
         Used for debugging, logging, and statistics tracking.
         """
-        pass
+        ...
 
 
 class NoSymmetry(SymmetryStrategy):

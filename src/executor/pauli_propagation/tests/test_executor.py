@@ -1,9 +1,11 @@
 """Tests for Pauli Propagation Executor."""
 
-import pytest
 import numpy as np
+import pytest
+
 from executor.pauli_propagation.executor import PauliPropagationExecutor
-from executor.pauli_propagation.operator_converter import convert_operator, pauli_sum_to_sparse_pauli_op
+from executor.pauli_propagation.operator_converter import (
+    convert_operator, pauli_sum_to_sparse_pauli_op)
 from executor.pauli_propagation.pauli_types import PauliSum
 from executor.pauli_propagation.qiskit_converter import clear_cache
 
@@ -11,6 +13,7 @@ from executor.pauli_propagation.qiskit_converter import clear_cache
 try:
     from qiskit import QuantumCircuit
     from qiskit.quantum_info import SparsePauliOp, Statevector
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -96,10 +99,7 @@ class TestPauliPropagationExecutor:
     def test_init(self):
         """Test executor initialization."""
         executor = PauliPropagationExecutor(
-            shots=1000,
-            seed=42,
-            truncate_threshold=1e-10,
-            max_weight=5
+            shots=1000, seed=42, truncate_threshold=1e-10, max_weight=5
         )
         assert executor.shots == 1000
         assert executor.remote == False
@@ -181,7 +181,8 @@ class TestPauliPropagationExecutor:
         executor = PauliPropagationExecutor()
 
         from qiskit.circuit import Parameter
-        theta = Parameter('theta')
+
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.rx(theta, 0)
@@ -225,9 +226,8 @@ class TestPauliPropagationExecutor:
         results = executor.expectation_value([circuit1, circuit2], operator)
 
         assert len(results) == 2
-        assert np.isclose(results[0], 1.0, atol=1e-10)   # ⟨0|Z|0⟩ = 1
+        assert np.isclose(results[0], 1.0, atol=1e-10)  # ⟨0|Z|0⟩ = 1
         assert np.isclose(results[1], -1.0, atol=1e-10)  # ⟨1|Z|1⟩ = -1
-
 
 
 @pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not installed")
@@ -255,12 +255,13 @@ class TestQiskitValidation:
             our_result = executor.expectation_value(circuit, operator)
 
             # Qiskit result
-            sv = Statevector.from_label('0')
+            sv = Statevector.from_label("0")
             sv = sv.evolve(circuit)
             qiskit_result = sv.expectation_value(operator).real
 
-            assert np.isclose(our_result, qiskit_result, atol=1e-10), \
-                f"Mismatch for {name} gate with {obs_str} observable"
+            assert np.isclose(
+                our_result, qiskit_result, atol=1e-10
+            ), f"Mismatch for {name} gate with {obs_str} observable"
 
     def test_validate_two_qubit_gates(self):
         """Validate two-qubit gate results."""
@@ -275,7 +276,7 @@ class TestQiskitValidation:
 
         our_result = executor.expectation_value(circuit, operator)
 
-        sv = Statevector.from_label('00')
+        sv = Statevector.from_label("00")
         sv = sv.evolve(circuit)
         qiskit_result = sv.expectation_value(operator).real
 
@@ -286,7 +287,8 @@ class TestQiskitValidation:
         executor = PauliPropagationExecutor()
 
         from qiskit.circuit import Parameter
-        theta = Parameter('theta')
+
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.rx(theta, 0)
@@ -294,17 +296,18 @@ class TestQiskitValidation:
         operator = SparsePauliOp("Y", coeffs=[1.0])
 
         # Test multiple parameter values
-        for angle in [0.0, np.pi/4, np.pi/2, np.pi]:
+        for angle in [0.0, np.pi / 4, np.pi / 2, np.pi]:
             our_result = executor.expectation_value(circuit, operator, theta=angle)
 
             # Qiskit validation
             bound_circuit = circuit.assign_parameters({theta: angle})
-            sv = Statevector.from_label('0')
+            sv = Statevector.from_label("0")
             sv = sv.evolve(bound_circuit)
             qiskit_result = sv.expectation_value(operator).real
 
-            assert np.isclose(our_result, qiskit_result, atol=1e-10), \
-                f"Mismatch for RX({angle}) with Y observable"
+            assert np.isclose(
+                our_result, qiskit_result, atol=1e-10
+            ), f"Mismatch for RX({angle}) with Y observable"
 
     def test_validate_complex_circuit(self):
         """Validate more complex circuit."""
@@ -321,7 +324,7 @@ class TestQiskitValidation:
 
         our_result = executor.expectation_value(circuit, operator)
 
-        sv = Statevector.from_label('000')
+        sv = Statevector.from_label("000")
         sv = sv.evolve(circuit)
         qiskit_result = sv.expectation_value(operator).real
 
@@ -345,7 +348,7 @@ class TestQiskitValidation:
         trunc_result = executor_trunc.expectation_value(circuit, operator)
 
         # Qiskit reference
-        sv = Statevector.from_label('00')
+        sv = Statevector.from_label("00")
         sv = sv.evolve(circuit)
         qiskit_result = sv.expectation_value(operator).real
 
@@ -367,7 +370,7 @@ class TestDerivatives:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta = Parameter('theta')
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.rx(theta, 0)
@@ -375,9 +378,7 @@ class TestDerivatives:
 
         # Compute derivative at θ = π/4
         theta_val = np.pi / 4
-        grad = executor.expectation_value_derivatives(
-            circuit, operator, 'theta', theta=theta_val
-        )
+        grad = executor.expectation_value_derivatives(circuit, operator, "theta", theta=theta_val)
 
         # Finite difference approximation
         eps = 1e-5
@@ -392,16 +393,14 @@ class TestDerivatives:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta = Parameter('theta')
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.ry(theta, 0)
         operator = SparsePauliOp("X")
 
         theta_val = np.pi / 3
-        grad = executor.expectation_value_derivatives(
-            circuit, operator, 'theta', theta=theta_val
-        )
+        grad = executor.expectation_value_derivatives(circuit, operator, "theta", theta=theta_val)
 
         # Finite difference
         eps = 1e-5
@@ -416,7 +415,7 @@ class TestDerivatives:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta = Parameter('theta')
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.h(0)  # Put in superposition
@@ -424,9 +423,7 @@ class TestDerivatives:
         operator = SparsePauliOp("X")
 
         theta_val = np.pi / 6
-        grad = executor.expectation_value_derivatives(
-            circuit, operator, 'theta', theta=theta_val
-        )
+        grad = executor.expectation_value_derivatives(circuit, operator, "theta", theta=theta_val)
 
         # Finite difference
         eps = 1e-5
@@ -441,8 +438,8 @@ class TestDerivatives:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta1 = Parameter('theta1')
-        theta2 = Parameter('theta2')
+        theta1 = Parameter("theta1")
+        theta2 = Parameter("theta2")
 
         circuit = QuantumCircuit(2)
         circuit.rx(theta1, 0)
@@ -454,20 +451,28 @@ class TestDerivatives:
 
         # Test individual derivatives
         grad1 = executor.expectation_value_derivatives(
-            circuit, operator, 'theta1', theta1=theta1_val, theta2=theta2_val
+            circuit, operator, "theta1", theta1=theta1_val, theta2=theta2_val
         )
         grad2 = executor.expectation_value_derivatives(
-            circuit, operator, 'theta2', theta1=theta1_val, theta2=theta2_val
+            circuit, operator, "theta2", theta1=theta1_val, theta2=theta2_val
         )
 
         # Finite differences
         eps = 1e-5
-        f_plus1 = executor.expectation_value(circuit, operator, theta1=theta1_val + eps, theta2=theta2_val)
-        f_minus1 = executor.expectation_value(circuit, operator, theta1=theta1_val - eps, theta2=theta2_val)
+        f_plus1 = executor.expectation_value(
+            circuit, operator, theta1=theta1_val + eps, theta2=theta2_val
+        )
+        f_minus1 = executor.expectation_value(
+            circuit, operator, theta1=theta1_val - eps, theta2=theta2_val
+        )
         fd_grad1 = (f_plus1 - f_minus1) / (2 * eps)
 
-        f_plus2 = executor.expectation_value(circuit, operator, theta1=theta1_val, theta2=theta2_val + eps)
-        f_minus2 = executor.expectation_value(circuit, operator, theta1=theta1_val, theta2=theta2_val - eps)
+        f_plus2 = executor.expectation_value(
+            circuit, operator, theta1=theta1_val, theta2=theta2_val + eps
+        )
+        f_minus2 = executor.expectation_value(
+            circuit, operator, theta1=theta1_val, theta2=theta2_val - eps
+        )
         fd_grad2 = (f_plus2 - f_minus2) / (2 * eps)
 
         assert np.isclose(grad1, fd_grad1, atol=1e-6)
@@ -478,8 +483,8 @@ class TestDerivatives:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta1 = Parameter('theta1')
-        theta2 = Parameter('theta2')
+        theta1 = Parameter("theta1")
+        theta2 = Parameter("theta2")
 
         circuit = QuantumCircuit(2)
         circuit.rx(theta1, 0)
@@ -491,7 +496,7 @@ class TestDerivatives:
 
         # Compute both derivatives
         grads = executor.expectation_value_derivatives(
-            circuit, operator, ['theta1', 'theta2'], theta1=theta1_val, theta2=theta2_val
+            circuit, operator, ["theta1", "theta2"], theta1=theta1_val, theta2=theta2_val
         )
 
         assert len(grads) == 2
@@ -502,7 +507,7 @@ class TestDerivatives:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta = Parameter('theta')
+        theta = Parameter("theta")
 
         circuit1 = QuantumCircuit(1)
         circuit1.rx(theta, 0)
@@ -514,7 +519,7 @@ class TestDerivatives:
 
         theta_val = 0.3
         grads = executor.expectation_value_derivatives(
-            [circuit1, circuit2], operator, 'theta', theta=theta_val
+            [circuit1, circuit2], operator, "theta", theta=theta_val
         )
 
         assert len(grads) == 2
@@ -544,7 +549,7 @@ class TestStatevector:
         sv = executor.statevector(circuit)
 
         # Should be |+⟩ = [1/√2, 1/√2]
-        expected = np.array([1/np.sqrt(2), 1/np.sqrt(2)], dtype=complex)
+        expected = np.array([1 / np.sqrt(2), 1 / np.sqrt(2)], dtype=complex)
         assert np.allclose(sv, expected, atol=1e-10)
 
     def test_x_gate(self):
@@ -569,7 +574,7 @@ class TestStatevector:
         sv = executor.statevector(circuit)
 
         # Should be (|00⟩ + |11⟩)/√2 = [1/√2, 0, 0, 1/√2]
-        expected = np.array([1/np.sqrt(2), 0, 0, 1/np.sqrt(2)], dtype=complex)
+        expected = np.array([1 / np.sqrt(2), 0, 0, 1 / np.sqrt(2)], dtype=complex)
         assert np.allclose(sv, expected, atol=1e-10)
 
     def test_normalization(self):
@@ -583,7 +588,7 @@ class TestStatevector:
         sv = executor.statevector(circuit)
 
         # Check normalization
-        norm = np.sum(np.abs(sv)**2)
+        norm = np.sum(np.abs(sv) ** 2)
         assert np.isclose(norm, 1.0, atol=1e-10)
 
     def test_parametric_circuit(self):
@@ -591,15 +596,15 @@ class TestStatevector:
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor()
-        theta = Parameter('theta')
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.ry(theta, 0)
 
-        sv = executor.statevector(circuit, theta=np.pi/2)
+        sv = executor.statevector(circuit, theta=np.pi / 2)
 
         # RY(π/2)|0⟩ = [cos(π/4), sin(π/4)] = [1/√2, 1/√2]
-        expected = np.array([1/np.sqrt(2), 1/np.sqrt(2)], dtype=complex)
+        expected = np.array([1 / np.sqrt(2), 1 / np.sqrt(2)], dtype=complex)
         assert np.allclose(sv, expected, atol=1e-10)
 
     def test_compare_with_qiskit(self):
@@ -614,7 +619,7 @@ class TestStatevector:
         our_sv = executor.statevector(circuit)
 
         # Qiskit reference
-        qiskit_sv = Statevector.from_label('000')
+        qiskit_sv = Statevector.from_label("000")
         qiskit_sv = qiskit_sv.evolve(circuit)
 
         assert np.allclose(our_sv, qiskit_sv.data, atol=1e-10)
@@ -632,8 +637,8 @@ class TestSampling:
         counts = executor.sample(circuit)
 
         # Should only get '00'
-        assert '00' in counts
-        assert counts['00'] == 1000
+        assert "00" in counts
+        assert counts["00"] == 1000
         assert len(counts) == 1
 
     def test_x_gate_deterministic(self):
@@ -645,8 +650,8 @@ class TestSampling:
         counts = executor.sample(circuit)
 
         # Should only get '1'
-        assert '1' in counts
-        assert counts['1'] == 500
+        assert "1" in counts
+        assert counts["1"] == 500
         assert len(counts) == 1
 
     def test_hadamard_distribution(self):
@@ -658,10 +663,10 @@ class TestSampling:
         counts = executor.sample(circuit)
 
         # Should get roughly 50-50 distribution
-        assert '0' in counts
-        assert '1' in counts
-        assert 4000 < counts['0'] < 6000  # Allow statistical variation
-        assert 4000 < counts['1'] < 6000
+        assert "0" in counts
+        assert "1" in counts
+        assert 4000 < counts["0"] < 6000  # Allow statistical variation
+        assert 4000 < counts["1"] < 6000
 
     def test_bell_state_sampling(self):
         """Test sampling from Bell state."""
@@ -673,12 +678,12 @@ class TestSampling:
         counts = executor.sample(circuit)
 
         # Should get roughly 50% '00' and 50% '11'
-        assert '00' in counts
-        assert '11' in counts
-        assert counts.get('00', 0) > 4000
-        assert counts.get('11', 0) > 4000
+        assert "00" in counts
+        assert "11" in counts
+        assert counts.get("00", 0) > 4000
+        assert counts.get("11", 0) > 4000
         # Should get very few (ideally zero) of '01' and '10'
-        assert counts.get('01', 0) + counts.get('10', 0) < 500
+        assert counts.get("01", 0) + counts.get("10", 0) < 500
 
     def test_seed_reproducibility(self):
         """Test that same seed gives same samples."""
@@ -720,21 +725,99 @@ class TestSampling:
         counts_list = executor.sample([circuit1, circuit2])
 
         assert len(counts_list) == 2
-        assert counts_list[0]['1'] == 1000  # X gate
-        assert counts_list[1]['0'] == 1000  # Identity
+        assert counts_list[0]["1"] == 1000  # X gate
+        assert counts_list[1]["0"] == 1000  # Identity
 
     def test_parametric_sampling(self):
         """Test sampling with parametric circuit."""
         from qiskit.circuit import Parameter
 
         executor = PauliPropagationExecutor(shots=10000, seed=42)
-        theta = Parameter('theta')
+        theta = Parameter("theta")
 
         circuit = QuantumCircuit(1)
         circuit.ry(theta, 0)
 
         # θ=π/2 should give equal superposition
-        counts = executor.sample(circuit, theta=np.pi/2)
+        counts = executor.sample(circuit, theta=np.pi / 2)
 
-        assert 4000 < counts.get('0', 0) < 6000
-        assert 4000 < counts.get('1', 0) < 6000
+        assert 4000 < counts.get("0", 0) < 6000
+        assert 4000 < counts.get("1", 0) < 6000
+
+
+@pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not installed")
+class TestBatchExpectationValue:
+    """Test batch expectation_value() using batch_propagate under the hood."""
+
+    def test_multi_operator_matches_single_calls(self):
+        """expectation_value with operator list must match individual calls."""
+        executor = PauliPropagationExecutor()
+
+        circuit = QuantumCircuit(2)
+        circuit.h(0)
+        circuit.cx(0, 1)
+
+        ops = [
+            SparsePauliOp("ZZ"),
+            SparsePauliOp("XX"),
+            SparsePauliOp("IZ"),
+        ]
+
+        batch_result = executor.expectation_value(circuit, ops)
+
+        for i, op in enumerate(ops):
+            single = executor.expectation_value(circuit, op)
+            assert np.isclose(
+                batch_result[i], single
+            ), f"Mismatch at operator {i}: batch={batch_result[i]}, single={single}"
+
+    def test_multi_circuit_multi_operator_ordering(self):
+        """Result ordering for multi-circuit × multi-operator must be circuit-major."""
+        executor = PauliPropagationExecutor()
+
+        circ1 = QuantumCircuit(1)
+        circ1.x(0)
+
+        circ2 = QuantumCircuit(1)
+        # identity
+
+        ops = [SparsePauliOp("Z"), SparsePauliOp("X")]
+
+        results = executor.expectation_value([circ1, circ2], ops)
+
+        # Expected: [<Z>_circ1, <X>_circ1, <Z>_circ2, <X>_circ2]
+        assert results.shape == (4,)
+        assert np.isclose(results[0], -1.0)  # <Z> after X gate = -1
+        assert np.isclose(results[1], 0.0)  # <X> after X gate = 0
+        assert np.isclose(results[2], 1.0)  # <Z> on |0> = 1
+        assert np.isclose(results[3], 0.0)  # <X> on |0> = 0
+
+    def test_single_operator_still_returns_float(self):
+        """Single operator input must still return a scalar float."""
+        executor = PauliPropagationExecutor()
+        circuit = QuantumCircuit(1)
+        result = executor.expectation_value(circuit, SparsePauliOp("Z"))
+        assert isinstance(result, float)
+        assert np.isclose(result, 1.0)
+
+    def test_multi_operator_parametric_circuit(self):
+        """Batch evaluation works correctly with parametric circuits."""
+        from qiskit.circuit import Parameter
+
+        executor = PauliPropagationExecutor()
+        theta = Parameter("theta")
+
+        circuit = QuantumCircuit(1)
+        circuit.ry(theta, 0)
+
+        ops = [SparsePauliOp("Z"), SparsePauliOp("X")]
+
+        # At theta=pi/2: RY(pi/2)|0> = |+x> (up to global phase)
+        # <Z> = 0, <X> = 1; here we only check batch vs single-call consistency
+        results = executor.expectation_value(circuit, ops, theta=np.pi / 2)
+
+        single_z = executor.expectation_value(circuit, ops[0], theta=np.pi / 2)
+        single_x = executor.expectation_value(circuit, ops[1], theta=np.pi / 2)
+
+        assert np.isclose(results[0], single_z)
+        assert np.isclose(results[1], single_x)

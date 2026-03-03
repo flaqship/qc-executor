@@ -3,22 +3,24 @@
 Implements quantum circuit execution using Heisenberg picture (Pauli propagation).
 """
 
-import numpy as np
 import warnings
-from typing import Union, List, Dict, Optional
-from .qiskit_converter import convert_circuit, bind_parameters
-from .operator_converter import convert_operator
-from .propagation import propagate
-from .state_overlap import overlap_with_zero
-from .truncation import truncate_by_coeff, truncate_combined, TruncationStats
-from .pauli_types import PauliSum
+from typing import Dict, List, Optional, Union
+
+import numpy as np
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from .operator_converter import convert_operator
+from .pauli_types import PauliSum
+from .propagation import propagate
+from .qiskit_converter import bind_parameters, convert_circuit
+from .state_overlap import overlap_with_zero
+from .truncation import TruncationStats, truncate_by_coeff, truncate_combined
 
 # Try to import Qiskit
 try:
     from qiskit import QuantumCircuit
-    from qiskit.quantum_info import SparsePauliOp, Pauli
+    from qiskit.quantum_info import Pauli, SparsePauliOp
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -49,14 +51,18 @@ def _unwrap_operators(operators):
     """Unwrap a single operator or list of operators."""
     if isinstance(operators, list):
         return [_unwrap_operator(o) for o in operators]
-    return _unwrap_operators(operators) if isinstance(operators, list) else _unwrap_operator(operators)
+    return (
+        _unwrap_operators(operators)
+        if isinstance(operators, list)
+        else _unwrap_operator(operators)
+    )
 
 
 def _derivative_param_to_name(param):
     """Convert a Parameter/ParameterVector/string to parameter name string(s)."""
     if isinstance(param, str):
         return param
-    if hasattr(param, 'name'):
+    if hasattr(param, "name"):
         return param.name
     return str(param)
 
@@ -99,29 +105,30 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
             # Add the Z component (apply Z to this qubit)
             z_string = list("I" * nqubits)
             # Build Pauli string with Z at qubit_idx
-            from .pauli_algebra import term_to_string, string_to_term, pauli_multiply
+            from .pauli_algebra import (pauli_multiply, string_to_term,
+                                        term_to_string)
 
             term_str = term_to_string(term, nqubits)
             term_list = list(term_str)
 
             # Apply Z at qubit_idx
-            if term_list[qubit_idx] == 'I':
-                term_list[qubit_idx] = 'Z'
+            if term_list[qubit_idx] == "I":
+                term_list[qubit_idx] = "Z"
                 phase = 1
-            elif term_list[qubit_idx] == 'X':
-                term_list[qubit_idx] = 'Y'
+            elif term_list[qubit_idx] == "X":
+                term_list[qubit_idx] = "Y"
                 phase = 1j
-            elif term_list[qubit_idx] == 'Y':
-                term_list[qubit_idx] = 'X'
+            elif term_list[qubit_idx] == "Y":
+                term_list[qubit_idx] = "X"
                 phase = -1j
-            elif term_list[qubit_idx] == 'Z':
+            elif term_list[qubit_idx] == "Z":
                 # Z * Z = I
-                term_list[qubit_idx] = 'I'
+                term_list[qubit_idx] = "I"
                 phase = 1
             else:
                 raise ValueError(f"Unknown Pauli: {term_list[qubit_idx]}")
 
-            new_term_str = ''.join(term_list)
+            new_term_str = "".join(term_list)
             new_result.add_term(new_term_str, sign * coeff * phase / 2.0)
 
         result = new_result
@@ -193,12 +200,11 @@ class PauliPropagationExecutor(ExecutorBase):
         circuits = [circuit] if is_single_circuit else circuit
         operators = [operator] if is_single_operator else operator
 
-        # Compute expectation values for all combinations
         results = []
 
         for circ in circuits:
+            raw_circ = _unwrap_circuit(circ)
             for op in operators:
-                raw_circ = _unwrap_circuit(circ)
                 raw_op = _unwrap_operator(op)
                 exp_val = self._compute_single_expectation(raw_circ, raw_op, parameters)
                 results.append(exp_val)
@@ -211,7 +217,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
     def _compute_single_expectation(
         self,
-        circuit: 'QuantumCircuit',
+        circuit: "QuantumCircuit",
         operator: Union[SparsePauliOp, Pauli, str],
         parameters: Dict,
     ) -> complex:
@@ -238,7 +244,9 @@ class PauliPropagationExecutor(ExecutorBase):
         # Propagate observable through circuit (Heisenberg picture)
         # Pass truncation params so terms are pruned during propagation
         propagated = propagate(
-            gates, observable, bound_params,
+            gates,
+            observable,
+            bound_params,
             max_weight=self.max_weight,
             truncate_threshold=self.truncate_threshold,
         )
@@ -249,7 +257,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 propagated,
                 min_coeff=self.truncate_threshold if self.truncate_threshold else 1e-15,
                 max_weight=self.max_weight,
-                inplace=True
+                inplace=True,
             )
             self.last_truncation_stats = stats
 
@@ -285,7 +293,7 @@ class PauliPropagationExecutor(ExecutorBase):
         for p in derivative_params:
             if isinstance(p, (list, tuple)):
                 param_names.extend([_derivative_param_to_name(x) for x in p])
-            elif hasattr(p, '__iter__') and not isinstance(p, str):
+            elif hasattr(p, "__iter__") and not isinstance(p, str):
                 param_names.extend([_derivative_param_to_name(x) for x in p])
             else:
                 param_names.append(_derivative_param_to_name(p))
@@ -317,15 +325,15 @@ class PauliPropagationExecutor(ExecutorBase):
 
         # Return scalar for single derivative, array for multiple
         if is_single_derivative:
-            return float(gradients[0]) if isinstance(gradients[0], (int, float, np.number)) else gradients[0]
+            return (
+                float(gradients[0])
+                if isinstance(gradients[0], (int, float, np.number))
+                else gradients[0]
+            )
         else:
             return np.array(gradients)
 
-    def sample(
-        self,
-        circuit,
-        **parameters
-    ) -> Union[dict, List[dict]]:
+    def sample(self, circuit, **parameters) -> Union[dict, List[dict]]:
         """Sample measurement outcomes from quantum circuit execution.
 
         Accepts both the library's QuantumCircuit wrapper and raw Qiskit types.
@@ -367,18 +375,14 @@ class PauliPropagationExecutor(ExecutorBase):
             # Convert indices to bitstrings and count
             counts = {}
             for idx in indices:
-                bitstring = format(idx, f'0{nqubits}b')
+                bitstring = format(idx, f"0{nqubits}b")
                 counts[bitstring] = counts.get(bitstring, 0) + 1
 
             results.append(counts)
 
         return results[0] if is_single else results
 
-    def statevector(
-        self,
-        circuit,
-        **parameters
-    ) -> Union[np.ndarray, List[np.ndarray]]:
+    def statevector(self, circuit, **parameters) -> Union[np.ndarray, List[np.ndarray]]:
         """Compute statevector from circuit execution.
 
         Accepts both the library's QuantumCircuit wrapper and raw Qiskit types.
@@ -416,7 +420,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 warnings.warn(
                     f"Computing statevector for {nqubits} qubits requires a "
                     f"{2**nqubits}-dimensional vector. This may be slow and memory-intensive.",
-                    RuntimeWarning
+                    RuntimeWarning,
                 )
 
             # Bind parameters if needed
@@ -425,13 +429,12 @@ class PauliPropagationExecutor(ExecutorBase):
                 bound_circ = raw_circ.assign_parameters(parameters)
 
             # Use Qiskit's statevector simulator
-            sv = Statevector.from_label('0' * nqubits)
+            sv = Statevector.from_label("0" * nqubits)
             sv = sv.evolve(bound_circ)
 
             statevectors.append(sv.data)
 
         return statevectors[0] if is_single else statevectors
-
 
     def get_truncation_stats(self) -> Optional[TruncationStats]:
         """Get statistics from last truncation operation.

@@ -51,14 +51,21 @@ class TestPermutationSymmetry:
         sym = PermutationSymmetry()
         nqubits = 2
 
-        # IX = 0b0001 = 1 (little-endian: qubit 0 = X, qubit 1 = I)
-        # XI = 0b0100 = 4 (little-endian: qubit 0 = I, qubit 1 = X)
-        # Canonical should be IX (I comes before X in sorted order)
-        ix_canonical = sym.canonical_representative(0b0001, nqubits)
-        xi_canonical = sym.canonical_representative(0b0100, nqubits)
+        # In little-endian encoding (2 bits per qubit):
+        # 0b0001 = bits[1:0]=01 (X), bits[3:2]=00 (I) → XI (qubit 0 = X, qubit 1 = I)
+        # 0b0100 = bits[1:0]=00 (I), bits[3:2]=01 (X) → IX (qubit 0 = I, qubit 1 = X)
+        # Canonical form of multiset {I, X} is IX (sorted: I first, then X)
+        # This corresponds to 0b0100 (IX in encoding)
 
-        assert ix_canonical == xi_canonical
-        assert ix_canonical == 0b0001  # IX is canonical (I before X)
+        xi_term = 0b0001  # XI
+        ix_term = 0b0100  # IX
+
+        xi_canonical = sym.canonical_representative(xi_term, nqubits)
+        ix_canonical = sym.canonical_representative(ix_term, nqubits)
+
+        # Both should map to IX (the sorted canonical form)
+        assert xi_canonical == ix_canonical
+        assert xi_canonical == 0b0100  # IX is canonical (I before X in sorted order)
 
     def test_three_qubit_multiset(self):
         """3-qubit: XIZ, IXZ, ZIX, etc. should all map to same canonical."""

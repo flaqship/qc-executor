@@ -276,3 +276,82 @@ class PermutationSymmetry(SymmetryStrategy):
     def name(self) -> str:
         """Return 'permutation' as identifier."""
         return "permutation"
+
+
+class CompositeSymmetry(SymmetryStrategy):
+    """Compose multiple symmetry strategies.
+
+    Applies multiple symmetry strategies sequentially to compute the final
+    canonical representative. The result of strategy i becomes the input to
+    strategy i+1.
+
+    Use Cases:
+        - Combine multiple independent symmetries (e.g., permutation + point group)
+        - Layer symmetries with different granularities
+        - Experimental symmetry compositions for research
+
+    Implementation:
+        Strategies are applied in the order they are provided to __init__().
+        For commuting symmetries, order doesn't matter. For non-commuting
+        symmetries, different orders may give different canonical forms.
+
+    Performance:
+        Time: Sum of individual strategy times
+        Space: O(1) beyond storage of strategy references
+
+    Example:
+        >>> perm_sym = PermutationSymmetry()
+        >>> point_group_sym = PointGroupSymmetry()  # hypothetical
+        >>> composite = CompositeSymmetry(perm_sym, point_group_sym)
+        >>>
+        >>> # Applies permutation symmetry first, then point group
+        >>> canonical = composite.canonical_representative(term, nqubits)
+
+    Notes:
+        - Empty CompositeSymmetry (no strategies) acts as NoSymmetry
+        - Single strategy behaves identically to using that strategy alone
+        - Ordering matters only if symmetries don't commute
+    """
+
+    def __init__(self, *strategies: SymmetryStrategy):
+        """Initialize composite symmetry with multiple strategies.
+
+        Args:
+            *strategies: Variable number of SymmetryStrategy instances to compose
+        """
+        self.strategies = strategies
+
+    def canonical_representative(self, term: int, nqubits: int) -> int:
+        """Apply all strategies sequentially to compute canonical form.
+
+        Chains canonical computations: each strategy processes the output
+        of the previous strategy.
+
+        Algorithm:
+            canonical = term
+            for each strategy in strategies:
+                canonical = strategy.canonical_representative(canonical, nqubits)
+            return canonical
+
+        Args:
+            term: Pauli term encoded as integer
+            nqubits: Number of qubits
+
+        Returns:
+            Canonical representative after applying all strategies
+        """
+        canonical = term
+        for strategy in self.strategies:
+            canonical = strategy.canonical_representative(canonical, nqubits)
+        return canonical
+
+    @property
+    def name(self) -> str:
+        """Return composite name listing all strategies.
+
+        Format: 'composite(strategy1 + strategy2 + ...)'
+        """
+        if not self.strategies:
+            return "composite(empty)"
+        names = " + ".join(s.name for s in self.strategies)
+        return f"composite({names})"

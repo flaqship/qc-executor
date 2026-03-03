@@ -285,6 +285,10 @@ def batch_propagate(
     Truncation is applied independently to each PauliSum after every gate,
     preserving the same approximation behaviour as individual propagate() calls.
 
+    Symmetry merging (if enabled):
+        - Initial merging: All observables are merged before propagation begins
+        - Inline merging: Each observable is merged after every gate, before truncation
+
     Args:
         gates: List of gates (in circuit order)
         observables: List of initial observables (PauliSum), one per operator
@@ -306,6 +310,10 @@ def batch_propagate(
     # Copy all observables so inputs are not mutated
     results = [obs.copy() for obs in observables]
 
+    # Initial symmetry merging: reduce input observables before propagation
+    for r in results:
+        _apply_symmetry_merging(r)
+
     # Single pass over gates (in reverse for Heisenberg picture)
     for gate in reversed(gates):
         # Resolve parameter value once per gate (shared across all observables)
@@ -314,6 +322,10 @@ def batch_propagate(
             results = [propagate_single_gate(gate, r, param_value) for r in results]
         else:
             results = [propagate_single_gate(gate, r) for r in results]
+
+        # Inline symmetry merging: groups equivalent terms before they explode
+        for r in results:
+            _apply_symmetry_merging(r)
 
         # Truncate each PauliSum independently after every gate
         if do_truncate:

@@ -4,7 +4,7 @@ Implements quantum circuit execution using Heisenberg picture (Pauli propagation
 """
 
 import warnings
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import numpy as np
 
@@ -14,7 +14,11 @@ from .pauli_types import PauliSum
 from .propagation import propagate
 from .qiskit_converter import bind_parameters, convert_circuit
 from .state_overlap import overlap_with_zero
+from .symmetry import NoSymmetry
 from .truncation import TruncationStats, truncate_by_coeff, truncate_combined
+
+if TYPE_CHECKING:
+    from .symmetry import SymmetryStrategy
 
 # Try to import Qiskit
 try:
@@ -150,6 +154,7 @@ class PauliPropagationExecutor(ExecutorBase):
         cache_dir: Directory for caching (not implemented yet)
         truncate_threshold: Coefficient threshold for automatic truncation (None = no truncation)
         max_weight: Maximum Pauli weight for truncation (None = no weight limit)
+        symmetry_strategy: Strategy for Pauli symmetry merging (None = no merging)
     """
 
     def __init__(
@@ -161,10 +166,14 @@ class PauliPropagationExecutor(ExecutorBase):
         cache_dir: str = "cache",
         truncate_threshold: Union[float, None] = None,
         max_weight: Union[int, None] = None,
+        symmetry_strategy: Optional["SymmetryStrategy"] = None,
     ):
         super().__init__(shots, seed, log_file, caching, cache_dir)
         self.truncate_threshold = truncate_threshold
         self.max_weight = max_weight
+        self.symmetry_strategy = (
+            symmetry_strategy if symmetry_strategy is not None else NoSymmetry()
+        )
 
         # Statistics tracking
         self.last_truncation_stats: Optional[TruncationStats] = None
@@ -240,6 +249,9 @@ class PauliPropagationExecutor(ExecutorBase):
         # Convert operator to PauliSum
         nqubits = circuit.num_qubits
         observable = convert_operator(operator, nqubits)
+
+        # Attach symmetry strategy to observable for automatic merging
+        observable.symmetry = self.symmetry_strategy
 
         # Propagate observable through circuit (Heisenberg picture)
         # Pass truncation params so terms are pruned during propagation

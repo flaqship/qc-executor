@@ -120,27 +120,22 @@ class Executor:
         """
         cls._plugins_discovered = True
 
-        try:
-            from importlib.metadata import entry_points
-        except ImportError:
-            # Python < 3.10 compatibility
-            try:
-                from importlib_metadata import entry_points
-            except ImportError:
-                logger.warning(
-                    "Cannot discover plugins: importlib.metadata not available. "
-                    "Please upgrade to Python 3.10+ or install importlib-metadata"
-                )
-                return
+        from importlib.metadata import entry_points
 
         # Get entry points for executor backends
         try:
-            # Python 3.10+ API
+            # Python 3.12+ API: supports group keyword argument
             eps = entry_points(group="executor.backends")
         except TypeError:
-            # Python 3.9 API (entry_points returns dict)
+            # Python 3.10–3.11 API: entry_points() returns a Selection object
             all_eps = entry_points()
-            eps = all_eps.get("executor.backends", [])
+            # Selection.select() is available on these versions; fall back to
+            # dict-style access only if needed for very old backports.
+            select = getattr(all_eps, "select", None)
+            if callable(select):
+                eps = select(group="executor.backends")
+            else:
+                eps = all_eps.get("executor.backends", [])
 
         # Load each entry point
         for ep in eps:

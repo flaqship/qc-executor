@@ -17,7 +17,7 @@ examples/
 ## Running the notebooks
 
 ```bash
-uv sync --group examples
+uv sync --all-extras --group examples
 uv run jupyter lab
 ```
 

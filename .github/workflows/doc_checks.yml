@@ -17,16 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.13"
+          python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          pip install uv
-          uv sync --group docs
-          uv pip install -e .
+        run: uv sync --all-extras --group docs
 
       - name: Build documentation
         working-directory: docs/
-        run: sphinx-build -b html . _build -W --keep-going
+        run: uv run sphinx-build -b html . _build -W --keep-going

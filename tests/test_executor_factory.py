@@ -117,13 +117,12 @@ class TestExecutorFactory:
 
     def test_create_unknown_backend_message_includes_available(self):
         """Test that error message includes available backends."""
-        try:
+        with pytest.raises(ValueError) as exc_info:
             Executor.create("nonexistent_backend_xyz")
-        except ValueError as e:
-            error_msg = str(e)
-            assert "Available backends:" in error_msg
-            assert "pip install executor[nonexistent_backend_xyz]" in error_msg
 
+        error_msg = str(exc_info.value)
+        assert "Available backends:" in error_msg
+        assert "pip install executor[nonexistent_backend_xyz]" in error_msg
     def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
         """Test that qiskit backend install hint points to qiskit-full."""
         original_registry = Executor._registry.copy()

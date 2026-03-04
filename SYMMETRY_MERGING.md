@@ -6,6 +6,11 @@ This document describes the symmetry merging feature added to the Pauli Propagat
 
 Symmetry merging automatically groups and merges equivalent Pauli terms during circuit propagation, reducing computational complexity and memory usage. When a PauliSum has an active symmetry strategy, equivalent terms are merged at each propagation step, preventing exponential term explosion.
 
+Barrier-aware layer semantics:
+- If the circuit contains Qiskit `barrier` instructions, gates are grouped into layers between barriers.
+- Symmetry merging and truncation are applied once per layer.
+- If no barriers are present, the executor falls back to per-gate layers for backward compatibility.
+
 ## Quick Start
 
 ### Basic Usage
@@ -60,8 +65,35 @@ observable.add_term("IIIZ", 1.0)
 
 # Propagate through circuit (automatic merging)
 result = propagate(gates, observable, parameters={})
-# Terms are merged after each gate based on symmetry
+# Terms are merged after each layer (or after each gate if no barriers exist)
 ```
+
+### Barrier-Controlled Merging Granularity
+
+`barrier` instructions in a Qiskit circuit define explicit layer boundaries for symmetry merging.
+
+```python
+from qiskit import QuantumCircuit
+
+qc = QuantumCircuit(4)
+
+# Layer 1: single-qubit rotations
+for q in range(4):
+    qc.ry(0.3, q)
+qc.barrier()
+
+# Layer 2: entangling block
+qc.rxx(0.2, 0, 1)
+qc.rxx(0.2, 1, 2)
+qc.rxx(0.2, 2, 3)
+qc.barrier()
+
+# Layer 3: final single-qubit layer
+for q in range(4):
+    qc.rz(0.1, q)
+```
+
+In this example, propagation applies symmetry merging three times (once after each layer), not after every individual gate.
 
 ## Available Symmetry Strategies
 
@@ -126,7 +158,11 @@ executor = PauliPropagationExecutor(symmetry_strategy=sym)
 Symmetry merging occurs at two points:
 
 1. **Initial merging** (before propagation): Reduces input observable size
-2. **Inline merging** (after each gate): Prevents term explosion during propagation
+2. **Inline merging**:
+    - **With barriers:** after each barrier-delimited layer
+    - **Without barriers:** after each gate (per-gate fallback)
+
+Truncation follows the same granularity as merging (per-layer when barriers are present, otherwise per-gate).
 
 Both merging steps happen automatically when `PauliSum.has_active_symmetry` is True.
 

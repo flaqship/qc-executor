@@ -12,7 +12,7 @@ except ImportError as e:
     warnings.warn(
         f"Qiskit executor backend not available: {e}. "
         "Install with: pip install executor[qiskit-full]",
-        ImportWarning,
+        UserWarning,
     )
 
     __all__ = [

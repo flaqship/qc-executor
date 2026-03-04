@@ -21,6 +21,6 @@ except ImportError as e:
 
     warnings.warn(
         f"PennyLane backend not available: {e}. " "Install with: pip install executor[pennylane]",
-        ImportWarning,
+        UserWarning,
     )
     raise

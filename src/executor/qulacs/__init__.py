@@ -21,6 +21,6 @@ except ImportError as e:
 
     warnings.warn(
         f"Qulacs backend not available: {e}. " "Install with: pip install executor[qulacs]",
-        ImportWarning,
+        UserWarning,
     )
     raise

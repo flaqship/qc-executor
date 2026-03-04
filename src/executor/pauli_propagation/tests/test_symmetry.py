@@ -1,6 +1,7 @@
 """Tests for symmetry module."""
 
 import time
+from itertools import permutations
 
 import numpy as np
 import pytest
@@ -456,22 +457,22 @@ class TestSymmetryPerformance:
         # Create PauliSum with many equivalent terms (permutations)
         ps = PauliSum(nqubits, symmetry=sym)
 
-        # Add 100 random permutations of a multiset
+        # Add unique permutations of a multiset
         # Base multiset: 5 I's, 3 X's, 1 Y, 1 Z
         base = "IIIIIXXXYZ"
 
+        # Generate unique permutations and limit to 100
         import random
 
         random.seed(42)
-        for _ in range(100):
-            # Random permutation
-            perm = list(base)
-            random.shuffle(perm)
+        all_perms = list(permutations(base))
+        random_perms = random.sample(all_perms, min(100, len(all_perms)))
+        for perm in random_perms:
             ps.add_term("".join(perm), 1.0)
 
-        # Before merging: 100 terms (may have some coincidental duplicates)
+        # Before merging: 100 terms
         initial_count = len(ps)
-        assert initial_count <= 100
+        assert initial_count == 100
 
         # Apply merging
         _apply_symmetry_merging(ps)

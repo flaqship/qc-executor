@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from .gates import CliffordGate, Gate, PauliRotation
+from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 from .pauli_algebra import pauli_sum_product
 from .pauli_types import PauliSum
 from .truncation import truncate_combined
@@ -200,6 +200,66 @@ def _resolve_param_value(
     return parameters.get("theta", None)
 
 
+def _split_gates_by_barriers(gates: List) -> List[List[Gate]]:
+    """Split gates into layers/groups separated by LayerBarrier markers.
+
+    LayerBarrier objects in the gate list mark the end of a layer. This function
+    groups gates into layers by splitting at each barrier.
+
+    Layers are defined as:
+    - All gates before the first barrier (if any)
+    - All gates between consecutive barriers
+    - All gates after the last barrier (if any)
+
+    If the gate list contains no barriers, each gate forms its own layer.
+    This ensures backward compatibility with circuits without explicit layer
+    structure: gates are merged/truncated after each gate (per-gate granularity).
+
+    Args:
+        gates: List of Gate objects and LayerBarrier markers (from convert_circuit)
+
+    Returns:
+        List of layers, where each layer is a List[Gate] (barriers removed)
+
+    Example:
+        >>> gates = [RX(0), RY(0), LayerBarrier(), CX(0,1), LayerBarrier(), RZ(0)]
+        >>> _split_gates_by_barriers(gates)
+        [[RX(0), RY(0)], [CX(0,1)], [RZ(0)]]
+
+        >>> gates = [RX(0), RY(0), CX(0,1), RZ(0)]  # No barriers
+        >>> _split_gates_by_barriers(gates)
+        [[RX(0)], [RY(0)], [CX(0,1)], [RZ(0)]]  # Each gate is own layer
+    """
+    layers = []
+    current_layer = []
+
+    for gate in gates:
+        if isinstance(gate, LayerBarrier):
+            # End of current layer
+            if current_layer:
+                layers.append(current_layer)
+                current_layer = []
+        else:
+            # Accumulate gate in current layer
+            current_layer.append(gate)
+
+    # Add final layer if non-empty
+    if current_layer:
+        layers.append(current_layer)
+
+    # If no barriers were found, split into per-gate layers for backward compatibility
+    if not layers:
+        # Empty gate list
+        return []
+    
+    # Check if all layers are single-gate (no barriers were found)
+    if len(layers) == 1 and len(layers[0]) == len(gates):
+        # No barriers in original gate list - split into per-gate layers
+        return [[gate] for gate in layers[0]]
+
+    return layers
+
+
 def propagate(
     gates: List[Gate],
     observable: PauliSum,
@@ -215,15 +275,20 @@ def propagate(
     Since we store gates in forward order, we apply them in reverse.
 
     Symmetry merging (if enabled):
-        If observable has active symmetry, terms are merged:
-        1. Initially (before gate loop) - reduces input term count
-        2. After each gate - prevents term explosion during propagation
+        Layer-based merging strategy:
+        1. Initially: Merge input observable (if has_active_symmetry)
+        2. Per-layer: After propagating all gates in a layer, merge and truncate
 
-        This grouping of equivalent Pauli strings significantly reduces
-        computational cost for equivariant circuits and large molecules.
+        Layers are defined by LayerBarrier markers in the circuit:
+        - If circuit has no barriers: each gate forms its own layer (per-gate merging)
+        - If circuit has barriers: gates between barriers form a layer (per-layer merging)
+
+        This strategy reduces term explosion while respecting the circuit's layer
+        structure. For equivariant circuits, per-layer merging preserves equivariance
+        (applying and merging within a layer maintains invariance).
 
     Args:
-        gates: List of gates (in circuit order)
+        gates: List of gates and LayerBarrier markers (from convert_circuit)
         observable: Initial observable (PauliSum)
         parameters: Dict mapping parameter names to values
         max_weight: Maximum Pauli weight for truncation (None = no limit)
@@ -239,22 +304,30 @@ def propagate(
     result = observable.copy()
 
     # Initial symmetry merging (preprocessing step)
-    # Reduces input terms before propagation starts
+    # Reduces input terms before propagation starts (if observable has active symmetry)
     _apply_symmetry_merging(result)
 
-    # Apply gates in reverse order (Heisenberg picture)
-    for gate in reversed(gates):
-        if gate.is_parametric():
-            param_value = _resolve_param_value(gate, parameters)
-            result = propagate_single_gate(gate, result, param_value)
-        else:
-            result = propagate_single_gate(gate, result)
+    # Split gates into layers by barriers
+    # If no barriers: each gate forms own layer (backward compatible per-gate granularity)
+    # If barriers exist: gates between barriers form a layer (per-layer granularity)
+    layers = _split_gates_by_barriers(gates)
 
-        # Apply symmetry merging after each gate (inline merging)
-        # Groups equivalent terms before they explode
+    # Apply gates in reverse order (Heisenberg picture)
+    # Process layers in reverse, and gates within each layer in reverse
+    for layer in reversed(layers):
+        # Propagate each gate in the layer (in reverse order)
+        for gate in reversed(layer):
+            if gate.is_parametric():
+                param_value = _resolve_param_value(gate, parameters)
+                result = propagate_single_gate(gate, result, param_value)
+            else:
+                result = propagate_single_gate(gate, result)
+
+        # After each layer: apply symmetry merging
+        # Groups equivalent terms that may have been created within the layer
         _apply_symmetry_merging(result)
 
-        # Truncate after each gate to prevent term explosion
+        # Truncate after each layer to prevent term explosion
         # Note: symmetry merging happens BEFORE truncation
         # This allows truncation to work on already-reduced term set
         if do_truncate:
@@ -275,22 +348,27 @@ def batch_propagate(
     max_weight: Optional[int] = None,
     truncate_threshold: Optional[float] = None,
 ) -> List[PauliSum]:
-    """Propagate multiple observables through a circuit in a single gate-loop pass.
+    """Propagate multiple observables through a circuit in a single layer-loop pass.
 
     Instead of calling propagate() N times (one per observable), this function
-    iterates once over the reversed gate list and applies each gate to all
+    iterates once over the layers and applies all gates in each layer to all
     observables simultaneously. This yields an ~N× speedup for N observables
     sharing the same circuit and parameters.
 
-    Truncation is applied independently to each PauliSum after every gate,
-    preserving the same approximation behaviour as individual propagate() calls.
+    Symmetry merging and truncation are applied independently to each PauliSum
+    after every layer, preserving the same approximation behaviour as
+    individual propagate() calls.
 
-    Symmetry merging (if enabled):
-        - Initial merging: All observables are merged before propagation begins
-        - Inline merging: Each observable is merged after every gate, before truncation
+    Layer-based merging strategy (same as propagate()):
+        1. Initially: Merge all observables (if has_active_symmetry)
+        2. Per-layer: After propagating a layer, merge and truncate each observable
+
+        Layers are defined by LayerBarrier markers:
+        - No barriers: each gate forms own layer (per-gate granularity)
+        - With barriers: gates between barriers form a layer (per-layer granularity)
 
     Args:
-        gates: List of gates (in circuit order)
+        gates: List of gates and LayerBarrier markers (from convert_circuit)
         observables: List of initial observables (PauliSum), one per operator
         parameters: Dict mapping parameter names to values
         max_weight: Maximum Pauli weight for truncation (None = no limit)
@@ -311,23 +389,33 @@ def batch_propagate(
     results = [obs.copy() for obs in observables]
 
     # Initial symmetry merging: reduce input observables before propagation
+    # (only if observables have active symmetry)
     for r in results:
         _apply_symmetry_merging(r)
 
-    # Single pass over gates (in reverse for Heisenberg picture)
-    for gate in reversed(gates):
-        # Resolve parameter value once per gate (shared across all observables)
-        if gate.is_parametric():
-            param_value = _resolve_param_value(gate, parameters)
-            results = [propagate_single_gate(gate, r, param_value) for r in results]
-        else:
-            results = [propagate_single_gate(gate, r) for r in results]
+    # Split gates into layers by barriers
+    # If no barriers: each gate forms own layer (per-gate granularity)
+    # If barriers exist: gates between barriers form a layer (per-layer granularity)
+    layers = _split_gates_by_barriers(gates)
 
-        # Inline symmetry merging: groups equivalent terms before they explode
+    # Apply gates in reverse order (Heisenberg picture)
+    # Process layers in reverse, and gates within each layer in reverse
+    for layer in reversed(layers):
+        # Propagate each gate in the layer to all observables (in reverse order)
+        for gate in reversed(layer):
+            # Resolve parameter value once per gate (shared across all observables)
+            if gate.is_parametric():
+                param_value = _resolve_param_value(gate, parameters)
+                results = [propagate_single_gate(gate, r, param_value) for r in results]
+            else:
+                results = [propagate_single_gate(gate, r) for r in results]
+
+        # After each layer: apply symmetry merging to all observables
+        # Groups equivalent terms that may have been created within the layer
         for r in results:
             _apply_symmetry_merging(r)
 
-        # Truncate each PauliSum independently after every gate
+        # Truncate each PauliSum independently after every layer
         if do_truncate:
             results = [
                 truncate_combined(

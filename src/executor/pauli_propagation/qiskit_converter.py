@@ -14,7 +14,7 @@ try:
 except ImportError:
     QISKIT_AVAILABLE = False
 
-from .gates import Gate, PauliRotation, CliffordGate
+from .gates import Gate, PauliRotation, CliffordGate, LayerBarrier
 
 
 class CircuitConversionCache:
@@ -175,9 +175,13 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Optional[G
     elif gate_name == 'SWAP':
         return CliffordGate('SWAP', qubits, nqubits)
 
-    # Identity and barriers can be skipped
-    elif gate_name in ['ID', 'BARRIER']:
+    # Identity gates are skipped
+    elif gate_name == 'ID':
         return None
+
+    # Barriers mark layer boundaries
+    elif gate_name == 'BARRIER':
+        return LayerBarrier()
 
     else:
         raise ValueError(f"Unsupported gate: {gate_name}")
@@ -246,7 +250,7 @@ def bind_parameters(
     provided parameter_values.
 
     Args:
-        gates: List of internal gates
+        gates: List of internal gates (may include LayerBarrier markers)
         parameter_values: Dict mapping parameter names to values
 
     Returns:
@@ -261,6 +265,10 @@ def bind_parameters(
     # Collect required parameters and extract concrete values
     required_params = set()
     for gate in gates:
+        # Skip non-Gate objects like LayerBarrier
+        if not hasattr(gate, 'is_parametric'):
+            continue
+
         if gate.is_parametric():
             # If gate has param_name, it needs a value
             if gate.param_name:

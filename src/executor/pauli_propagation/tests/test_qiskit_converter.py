@@ -123,14 +123,20 @@ class TestConvertSingleGate:
         assert gates[0].qubits == [0, 1]
 
     def test_barrier_skipped(self, qiskit_converter):
-        """Test that barriers are skipped."""
+        """Test that barriers are converted to LayerBarrier markers."""
+        from executor.pauli_propagation.gates import LayerBarrier
+
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.barrier()
         qc.cx(0, 1)
 
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
-        assert len(gates) == 2  # H and CNOT, barrier skipped
+        # Now barriers are converted to LayerBarrier markers instead of being skipped
+        assert len(gates) == 3  # H, LayerBarrier, CNOT
+        assert isinstance(gates[0], CliffordGate)  # H
+        assert isinstance(gates[1], LayerBarrier)  # Barrier marker
+        assert isinstance(gates[2], CliffordGate)  # CNOT
 
 
 class TestParametricCircuits:

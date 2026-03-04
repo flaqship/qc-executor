@@ -123,6 +123,7 @@ class TestExecutorFactory:
         error_msg = str(exc_info.value)
         assert "Available backends:" in error_msg
         assert "pip install executor[nonexistent_backend_xyz]" in error_msg
+
     def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
         """Test that qiskit backend install hint points to qiskit-full."""
         original_registry = Executor._registry.copy()

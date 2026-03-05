@@ -375,3 +375,27 @@ class CliffordGate(Gate):
         """String representation."""
         qubits_str = str(self.qubits) if len(self.qubits) > 1 else str(self.qubits[0])
         return f"CliffordGate({self.gate_type}, qubits={qubits_str})"
+
+class LayerBarrier:
+    """Marker class for circuit layer boundaries.
+
+    LayerBarrier is not an actual quantum gate. It's a placeholder used to mark
+    the end of a circuit layer/group. When converting Qiskit circuits with
+    barrier() instructions, these are converted to LayerBarrier markers.
+
+    The propagation functions use these markers to group gates into layers:
+    - Gates before the first barrier form layer 1
+    - Gates between barriers form subsequent layers
+    - Without barriers, each gate forms its own layer (for backward compatibility)
+
+    After each layer is propagated, symmetry merging and truncation are applied
+    (if enabled).
+
+    Example:
+        gates = [RX, RY, LayerBarrier(), CX, CZ, LayerBarrier(), RZ]
+        -> Layers: [[RX, RY], [CX, CZ], [RZ]]
+    """
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return "LayerBarrier()"

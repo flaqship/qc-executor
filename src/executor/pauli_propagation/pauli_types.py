@@ -1,17 +1,16 @@
 """Core Pauli data types: PauliString and PauliSum."""
 
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+
 import numpy as np
-from typing import Union, List, Tuple
-from .pauli_algebra import (
-    get_uint_type,
-    string_to_term,
-    term_to_string,
-    count_weight,
-    pauli_multiply,
-    commutes as pauli_commutes,
-    symbol_to_int,
-    set_pauli,
-)
+
+from .pauli_algebra import commutes as pauli_commutes
+from .pauli_algebra import (count_weight, get_uint_type, pauli_multiply,
+                            set_pauli, string_to_term, symbol_to_int,
+                            term_to_string)
+
+if TYPE_CHECKING:
+    from .symmetry import SymmetryStrategy
 
 
 class PauliString:
@@ -51,7 +50,9 @@ class PauliString:
         self.coeff = complex(coeff)
 
     @classmethod
-    def from_symbols(cls, symbols: List[str], indices: List[int], nqubits: int, coeff: complex = 1.0):
+    def from_symbols(
+        cls, symbols: List[str], indices: List[int], nqubits: int, coeff: complex = 1.0
+    ):
         """Create PauliString from list of Pauli symbols and qubit indices.
 
         Args:
@@ -92,7 +93,7 @@ class PauliString:
         """
         return count_weight(int(self.term), self.nqubits)
 
-    def multiply(self, other: 'PauliString') -> 'PauliString':
+    def multiply(self, other: "PauliString") -> "PauliString":
         """Multiply with another PauliString: self * other.
 
         Args:
@@ -105,14 +106,16 @@ class PauliString:
             ValueError: If nqubits don't match
         """
         if self.nqubits != other.nqubits:
-            raise ValueError(f"Cannot multiply PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}")
+            raise ValueError(
+                f"Cannot multiply PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}"
+            )
 
         result_term, phase = pauli_multiply(int(self.term), int(other.term), self.nqubits)
         result_coeff = self.coeff * other.coeff * phase
 
         return PauliString(self.nqubits, result_term, result_coeff)
 
-    def commutes_with(self, other: 'PauliString') -> bool:
+    def commutes_with(self, other: "PauliString") -> bool:
         """Check if this PauliString commutes with another.
 
         Args:
@@ -122,11 +125,13 @@ class PauliString:
             True if they commute, False if they anticommute
         """
         if self.nqubits != other.nqubits:
-            raise ValueError(f"Cannot compare PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}")
+            raise ValueError(
+                f"Cannot compare PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}"
+            )
 
         return pauli_commutes(int(self.term), int(other.term), self.nqubits)
 
-    def __mul__(self, scalar: complex) -> 'PauliString':
+    def __mul__(self, scalar: complex) -> "PauliString":
         """Scalar multiplication: self * scalar.
 
         Args:
@@ -137,7 +142,7 @@ class PauliString:
         """
         return PauliString(self.nqubits, int(self.term), self.coeff * scalar)
 
-    def __rmul__(self, scalar: complex) -> 'PauliString':
+    def __rmul__(self, scalar: complex) -> "PauliString":
         """Scalar multiplication: scalar * self.
 
         Args:
@@ -150,12 +155,16 @@ class PauliString:
 
     def __repr__(self) -> str:
         """String representation for debugging."""
-        coeff_str = f"{self.coeff:.3f}" if abs(self.coeff.imag) > 1e-10 else f"{self.coeff.real:.3f}"
+        coeff_str = (
+            f"{self.coeff:.3f}" if abs(self.coeff.imag) > 1e-10 else f"{self.coeff.real:.3f}"
+        )
         return f"PauliString({coeff_str} * {self.to_string()})"
 
     def __str__(self) -> str:
         """User-friendly string representation."""
-        coeff_str = f"{self.coeff:.3f}" if abs(self.coeff.imag) > 1e-10 else f"{self.coeff.real:.3f}"
+        coeff_str = (
+            f"{self.coeff:.3f}" if abs(self.coeff.imag) > 1e-10 else f"{self.coeff.real:.3f}"
+        )
         return f"{coeff_str} {self.to_string()}"
 
     def __eq__(self, other) -> bool:
@@ -169,9 +178,11 @@ class PauliString:
         """
         if not isinstance(other, PauliString):
             return False
-        return (self.nqubits == other.nqubits and
-                int(self.term) == int(other.term) and
-                np.isclose(self.coeff, other.coeff))
+        return (
+            self.nqubits == other.nqubits
+            and int(self.term) == int(other.term)
+            and np.isclose(self.coeff, other.coeff)
+        )
 
     def __hash__(self) -> int:
         """Hash based on term (ignoring coefficient)."""
@@ -188,17 +199,31 @@ class PauliSum:
         nqubits: Number of qubits
         terms: Dictionary mapping bit-encoded terms to coefficients
         dtype: Numpy unsigned integer type for terms
+        symmetry: Optional symmetry strategy for automatic term merging
     """
 
-    def __init__(self, nqubits: int):
+    def __init__(self, nqubits: int, symmetry: Optional["SymmetryStrategy"] = None):
         """Initialize an empty PauliSum.
 
         Args:
             nqubits: Number of qubits
+            symmetry: Optional SymmetryStrategy instance for automatic term merging.
+                     If None, defaults to NoSymmetry (no merging).
+
+        Example:
+            # No symmetry (default)
+            psum = PauliSum(4)
+
+            # With qubit permutation symmetry
+            from .symmetry import PermutationSymmetry
+            psum = PauliSum(4, symmetry=PermutationSymmetry())
         """
+        from .symmetry import NoSymmetry
+
         self.nqubits = nqubits
         self.dtype = get_uint_type(nqubits)
         self.terms = {}  # Dict[uint term → complex coeff]
+        self.symmetry = symmetry if symmetry is not None else NoSymmetry()
 
     def add_term(self, term: Union[int, str, PauliString], coeff: complex = 1.0) -> None:
         """Add a Pauli term to the sum.
@@ -260,15 +285,28 @@ class PauliSum:
         else:
             self.terms[int(term)] = complex(coeff)
 
-    def copy(self) -> 'PauliSum':
+    def copy(self) -> "PauliSum":
         """Create a deep copy of this PauliSum.
 
+        Preserves the symmetry strategy from the original PauliSum.
+
         Returns:
-            New PauliSum with copied terms
+            New PauliSum with copied terms and same symmetry
         """
-        new_psum = PauliSum(self.nqubits)
+        new_psum = PauliSum(self.nqubits, symmetry=self.symmetry)
         new_psum.terms = self.terms.copy()
         return new_psum
+
+    @property
+    def has_active_symmetry(self) -> bool:
+        """Check if this PauliSum has an active (non-trivial) symmetry.
+
+        Returns:
+            True if symmetry is not NoSymmetry, False otherwise
+        """
+        from .symmetry import NoSymmetry
+
+        return not isinstance(self.symmetry, NoSymmetry)
 
     def __len__(self) -> int:
         """Return number of terms in the sum."""
@@ -278,7 +316,7 @@ class PauliSum:
         """Iterate over (term, coefficient) pairs."""
         return iter(self.terms.items())
 
-    def __add__(self, other: 'PauliSum') -> 'PauliSum':
+    def __add__(self, other: "PauliSum") -> "PauliSum":
         """Add two PauliSums.
 
         Args:
@@ -288,14 +326,16 @@ class PauliSum:
             New PauliSum representing the sum
         """
         if self.nqubits != other.nqubits:
-            raise ValueError(f"Cannot add PauliSums with different nqubits: {self.nqubits} vs {other.nqubits}")
+            raise ValueError(
+                f"Cannot add PauliSums with different nqubits: {self.nqubits} vs {other.nqubits}"
+            )
 
         result = self.copy()
         for term, coeff in other:
             result.add_term(term, coeff)
         return result
 
-    def __mul__(self, scalar: complex) -> 'PauliSum':
+    def __mul__(self, scalar: complex) -> "PauliSum":
         """Scalar multiplication.
 
         Args:
@@ -304,12 +344,12 @@ class PauliSum:
         Returns:
             New PauliSum with all coefficients scaled
         """
-        result = PauliSum(self.nqubits)
+        result = PauliSum(self.nqubits, symmetry=self.symmetry)
         for term, coeff in self:
             result.terms[term] = coeff * scalar
         return result
 
-    def __rmul__(self, scalar: complex) -> 'PauliSum':
+    def __rmul__(self, scalar: complex) -> "PauliSum":
         """Scalar multiplication (reverse).
 
         Args:

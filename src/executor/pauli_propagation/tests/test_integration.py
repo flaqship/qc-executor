@@ -347,7 +347,8 @@ class TestCrossExecutorValidation:
 
         op = QuantumOperator(["ZZ"], [1.0])
 
-        pp_result = pp_exec.expectation_value(qc, op, theta=[0.3, 0.7])
+        # Pass parameters with explicit keys for parameter vectors
+        pp_result = pp_exec.expectation_value(qc, op, **{'theta[0]': 0.3, 'theta[1]': 0.7})
         qk_result = qk_exec.expectation_value(qc, op, theta=[0.3, 0.7])
 
         assert np.isclose(pp_result, qk_result, atol=1e-8)

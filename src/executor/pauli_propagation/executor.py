@@ -644,16 +644,20 @@ class PauliPropagationExecutor(ExecutorBase):
             return result
 
         # Try to convert generic QuantumOperator
-        if hasattr(operator, "paulis") and hasattr(operator, "coeffs"):
+        try:
             # Generic QuantumOperator with Pauli interface
+            paulis = operator.paulis
+            coeffs = operator.coeffs
             effective_symmetry = (
                 symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy
             )
             return PauliPropagationObservable(
-                paulis=operator.paulis,
-                coeffs=operator.coeffs,
+                paulis=paulis,
+                coeffs=coeffs,
                 symmetry_strategy=effective_symmetry,
             )
+        except (AttributeError, TypeError):
+            pass
 
         raise TypeError(
             f"PauliPropagationExecutor._transpile_observable() expects "

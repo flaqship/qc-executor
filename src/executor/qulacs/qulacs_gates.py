@@ -1,6 +1,5 @@
 from qiskit.transpiler import Target
 from qulacs import ParametricQuantumCircuit
-
 from qulacs.gate import *
 
 

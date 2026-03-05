@@ -251,7 +251,7 @@ def _split_gates_by_barriers(gates: List) -> List[List[Gate]]:
     if not layers:
         # Empty gate list
         return []
-    
+
     # Check if all layers are single-gate (no barriers were found)
     if len(layers) == 1 and len(layers[0]) == len(gates):
         # No barriers in original gate list - split into per-gate layers

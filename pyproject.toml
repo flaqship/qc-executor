@@ -45,6 +45,7 @@ dynamic = ["version"]
 pennylane = ["pennylane>=0.34.0"]
 qulacs = ["qulacs>=0.6.4.1"]
 qiskit-full = ["qiskit-aer>=0.12.0", "qiskit-ibm-runtime>=0.18.0"]
+pauli_propagation = []
 all = [
     "pennylane>=0.34.0",
     "qulacs>=0.6.4.1",

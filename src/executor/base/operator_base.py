@@ -1,8 +1,8 @@
-import numpy as np
 from abc import ABC, abstractmethod
 from typing import List, Union
 
-from qiskit.circuit import ParameterExpression, Parameter
+import numpy as np
+from qiskit.circuit import Parameter, ParameterExpression
 
 
 class QuantumOperatorBase(ABC):

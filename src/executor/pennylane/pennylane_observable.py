@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import List, Union
 
 import numpy as np
 import pennylane as qml
@@ -9,7 +9,7 @@ from qiskit.quantum_info import SparsePauliOp
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
-from ..utils.qiskit_compat import _param_to_sympy, _param_is_constant
+from ..utils.qiskit_compat import _param_is_constant, _param_to_sympy
 
 
 def _get_sympy_interface():

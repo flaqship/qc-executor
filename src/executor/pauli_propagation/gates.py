@@ -4,11 +4,13 @@ Gates are stored in a form optimized for Heisenberg picture propagation.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Union, Optional
+from typing import List, Optional, Union
+
 import numpy as np
+
+from .pauli_algebra import commutes as pauli_commutes
 from .pauli_algebra import (
     string_to_term,
-    commutes as pauli_commutes,
 )
 
 
@@ -76,7 +78,9 @@ class PauliRotation(Gate):
         super().__init__(qubits, nqubits)
 
         if len(symbols) != len(self.qubits):
-            raise ValueError(f"Number of symbols ({len(symbols)}) must match number of qubits ({len(self.qubits)})")
+            raise ValueError(
+                f"Number of symbols ({len(symbols)}) must match number of qubits ({len(self.qubits)})"
+            )
 
         self.symbols = symbols
         self.param_name = param_name
@@ -84,7 +88,7 @@ class PauliRotation(Gate):
 
         # Build the Pauli generator term (what we're rotating around)
         self.generator_term = 0
-        from .pauli_algebra import symbol_to_int, set_pauli
+        from .pauli_algebra import set_pauli, symbol_to_int
 
         for symbol, qubit in zip(symbols, self.qubits):
             pauli_int = symbol_to_int(symbol)
@@ -109,7 +113,7 @@ class PauliRotation(Gate):
 
     def __repr__(self) -> str:
         """String representation."""
-        pauli_str = ''.join(self.symbols)
+        pauli_str = "".join(self.symbols)
         qubits_str = str(self.qubits) if len(self.qubits) > 1 else str(self.qubits[0])
         return f"PauliRotation({pauli_str}, qubits={qubits_str})"
 
@@ -126,42 +130,42 @@ class CliffordGate(Gate):
     # Transformation rules for single-qubit Clifford gates
     # Format: gate_name → {input_pauli → (output_pauli, phase)}
     SINGLE_QUBIT_RULES = {
-        'H': {  # Hadamard: X ↔ Z, Y → -Y
-            'I': ('I', 1.0),
-            'X': ('Z', 1.0),
-            'Y': ('Y', -1.0),
-            'Z': ('X', 1.0),
+        "H": {  # Hadamard: X ↔ Z, Y → -Y
+            "I": ("I", 1.0),
+            "X": ("Z", 1.0),
+            "Y": ("Y", -1.0),
+            "Z": ("X", 1.0),
         },
-        'S': {  # Phase gate: X → Y, Y → -X, Z → Z
-            'I': ('I', 1.0),
-            'X': ('Y', 1.0),
-            'Y': ('X', -1.0),
-            'Z': ('Z', 1.0),
+        "S": {  # Phase gate: X → Y, Y → -X, Z → Z
+            "I": ("I", 1.0),
+            "X": ("Y", 1.0),
+            "Y": ("X", -1.0),
+            "Z": ("Z", 1.0),
         },
-        'T': {  # T gate (π/8 rotation): more complex, using rotation representation
+        "T": {  # T gate (π/8 rotation): more complex, using rotation representation
             # T is exp(-i π/8 Z), not pure Clifford but commonly included
-            'I': ('I', 1.0),
-            'X': ('X', np.exp(-1j * np.pi / 4)),  # phase factor
-            'Y': ('Y', np.exp(-1j * np.pi / 4)),
-            'Z': ('Z', 1.0),
+            "I": ("I", 1.0),
+            "X": ("X", np.exp(-1j * np.pi / 4)),  # phase factor
+            "Y": ("Y", np.exp(-1j * np.pi / 4)),
+            "Z": ("Z", 1.0),
         },
-        'X': {  # Pauli-X: Z → -Z, Y → -Y
-            'I': ('I', 1.0),
-            'X': ('X', 1.0),
-            'Y': ('Y', -1.0),
-            'Z': ('Z', -1.0),
+        "X": {  # Pauli-X: Z → -Z, Y → -Y
+            "I": ("I", 1.0),
+            "X": ("X", 1.0),
+            "Y": ("Y", -1.0),
+            "Z": ("Z", -1.0),
         },
-        'Y': {  # Pauli-Y: X → -X, Z → -Z
-            'I': ('I', 1.0),
-            'X': ('X', -1.0),
-            'Y': ('Y', 1.0),
-            'Z': ('Z', -1.0),
+        "Y": {  # Pauli-Y: X → -X, Z → -Z
+            "I": ("I", 1.0),
+            "X": ("X", -1.0),
+            "Y": ("Y", 1.0),
+            "Z": ("Z", -1.0),
         },
-        'Z': {  # Pauli-Z: X → -X, Y → -Y
-            'I': ('I', 1.0),
-            'X': ('X', -1.0),
-            'Y': ('Y', -1.0),
-            'Z': ('Z', 1.0),
+        "Z": {  # Pauli-Z: X → -X, Y → -Y
+            "I": ("I", 1.0),
+            "X": ("X", -1.0),
+            "Y": ("Y", -1.0),
+            "Z": ("Z", 1.0),
         },
     }
 
@@ -177,10 +181,10 @@ class CliffordGate(Gate):
         self.gate_type = gate_type.upper()
 
         # Validate gate type and qubit count
-        if self.gate_type in ['H', 'S', 'T', 'X', 'Y', 'Z']:
+        if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
             if len(self.qubits) != 1:
                 raise ValueError(f"{self.gate_type} gate requires exactly 1 qubit")
-        elif self.gate_type in ['CNOT', 'CX', 'CZ', 'SWAP']:
+        elif self.gate_type in ["CNOT", "CX", "CZ", "SWAP"]:
             if len(self.qubits) != 2:
                 raise ValueError(f"{self.gate_type} gate requires exactly 2 qubits")
         else:
@@ -217,20 +221,20 @@ class CliffordGate(Gate):
         """
         from .pauli_algebra import get_pauli, set_pauli
 
-        if self.gate_type in ['H', 'S', 'T', 'X', 'Y', 'Z']:
+        if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
             return self._transform_single_qubit(pauli_term)
-        elif self.gate_type in ['CNOT', 'CX']:
+        elif self.gate_type in ["CNOT", "CX"]:
             return self._transform_cnot(pauli_term)
-        elif self.gate_type == 'CZ':
+        elif self.gate_type == "CZ":
             return self._transform_cz(pauli_term)
-        elif self.gate_type == 'SWAP':
+        elif self.gate_type == "SWAP":
             return self._transform_swap(pauli_term)
         else:
             raise ValueError(f"Transformation not implemented for {self.gate_type}")
 
     def _transform_single_qubit(self, pauli_term: int):
         """Transform single-qubit Clifford gate."""
-        from .pauli_algebra import get_pauli, set_pauli, int_to_symbol, symbol_to_int
+        from .pauli_algebra import get_pauli, int_to_symbol, set_pauli, symbol_to_int
 
         qubit = self.qubits[0]
         pauli_int = get_pauli(pauli_term, qubit, self.nqubits)
@@ -375,6 +379,7 @@ class CliffordGate(Gate):
         """String representation."""
         qubits_str = str(self.qubits) if len(self.qubits) > 1 else str(self.qubits[0])
         return f"CliffordGate({self.gate_type}, qubits={qubits_str})"
+
 
 class LayerBarrier:
     """Marker class for circuit layer boundaries.

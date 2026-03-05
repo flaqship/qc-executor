@@ -7,13 +7,13 @@ Encoding scheme: 2 bits per qubit
 - 11 = Z
 """
 
-import numpy as np
 from typing import Tuple
 
+import numpy as np
 
 # Pauli symbol to integer mapping
-SYMBOL_TO_INT = {'I': 0, 'X': 1, 'Y': 2, 'Z': 3}
-INT_TO_SYMBOL = {0: 'I', 1: 'X', 2: 'Y', 3: 'Z'}
+SYMBOL_TO_INT = {"I": 0, "X": 1, "Y": 2, "Z": 3}
+INT_TO_SYMBOL = {0: "I", 1: "X", 2: "Y", 3: "Z"}
 
 
 def get_uint_type(nqubits: int):
@@ -124,7 +124,7 @@ def term_to_string(term: int, nqubits: int) -> str:
     for i in range(nqubits):
         pauli_int = get_pauli(term, i, nqubits)
         symbols.append(int_to_symbol(pauli_int))
-    return ''.join(symbols)
+    return "".join(symbols)
 
 
 def string_to_term(pauli_string: str, nqubits: int) -> int:
@@ -273,7 +273,9 @@ def pauli_sum_product(psum1, psum2):
     from .pauli_types import PauliSum
 
     if psum1.nqubits != psum2.nqubits:
-        raise ValueError(f"Cannot multiply PauliSums with different nqubits: {psum1.nqubits} vs {psum2.nqubits}")
+        raise ValueError(
+            f"Cannot multiply PauliSums with different nqubits: {psum1.nqubits} vs {psum2.nqubits}"
+        )
 
     result = PauliSum(psum1.nqubits)
 

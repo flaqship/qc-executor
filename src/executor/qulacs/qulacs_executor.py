@@ -1,19 +1,17 @@
-import numpy as np
 import re
-from typing import List, Union, Tuple
 from collections import Counter
 from itertools import product
+from typing import List, Tuple, Union
 
+import numpy as np
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
-
 from qulacs import QuantumState
 
+from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..utils.data_preprocessing import adjust_features, to_tuple
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_observable import QulacsObservable
-
-from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
-from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
 class QulacsExecutor(ExecutorBase):
@@ -624,3 +622,17 @@ class QulacsExecutor(ExecutorBase):
             QulacsCircuit: The corresponding QulacsCircuit.
         """
         return QulacsCircuit(circuit)
+
+    def _transpile_observable(
+        self, operator: QuantumOperatorBase, symmetry_strategy=None
+    ) -> QulacsObservable:
+        """Transpile a generic QuantumOperator to a Qulacs QuantumOperator.
+
+        Args:
+            operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
+            symmetry_strategy: Ignored for Qulacs backend (no symmetry support).
+
+        Returns:
+            QulacsObservable: The corresponding QulacsObservable.
+        """
+        return QulacsObservable(operator)

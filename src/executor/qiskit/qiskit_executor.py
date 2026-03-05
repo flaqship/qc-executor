@@ -1,26 +1,25 @@
-import numpy as np
 from typing import List, Tuple, Union
 
-from executor.base.circuit_base import QuantumCircuitBase
-from executor.base.executor_base import ExecutorBase
-from executor.base.operator_base import QuantumOperatorBase
+import numpy as np
 from qiskit.primitives import (
     StatevectorEstimator,
     StatevectorSampler,
 )
 from qiskit.quantum_info import Statevector
 
-from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
-
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.optree import OpTreeDerivative
-from executor.qiskit.optree import OpTreeEvaluate
+from executor.base.circuit_base import QuantumCircuitBase
+from executor.base.executor_base import ExecutorBase
+from executor.base.operator_base import QuantumOperatorBase
+from executor.qiskit.optree import OpTreeDerivative, OpTreeEvaluate
 from executor.qiskit.optree.optree import (
     OpTreeCircuit,
     OpTreeList,
     OpTreeNodeBase,
     OpTreeOperator,
 )
+from executor.qiskit.qiskit_circuit import QiskitCircuit
+from executor.qiskit.qiskit_observable import QiskitObservable
+from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
 
 
 def _load_aer_simulator():
@@ -37,24 +36,18 @@ def _load_aer_simulator():
 
 if QISKIT_SMALLER_1_2:
     # pylint: disable=ungrouped-imports
-    from qiskit.primitives import (
-        BackendEstimator as BackendEstimator,
-        BackendSampler as BackendSampler,
-    )
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import BackendEstimator as BackendEstimator
+    from qiskit.primitives import BackendSampler as BackendSampler
 elif QISKIT_SMALLER_2_0:
     # pylint: disable=ungrouped-imports
-    from qiskit.primitives import (
-        BackendEstimatorV2 as BackendEstimator,
-        BackendSamplerV2 as BackendSampler,
-    )
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+    from qiskit.primitives import BackendSamplerV2 as BackendSampler
 else:
-    from qiskit.primitives import (
-        BackendEstimatorV2 as BackendEstimator,
-        BackendSamplerV2 as BackendSampler,
-    )
     from qiskit.circuit import ParameterVectorElement
+    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+    from qiskit.primitives import BackendSamplerV2 as BackendSampler
 
 
 class QiskitExecutor(ExecutorBase):
@@ -588,3 +581,17 @@ class QiskitExecutor(ExecutorBase):
             QiskitCircuit: The corresponding QiskitCircuit.
         """
         return QiskitCircuit(circuit)
+
+    def _transpile_observable(
+        self, operator: QuantumOperatorBase, symmetry_strategy=None
+    ) -> QiskitObservable:
+        """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
+
+        Args:
+            operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
+            symmetry_strategy: Ignored for Qiskit backend (no symmetry support).
+
+        Returns:
+            QiskitObservable: The corresponding QiskitObservable.
+        """
+        return QiskitObservable(operator)

@@ -1,20 +1,35 @@
 """Convert Qiskit circuits to internal gate representation."""
 
-from typing import List, Dict, Optional, Union
 import hashlib
 import pickle
+from typing import Dict, List, Optional, Union
 
 try:
     from qiskit import QuantumCircuit
     from qiskit.circuit import Parameter, ParameterExpression
-    from qiskit.circuit.library import RXGate, RYGate, RZGate, RXXGate, RYYGate, RZZGate
-    from qiskit.circuit.library import HGate, SGate, TGate, XGate, YGate, ZGate
-    from qiskit.circuit.library import CXGate, CZGate, SwapGate
+    from qiskit.circuit.library import (
+        CXGate,
+        CZGate,
+        HGate,
+        RXGate,
+        RXXGate,
+        RYGate,
+        RYYGate,
+        RZGate,
+        RZZGate,
+        SGate,
+        SwapGate,
+        TGate,
+        XGate,
+        YGate,
+        ZGate,
+    )
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
 
-from .gates import Gate, PauliRotation, CliffordGate, LayerBarrier
+from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 
 
 class CircuitConversionCache:
@@ -138,49 +153,73 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Optional[G
     gate_name = gate_op.name.upper()
 
     # Pauli rotations (parametric gates)
-    if gate_name == 'RX':
-        param_name, param_value = _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
-        return PauliRotation(['X'], qubits[0], nqubits, param_name=param_name, param_value=param_value)
+    if gate_name == "RX":
+        param_name, param_value = (
+            _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
+        )
+        return PauliRotation(
+            ["X"], qubits[0], nqubits, param_name=param_name, param_value=param_value
+        )
 
-    elif gate_name == 'RY':
-        param_name, param_value = _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
-        return PauliRotation(['Y'], qubits[0], nqubits, param_name=param_name, param_value=param_value)
+    elif gate_name == "RY":
+        param_name, param_value = (
+            _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
+        )
+        return PauliRotation(
+            ["Y"], qubits[0], nqubits, param_name=param_name, param_value=param_value
+        )
 
-    elif gate_name == 'RZ':
-        param_name, param_value = _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
-        return PauliRotation(['Z'], qubits[0], nqubits, param_name=param_name, param_value=param_value)
+    elif gate_name == "RZ":
+        param_name, param_value = (
+            _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
+        )
+        return PauliRotation(
+            ["Z"], qubits[0], nqubits, param_name=param_name, param_value=param_value
+        )
 
-    elif gate_name == 'RXX':
-        param_name, param_value = _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
-        return PauliRotation(['X', 'X'], qubits, nqubits, param_name=param_name, param_value=param_value)
+    elif gate_name == "RXX":
+        param_name, param_value = (
+            _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
+        )
+        return PauliRotation(
+            ["X", "X"], qubits, nqubits, param_name=param_name, param_value=param_value
+        )
 
-    elif gate_name == 'RYY':
-        param_name, param_value = _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
-        return PauliRotation(['Y', 'Y'], qubits, nqubits, param_name=param_name, param_value=param_value)
+    elif gate_name == "RYY":
+        param_name, param_value = (
+            _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
+        )
+        return PauliRotation(
+            ["Y", "Y"], qubits, nqubits, param_name=param_name, param_value=param_value
+        )
 
-    elif gate_name == 'RZZ':
-        param_name, param_value = _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
-        return PauliRotation(['Z', 'Z'], qubits, nqubits, param_name=param_name, param_value=param_value)
+    elif gate_name == "RZZ":
+        param_name, param_value = (
+            _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
+        )
+        return PauliRotation(
+            ["Z", "Z"], qubits, nqubits, param_name=param_name, param_value=param_value
+        )
 
     # Clifford gates (non-parametric)
-    elif gate_name in ['H', 'S', 'T', 'X', 'Y', 'Z']:
+    elif gate_name in ["H", "S", "T", "X", "Y", "Z"]:
         return CliffordGate(gate_name, qubits[0], nqubits)
 
-    elif gate_name in ['CX', 'CNOT']:
-        return CliffordGate('CNOT', qubits, nqubits)
+    elif gate_name in ["CX", "CNOT"]:
+        return CliffordGate("CNOT", qubits, nqubits)
 
-    elif gate_name == 'CZ':
-        return CliffordGate('CZ', qubits, nqubits)
+    elif gate_name == "CZ":
+        return CliffordGate("CZ", qubits, nqubits)
 
-    elif gate_name == 'SWAP':
-        return CliffordGate('SWAP', qubits, nqubits)
+    elif gate_name == "SWAP":
+        return CliffordGate("SWAP", qubits, nqubits)
 
     # Identity gates are skipped
-    elif gate_name == 'ID':
+    elif gate_name == "ID":
         return None
 
     # Barriers mark layer boundaries
-    elif gate_name == 'BARRIER':
+    elif gate_name == "BARRIER":
         return LayerBarrier()
 
     else:
@@ -283,13 +322,13 @@ def bind_parameters(
                 # Check if value is already provided
                 if gate.param_name not in result:
                     # Check if gate has concrete value
-                    if hasattr(gate, 'param_value') and gate.param_value is not None:
+                    if hasattr(gate, "param_value") and gate.param_value is not None:
                         # This shouldn't happen - if param_value is set, param_name should be None
                         result[gate.param_name] = gate.param_value
                     else:
                         required_params.add(gate.param_name)
             # If gate has no param_name but has param_value, use a generated name
-            elif hasattr(gate, 'param_value') and gate.param_value is not None:
+            elif hasattr(gate, "param_value") and gate.param_value is not None:
                 # Gate has concrete value, no parameter name - we can handle this in propagate
                 # by using param_value directly
                 pass

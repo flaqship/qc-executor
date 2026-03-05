@@ -1,27 +1,24 @@
-import numpy as np
-from typing import Union, List, Tuple
-
 import time
+from typing import List, Tuple, Union
 
-from qiskit.circuit import QuantumCircuit
-from qiskit.circuit import ParameterExpression, Clbit
-from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
+import numpy as np
+from qiskit.circuit import Clbit, ParameterExpression, QuantumCircuit
+from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
 
-from ...utils.decompose_to_std import decompose_to_std
 from ...utils.data_preprocessing import ensure_complex_coeffs
+from ...utils.decompose_to_std import decompose_to_std
 from ...utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
-
 from .optree import (
-    OpTreeNodeBase,
+    OpTreeCircuit,
+    OpTreeContainer,
+    OpTreeExpectationValue,
     OpTreeLeafBase,
     OpTreeList,
-    OpTreeSum,
-    OpTreeCircuit,
-    OpTreeOperator,
-    OpTreeContainer,
-    OpTreeValue,
-    OpTreeExpectationValue,
     OpTreeMeasuredOperator,
+    OpTreeNodeBase,
+    OpTreeOperator,
+    OpTreeSum,
+    OpTreeValue,
 )
 
 # Qiskit primitive imports are split across three version brackets:
@@ -45,15 +42,15 @@ if QISKIT_SMALLER_1_2:
         """Dummy BaseSamplerV2 for Qiskit < 1.2."""
 
 else:
-    from qiskit.primitives import BitArray, BaseSamplerV2
+    from qiskit.primitives import BaseSamplerV2, BitArray
 
 # V1 primitives exist only below 2.0; BaseEstimatorV2 is imported here
 # for ALL Qiskit 1.x versions because it is not re-exported from the
 # top-level qiskit.primitives package until 2.0.
 if QISKIT_SMALLER_2_0:
-    from qiskit.primitives.base import SamplerResult
-    from qiskit.primitives import BaseSamplerV1, BaseEstimatorV1, BaseEstimatorV2
+    from qiskit.primitives import BaseEstimatorV1, BaseEstimatorV2, BaseSamplerV1
     from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
+    from qiskit.primitives.base import SamplerResult
 else:
     # In Qiskit >= 2.0, BaseEstimatorV2 is a proper top-level export;
     # V1 primitives and SamplerResult no longer exist.

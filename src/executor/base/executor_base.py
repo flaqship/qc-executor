@@ -1,17 +1,16 @@
 import logging
 import os
-import numpy as np
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import List, Union
+from typing import List, Optional, Union
 
+import numpy as np
 from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
+from ..parameters import Parameter, Parameters
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
-
-from ..parameters import Parameter, Parameters
 
 
 class _BoundedCache(OrderedDict):
@@ -322,6 +321,47 @@ class ExecutorBase(ABC):
             return result
         return self._transpile_circuit(circuit)
 
+    def transpile_observable(
+        self,
+        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
+        symmetry_strategy: Optional[object] = None,
+    ) -> Union[QuantumOperatorBase, List[QuantumOperatorBase]]:
+        """
+        Transpile the operator for execution on this executor's backend.
+
+        Subclasses may override :meth:`_transpile_observable` to apply
+        backend-specific conversions (e.g., to wrapper types).  When a list
+        of operators is provided, each operator is transpiled and cached individually.
+
+        Args:
+            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The
+                quantum operator or a list of operators to transpile.
+            symmetry_strategy (Optional[object]): Strategy for symmetry handling.
+                If provided, takes precedence over executor-level default.
+
+        Returns:
+            Union[QuantumOperatorBase, List[QuantumOperatorBase]]: The transpiled
+                operator(s).
+        """
+        self._logger.info("Transpiling operator")
+        if isinstance(operator, list):
+            return [self._transpile_observable_cached(op, symmetry_strategy) for op in operator]
+        return self._transpile_observable_cached(operator, symmetry_strategy)
+
+    def _transpile_observable_cached(
+        self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None
+    ) -> QuantumOperatorBase:
+        """Transpile a single observable, consulting the result cache if enabled."""
+        if self._result_cache is not None:
+            key = self._make_result_key("transpile_observable", operator, symmetry_strategy)
+            if key in self._result_cache:
+                self._logger.debug("Result cache hit for transpile_observable")
+                return self._result_cache[key]
+            result = self._transpile_observable(operator, symmetry_strategy)
+            self._result_cache[key] = result
+            return result
+        return self._transpile_observable(operator, symmetry_strategy)
+
     # ------------------------------------------------------------------
     # Backend switching – allows changing backend while preserving configuration
     # ------------------------------------------------------------------
@@ -418,4 +458,27 @@ class ExecutorBase(ABC):
 
     @abstractmethod
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _transpile_observable(
+        self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None
+    ) -> QuantumOperatorBase:
+        """
+        Transpile an operator to backend-specific format.
+
+        Subclasses override this to convert generic QuantumOperator to
+        backend-native types. For backends supporting symmetry (e.g.,
+        Pauli Propagation), the symmetry_strategy parameter allows
+        assigning a symmetry strategy to the operator.
+
+        Args:
+            operator (QuantumOperatorBase): The operator to transpile.
+            symmetry_strategy (Optional[object]): Strategy for symmetry handling.
+                Backend-specific semantics; may be ignored by backends that
+                don't support symmetry.
+
+        Returns:
+            QuantumOperatorBase: The transpiled operator in backend-native format.
+        """
         raise NotImplementedError

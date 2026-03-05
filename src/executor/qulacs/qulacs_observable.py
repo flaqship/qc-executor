@@ -1,17 +1,14 @@
+from typing import Iterable, List, Union
+
 import numpy as np
-from typing import List, Union, Iterable
+from qiskit.circuit import ParameterExpression, ParameterVector
+from qiskit.circuit.parametervector import ParameterVectorElement
+from qiskit.quantum_info import SparsePauliOp
+from qulacs import GeneralQuantumOperator, GradCalculator, Observable, PauliOperator
 from sympy import lambdify
 
-from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression, ParameterVector
-from qiskit.quantum_info import SparsePauliOp
-
-
-from qulacs import Observable, GradCalculator, GeneralQuantumOperator, PauliOperator
-
-
 from ..base import QuantumOperatorBase
-from ..utils.qiskit_compat import _param_to_sympy, _param_free_symbols
+from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 
 
 class QulacsObservable:

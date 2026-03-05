@@ -3,13 +3,16 @@
 Handles conversion from various Qiskit operator types to our internal PauliSum representation.
 """
 
-import numpy as np
 from typing import Union
+
+import numpy as np
+
 from .pauli_types import PauliSum
 
 # Qiskit imports with optional availability check
 try:
-    from qiskit.quantum_info import SparsePauliOp, Pauli
+    from qiskit.quantum_info import Pauli, SparsePauliOp
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -54,7 +57,7 @@ def convert_operator(operator, nqubits: Union[int, None] = None) -> PauliSum:
     raise ValueError(f"Unsupported operator type: {type(operator)}")
 
 
-def _convert_sparse_pauli_op(sparse_op: 'SparsePauliOp') -> PauliSum:
+def _convert_sparse_pauli_op(sparse_op: "SparsePauliOp") -> PauliSum:
     """Convert Qiskit SparsePauliOp to PauliSum.
 
     SparsePauliOp stores Pauli operators as:
@@ -85,7 +88,7 @@ def _convert_sparse_pauli_op(sparse_op: 'SparsePauliOp') -> PauliSum:
     return psum
 
 
-def _convert_pauli(pauli: 'Pauli') -> PauliSum:
+def _convert_pauli(pauli: "Pauli") -> PauliSum:
     """Convert single Qiskit Pauli to PauliSum.
 
     Args:
@@ -105,7 +108,7 @@ def _convert_pauli(pauli: 'Pauli') -> PauliSum:
     return psum
 
 
-def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> 'SparsePauliOp':
+def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> "SparsePauliOp":
     """Convert PauliSum back to Qiskit SparsePauliOp.
 
     Useful for validation and testing.
@@ -139,6 +142,6 @@ def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> 'SparsePauliOp':
 
     if len(pauli_strings) == 0:
         # Empty operator - return zero operator
-        return SparsePauliOp('I' * psum.nqubits, coeffs=[0.0])
+        return SparsePauliOp("I" * psum.nqubits, coeffs=[0.0])
 
     return SparsePauliOp(pauli_strings, coeffs=coeffs)

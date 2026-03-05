@@ -5,9 +5,15 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 import numpy as np
 
 from .pauli_algebra import commutes as pauli_commutes
-from .pauli_algebra import (count_weight, get_uint_type, pauli_multiply,
-                            set_pauli, string_to_term, symbol_to_int,
-                            term_to_string)
+from .pauli_algebra import (
+    count_weight,
+    get_uint_type,
+    pauli_multiply,
+    set_pauli,
+    string_to_term,
+    symbol_to_int,
+    term_to_string,
+)
 
 if TYPE_CHECKING:
     from .symmetry import SymmetryStrategy

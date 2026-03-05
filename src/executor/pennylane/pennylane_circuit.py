@@ -2,14 +2,14 @@ from typing import Callable
 
 import pennylane as qml
 import pennylane.numpy as pnp
-from qiskit.circuit import Clbit, ParameterExpression
 from qiskit import transpile
+from qiskit.circuit import Clbit, ParameterExpression
 from sympy import lambdify
 
-from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
-from ..utils.qiskit_compat import _param_to_sympy, _param_is_constant, _param_to_float
+from ..utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
+from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
 
 
 def _get_sympy_interface():

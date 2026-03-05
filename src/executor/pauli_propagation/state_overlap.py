@@ -4,9 +4,10 @@ Computes expectation values ⟨ψ|O|ψ⟩ for Pauli operator sums O
 with respect to various quantum states |ψ⟩.
 """
 
-from typing import Union, List
-from .pauli_types import PauliSum
+from typing import List, Union
+
 from .pauli_algebra import contains_x_or_y, get_pauli
+from .pauli_types import PauliSum
 
 
 def overlap_with_zero(psum: PauliSum) -> complex:
@@ -100,8 +101,10 @@ def scalar_product(psum1: PauliSum, psum2: PauliSum) -> complex:
         ValueError: If PauliSums have different number of qubits
     """
     if psum1.nqubits != psum2.nqubits:
-        raise ValueError(f"Cannot compute scalar product of PauliSums with different nqubits: "
-                         f"{psum1.nqubits} vs {psum2.nqubits}")
+        raise ValueError(
+            f"Cannot compute scalar product of PauliSums with different nqubits: "
+            f"{psum1.nqubits} vs {psum2.nqubits}"
+        )
 
     result = 0.0 + 0.0j
 

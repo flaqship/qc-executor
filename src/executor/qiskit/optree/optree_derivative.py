@@ -1,22 +1,21 @@
-import numpy as np
-from typing import List, Union, Set
 import copy
-import sympy as sp
+from typing import List, Set, Union
 
-from qiskit.circuit import QuantumCircuit
-from qiskit.circuit import ParameterExpression, ParameterVector
-from qiskit.quantum_info import SparsePauliOp
+import numpy as np
+import sympy as sp
 from qiskit import transpile
+from qiskit.circuit import ParameterExpression, ParameterVector, QuantumCircuit
+from qiskit.quantum_info import SparsePauliOp
 
 from .optree import (
-    OpTreeNodeBase,
-    OpTreeList,
-    OpTreeSum,
     OpTreeCircuit,
-    OpTreeOperator,
-    OpTreeValue,
     OpTreeExpectationValue,
+    OpTreeList,
     OpTreeMeasuredOperator,
+    OpTreeNodeBase,
+    OpTreeOperator,
+    OpTreeSum,
+    OpTreeValue,
 )
 
 

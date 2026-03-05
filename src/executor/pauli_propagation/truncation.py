@@ -6,9 +6,10 @@ between accuracy and computational efficiency.
 """
 
 from dataclasses import dataclass
-from typing import Tuple, Optional, Callable
-from .pauli_types import PauliSum
+from typing import Callable, Optional, Tuple
+
 from .pauli_algebra import count_weight
+from .pauli_types import PauliSum
 
 
 @dataclass
@@ -21,6 +22,7 @@ class TruncationStats:
         coeff_norm_removed: L1 norm of removed coefficients
         coeff_norm_total: L1 norm of all coefficients before truncation
     """
+
     terms_removed: int
     terms_remaining: int
     coeff_norm_removed: float
@@ -39,9 +41,7 @@ class TruncationStats:
 
 
 def truncate_by_coeff(
-    psum: PauliSum,
-    min_coeff: float = 1e-10,
-    inplace: bool = False
+    psum: PauliSum, min_coeff: float = 1e-10, inplace: bool = False
 ) -> Tuple[PauliSum, TruncationStats]:
     """Remove terms with coefficient magnitude below threshold.
 
@@ -59,10 +59,7 @@ def truncate_by_coeff(
     if inplace:
         result = psum
         # Collect terms to remove (can't modify dict during iteration)
-        terms_to_remove = [
-            term for term, coeff in psum.terms.items()
-            if abs(coeff) < min_coeff
-        ]
+        terms_to_remove = [term for term, coeff in psum.terms.items() if abs(coeff) < min_coeff]
         coeff_norm_removed = sum(abs(psum.terms[term]) for term in terms_to_remove)
 
         # Remove terms
@@ -89,16 +86,14 @@ def truncate_by_coeff(
         terms_removed=terms_removed,
         terms_remaining=terms_remaining,
         coeff_norm_removed=coeff_norm_removed,
-        coeff_norm_total=coeff_norm_total
+        coeff_norm_total=coeff_norm_total,
     )
 
     return result, stats
 
 
 def truncate_by_weight(
-    psum: PauliSum,
-    max_weight: int,
-    inplace: bool = False
+    psum: PauliSum, max_weight: int, inplace: bool = False
 ) -> Tuple[PauliSum, TruncationStats]:
     """Remove terms with weight (number of non-I Paulis) above threshold.
 
@@ -117,8 +112,7 @@ def truncate_by_weight(
         result = psum
         # Collect terms to remove
         terms_to_remove = [
-            term for term in psum.terms.keys()
-            if count_weight(term, psum.nqubits) > max_weight
+            term for term in psum.terms.keys() if count_weight(term, psum.nqubits) > max_weight
         ]
         coeff_norm_removed = sum(abs(psum.terms[term]) for term in terms_to_remove)
 
@@ -146,7 +140,7 @@ def truncate_by_weight(
         terms_removed=terms_removed,
         terms_remaining=terms_remaining,
         coeff_norm_removed=coeff_norm_removed,
-        coeff_norm_total=coeff_norm_total
+        coeff_norm_total=coeff_norm_total,
     )
 
     return result, stats
@@ -157,7 +151,7 @@ def truncate_combined(
     min_coeff: float = 1e-10,
     max_weight: Optional[int] = None,
     custom_filter: Optional[Callable[[int, complex], bool]] = None,
-    inplace: bool = False
+    inplace: bool = False,
 ) -> Tuple[PauliSum, TruncationStats]:
     """Apply multiple truncation criteria (AND logic).
 
@@ -201,8 +195,7 @@ def truncate_combined(
         result = psum
         # Collect terms to remove
         terms_to_remove = [
-            term for term, coeff in psum.terms.items()
-            if not should_keep(term, coeff)
+            term for term, coeff in psum.terms.items() if not should_keep(term, coeff)
         ]
         coeff_norm_removed = sum(abs(psum.terms[term]) for term in terms_to_remove)
 
@@ -230,7 +223,7 @@ def truncate_combined(
         terms_removed=terms_removed,
         terms_remaining=terms_remaining,
         coeff_norm_removed=coeff_norm_removed,
-        coeff_norm_total=coeff_norm_total
+        coeff_norm_total=coeff_norm_total,
     )
 
     return result, stats

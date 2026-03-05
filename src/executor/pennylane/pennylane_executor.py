@@ -10,10 +10,10 @@ import pennylane.numpy as pnp
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
+from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_observable import PennyLaneObservable
-from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
-from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
 class PennyLaneExecutor(ExecutorBase):
@@ -550,3 +550,17 @@ class PennyLaneExecutor(ExecutorBase):
             PennyLaneCircuit: The corresponding PennyLaneCircuit.
         """
         return PennyLaneCircuit(circuit)
+
+    def _transpile_observable(
+        self, operator: QuantumOperatorBase, symmetry_strategy=None
+    ) -> PennyLaneObservable:
+        """Transpile a generic QuantumOperator to a PennyLane QuantumOperator.
+
+        Args:
+            operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
+            symmetry_strategy: Ignored for PennyLane backend (no symmetry support).
+
+        Returns:
+            PennyLaneObservable: The corresponding PennyLaneObservable.
+        """
+        return PennyLaneObservable(operator)

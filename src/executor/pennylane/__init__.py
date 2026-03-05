@@ -1,12 +1,12 @@
 """PennyLane backend for Executor."""
 
 try:
+    # Register PennyLaneExecutor with the factory
+    from executor.factory import Executor
+
     from .pennylane_circuit import PennyLaneCircuit
     from .pennylane_executor import PennyLaneExecutor
     from .pennylane_observable import PennyLaneObservable
-
-    # Register PennyLaneExecutor with the factory
-    from executor.factory import Executor
 
     Executor.register("pennylane")(PennyLaneExecutor)
 

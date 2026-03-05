@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import numpy as np
 
-from ..base import ExecutorBase
+from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_observable import PauliPropagationObservable
 from .pauli_types import PauliSum
 from .propagation import propagate
-from .qiskit_converter import bind_parameters
+from .qiskit_converter import bind_parameters, convert_circuit
 from .state_overlap import overlap_with_zero
 from .symmetry import NoSymmetry
 from .truncation import TruncationStats, truncate_by_coeff, truncate_combined
@@ -534,12 +534,89 @@ class PauliPropagationExecutor(ExecutorBase):
 
         return statevectors[0] if is_single else statevectors
 
-    def _transpile_circuit(self, circuit: PauliPropagationCircuit) -> PauliPropagationCircuit:
-        if not isinstance(circuit, PauliPropagationCircuit):
-            raise TypeError(
-                "PauliPropagationExecutor expects PauliPropagationCircuit inputs only."
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> PauliPropagationCircuit:
+        """Transpile a circuit to PauliPropagationCircuit format.
+
+        Accepts both native PauliPropagationCircuit and generic QuantumCircuit types.
+        If a generic QuantumCircuit is provided, it is converted from its internal
+        Qiskit representation.
+
+        Args:
+            circuit (QuantumCircuitBase): Circuit to transpile (native or generic)
+
+        Returns:
+            PauliPropagationCircuit: Transpiled circuit in native format
+
+        Raises:
+            TypeError: If circuit type is not supported
+        """
+        if isinstance(circuit, PauliPropagationCircuit):
+            # Native type - just validate and return
+            return circuit
+
+        # Try to convert generic QuantumCircuit from its internal Qiskit representation
+        if hasattr(circuit, "_qiskit_circuit"):
+            # This is the generic QuantumCircuit - extract and convert
+            qiskit_circuit = circuit._qiskit_circuit
+            gates = convert_circuit(qiskit_circuit, use_cache=True)
+
+            # Create new PauliPropagationCircuit and populate with converted gates
+            pp_circuit = PauliPropagationCircuit(circuit.num_qubits)
+            pp_circuit._gates = gates
+            # Note: parameters are handled through bind_parameters during execution
+            return pp_circuit
+
+        raise TypeError(
+            f"PauliPropagationExecutor._transpile_circuit() expects "
+            f"PauliPropagationCircuit or generic QuantumCircuit, got {type(circuit).__name__}"
+        )
+
+    def _transpile_observable(
+        self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None
+    ) -> PauliPropagationObservable:
+        """Transpile an operator to PauliPropagationObservable format.
+
+        Accepts both native PauliPropagationObservable and generic QuantumOperator types.
+        If symmetry_strategy is provided, it takes precedence and is assigned to the
+        observable. Otherwise, falls back to the executor's default symmetry_strategy.
+
+        Args:
+            operator (QuantumOperatorBase): Operator to transpile (native or generic)
+            symmetry_strategy (Optional[object]): Symmetry strategy to assign. If None,
+                uses executor-level default (self.symmetry_strategy)
+
+        Returns:
+            PauliPropagationObservable: Transpiled observable in native format
+
+        Raises:
+            TypeError: If operator type is not supported
+        """
+        if isinstance(operator, PauliPropagationObservable):
+            # Native type - update symmetry if needed and return
+            result = operator
+            if symmetry_strategy is not None:
+                result.symmetry = symmetry_strategy
+            elif not result.has_active_symmetry:
+                # Use executor default if observable has no active symmetry
+                result.symmetry = self.symmetry_strategy
+            return result
+
+        # Try to convert generic QuantumOperator
+        if hasattr(operator, "paulis") and hasattr(operator, "coeffs"):
+            # Generic QuantumOperator with Pauli interface
+            effective_symmetry = (
+                symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy
             )
-        return circuit
+            return PauliPropagationObservable(
+                paulis=operator.paulis,
+                coeffs=operator.coeffs,
+                symmetry_strategy=effective_symmetry,
+            )
+
+        raise TypeError(
+            f"PauliPropagationExecutor._transpile_observable() expects "
+            f"PauliPropagationObservable or generic QuantumOperator, got {type(operator).__name__}"
+        )
 
     def get_truncation_stats(self) -> Optional[TruncationStats]:
         """Get statistics from last truncation operation.

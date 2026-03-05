@@ -2,7 +2,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import List, Optional, Union
+from typing import List, Optional, Union, overload
 
 import numpy as np
 from qiskit.circuit import ParameterExpression, ParameterVector
@@ -320,6 +320,18 @@ class ExecutorBase(ABC):
             self._result_cache[key] = result
             return result
         return self._transpile_circuit(circuit)
+
+    @overload
+    def transpile_observable(
+        self, operator: QuantumOperatorBase
+    ) -> QuantumOperatorBase:
+        ...
+
+    @overload
+    def transpile_observable(
+        self, operator: List[QuantumOperatorBase]
+    ) -> List[QuantumOperatorBase]:
+        ...
 
     def transpile_observable(
         self,

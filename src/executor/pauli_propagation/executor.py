@@ -4,7 +4,7 @@ Implements quantum circuit execution using Heisenberg picture (Pauli propagation
 """
 
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union, overload
 
 import numpy as np
 
@@ -570,6 +570,48 @@ class PauliPropagationExecutor(ExecutorBase):
             f"PauliPropagationExecutor._transpile_circuit() expects "
             f"PauliPropagationCircuit or generic QuantumCircuit, got {type(circuit).__name__}"
         )
+
+    @overload
+    def transpile_observable(
+        self,
+        operator: QuantumOperatorBase,
+        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+    ) -> PauliPropagationObservable:
+        ...
+
+    @overload
+    def transpile_observable(
+        self,
+        operator: List[QuantumOperatorBase],
+        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+    ) -> List[PauliPropagationObservable]:
+        ...
+
+    def transpile_observable(
+        self,
+        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
+        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+    ) -> Union[PauliPropagationObservable, List[PauliPropagationObservable]]:
+        """
+        Transpile the operator for execution on Pauli Propagation backend.
+
+        Accepts both native PauliPropagationObservable and generic QuantumOperator types.
+        When a list of operators is provided, each operator is transpiled and cached individually.
+
+        Args:
+            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The
+                quantum operator or a list of operators to transpile.
+            symmetry_strategy (Optional[SymmetryStrategy]): Strategy for symmetry handling.
+                If provided, takes precedence over executor-level default.
+
+        Returns:
+            Union[PauliPropagationObservable, List[PauliPropagationObservable]]: The 
+                transpiled operator(s) in native format.
+        """
+        self._logger.info("Transpiling operator")
+        if isinstance(operator, list):
+            return [self._transpile_observable_cached(op, symmetry_strategy) for op in operator]
+        return self._transpile_observable_cached(operator, symmetry_strategy)
 
     def _transpile_observable(
         self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None

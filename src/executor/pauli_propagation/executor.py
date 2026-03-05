@@ -223,8 +223,10 @@ class PauliPropagationExecutor(ExecutorBase):
 
         observable = operator.pauli_sum
 
-        # Attach symmetry strategy to observable for automatic merging
-        observable.symmetry = self.symmetry_strategy
+        # Use observable-level symmetry when explicitly configured.
+        # Fall back to executor-level symmetry otherwise.
+        if not observable.has_active_symmetry:
+            observable.symmetry = self.symmetry_strategy
 
         # Propagate observable through circuit (Heisenberg picture)
         # Pass truncation params so terms are pruned during propagation

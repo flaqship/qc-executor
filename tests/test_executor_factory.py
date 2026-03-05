@@ -36,6 +36,10 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return circuit
 
+    def _transpile_observable(self, observable):
+        """Mock implementation."""
+        return observable
+
 
 class TestExecutorFactory:
     """Test cases for Executor factory."""

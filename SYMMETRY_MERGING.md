@@ -141,10 +141,10 @@ from executor.pauli_propagation import CompositeSymmetry, PermutationSymmetry
 
 # Future example: combine multiple symmetries
 # (Currently only PermutationSymmetry is implemented)
-sym = CompositeSymmetry([
+sym = CompositeSymmetry(
     PermutationSymmetry(),
     # Future: PointGroupSymmetry(), etc.
-])
+)
 
 executor = PauliPropagationExecutor(symmetry_strategy=sym)
 ```

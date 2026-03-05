@@ -344,7 +344,7 @@ class PauliSum:
         Returns:
             New PauliSum with all coefficients scaled
         """
-        result = PauliSum(self.nqubits)
+        result = PauliSum(self.nqubits, symmetry=self.symmetry)
         for term, coeff in self:
             result.terms[term] = coeff * scalar
         return result

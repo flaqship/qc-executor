@@ -3,7 +3,8 @@
 This module provides pluggable symmetry strategies that enable automatic merging
 of Pauli terms under symmetry transformations. When a PauliSum is assigned a
 SymmetryStrategy, the propagate() function automatically groups and merges
-equivalent terms after each gate, reducing computational complexity.
+equivalent terms after each layer when `LayerBarrier` markers are present
+(or after each gate when no barriers are used), reducing computational complexity.
 
 Core Concepts:
     - SymmetryStrategy: Abstract base for symmetry types

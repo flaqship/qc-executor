@@ -46,7 +46,7 @@ class CircuitConversionCache:
         # Hash the string
         return hashlib.md5(circuit_str.encode()).hexdigest()
 
-    def get(self, circuit_hash: str) -> Optional[List[Gate]]:
+    def get(self, circuit_hash: str) -> Optional[List[Union[Gate, LayerBarrier]]]:
         """Get cached conversion.
 
         Args:
@@ -57,7 +57,7 @@ class CircuitConversionCache:
         """
         return self._cache.get(circuit_hash)
 
-    def set(self, circuit_hash: str, gates: List[Gate]) -> None:
+    def set(self, circuit_hash: str, gates: List[Union[Gate, LayerBarrier]]) -> None:
         """Cache conversion.
 
         Args:
@@ -78,7 +78,7 @@ _circuit_cache = CircuitConversionCache()
 def convert_circuit(
     circuit,
     use_cache: bool = True,
-) -> List[Gate]:
+) -> List[Union[Gate, LayerBarrier]]:
     """Convert Qiskit QuantumCircuit to list of internal Gates.
 
     Args:
@@ -86,7 +86,7 @@ def convert_circuit(
         use_cache: Whether to use caching
 
     Returns:
-        List of internal Gate objects
+        List of internal Gate or LayerBarrier objects
 
     Raises:
         ImportError: If Qiskit is not available
@@ -241,7 +241,7 @@ def _extract_parameter(param) -> tuple:
 
 
 def bind_parameters(
-    gates: List[Gate],
+    gates: List[Union[Gate, LayerBarrier]],
     parameter_values: Dict[str, float],
 ) -> Dict[str, float]:
     """Create a complete parameter binding dict for gates.
@@ -258,6 +258,7 @@ def bind_parameters(
 
     Raises:
         ValueError: If required parameters are missing
+        TypeError: If an unexpected object type is in the gates list
     """
     # Start with a copy of provided values
     result = dict(parameter_values)
@@ -265,9 +266,16 @@ def bind_parameters(
     # Collect required parameters and extract concrete values
     required_params = set()
     for gate in gates:
-        # Skip non-Gate objects like LayerBarrier
-        if not hasattr(gate, 'is_parametric'):
+        # Explicitly skip LayerBarrier markers
+        if isinstance(gate, LayerBarrier):
             continue
+
+        # All other objects must be Gate instances
+        if not isinstance(gate, Gate):
+            raise TypeError(
+                f"Unexpected object in gates list: {type(gate)!r}; "
+                "expected a Gate or LayerBarrier."
+            )
 
         if gate.is_parametric():
             # If gate has param_name, it needs a value

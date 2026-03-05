@@ -56,6 +56,7 @@ all = [
 pennylane = "executor.pennylane:PennyLaneExecutor"
 qiskit = "executor.qiskit:QiskitExecutor"
 qulacs = "executor.qulacs:QulacsExecutor"
+pauli_propagation = "executor.pauli_propagation:PauliPropagationExecutor"
 
 [dependency-groups]
 dev = [
@@ -87,6 +88,10 @@ packages = ["src/executor"]
 
 [tool.black]
 line-length = 99
+
+[tool.isort]
+profile = "black"
+line_length = 99
 
 [tool.pylint]
 max-line-length = 99

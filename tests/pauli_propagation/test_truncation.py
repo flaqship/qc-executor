@@ -1,7 +1,8 @@
 """Tests for truncation module."""
 
-import pytest
 import numpy as np
+import pytest
+
 from executor.pauli_propagation.pauli_types import PauliSum
 from executor.pauli_propagation.truncation import (
     TruncationStats,
@@ -17,20 +18,14 @@ class TestTruncationStats:
     def test_relative_error_bound(self):
         """Test relative error bound calculation."""
         stats = TruncationStats(
-            terms_removed=5,
-            terms_remaining=10,
-            coeff_norm_removed=0.1,
-            coeff_norm_total=1.0
+            terms_removed=5, terms_remaining=10, coeff_norm_removed=0.1, coeff_norm_total=1.0
         )
         assert np.isclose(stats.relative_error_bound, 0.1)
 
     def test_relative_error_bound_zero_total(self):
         """Test relative error when total is zero."""
         stats = TruncationStats(
-            terms_removed=0,
-            terms_remaining=0,
-            coeff_norm_removed=0.0,
-            coeff_norm_total=0.0
+            terms_removed=0, terms_remaining=0, coeff_norm_removed=0.0, coeff_norm_total=0.0
         )
         assert stats.relative_error_bound == 0.0
 
@@ -200,9 +195,9 @@ class TestTruncateByWeight:
     def test_stats_with_weight_truncation(self):
         """Test statistics for weight truncation."""
         psum = PauliSum(2)
-        psum.add_term("II", 1.0)   # weight 0
-        psum.add_term("ZI", 2.0)   # weight 1
-        psum.add_term("XY", 3.0)   # weight 2
+        psum.add_term("II", 1.0)  # weight 0
+        psum.add_term("ZI", 2.0)  # weight 1
+        psum.add_term("XY", 3.0)  # weight 2
 
         result, stats = truncate_by_weight(psum, max_weight=1)
 
@@ -231,16 +226,12 @@ class TestTruncateCombined:
     def test_coefficient_and_weight(self):
         """Apply both coefficient and weight filters."""
         psum = PauliSum(3)
-        psum.add_term("III", 1.0)    # weight 0, coeff 1.0
-        psum.add_term("ZII", 0.5)    # weight 1, coeff 0.5
-        psum.add_term("ZZI", 0.01)   # weight 2, coeff 0.01
-        psum.add_term("ZZZ", 2.0)    # weight 3, coeff 2.0
+        psum.add_term("III", 1.0)  # weight 0, coeff 1.0
+        psum.add_term("ZII", 0.5)  # weight 1, coeff 0.5
+        psum.add_term("ZZI", 0.01)  # weight 2, coeff 0.01
+        psum.add_term("ZZZ", 2.0)  # weight 3, coeff 2.0
 
-        result, stats = truncate_combined(
-            psum,
-            min_coeff=0.1,
-            max_weight=2
-        )
+        result, stats = truncate_combined(psum, min_coeff=0.1, max_weight=2)
 
         # Should keep: III (passes both), ZII (passes both)
         # Should remove: ZZI (fails coeff), ZZZ (fails weight)
@@ -254,11 +245,7 @@ class TestTruncateCombined:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 0.01)
 
-        result, stats = truncate_combined(
-            psum,
-            min_coeff=0.1,
-            max_weight=None
-        )
+        result, stats = truncate_combined(psum, min_coeff=0.1, max_weight=None)
 
         assert len(result) == 1
         assert np.isclose(result.get_coeff("II"), 1.0)
@@ -270,9 +257,7 @@ class TestTruncateCombined:
         psum.add_term("XY", 2.0)
 
         result, stats = truncate_combined(
-            psum,
-            min_coeff=1e-15,  # Effectively no coeff filter
-            max_weight=0
+            psum, min_coeff=1e-15, max_weight=0  # Effectively no coeff filter
         )
 
         assert len(result) == 1
@@ -290,11 +275,7 @@ class TestTruncateCombined:
         def even_coeff_filter(term, coeff):
             return int(coeff.real) % 2 == 0
 
-        result, stats = truncate_combined(
-            psum,
-            min_coeff=0.1,
-            custom_filter=even_coeff_filter
-        )
+        result, stats = truncate_combined(psum, min_coeff=0.1, custom_filter=even_coeff_filter)
 
         # Should keep: ZZ (2.0), YY (4.0)
         assert len(result) == 2
@@ -304,10 +285,10 @@ class TestTruncateCombined:
     def test_all_filters_combined(self):
         """Test coefficient + weight + custom filter."""
         psum = PauliSum(3)
-        psum.add_term("III", 1.0)   # weight 0, odd coeff
-        psum.add_term("ZII", 2.0)   # weight 1, even coeff
-        psum.add_term("ZZI", 4.0)   # weight 2, even coeff
-        psum.add_term("ZZZ", 6.0)   # weight 3, even coeff
+        psum.add_term("III", 1.0)  # weight 0, odd coeff
+        psum.add_term("ZII", 2.0)  # weight 1, even coeff
+        psum.add_term("ZZI", 4.0)  # weight 2, even coeff
+        psum.add_term("ZZZ", 6.0)  # weight 3, even coeff
         psum.add_term("XII", 0.01)  # weight 1, even coeff, small
 
         # Only even coefficients
@@ -315,10 +296,7 @@ class TestTruncateCombined:
             return int(coeff.real) % 2 == 0
 
         result, stats = truncate_combined(
-            psum,
-            min_coeff=0.1,
-            max_weight=2,
-            custom_filter=even_filter
+            psum, min_coeff=0.1, max_weight=2, custom_filter=even_filter
         )
 
         # Should keep: ZII (even, weight 1, coeff 2), ZZI (even, weight 2, coeff 4)
@@ -333,11 +311,7 @@ class TestTruncateCombined:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 0.01)
 
-        result, stats = truncate_combined(
-            psum,
-            min_coeff=0.1,
-            inplace=True
-        )
+        result, stats = truncate_combined(psum, min_coeff=0.1, inplace=True)
 
         assert result is psum
         assert len(psum) == 1

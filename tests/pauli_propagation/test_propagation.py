@@ -5,9 +5,12 @@ import pytest
 
 from executor.pauli_propagation.gates import CliffordGate, PauliRotation
 from executor.pauli_propagation.pauli_types import PauliSum
-from executor.pauli_propagation.propagation import (PropagationCache,
-                                                    batch_propagate, propagate,
-                                                    propagate_single_gate)
+from executor.pauli_propagation.propagation import (
+    PropagationCache,
+    batch_propagate,
+    propagate,
+    propagate_single_gate,
+)
 
 
 class TestPropagationCache:

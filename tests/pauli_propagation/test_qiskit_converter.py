@@ -1,17 +1,18 @@
 """Tests for Qiskit circuit conversion."""
 
-import pytest
 import numpy as np
+import pytest
 
 # Try to import Qiskit
 try:
     from qiskit import QuantumCircuit, QuantumRegister
     from qiskit.circuit import Parameter
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
 
-from executor.pauli_propagation.gates import PauliRotation, CliffordGate
+from executor.pauli_propagation.gates import CliffordGate, PauliRotation
 
 # Skip all tests if Qiskit is not available
 pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not installed")
@@ -21,6 +22,7 @@ pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not install
 def qiskit_converter():
     """Import qiskit_converter module."""
     from executor.pauli_propagation import qiskit_converter
+
     return qiskit_converter
 
 
@@ -37,7 +39,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], PauliRotation)
-        assert gates[0].symbols == ['X']
+        assert gates[0].symbols == ["X"]
         assert gates[0].qubits == [0]
 
     def test_convert_ry_gate(self, qiskit_converter):
@@ -48,7 +50,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], PauliRotation)
-        assert gates[0].symbols == ['Y']
+        assert gates[0].symbols == ["Y"]
 
     def test_convert_rz_gate(self, qiskit_converter):
         """Test RZ gate conversion."""
@@ -58,7 +60,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], PauliRotation)
-        assert gates[0].symbols == ['Z']
+        assert gates[0].symbols == ["Z"]
 
     def test_convert_hadamard(self, qiskit_converter):
         """Test Hadamard gate conversion."""
@@ -68,7 +70,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], CliffordGate)
-        assert gates[0].gate_type == 'H'
+        assert gates[0].gate_type == "H"
 
     def test_convert_s_gate(self, qiskit_converter):
         """Test S gate conversion."""
@@ -78,7 +80,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], CliffordGate)
-        assert gates[0].gate_type == 'S'
+        assert gates[0].gate_type == "S"
 
     def test_convert_cnot(self, qiskit_converter):
         """Test CNOT gate conversion."""
@@ -88,7 +90,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], CliffordGate)
-        assert gates[0].gate_type == 'CNOT'
+        assert gates[0].gate_type == "CNOT"
         assert gates[0].qubits == [0, 1]
 
     def test_convert_cz(self, qiskit_converter):
@@ -99,7 +101,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], CliffordGate)
-        assert gates[0].gate_type == 'CZ'
+        assert gates[0].gate_type == "CZ"
 
     def test_convert_swap(self, qiskit_converter):
         """Test SWAP gate conversion."""
@@ -109,7 +111,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], CliffordGate)
-        assert gates[0].gate_type == 'SWAP'
+        assert gates[0].gate_type == "SWAP"
 
     def test_convert_rxx_gate(self, qiskit_converter):
         """Test RXX gate conversion."""
@@ -119,7 +121,7 @@ class TestConvertSingleGate:
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
         assert isinstance(gates[0], PauliRotation)
-        assert gates[0].symbols == ['X', 'X']
+        assert gates[0].symbols == ["X", "X"]
         assert gates[0].qubits == [0, 1]
 
     def test_barrier_skipped(self, qiskit_converter):
@@ -144,42 +146,42 @@ class TestParametricCircuits:
 
     def test_parametric_rx(self, qiskit_converter):
         """Test parametric RX gate."""
-        theta = Parameter('theta')
+        theta = Parameter("theta")
         qc = QuantumCircuit(1)
         qc.rx(theta, 0)
 
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 1
-        assert gates[0].param_name == 'theta'
+        assert gates[0].param_name == "theta"
 
     def test_multiple_parameters(self, qiskit_converter):
         """Test circuit with multiple parameters."""
-        theta = Parameter('theta')
-        phi = Parameter('phi')
+        theta = Parameter("theta")
+        phi = Parameter("phi")
         qc = QuantumCircuit(2)
         qc.rx(theta, 0)
         qc.ry(phi, 1)
 
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
         assert len(gates) == 2
-        assert gates[0].param_name == 'theta'
-        assert gates[1].param_name == 'phi'
+        assert gates[0].param_name == "theta"
+        assert gates[1].param_name == "phi"
 
     def test_bind_parameters(self, qiskit_converter):
         """Test parameter binding."""
-        theta = Parameter('theta')
+        theta = Parameter("theta")
         qc = QuantumCircuit(1)
         qc.rx(theta, 0)
 
         gates = qiskit_converter.convert_circuit(qc, use_cache=False)
-        param_dict = qiskit_converter.bind_parameters(gates, {'theta': 0.5})
+        param_dict = qiskit_converter.bind_parameters(gates, {"theta": 0.5})
 
-        assert 'theta' in param_dict
-        assert param_dict['theta'] == 0.5
+        assert "theta" in param_dict
+        assert param_dict["theta"] == 0.5
 
     def test_bind_parameters_missing(self, qiskit_converter):
         """Test error on missing parameters."""
-        theta = Parameter('theta')
+        theta = Parameter("theta")
         qc = QuantumCircuit(1)
         qc.rx(theta, 0)
 

@@ -7,8 +7,7 @@ import numpy as np
 import pytest
 
 from executor.pauli_propagation.pauli_types import PauliString, PauliSum
-from executor.pauli_propagation.symmetry import (CompositeSymmetry, NoSymmetry,
-                                                 PermutationSymmetry)
+from executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
 # and hardware differences. Set RUN_BENCHMARKS=1 to enable them.
@@ -298,8 +297,7 @@ class TestPauliSumSymmetryIntegration:
         assert len(ps) == 3
 
         # Manually merge using symmetry
-        from executor.pauli_propagation.propagation import \
-            _apply_symmetry_merging
+        from executor.pauli_propagation.propagation import _apply_symmetry_merging
 
         _apply_symmetry_merging(ps)
 
@@ -361,16 +359,14 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_default_no_symmetry(self):
         """Executor should default to NoSymmetry."""
-        from executor.pauli_propagation.executor import \
-            PauliPropagationExecutor
+        from executor.pauli_propagation.executor import PauliPropagationExecutor
 
         executor = PauliPropagationExecutor()
         assert isinstance(executor.symmetry_strategy, NoSymmetry)
 
     def test_executor_with_permutation_symmetry(self):
         """Executor should accept PermutationSymmetry."""
-        from executor.pauli_propagation.executor import \
-            PauliPropagationExecutor
+        from executor.pauli_propagation.executor import PauliPropagationExecutor
 
         sym = PermutationSymmetry()
         executor = PauliPropagationExecutor(symmetry_strategy=sym)
@@ -379,29 +375,28 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_expectation_with_symmetry(self):
         """Executor should apply symmetry during expectation value computation."""
-        pytest.importorskip("qiskit")
-        from qiskit import QuantumCircuit
-        from qiskit.quantum_info import SparsePauliOp
+        from executor.pauli_propagation import (
+            PauliPropagationCircuit,
+            PauliPropagationExecutor,
+            PauliPropagationObservable,
+        )
 
-        from executor.pauli_propagation.executor import \
-            PauliPropagationExecutor
-
-        # Create simple circuit
-        qc = QuantumCircuit(2)
+        qc = PauliPropagationCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
 
-        # Create symmetric observable (Z0 + Z1)
-        operator = SparsePauliOp.from_list([("ZI", 1.0), ("IZ", 1.0)])
+        operator = PauliPropagationObservable(
+            ["ZI", "IZ"],
+            [1.0, 1.0],
+            symmetry_strategy=PermutationSymmetry(),
+        )
 
-        # Execute with and without symmetry
         executor_no_sym = PauliPropagationExecutor()
         executor_with_sym = PauliPropagationExecutor(symmetry_strategy=PermutationSymmetry())
 
         result_no_sym = executor_no_sym.expectation_value(qc, operator)
         result_with_sym = executor_with_sym.expectation_value(qc, operator)
 
-        # Results should be identical (symmetry doesn't change correctness)
         assert abs(result_no_sym - result_with_sym) < 1e-12
 
 
@@ -458,8 +453,7 @@ class TestSymmetryPerformance:
     @pytest.mark.benchmark
     def test_merging_reduces_terms(self):
         """Verify that symmetry merging reduces term count on realistic examples."""
-        from executor.pauli_propagation.propagation import \
-            _apply_symmetry_merging
+        from executor.pauli_propagation.propagation import _apply_symmetry_merging
 
         nqubits = 10
         sym = PermutationSymmetry()

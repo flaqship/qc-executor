@@ -1,19 +1,20 @@
 """Tests for pauli_algebra module."""
 
-import pytest
 import numpy as np
+import pytest
+
 from executor.pauli_propagation.pauli_algebra import (
-    get_uint_type,
-    symbol_to_int,
-    int_to_symbol,
-    get_pauli,
-    set_pauli,
-    term_to_string,
-    string_to_term,
-    count_weight,
-    pauli_multiply,
     commutes,
+    count_weight,
+    get_pauli,
+    get_uint_type,
+    int_to_symbol,
+    pauli_multiply,
     pauli_sum_product,
+    set_pauli,
+    string_to_term,
+    symbol_to_int,
+    term_to_string,
 )
 from executor.pauli_propagation.pauli_types import PauliSum
 
@@ -46,20 +47,20 @@ class TestSymbolConversion:
     """Test symbol to integer conversion."""
 
     def test_valid_symbols(self):
-        assert symbol_to_int('I') == 0
-        assert symbol_to_int('X') == 1
-        assert symbol_to_int('Y') == 2
-        assert symbol_to_int('Z') == 3
+        assert symbol_to_int("I") == 0
+        assert symbol_to_int("X") == 1
+        assert symbol_to_int("Y") == 2
+        assert symbol_to_int("Z") == 3
 
     def test_invalid_symbol(self):
         with pytest.raises(ValueError, match="Invalid Pauli symbol"):
-            symbol_to_int('A')
+            symbol_to_int("A")
 
     def test_int_to_symbol(self):
-        assert int_to_symbol(0) == 'I'
-        assert int_to_symbol(1) == 'X'
-        assert int_to_symbol(2) == 'Y'
-        assert int_to_symbol(3) == 'Z'
+        assert int_to_symbol(0) == "I"
+        assert int_to_symbol(1) == "X"
+        assert int_to_symbol(2) == "Y"
+        assert int_to_symbol(3) == "Z"
 
     def test_invalid_int(self):
         with pytest.raises(ValueError, match="Invalid Pauli integer"):
@@ -435,12 +436,9 @@ class TestPauliToMatrix:
         matrix = pauli_to_matrix(term, 2)
 
         # ZZ = Z ⊗ Z
-        expected = np.array([
-            [1, 0, 0, 0],
-            [0, -1, 0, 0],
-            [0, 0, -1, 0],
-            [0, 0, 0, 1]
-        ], dtype=complex)
+        expected = np.array(
+            [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]], dtype=complex
+        )
         assert np.allclose(matrix, expected)
 
     def test_matrix_shape(self):
@@ -450,7 +448,7 @@ class TestPauliToMatrix:
         for nqubits in [1, 2, 3]:
             term = string_to_term("I" * nqubits, nqubits)
             matrix = pauli_to_matrix(term, nqubits)
-            expected_dim = 2 ** nqubits
+            expected_dim = 2**nqubits
             assert matrix.shape == (expected_dim, expected_dim)
 
     def test_hermitian(self):

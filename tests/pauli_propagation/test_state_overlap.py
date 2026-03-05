@@ -1,11 +1,12 @@
 """Tests for state overlap module."""
 
-import pytest
 import numpy as np
-from executor.pauli_propagation.pauli_types import PauliSum, PauliString
+import pytest
+
+from executor.pauli_propagation.pauli_types import PauliString, PauliSum
 from executor.pauli_propagation.state_overlap import (
-    overlap_with_zero,
     overlap_with_computational,
+    overlap_with_zero,
     scalar_product,
 )
 
@@ -13,6 +14,7 @@ from executor.pauli_propagation.state_overlap import (
 try:
     from qiskit import QuantumCircuit
     from qiskit.quantum_info import Statevector
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -267,7 +269,7 @@ class TestQiskitValidation:
         psum.add_term("II", 1.0)
 
         # |0⟩ state
-        sv = Statevector.from_label('00')
+        sv = Statevector.from_label("00")
         # Expectation of identity is always 1
         qiskit_result = 1.0
 
@@ -324,7 +326,7 @@ class TestQiskitValidation:
         psum.add_term("ZZ", 4.0)
 
         # Test all 4 computational basis states
-        for bitstring in ['00', '01', '10', '11']:
+        for bitstring in ["00", "01", "10", "11"]:
             our_result = overlap_with_computational(psum, bitstring)
 
             # Manually compute expected value

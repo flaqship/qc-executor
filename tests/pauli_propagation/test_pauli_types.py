@@ -1,7 +1,8 @@
 """Tests for pauli_types module."""
 
-import pytest
 import numpy as np
+import pytest
+
 from executor.pauli_propagation.pauli_types import PauliString, PauliSum
 
 
@@ -31,7 +32,7 @@ class TestPauliString:
 
     def test_from_symbols(self):
         """Test creation from symbols and indices."""
-        ps = PauliString.from_symbols(['X', 'Z'], [0, 2], 3, coeff=2.0)
+        ps = PauliString.from_symbols(["X", "Z"], [0, 2], 3, coeff=2.0)
         assert ps.to_string() == "XIZ"
         assert ps.coeff == 2.0
 
@@ -43,7 +44,7 @@ class TestPauliString:
     def test_from_symbols_mismatch(self):
         """Test error on mismatched symbols and indices."""
         with pytest.raises(ValueError, match="same length"):
-            PauliString.from_symbols(['X', 'Z'], [0], 3)
+            PauliString.from_symbols(["X", "Z"], [0], 3)
 
     def test_weight(self):
         """Test weight calculation."""

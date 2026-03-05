@@ -7,6 +7,7 @@ in the Heisenberg picture. Based on PauliPropagation.jl.
 from executor.factory import Executor
 
 from .executor import PauliPropagationExecutor
+from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_types import PauliString, PauliSum
 from .state_overlap import overlap_with_computational, overlap_with_zero, scalar_product
 from .symmetry import (
@@ -29,6 +30,7 @@ __all__ = [
     "PauliString",
     "PauliSum",
     "PauliPropagationExecutor",
+    "PauliPropagationCircuit",
     "overlap_with_zero",
     "overlap_with_computational",
     "scalar_product",

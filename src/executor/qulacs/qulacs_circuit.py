@@ -1,10 +1,10 @@
 import numpy as np
 from typing import List, Union, Iterable
-from sympy import lambdify, sympify
+from sympy import lambdify
 
 from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.circuit import ParameterExpression
-from qiskit.compiler import transpile
+from qiskit import transpile
 
 from qulacs import QuantumCircuit as QulacsQuantumCircuit
 from qulacs import ParametricQuantumCircuit
@@ -13,6 +13,7 @@ from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict
 
 from ..utils.decompose_to_std import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
+from ..utils.qiskit_compat import _param_to_sympy, _param_free_symbols
 
 
 class QulacsCircuit:
@@ -122,7 +123,7 @@ class QulacsCircuit:
         elif isinstance(angle, ParameterVectorElement):
             # Single parameter vector element
             parameterized = True
-            func_list_element = lambdify(self._symbol_tuple_circuit, sympify(angle._symbol_expr))
+            func_list_element = lambdify(self._symbol_tuple_circuit, _param_to_sympy(angle))
             func_grad_list_element = [lambda x: 1.0]
             self._free_parameters.add(angle)
             used_parameters = [angle]
@@ -130,10 +131,10 @@ class QulacsCircuit:
         elif isinstance(angle, ParameterExpression):
             # Parameter is in a expression (equation)
             parameterized = True
-            func_list_element = lambdify(self._symbol_tuple_circuit, sympify(angle._symbol_expr))
+            func_list_element = lambdify(self._symbol_tuple_circuit, _param_to_sympy(angle))
             func_grad_list_element = []
             used_parameters = []
-            for param_element in angle._parameter_symbols.keys():
+            for param_element in _param_free_symbols(angle):
                 self._free_parameters.add(param_element)
                 used_parameters.append(param_element)
                 # information about the gradient of the parameter expression
@@ -143,7 +144,7 @@ class QulacsCircuit:
                     func_grad_list_element.append(lambda *arg, param_grad=param_grad: param_grad)
                 else:
                     func_grad_list_element.append(
-                        lambdify(self._symbol_tuple_circuit, sympify(param_grad._symbol_expr))
+                        lambdify(self._symbol_tuple_circuit, _param_to_sympy(param_grad))
                     )
         else:
             raise TypeError(
@@ -304,7 +305,7 @@ class QulacsCircuit:
             else:
                 self._qulacs_gates_parameters[name] += 1
 
-        self._symbol_tuple_circuit = tuple([sympify(p._symbol_expr) for p in circuit.parameters])
+        self._symbol_tuple_circuit = tuple([_param_to_sympy(p) for p in circuit.parameters])
 
         for op in circuit.data:
 

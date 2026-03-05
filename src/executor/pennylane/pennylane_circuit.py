@@ -1,20 +1,15 @@
-import numpy as np
-from typing import Union, List
-from sympy import lambdify, sympify
-
-from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit import Clbit, ParameterExpression
-from qiskit.quantum_info import SparsePauliOp
-
-from qiskit.compiler import transpile
+from typing import Callable
 
 import pennylane as qml
 import pennylane.numpy as pnp
+from qiskit.circuit import Clbit, ParameterExpression
+from qiskit import transpile
+from sympy import lambdify
 
 from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
-
-from ..utils.decompose_to_std import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
+from ..utils.decompose_to_std import decompose_to_std
+from ..utils.qiskit_compat import _param_to_sympy, _param_is_constant, _param_to_float
 
 
 def _get_sympy_interface():
@@ -131,7 +126,7 @@ class PennyLaneCircuit:
         return self._num_qubits
 
     @property
-    def pennylane_circuit(self) -> callable:
+    def pennylane_circuit(self) -> Callable:
         """PennyLane circuit that can be called with parameters"""
         return self._pennylane_circuit
 
@@ -146,11 +141,11 @@ class PennyLaneCircuit:
         return self._pennylane_gates_parameters_dimensions
 
     @property
-    def hash(self) -> str:
+    def hash(self) -> int:
         """Hashable object of the circuit and observable for caching"""
         return hash(str(self._qiskit_circuit))
 
-    def get_pennylane_circuit(self) -> callable:
+    def get_pennylane_circuit(self) -> Callable:
         """Builds and returns the PennyLane circuit as callable function"""
         self._pennylane_circuit = self.build_pennylane_circuit()
         return self._pennylane_circuit
@@ -158,7 +153,7 @@ class PennyLaneCircuit:
     def __call__(self, *args, **kwargs):
         return self._pennylane_circuit(*args, **kwargs)
 
-    def _build_circuit_instructions(self, circuit: QuantumCircuit) -> tuple:
+    def _build_circuit_instructions(self, circuit: QuantumCircuit) -> None:
         """
         Function to build the instructions for the PennyLane circuit from the Qiskit circuit.
 
@@ -180,7 +175,7 @@ class PennyLaneCircuit:
         self._pennylane_gates_parameters = []
         self._pennylane_gates_parameters_dimensions = {}
 
-        symbol_tuple = tuple([sympify(p._symbol_expr) for p in circuit.parameters])
+        symbol_tuple = tuple([_param_to_sympy(p) for p in circuit.parameters])
 
         for param in circuit.parameters:
             if param.vector.name not in self._pennylane_gates_parameters:
@@ -214,10 +209,10 @@ class PennyLaneCircuit:
                 param_tuple = ()
                 for param in op.operation.params:
                     if isinstance(param, ParameterExpression):
-                        if param._symbol_expr == None:
-                            param = param._coeff
+                        if _param_is_constant(param):
+                            param = _param_to_float(param)
                         else:
-                            symbol_expr = sympify(param._symbol_expr)
+                            symbol_expr = _param_to_sympy(param)
                             f = lambdify(
                                 symbol_tuple, symbol_expr, modules=modules, printer=printer
                             )

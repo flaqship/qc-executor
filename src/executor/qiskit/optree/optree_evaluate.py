@@ -5,19 +5,11 @@ import time
 
 from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import ParameterExpression, Clbit
-from qiskit.primitives import (
-    BackendEstimator,
-    BitArray,
-    BaseSampler,
-    BaseSamplerV1,
-    BaseSamplerV2,
-    BaseEstimatorV1,
-    BaseEstimatorV2,
-)
 from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
-from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
-from qiskit.primitives.base import SamplerResult
-from ...utils import decompose_to_std
+
+from ...utils.decompose_to_std import decompose_to_std
+from ...utils.data_preprocessing import ensure_complex_coeffs
+from ...utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
 
 from .optree import (
     OpTreeNodeBase,
@@ -31,6 +23,54 @@ from .optree import (
     OpTreeExpectationValue,
     OpTreeMeasuredOperator,
 )
+
+# Qiskit primitive imports are split across three version brackets:
+#
+#   < 1.2:  BaseSamplerV2 and BitArray do not exist yet
+#   < 2.0:  BaseEstimatorV1, BaseSamplerV1, SamplerResult and
+#           _pauli_expval_with_variance are available; BaseEstimatorV2
+#           is present but NOT re-exported from qiskit.primitives —
+#           it must be imported from qiskit.primitives.base directly
+#           via the QISKIT_SMALLER_2_0 block below
+#   >= 2.0: V1 primitives and SamplerResult are removed;
+#           BaseEstimatorV2 is now a first-class export of qiskit.primitives
+
+# BitArray and BaseSamplerV2: introduced in Qiskit 1.2
+if QISKIT_SMALLER_1_2:
+
+    class BitArray:
+        """Dummy BitArray for Qiskit < 1.2."""
+
+    class BaseSamplerV2:
+        """Dummy BaseSamplerV2 for Qiskit < 1.2."""
+
+else:
+    from qiskit.primitives import BitArray, BaseSamplerV2
+
+# V1 primitives exist only below 2.0; BaseEstimatorV2 is imported here
+# for ALL Qiskit 1.x versions because it is not re-exported from the
+# top-level qiskit.primitives package until 2.0.
+if QISKIT_SMALLER_2_0:
+    from qiskit.primitives.base import SamplerResult
+    from qiskit.primitives import BaseSamplerV1, BaseEstimatorV1, BaseEstimatorV2
+    from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
+else:
+    # In Qiskit >= 2.0, BaseEstimatorV2 is a proper top-level export;
+    # V1 primitives and SamplerResult no longer exist.
+    from qiskit.primitives import BaseEstimatorV2
+
+    class SamplerResult:
+        """Dummy SamplerResult for Qiskit >= 2.0."""
+
+    class BaseSamplerV1:
+        """Dummy BaseSamplerV1 for Qiskit >= 2.0."""
+
+    class BaseEstimatorV1:
+        """Dummy BaseEstimatorV1 for Qiskit >= 2.0."""
+
+    def _pauli_expval_with_variance(counts, paulis):
+        """Dummy function for Qiskit >= 2.0."""
+        pass
 
 
 def _check_tree_for_matrix_compatibility(element: Union[OpTreeNodeBase, OpTreeLeafBase]):
@@ -380,11 +420,12 @@ def _build_operator_list(
                 raise ValueError("element must be a OpTreeLeafOperator or a SparsePauliOp")
 
             # Assign parameters
-            operator = operator.assign_parameters(
-                [dictionary[p] for p in operator.parameters], inplace=False
+            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
+            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+            operator = ensure_complex_coeffs(
+                operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
             )
-
-            # TODO check if it makes a difference in speed if not complex numbers are used
 
             if len(operator.parameters) != 0:
                 raise ValueError("Not all parameters are assigned in the operator!")
@@ -664,9 +705,13 @@ def _build_expectation_list(
                 circuit_eval_counter += 1
 
             # Assign parameters to operator
-            operator = operator.assign_parameters(
-                [dictionary[p] for p in operator.parameters], inplace=False
+            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
+            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+            operator = ensure_complex_coeffs(
+                operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
             )
+
             if len(operator.parameters) != 0:
                 raise ValueError("Not all parameters are assigned in the operator!")
 
@@ -796,13 +841,19 @@ def _evaluate_expectation_from_sampler(
 
     # Calulate the expectation value with internal Qiskit function
     if primitives_v2:
-        exp_val = np.array(
-            [
-                np.real_if_close(results[icirc + offset].expectation_values(operator[iop]))
-                for icirc, oplist in enumerate(flatted_resort_list)
-                for iop in oplist
-            ]
-        )
+        exp_val = np.zeros(sum(len(sublist) for sublist in flatted_resort_list))
+        i = 0
+        for icirc, oplist in enumerate(flatted_resort_list):
+            for iop in oplist:
+                try:
+                    ev = results[icirc + offset].expectation_values(operator[iop])
+                    exp_val[i] = np.real_if_close(ev, 1e-10)
+                except ValueError as e:
+                    if str(e) == "Empty observable was detected.":
+                        pass
+                    else:
+                        raise e
+                i += 1
     else:
         exp_val = np.array(
             [
@@ -854,7 +905,14 @@ def _transform_operator_to_zbasis(
         terms. If no transformation is needed, the input operator is returned without any changes.
     """
 
-    measurement_circuit = BackendEstimator._measurement_circuit
+    if QISKIT_SMALLER_1_2:
+        from qiskit.primitives import BackendEstimator
+
+        measurement_circuit = BackendEstimator._measurement_circuit
+    else:
+        from qiskit.primitives.backend_estimator_v2 import (
+            _measurement_circuit as measurement_circuit,
+        )
 
     # Adjust measurements to be possible in Z basis
     if isinstance(operator, OpTreeOperator):
@@ -952,7 +1010,9 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
         circ = circ_in.copy()
         if not final_measurements:
             # Add measurements to all non measured qubits if not measured
-            new_creg = circ._create_creg(len(qubits), "meas")
+            from qiskit.circuit import ClassicalRegister
+
+            new_creg = ClassicalRegister(len(qubits), "meas")
             circ.add_register(new_creg)
             if not final_measurements:
                 circ.measure(qubits, new_creg)
@@ -967,9 +1027,13 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
 
         circ_new = QuantumCircuit(circ.num_qubits)
         if not final_measurements:
-            new_creg = circ_new._create_creg(circ.num_qubits, "meas")
+            from qiskit.circuit import ClassicalRegister
+
+            new_creg = ClassicalRegister(circ.num_qubits, "meas")
         else:
-            new_creg = circ_new._create_creg(circ_in.num_clbits, "meas")
+            from qiskit.circuit import ClassicalRegister
+
+            new_creg = ClassicalRegister(circ_in.num_clbits, "meas")
         circ_new.add_register(new_creg)
         for instruction, qargs, cargs in circ.data:
             if (
@@ -979,7 +1043,9 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
             else:
                 clbits = [circ.find_bit(i)[0] for i in cargs]
             operation = instruction.copy()
-            if instruction.condition:  # to adjust the clbits of c_if
+            if (
+                hasattr(instruction, "condition") and instruction.condition
+            ):  # to adjust the clbits of c_if
                 operation.condition = (
                     Clbit(
                         circ_new.cregs[0],
@@ -1000,7 +1066,7 @@ class OpTreeEvaluate:
         operator: Union[OpTreeNodeBase, OpTreeOperator, SparsePauliOp, OpTreeMeasuredOperator],
         dictionary_circuit: Union[dict, List[dict]],
         dictionary_operator: Union[dict, List[dict]],
-        sampler: BaseSampler,
+        sampler: Union[BaseSamplerV1, BaseSamplerV2],
         dictionaries_combined: bool = False,
         detect_duplicates: bool = True,
     ) -> Union[float, np.ndarray]:
@@ -1095,7 +1161,7 @@ class OpTreeEvaluate:
                     else:
                         total_circuit_list.append(
                             _measure_all_unmeasured(
-                                circ_unmeasured.compose(measure, inplace=False),
+                                circ_unmeasured.compose(measure),
                                 final_measurements=True,
                             )
                         )

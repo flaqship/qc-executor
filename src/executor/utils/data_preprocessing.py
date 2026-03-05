@@ -1,5 +1,8 @@
 import numpy as np
 from typing import Tuple, Union
+from packaging import version
+from qiskit import __version__ as qiskit_version
+from qiskit.quantum_info import SparsePauliOp
 
 
 def adjust_features(x: Union[np.ndarray, float], x_length: int) -> Tuple[np.ndarray, bool]:
@@ -148,3 +151,29 @@ def to_tuple(x: Union[int, str, float, np.ndarray, list, tuple], flatten: bool =
             return array_to_nested_tuple(x)
         else:
             return tuple([x])
+
+
+def ensure_complex_coeffs(operator):
+    """Cast a SparsePauliOp's coefficients to complex128 if required by the active Qiskit version.
+
+    Qiskit 2.1.x introduced a strict dtype check in SparseObservable.from_sparse_pauli_op():
+    only SparsePauliOp instances with complex-typed coefficients are accepted. However,
+    assign_parameters() in that version returns float64 coefficients after substitution,
+    which triggers a TypeError. This was fixed in Qiskit 2.2.0, so the cast is only applied
+    for versions in the range [2.1.0, 2.2.0).
+
+    See: https://github.com/Qiskit/qiskit/issues/14807
+
+    Args:
+        operator: The SparsePauliOp whose coefficients should be checked.
+
+    Returns:
+        The operator unchanged, or a new SparsePauliOp with complex128 coefficients
+        if running on an affected Qiskit version.
+    """
+
+    if version.parse("2.1.0") <= version.parse(qiskit_version) < version.parse(
+        "2.2.0"
+    ) and operator.coeffs.dtype != np.dtype("complex128"):
+        return SparsePauliOp(operator.paulis, operator.coeffs.astype(complex))
+    return operator

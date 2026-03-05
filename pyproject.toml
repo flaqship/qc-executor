@@ -1,9 +1,10 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
 
 [project]
 name = "executor"
+description = "Abstraction layer for quantum circuits and operators across multiple backends."
 readme = "README.md"
 authors = [
     {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
@@ -18,41 +19,82 @@ maintainers = [
 ]
 license = {file = "LICENSE.txt"}
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-keywords = ["quantum", "circuit", "executor"]
+keywords = ["quantum", "circuit", "executor", "pennylane", "qiskit", "qulacs"]
 dependencies = [
     "dill>=0.3.4",
     "mapomatic>=0.10.0",
     "numpy>=1.20",
-    "pennylane>=0.34.0",
-    "qiskit>=0.45.0",
-    "qiskit-aer>=0.12.0",
-    "qiskit-algorithms>=0.3.0",
-    "qiskit-ibm-runtime>=0.18.0",
-    "qulacs>=0.6.4.1",
+    "qiskit>=1.0.0",
+    "sympy>=1.8",
 ]
-requires-python = ">=3.9,<=3.13"
-dynamic = ["version", "description"]
+requires-python = ">=3.10"
+dynamic = ["version"]
 
 [project.optional-dependencies]
-dev = [
-    "black",
-    "flit",
-    "nbmake",
-    "pylint",
-    "pytest",
+pennylane = ["pennylane>=0.34.0"]
+qulacs = ["qulacs>=0.6.4.1"]
+qiskit-full = ["qiskit-aer>=0.12.0", "qiskit-ibm-runtime>=0.18.0"]
+all = [
+    "pennylane>=0.34.0",
+    "qulacs>=0.6.4.1",
+    "qiskit-aer>=0.12.0",
+    "qiskit-ibm-runtime>=0.18.0",
 ]
 
+[project.entry-points."executor.backends"]
+pennylane = "executor.pennylane:PennyLaneExecutor"
+qiskit = "executor.qiskit:QiskitExecutor"
+qulacs = "executor.qulacs:QulacsExecutor"
+
+[dependency-groups]
+dev = [
+    "black[jupyter]",
+    "pylint",
+    "pytest",
+    "nbmake",
+]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-autodoc-typehints",
+]
+examples = [
+    "nbmake",
+    "jupyter",
+    "matplotlib",
+    "pylatexenc",
+    "qulacsvis>=0.7.6",
+]
+
+[tool.uv]
+managed = true
+
+[tool.hatch.version]
+path = "src/executor/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/executor"]
+
 [tool.black]
-line-length=99
+line-length = 99
 
 [tool.pylint]
-max-line-length=99
+max-line-length = 99
 
 [tool.pylint.main]
 extension-pkg-allow-list = [
     "numpy",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

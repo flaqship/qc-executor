@@ -97,6 +97,26 @@ class QiskitCircuit:
         else:
             return self._qiskit_circuit
 
+    @classmethod
+    def _from_qiskit(cls, qiskit_circuit) -> "QiskitCircuit":
+        """Create a :class:`QiskitCircuit` directly from a Qiskit ``QuantumCircuit``.
+
+        This bypasses the normal ``__init__`` path which expects
+        an executor ``QuantumCircuit`` wrapper and instead accepts
+        an already-transpiled Qiskit circuit.
+        """
+        wrapper = object.__new__(cls)
+        wrapper._qiskit_circuit = qiskit_circuit
+        wrapper._num_qubits = qiskit_circuit.num_qubits
+
+        wrapper._parameter_dimensions = OrderedDict()
+        wrapper._free_parameters = set()
+        for p in qiskit_circuit.parameters:
+            wrapper._free_parameters.add(p)
+            name = p.vector.name if hasattr(p, "vector") else p.name
+            wrapper._parameter_dimensions[name] = wrapper._parameter_dimensions.get(name, 0) + 1
+        return wrapper
+
     def copy(self):
         """Return a copy of the circuit wrapper."""
         return QiskitCircuit(self._qiskit_circuit.copy())

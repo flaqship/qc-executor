@@ -1,5 +1,6 @@
+import logging
 import numpy as np
-from typing import List, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 from executor.base.circuit_base import QuantumCircuitBase
 from executor.base.executor_base import ExecutorBase
@@ -10,7 +11,14 @@ from qiskit.primitives import (
 )
 from qiskit.quantum_info import Statevector
 
-from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
+from executor.utils.qiskit_compat import (
+    QISKIT_SMALLER_1_2,
+    QISKIT_SMALLER_2_0,
+    QISKIT_RUNTIME_AVAILABLE,
+    QISKIT_RUNTIME_SMALLER_0_21,
+    QISKIT_RUNTIME_SMALLER_0_23,
+    QISKIT_RUNTIME_SMALLER_0_28,
+)
 
 from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor.qiskit.optree import OpTreeDerivative
@@ -21,6 +29,13 @@ from executor.qiskit.optree.optree import (
     OpTreeNodeBase,
     OpTreeOperator,
 )
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Lazy-loaded helpers for optional dependencies
+# ---------------------------------------------------------------------------
 
 
 def _load_aer_simulator():
@@ -35,15 +50,114 @@ def _load_aer_simulator():
     return AerSimulator
 
 
+def _check_runtime_available():
+    """Guard: raise :class:`ImportError` when *qiskit-ibm-runtime* is missing."""
+    if not QISKIT_RUNTIME_AVAILABLE:
+        raise ImportError(
+            "qiskit-ibm-runtime is required for IBM backend support. "
+            "Install with: pip install executor[qiskit-full]"
+        )
+
+
+def _load_runtime_primitives_v1():
+    """Return ``(RuntimeEstimatorV1, RuntimeSamplerV1)`` for *qiskit-ibm-runtime < 0.21*.
+
+    In these old versions ``Estimator`` / ``Sampler`` *are* the V1 primitives
+    (V2 does not exist yet).  The returned classes inherit from
+    ``BaseEstimatorV1`` / ``BaseSamplerV1``.
+    """
+    _check_runtime_available()
+    from qiskit_ibm_runtime import (
+        Estimator as RuntimeEstimatorV1,
+        Sampler as RuntimeSamplerV1,
+    )
+
+    return RuntimeEstimatorV1, RuntimeSamplerV1
+
+
+def _load_runtime_primitives_v2():
+    """Return ``(RuntimeEstimatorV2, RuntimeSamplerV2)`` from *qiskit-ibm-runtime*.
+
+    The concrete import path depends on the installed runtime version:
+
+    * ``0.21 – 0.27``: explicit ``EstimatorV2`` / ``SamplerV2`` exports.
+    * ``>= 0.28``: ``Estimator`` / ``Sampler`` **are** the V2 primitives
+      (V1 has been removed).
+    """
+    _check_runtime_available()
+    if QISKIT_RUNTIME_SMALLER_0_28:
+        # 0.21 – 0.27: V2 is available as an explicit named export
+        from qiskit_ibm_runtime import (
+            EstimatorV2 as RuntimeEstimatorV2,
+            SamplerV2 as RuntimeSamplerV2,
+        )
+    else:
+        # >= 0.28: V1 removed, the default Estimator/Sampler IS V2
+        from qiskit_ibm_runtime import (
+            Estimator as RuntimeEstimatorV2,
+            Sampler as RuntimeSamplerV2,
+        )
+    return RuntimeEstimatorV2, RuntimeSamplerV2
+
+
+def _load_runtime_options_v1():
+    """Return the ``Options`` class for V1 runtime primitives (< 0.21)."""
+    _check_runtime_available()
+    from qiskit_ibm_runtime.options import Options
+
+    return Options
+
+
+def _load_runtime_session():
+    """Return the ``Session`` class from *qiskit-ibm-runtime*."""
+    if not QISKIT_RUNTIME_AVAILABLE:
+        raise ImportError(
+            "qiskit-ibm-runtime is required for IBM backend support. "
+            "Install with: pip install executor[qiskit-full]"
+        )
+    from qiskit_ibm_runtime import Session
+
+    return Session
+
+
+def _is_backend_instance(obj) -> bool:
+    """Return *True* if *obj* is a Qiskit ``Backend`` (V1 or V2) instance.
+
+    The check avoids importing ``BackendV2`` at module level so that
+    ``qiskit-ibm-runtime`` remains an optional dependency.
+    """
+    try:
+        from qiskit.providers import Backend  # available in all supported Qiskit versions
+
+        return isinstance(obj, Backend)
+    except ImportError:
+        return False
+
+
+def _detect_backend_flags(backend) -> Tuple[bool, bool]:
+    """Detect whether *backend* is a remote IBM Quantum device or a fake backend.
+
+    Returns ``(remote, ibm_quantum)`` flags following the sQUlearn heuristic:
+    string-match ``"ibm"`` and ``"fake"`` on the backend representation.
+    """
+    backend_str = str(backend).lower()
+    if "ibm" in backend_str:
+        is_fake = "fake" in backend_str
+        return (not is_fake, not is_fake)
+    return (False, False)
+
+
+# ---------------------------------------------------------------------------
+# Version-gated Qiskit primitive imports (local simulators)
+# ---------------------------------------------------------------------------
+
 if QISKIT_SMALLER_1_2:
-    # pylint: disable=ungrouped-imports
     from qiskit.primitives import (
         BackendEstimator as BackendEstimator,
         BackendSampler as BackendSampler,
     )
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
 elif QISKIT_SMALLER_2_0:
-    # pylint: disable=ungrouped-imports
     from qiskit.primitives import (
         BackendEstimatorV2 as BackendEstimator,
         BackendSamplerV2 as BackendSampler,
@@ -60,16 +174,38 @@ else:
 class QiskitExecutor(ExecutorBase):
     """Class for executing qiskit circuits.
 
+    Supports local simulation (``"statevector"``, ``"aer"``) **and** execution
+    on real IBM Quantum hardware or noise-aware fake backends via
+    `qiskit-ibm-runtime <https://github.com/Qiskit/qiskit-ibm-runtime>`_.
+
+    When a :class:`~qiskit.providers.BackendV2` / ``IBMBackend`` instance is
+    passed as *backend*, the executor transparently initialises
+    ``EstimatorV2`` / ``SamplerV2`` from *qiskit-ibm-runtime*, manages an
+    optional ``Session``, and applies ISA transpilation so that circuits
+    conform to the target backend's instruction set.
+
     Args:
-        shots (int, optional): Number of shots for sampling. Defaults to None.
-        seed (int, optional): Random seed for reproducibility. Defaults to None.
-        log_file (str, optional): Path to the log file. Defaults to None.
-        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
-            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
-        caching (bool, optional): Whether to use caching. Defaults to None.
-        cache_dir (str, optional): Directory for caching. Defaults to "cache".
-        max_cache_size (int, optional): Maximum number of entries kept in each
-            in-memory cache. ``None`` means unlimited. Defaults to None.
+        shots (int, optional): Number of shots for sampling.  Defaults to
+            ``None`` (exact statevector mode for local backends).
+        seed (int, optional): Random seed for reproducibility.
+        log_file (str, optional): Path to the log file.
+        log_level (str, optional): Logging level. One of ``"DEBUG"``,
+            ``"INFO"``, ``"WARNING"``, ``"ERROR"``.  Defaults to
+            ``"WARNING"``.
+        caching (bool, optional): Whether to use caching.
+        cache_dir (str, optional): Directory for caching.  Defaults to
+            ``"cache"``.
+        max_cache_size (int, optional): Maximum number of entries kept in
+            each in-memory cache.  ``None`` means unlimited.
+        backend (str or Backend): Backend specification.  Can be
+            ``"statevector"`` (default), ``"aer"``, or any Qiskit
+            :class:`~qiskit.providers.Backend` / ``BackendV2`` instance
+            (e.g. obtained from ``QiskitRuntimeService``).
+        execution_mode (str, optional): Only relevant for IBM backends.
+            One of ``"job"`` (default), ``"session"`` or ``"batch"``.
+        options (dict, optional): Options forwarded to the runtime
+            primitives (e.g. error-mitigation settings).  Ignored for local
+            backends.
     """
 
     def __init__(
@@ -81,7 +217,9 @@ class QiskitExecutor(ExecutorBase):
         caching: Union[bool, None] = None,
         cache_dir: str = "cache",
         max_cache_size: Union[int, None] = None,
-        backend: str = "statevector",
+        backend: Union[str, object] = "statevector",
+        execution_mode: Literal["job", "session", "batch"] = "job",
+        options: Optional[dict] = None,
     ):
 
         super().__init__(
@@ -94,37 +232,87 @@ class QiskitExecutor(ExecutorBase):
             max_cache_size=max_cache_size,
         )
 
-        # Initialize backend and primitives
-        if backend == "statevector":
-            if shots is None:
-                self._estimator = StatevectorEstimator()
-                self._sampler = StatevectorSampler()
-                self._backend = None
-            else:
-                AerSimulator = _load_aer_simulator()
-                self._backend = AerSimulator(method="statevector")
-                if QISKIT_SMALLER_2_0:
-                    self._estimator = BackendEstimator(backend=self._backend)
-                    self._sampler = BackendSampler(backend=self._backend)
+        # Internal state for IBM backend support
+        self._session = None
+        self._remote_backend: bool = False
+        self._ibm_quantum_backend: bool = False
+        self._execution_mode = execution_mode
+        self._options = options
+
+        # ── Local simulator backends ──────────────────────────────────────
+        if isinstance(backend, str):
+            if backend == "statevector":
+                if shots is None:
+                    self._estimator = StatevectorEstimator()
+                    self._sampler = StatevectorSampler()
+                    self._backend = None
                 else:
+                    AerSimulator = _load_aer_simulator()
+                    self._backend = AerSimulator(method="statevector")
                     self._estimator = BackendEstimator(backend=self._backend)
                     self._sampler = BackendSampler(backend=self._backend)
-        elif backend == "aer":
-            AerSimulator = _load_aer_simulator()
-            self._backend = AerSimulator()
-            if QISKIT_SMALLER_2_0:
-                self._estimator = BackendEstimator(self._backend)
-                self._sampler = BackendSampler(self._backend)
-            else:
+            elif backend == "aer":
+                AerSimulator = _load_aer_simulator()
+                self._backend = AerSimulator()
                 self._estimator = BackendEstimator(backend=self._backend)
                 self._sampler = BackendSampler(backend=self._backend)
+            else:
+                raise ValueError(
+                    f"Unknown backend string: {backend!r}. "
+                    "Use 'statevector', 'aer', or pass a Backend instance."
+                )
+
+        # ── Backend object (IBMBackend / FakeBackend / any BackendV2) ─────
+        elif _is_backend_instance(backend):
+            if not QISKIT_RUNTIME_AVAILABLE:
+                raise ImportError(
+                    "qiskit-ibm-runtime is required to use a Backend instance. "
+                    "Install with: pip install executor[qiskit-full]"
+                )
+
+            self._backend = backend
+            self._remote_backend, self._ibm_quantum_backend = _detect_backend_flags(backend)
+
+            # Determine which primitive generation to use
+            self._runtime_primitives_version: str = "v1" if QISKIT_RUNTIME_SMALLER_0_21 else "v2"
+
+            # Session management (only for real IBM Quantum devices)
+            if self._ibm_quantum_backend and execution_mode in ("session", "batch"):
+                self._create_session()
+
+            # Create primitives.
+            # For runtime < 0.21 the V1 runtime Estimator/Sampler require a
+            # QiskitRuntimeService account even for fake backends, so we
+            # fall back to local BackendEstimator / BackendSampler when no
+            # real IBM session is available.
+            if self._runtime_primitives_version == "v1" and not self._ibm_quantum_backend:
+                # Local / fake backend with old runtime -> use Qiskit-local primitives
+                self._estimator = BackendEstimator(backend=self._backend)
+                self._sampler = BackendSampler(backend=self._backend)
+            else:
+                self._estimator = self._create_runtime_estimator()
+                self._sampler = self._create_runtime_sampler()
+
+            logger.info(
+                "Initialised QiskitExecutor with %s (remote=%s, mode=%s)",
+                backend,
+                self._remote_backend,
+                execution_mode,
+            )
         else:
-            raise ValueError(f"Unknown backend: {backend}")
+            raise TypeError(
+                f"'backend' must be a string ('statevector', 'aer') or a "
+                f"Qiskit Backend instance, got {type(backend)!r}."
+            )
 
         if seed is not None:
             self._random = np.random.default_rng(seed)
         else:
             self._random = np.random.default_rng()
+
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
 
     @property
     def shots(self) -> Union[int, None]:
@@ -138,8 +326,209 @@ class QiskitExecutor(ExecutorBase):
 
     @property
     def remote(self) -> bool:
-        """Return True if the execution access a remote backend."""
+        """Return ``True`` if the executor targets a remote backend."""
+        return self._remote_backend
+
+    @property
+    def ibm_quantum(self) -> bool:
+        """Return ``True`` if the executor targets a real IBM Quantum device."""
+        return self._ibm_quantum_backend
+
+    @property
+    def session(self):
+        """Return the active runtime session, or ``None``."""
+        return self._session
+
+    # ------------------------------------------------------------------
+    # Session lifecycle
+    # ------------------------------------------------------------------
+
+    def _create_session(self) -> None:
+        """Create (or re-create) a :class:`~qiskit_ibm_runtime.Session`."""
+        Session = _load_runtime_session()
+        self._session = Session(backend=self._backend)
+        logger.debug("Created new runtime session for %s", self._backend)
+
+    def close_session(self) -> None:
+        """Close the current runtime session if one is active."""
+        if self._session is not None:
+            try:
+                self._session.close()
+            except Exception:
+                logger.debug("Session.close() raised; ignoring.", exc_info=True)
+            self._session = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close_session()
         return False
+
+    def __del__(self):
+        try:
+            self.close_session()
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # Runtime primitive factories
+    # ------------------------------------------------------------------
+
+    def _ensure_session_active(self) -> None:
+        """Re-create the session when it has expired."""
+        if (
+            self._ibm_quantum_backend
+            and self._session is not None
+            and not getattr(self._session, "_active", True)
+        ):
+            self._create_session()
+
+    def _create_runtime_estimator(self):
+        """Instantiate the runtime Estimator for the current backend / session."""
+        if self._runtime_primitives_version == "v1":
+            cls, _ = _load_runtime_primitives_v1()
+            return self._instantiate_runtime_primitive_v1(cls, self._options)
+        else:
+            cls, _ = _load_runtime_primitives_v2()
+            return self._instantiate_runtime_primitive_v2(cls, self._options)
+
+    def _create_runtime_sampler(self):
+        """Instantiate the runtime Sampler for the current backend / session."""
+        if self._runtime_primitives_version == "v1":
+            _, cls = _load_runtime_primitives_v1()
+            return self._instantiate_runtime_primitive_v1(cls, self._options)
+        else:
+            _, cls = _load_runtime_primitives_v2()
+            return self._instantiate_runtime_primitive_v2(cls, self._options)
+
+    # -- V1 instantiation (qiskit-ibm-runtime < 0.21) ---------------------
+
+    def _instantiate_runtime_primitive_v1(self, primitive_cls, options):
+        """Create a V1 runtime primitive.
+
+        V1 primitives (``qiskit-ibm-runtime < 0.21``) always use
+        ``session=`` / ``backend=`` and accept an ``Options`` object from
+        ``qiskit_ibm_runtime.options``.
+        """
+        # Build V1 Options object from the user-supplied dict (if any)
+        if options:
+            RuntimeOptionsV1 = _load_runtime_options_v1()
+            opts = RuntimeOptionsV1()
+            for key, val in options.items():
+                try:
+                    setattr(opts, key, val)
+                except (AttributeError, TypeError):
+                    pass  # skip keys the V1 Options class doesn't know
+        else:
+            opts = None
+
+        if self._ibm_quantum_backend and self._session is not None:
+            self._ensure_session_active()
+            return (
+                primitive_cls(session=self._session, options=opts)
+                if opts is not None
+                else primitive_cls(session=self._session)
+            )
+        else:
+            return (
+                primitive_cls(backend=self._backend, options=opts)
+                if opts is not None
+                else primitive_cls(backend=self._backend)
+            )
+
+    # -- V2 instantiation (qiskit-ibm-runtime >= 0.21) --------------------
+
+    def _instantiate_runtime_primitive_v2(self, primitive_cls, options):
+        """Create a V2 runtime primitive.
+
+        * ``qiskit-ibm-runtime < 0.23`` uses ``session=`` / ``backend=``.
+        * ``qiskit-ibm-runtime >= 0.23`` uses ``mode=``.
+        """
+        opts = options or {}
+
+        if self._ibm_quantum_backend and self._session is not None:
+            # Real IBM device with an active session
+            self._ensure_session_active()
+            if QISKIT_RUNTIME_SMALLER_0_23:
+                return (
+                    primitive_cls(session=self._session, options=opts)
+                    if opts
+                    else primitive_cls(session=self._session)
+                )
+            else:
+                return (
+                    primitive_cls(mode=self._session, options=opts)
+                    if opts
+                    else primitive_cls(mode=self._session)
+                )
+        else:
+            # Fake backend or real backend without session (job mode)
+            if QISKIT_RUNTIME_SMALLER_0_23:
+                return (
+                    primitive_cls(backend=self._backend, options=opts)
+                    if opts
+                    else primitive_cls(backend=self._backend)
+                )
+            else:
+                return (
+                    primitive_cls(mode=self._backend, options=opts)
+                    if opts
+                    else primitive_cls(mode=self._backend)
+                )
+
+    def _refresh_primitives(self) -> None:
+        """Re-create primitives after a session renewal."""
+        self._estimator = self._create_runtime_estimator()
+        self._sampler = self._create_runtime_sampler()
+
+    # ------------------------------------------------------------------
+    # ISA transpilation (for IBM / fake backends)
+    # ------------------------------------------------------------------
+
+    def _isa_transpile_qiskit_circuit(self, circuit):
+        """Transpile a raw Qiskit ``QuantumCircuit`` to ISA form.
+
+        If no IBM backend is configured the circuit is returned unchanged.
+        The resulting circuit retains its :class:`Parameter` objects so that
+        it can still be parameterised afterwards.
+        """
+        if self._backend is None or not _is_backend_instance(self._backend):
+            return circuit
+
+        try:
+            from qiskit.transpiler.preset_passmanagers import (
+                generate_preset_pass_manager,
+            )
+
+            pm = generate_preset_pass_manager(
+                optimization_level=1,
+                backend=self._backend,
+            )
+            return pm.run(circuit)
+        except ImportError:
+            from qiskit import transpile
+
+            return transpile(circuit, backend=self._backend)
+
+    def _isa_apply_layout_to_operator(self, operator, circuit):
+        """Apply the transpiled circuit's layout to an operator.
+
+        After ISA transpilation the virtual-to-physical qubit mapping
+        may have changed.  ``SparsePauliOp.apply_layout`` re-orders the
+        operator to match.
+        """
+        from qiskit.quantum_info import SparsePauliOp
+
+        if not isinstance(operator, SparsePauliOp):
+            return operator
+        layout = getattr(circuit, "layout", None)
+        if layout is None:
+            return operator
+        try:
+            return operator.apply_layout(layout)
+        except Exception:
+            return operator
 
     def _convert_to_optree(
         self,
@@ -149,6 +538,9 @@ class QiskitExecutor(ExecutorBase):
         """
         Convert circuits and operators to OpTree format.
 
+        When an IBM backend is configured the circuits are ISA-transpiled
+        and operators are re-mapped to match the transpiled qubit layout.
+
         Args:
             circuit: Circuit(s) to convert
             operator: Operator(s) to convert (optional)
@@ -156,32 +548,46 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             Tuple of (circuit_tree, operator_tree)
         """
+        uses_ibm_backend = self._backend is not None and _is_backend_instance(self._backend)
 
-        # Convert circuits to OpTree
+        # --- Convert & optionally transpile circuits ---
+        def _to_qiskit(c):
+            return c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c
+
         if isinstance(circuit, List):
-            circuit_tree = OpTreeList(
-                [
-                    OpTreeCircuit(c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c)
-                    for c in circuit
-                ]
-            )
+            raw_circuits = [_to_qiskit(c) for c in circuit]
         else:
-            circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-            circuit_tree = OpTreeCircuit(circ)
+            raw_circuits = [_to_qiskit(circuit)]
 
-        # Convert operators to OpTree
+        if uses_ibm_backend:
+            transpiled_circuits = [self._isa_transpile_qiskit_circuit(c) for c in raw_circuits]
+        else:
+            transpiled_circuits = raw_circuits
+
+        if len(transpiled_circuits) == 1:
+            circuit_tree = OpTreeCircuit(transpiled_circuits[0])
+        else:
+            circuit_tree = OpTreeList([OpTreeCircuit(c) for c in transpiled_circuits])
+
+        # --- Convert operators (apply layout if transpiled) ---
         if operator is None:
             return circuit_tree, None
 
+        def _to_operator(o):
+            return o._qiskit_operator if hasattr(o, "_qiskit_operator") else o
+
+        # Use the first transpiled circuit's layout for operator re-mapping
+        ref_circuit = transpiled_circuits[0]
+
         if isinstance(operator, List):
-            operator_tree = OpTreeList(
-                [
-                    OpTreeOperator(o._qiskit_operator if hasattr(o, "_qiskit_operator") else o)
-                    for o in operator
-                ]
-            )
+            ops = [_to_operator(o) for o in operator]
+            if uses_ibm_backend:
+                ops = [self._isa_apply_layout_to_operator(o, ref_circuit) for o in ops]
+            operator_tree = OpTreeList([OpTreeOperator(o) for o in ops])
         else:
-            op = operator._qiskit_operator if hasattr(operator, "_qiskit_operator") else operator
+            op = _to_operator(operator)
+            if uses_ibm_backend:
+                op = self._isa_apply_layout_to_operator(op, ref_circuit)
             operator_tree = OpTreeOperator(op)
 
         return circuit_tree, operator_tree
@@ -525,8 +931,24 @@ class QiskitExecutor(ExecutorBase):
 
             bound_circuits.append(bound_circ)
 
-        # Run sampler
-        job = self._sampler.run(bound_circuits, shots=self._shots)
+        # Run sampler – the call signature depends on the primitive version.
+        #
+        # * Qiskit < 1.2  → BackendSampler (V1 API): run(circuits, ...)
+        # * Runtime V1 (< 0.21) → also V1 API: run(circuits, ...)
+        # * Qiskit >= 1.2 with V2 primitives → run(pubs, shots=...)
+        #   This applies to StatevectorSampler, BackendSamplerV2 and
+        #   RuntimeSamplerV2 alike.
+        use_v1_api = (
+            QISKIT_SMALLER_1_2 or getattr(self, "_runtime_primitives_version", "v2") == "v1"
+        )
+        if use_v1_api:
+            # V1: pass a plain list of circuits
+            job = self._sampler.run(bound_circuits, shots=self._shots)
+        else:
+            # V2: PUBs format – each element is a tuple (circuit,)
+            pubs = [(circ,) for circ in bound_circuits]
+            job = self._sampler.run(pubs, shots=self._shots)
+
         result = job.result()
 
         return self._extract_counts(result, circuit.num_qubits)
@@ -534,8 +956,24 @@ class QiskitExecutor(ExecutorBase):
     def _statevector(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
     ) -> np.ndarray:
+        """Compute the statevector of the circuit.
+
+        Raises:
+            RuntimeError: If the executor targets a remote backend where
+                statevector simulation is not available.
         """
-        Compute the statevector of the circuit.
+        if self._remote_backend:
+            raise RuntimeError(
+                "Statevector simulation is not available on remote IBM Quantum "
+                "backends. Use expectation_value() or sample() instead."
+            )
+        return self._statevector_local(circuit, **parameter_values)
+
+    def _statevector_local(
+        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
+    ) -> np.ndarray:
+        """
+        Compute the statevector of the circuit (local only).
 
         Args:
             circuit: The quantum circuit(s).
@@ -581,10 +1019,36 @@ class QiskitExecutor(ExecutorBase):
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
 
+        For remote IBM backends the circuit is additionally transpiled through
+        ``generate_preset_pass_manager`` to produce an ISA-compliant circuit
+        that conforms to the target backend's instruction set.
+
         Args:
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
 
         Returns:
             QiskitCircuit: The corresponding QiskitCircuit.
         """
-        return QiskitCircuit(circuit)
+        qc = QiskitCircuit(circuit)
+
+        if self._backend is not None and _is_backend_instance(self._backend):
+            # ISA transpilation for real / fake IBM backends
+            try:
+                from qiskit.transpiler.preset_passmanagers import (
+                    generate_preset_pass_manager,
+                )
+
+                pm = generate_preset_pass_manager(
+                    optimization_level=1,
+                    backend=self._backend,
+                )
+                isa_circuit = pm.run(qc._qiskit_circuit)
+                return QiskitCircuit._from_qiskit(isa_circuit)
+            except ImportError:
+                # generate_preset_pass_manager unavailable (Qiskit < 1.2)
+                from qiskit import transpile
+
+                transpiled = transpile(qc._qiskit_circuit, backend=self._backend)
+                return QiskitCircuit._from_qiskit(transpiled)
+
+        return qc

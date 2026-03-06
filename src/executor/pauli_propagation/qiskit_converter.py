@@ -4,6 +4,7 @@ import hashlib
 import pickle
 from typing import Dict, List, Optional, Union
 
+import numpy as np
 import sympy as sp
 
 try:
@@ -301,8 +302,30 @@ def bind_parameters(
         ValueError: If required parameters are missing
         TypeError: If an unexpected object type is in the gates list
     """
-    # Start with a copy of provided values
-    result = dict(parameter_values)
+    # First, expand any list values in parameter_values to indexed format
+    # This converts {"x": [0.1], "p": [0.5, 0.6]} to individual indexed entries
+    expanded_params = {}
+    for key, value in parameter_values.items():
+        if isinstance(value, (list, tuple)):
+            # For each value in the list, create an indexed key
+            for idx, val in enumerate(value):
+                indexed_key = f"{key}[{idx}]"
+                if not isinstance(val, (int, float, np.number)):
+                    raise TypeError(
+                        f"Parameter '{indexed_key}' has invalid type {type(val)}. "
+                        f"Expected float or numeric value."
+                    )
+                expanded_params[indexed_key] = float(val)
+        elif isinstance(value, (int, float, np.number)):
+            expanded_params[key] = float(value)
+        else:
+            raise TypeError(
+                f"Parameter '{key}' has invalid value type {type(value)}. "
+                f"Expected float or list of floats."
+            )
+
+    # Start with the expanded parameter dict
+    result = dict(expanded_params)
 
     # Collect required parameters and extract concrete values
     required_params = set()

@@ -28,6 +28,56 @@ def _as_list(obj):
     return [obj]
 
 
+def _normalize_parameters(parameters: Dict) -> Dict[str, float]:
+    """Normalize parameters from list format to indexed format.
+    
+    Converts parameters from:
+        {"x": [0.1], "p": [0.3], "pop": [0.5, 0.6]}
+    To:
+        {"x[0]": 0.1, "p[0]": 0.3, "pop[0]": 0.5, "pop[1]": 0.6}
+    
+    Also accepts already-normalized parameters with indexed keys.
+    
+    Args:
+        parameters: Parameter dictionary, values can be floats or lists
+        
+    Returns:
+        Normalized parameter dictionary with indexed string keys
+        
+    Raises:
+        TypeError: If parameter value is neither float nor list
+        ValueError: If parameter name is invalid
+    """
+    if not parameters:
+        return {}
+    
+    normalized = {}
+    
+    for name, value in parameters.items():
+        if isinstance(value, (list, tuple)):
+            # Convert list format: x=[0.1, 0.2] -> {"x[0]": 0.1, "x[1]": 0.2}
+            for idx, v in enumerate(value):
+                if not isinstance(v, (int, float, np.number)):
+                    raise TypeError(
+                        f"Parameter '{name}[{idx}]' has invalid type {type(v)}. "
+                        f"Expected float or numeric value."
+                    )
+                normalized[f"{name}[{idx}]"] = float(v)
+        elif isinstance(value, (int, float, np.number)):
+            # Already a scalar, accept as-is
+            normalized[name] = float(value)
+        elif isinstance(value, str) and "[" in value:
+            # Already indexed format like "x[0]", keep as-is
+            normalized[name] = value
+        else:
+            raise TypeError(
+                f"Parameter '{name}' has invalid value type {type(value)}. "
+                f"Expected float or list of floats."
+            )
+    
+    return normalized
+
+
 def _derivative_param_to_name(param):
     """Convert a Parameter/ParameterVector/string to parameter name string(s)."""
     if isinstance(param, str):
@@ -214,15 +264,18 @@ class PauliPropagationExecutor(ExecutorBase):
         Args:
             circuit: Quantum circuit (raw Qiskit type)
             operator: Observable operator
-            parameters: Parameter binding dictionary
+            parameters: Parameter binding dictionary (can be in list or indexed format)
 
         Returns:
             Complex expectation value
         """
         gates = circuit.gates
 
+        # Normalize parameters from list format (x=[0.1]) to indexed format (x[0]=0.1)
+        normalized_params = _normalize_parameters(parameters)
+        
         # Bind parameters if needed (bind_parameters expects gates list, not circuit)
-        bound_params = bind_parameters(gates, parameters)
+        bound_params = bind_parameters(gates, normalized_params)
 
         observable = operator.pauli_sum
 
@@ -273,11 +326,14 @@ class PauliPropagationExecutor(ExecutorBase):
             circuit: Quantum circuit(s)
             operator: Observable operator(s)
             *derivative_params: Parameter(s) to differentiate with respect to
-            **parameter_values: Parameter values
+            **parameter_values: Parameter values (can be in list or indexed format)
 
         Returns:
             Derivative of expectation value (float for single param, array for multiple)
         """
+        # Normalize parameters first
+        normalized_params = _normalize_parameters(parameter_values)
+        
         # Convert derivative params to string names
         param_names = []
         for p in derivative_params:
@@ -295,13 +351,13 @@ class PauliPropagationExecutor(ExecutorBase):
 
         for param_name in param_names:
             # Get current parameter value (default to 0 if not provided)
-            param_value = parameter_values.get(param_name, 0.0)
+            param_value = normalized_params.get(param_name, 0.0)
 
             # Create shifted parameter dictionaries
-            params_plus = parameter_values.copy()
+            params_plus = normalized_params.copy()
             params_plus[param_name] = param_value + np.pi / 2
 
-            params_minus = parameter_values.copy()
+            params_minus = normalized_params.copy()
             params_minus[param_name] = param_value - np.pi / 2
 
             # Compute expectation values with shifted parameters
@@ -389,6 +445,9 @@ class PauliPropagationExecutor(ExecutorBase):
     ) -> np.ndarray:
         from .gates import CliffordGate, LayerBarrier, PauliRotation
 
+        # Normalize parameters from list format to indexed format
+        normalized_params = _normalize_parameters(parameters)
+        
         nqubits = circuit.num_qubits
         state = np.zeros(2**nqubits, dtype=complex)
         state[0] = 1.0
@@ -448,7 +507,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 continue
 
             if isinstance(gate, PauliRotation):
-                theta = self._resolve_angle(gate, parameters)
+                theta = self._resolve_angle(gate, normalized_params)
                 if len(gate.symbols) == 1:
                     pauli = single_qubit_map[gate.symbols[0]]
                     rotation = np.cos(theta / 2) * np.eye(2) - 1j * np.sin(theta / 2) * pauli

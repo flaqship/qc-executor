@@ -186,17 +186,45 @@ def _resolve_param_value(
 ) -> Optional[float]:
     """Resolve the parameter value for a parametric gate.
 
+    Handles both symbolic expressions (param_expr with sympy symbols)
+    and simple parameter names (param_name for backward compatibility).
+
     Args:
         gate: Parametric gate whose parameter value should be resolved
-        parameters: Dict mapping parameter names to values
+        parameters: Dict mapping parameter names or symbol names to values
 
     Returns:
         Resolved parameter value, or None if not found
     """
+    # Try to resolve symbolic expression first
+    if hasattr(gate, "param_expr") and gate.param_expr is not None:
+        expr = gate.param_expr
+        
+        # Check if all free symbols are in parameters
+        subs_dict = {}
+        for symbol in expr.free_symbols:
+            symbol_name = symbol.name
+            if symbol_name in parameters:
+                subs_dict[symbol] = parameters[symbol_name]
+        
+        # If we have substitutions, try to evaluate
+        if subs_dict:
+            try:
+                result = expr.subs(subs_dict)
+                if result.is_number:
+                    return float(result)
+            except (TypeError, ValueError):
+                pass
+    
+    # Fallback to param_name for backward compatibility
     if gate.param_name and gate.param_name in parameters:
         return parameters[gate.param_name]
+    
+    # Fallback to concrete param_value
     if hasattr(gate, "param_value") and gate.param_value is not None:
         return gate.param_value
+    
+    # Try generic "theta" parameter
     return parameters.get("theta", None)
 
 

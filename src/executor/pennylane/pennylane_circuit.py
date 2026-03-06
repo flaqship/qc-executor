@@ -93,6 +93,11 @@ def _get_sympy_interface():
 
 class PennyLaneCircuit:
 
+    @classmethod
+    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "PennyLaneCircuit":
+        """Create a PennyLane native circuit from a generic circuit."""
+        return cls(circuit)
+
     def __init__(
         self,
         circuit: QuantumCircuit,

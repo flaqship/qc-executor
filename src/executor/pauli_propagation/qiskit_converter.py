@@ -4,6 +4,8 @@ import hashlib
 import pickle
 from typing import Dict, List, Optional, Union
 
+import sympy as sp
+
 try:
     from qiskit import QuantumCircuit
     from qiskit.circuit import Parameter, ParameterExpression
@@ -154,51 +156,51 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Optional[G
 
     # Pauli rotations (parametric gates)
     if gate_name == "RX":
-        param_name, param_value = (
+        param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
         return PauliRotation(
-            ["X"], qubits[0], nqubits, param_name=param_name, param_value=param_value
+            ["X"], qubits[0], nqubits, param_expr=param_expr, param_value=param_value
         )
 
     elif gate_name == "RY":
-        param_name, param_value = (
+        param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
         return PauliRotation(
-            ["Y"], qubits[0], nqubits, param_name=param_name, param_value=param_value
+            ["Y"], qubits[0], nqubits, param_expr=param_expr, param_value=param_value
         )
 
     elif gate_name == "RZ":
-        param_name, param_value = (
+        param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
         return PauliRotation(
-            ["Z"], qubits[0], nqubits, param_name=param_name, param_value=param_value
+            ["Z"], qubits[0], nqubits, param_expr=param_expr, param_value=param_value
         )
 
     elif gate_name == "RXX":
-        param_name, param_value = (
+        param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
         return PauliRotation(
-            ["X", "X"], qubits, nqubits, param_name=param_name, param_value=param_value
+            ["X", "X"], qubits, nqubits, param_expr=param_expr, param_value=param_value
         )
 
     elif gate_name == "RYY":
-        param_name, param_value = (
+        param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
         return PauliRotation(
-            ["Y", "Y"], qubits, nqubits, param_name=param_name, param_value=param_value
+            ["Y", "Y"], qubits, nqubits, param_expr=param_expr, param_value=param_value
         )
 
     elif gate_name == "RZZ":
-        param_name, param_value = (
+        param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
         return PauliRotation(
-            ["Z", "Z"], qubits, nqubits, param_name=param_name, param_value=param_value
+            ["Z", "Z"], qubits, nqubits, param_expr=param_expr, param_value=param_value
         )
 
     # Clifford gates (non-parametric)
@@ -251,29 +253,29 @@ def _extract_parameter_name(param) -> Optional[str]:
         return None
 
 
-def _extract_parameter(param) -> tuple:
-    """Extract parameter name and/or concrete value from Qiskit parameter object.
+def _extract_parameter(param) -> tuple[sp.Expr | None, float | None]:
+    """Extract parameter as sympy expression or concrete value from Qiskit parameter.
 
     Args:
         param: Qiskit parameter (could be Parameter, float, or ParameterExpression)
 
     Returns:
-        Tuple of (parameter_name, concrete_value)
-        - For Parameter: (name, None)
+        Tuple of (sympy_expr, concrete_value)
+        - For Parameter/ParameterExpression: (sympy_expr, None)
         - For float: (None, value)
-        - For ParameterExpression: (name, None)
     """
     if not QISKIT_AVAILABLE:
         return None, None
 
-    if isinstance(param, Parameter):
-        return param.name, None
-    elif isinstance(param, ParameterExpression):
-        # For expressions, get the first parameter name
-        params = param.parameters
-        if len(params) > 0:
-            return list(params)[0].name, None
-        return None, None
+    from executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
+
+    if isinstance(param, (Parameter, ParameterExpression)):
+        if _param_is_constant(param):
+            # Constant expression, return as float
+            return None, _param_to_float(param)
+        else:
+            # Symbolic expression, convert to sympy
+            return _param_to_sympy(param), None
     else:
         # Concrete value (float)
         return None, float(param)
@@ -317,20 +319,17 @@ def bind_parameters(
             )
 
         if gate.is_parametric():
-            # If gate has param_name, it needs a value
-            if gate.param_name:
-                # Check if value is already provided
+            if hasattr(gate, "param_expr") and gate.param_expr is not None:
+                for symbol in gate.param_expr.free_symbols:
+                    if symbol.name not in result:
+                        required_params.add(symbol.name)
+            elif gate.param_name:
                 if gate.param_name not in result:
-                    # Check if gate has concrete value
                     if hasattr(gate, "param_value") and gate.param_value is not None:
-                        # This shouldn't happen - if param_value is set, param_name should be None
                         result[gate.param_name] = gate.param_value
                     else:
                         required_params.add(gate.param_name)
-            # If gate has no param_name but has param_value, use a generated name
             elif hasattr(gate, "param_value") and gate.param_value is not None:
-                # Gate has concrete value, no parameter name - we can handle this in propagate
-                # by using param_value directly
                 pass
 
     # Check for missing parameters

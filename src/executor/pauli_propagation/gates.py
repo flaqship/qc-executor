@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Union
 
 import numpy as np
+import sympy as sp
 
 from .pauli_algebra import commutes as pauli_commutes
 from .pauli_algebra import (
@@ -64,6 +65,7 @@ class PauliRotation(Gate):
         qubits: Union[int, List[int]],
         nqubits: int,
         param_name: Optional[str] = None,
+        param_expr: Optional[sp.Expr] = None,
         param_value: Optional[float] = None,
     ):
         """Initialize a Pauli rotation gate.
@@ -72,7 +74,8 @@ class PauliRotation(Gate):
             symbols: List of Pauli symbols defining the rotation axis (e.g., ['X'], ['X', 'X'])
             qubits: Qubit index or list of indices where Paulis act
             nqubits: Total number of qubits
-            param_name: Optional parameter name for tracking
+            param_name: Optional parameter name for compatibility
+            param_expr: Optional sympy expression for parametric gates
             param_value: Optional concrete parameter value (for non-parametric gates)
         """
         super().__init__(qubits, nqubits)
@@ -83,7 +86,15 @@ class PauliRotation(Gate):
             )
 
         self.symbols = symbols
-        self.param_name = param_name
+        if param_expr is None and param_name is not None:
+            param_expr = sp.Symbol(param_name)
+        self.param_expr = param_expr
+        if param_name is not None:
+            self.param_name = param_name
+        elif isinstance(self.param_expr, sp.Symbol):
+            self.param_name = self.param_expr.name
+        else:
+            self.param_name = None
         self.param_value = param_value
 
         # Build the Pauli generator term (what we're rotating around)

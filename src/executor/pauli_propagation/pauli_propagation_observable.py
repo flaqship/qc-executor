@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Sequence
+from typing import TYPE_CHECKING, Dict, List, Sequence, overload
 
 import numpy as np
+import sympy as sp
 
 from executor.base.operator_base import QuantumOperatorBase
 
@@ -19,14 +20,55 @@ if TYPE_CHECKING:
 class PauliPropagationObservable(QuantumOperatorBase):
     """Backend-native observable representation for Pauli propagation."""
 
+    @overload
+    @classmethod
+    def from_quantum_operator(
+        cls, operator: QuantumOperatorBase
+    ) -> "PauliPropagationObservable": ...
+
+    @overload
+    @classmethod
+    def from_quantum_operator(
+        cls,
+        operator: QuantumOperatorBase,
+        symmetry_strategy: "SymmetryStrategy",
+    ) -> "PauliPropagationObservable": ...
+
+    @classmethod
+    def from_quantum_operator(
+        cls,
+        operator: QuantumOperatorBase,
+        symmetry_strategy: "SymmetryStrategy" | None = None,
+    ) -> "PauliPropagationObservable":  # type: ignore[override]
+        """Create a PauliPropagationObservable from a generic operator."""
+        if isinstance(operator, cls):
+            result = operator.copy()
+            if symmetry_strategy is not None:
+                result.symmetry = symmetry_strategy
+            return result
+
+        try:
+            paulis = operator.paulis
+            coeffs = [c.sympify() if hasattr(c, "sympify") else c for c in operator.coeffs]
+            return cls(paulis=paulis, coeffs=coeffs, symmetry_strategy=symmetry_strategy)
+        except (AttributeError, TypeError) as exc:
+            raise TypeError(
+                "PauliPropagationObservable.from_quantum_operator expects a generic "
+                f"QuantumOperator or {cls.__name__}, got {type(operator).__name__}"
+            ) from exc
+
     def __init__(
         self,
         paulis: List[str] | None = None,
-        coeffs: List[complex] | None = None,
+        coeffs: List[complex | sp.Expr] | None = None,
         num_qubits: int | None = None,
         pauli_sum: PauliSum | None = None,
         symmetry_strategy: "SymmetryStrategy" | None = None,
     ):
+        # Track symbolic coefficients separately
+        self._parametric_coeffs: Dict[int, sp.Expr] = {}  # Maps term -> symbolic expr
+        self._parameters: Dict[str, sp.Symbol] = {}  # Maps param name -> symbol
+
         if pauli_sum is not None:
             self._pauli_sum = pauli_sum.copy()
             if symmetry_strategy is not None:
@@ -48,7 +90,20 @@ class PauliPropagationObservable(QuantumOperatorBase):
                     raise ValueError("Length of coeffs must match length of paulis.")
 
                 for pauli, coeff in zip(paulis, coeff_values):
-                    self._pauli_sum.add_term(pauli, coeff)
+                    # Check if coefficient is symbolic
+                    if isinstance(coeff, sp.Expr) and not coeff.is_number:
+                        from .pauli_algebra import string_to_term
+
+                        term = string_to_term(pauli, self._num_qubits)
+                        self._parametric_coeffs[term] = coeff
+                        # Track parameters
+                        for symbol in coeff.free_symbols:
+                            self._parameters[symbol.name] = symbol
+                        # Add with coefficient 1.0 as placeholder
+                        self._pauli_sum.add_term(pauli, 1.0)
+                    else:
+                        # Numeric coefficient
+                        self._pauli_sum.add_term(pauli, complex(coeff))
         elif num_qubits is not None:
             self._num_qubits = num_qubits
             self._pauli_sum = PauliSum(num_qubits, symmetry=symmetry_strategy)
@@ -91,18 +146,71 @@ class PauliPropagationObservable(QuantumOperatorBase):
 
     @property
     def is_parametrized(self) -> bool:
-        return False
+        return len(self._parametric_coeffs) > 0
 
     @property
-    def parameters(self) -> List:
-        return []
+    def parameters(self) -> List[str]:
+        return list(self._parameters.keys())
 
     @property
     def num_parameters(self) -> int:
-        return 0
+        return len(self._parameters)
 
     def copy(self) -> "PauliPropagationObservable":
-        return PauliPropagationObservable(pauli_sum=self._pauli_sum.copy())
+        result = PauliPropagationObservable(pauli_sum=self._pauli_sum.copy())
+        result._parametric_coeffs = dict(self._parametric_coeffs)
+        result._parameters = dict(self._parameters)
+        return result
+
+    def assign_parameters(self, parameters: Dict[str, float]) -> "PauliPropagationObservable":
+        """Bind symbolic parameters to concrete values.
+
+        Args:
+            parameters: Dict mapping parameter names to float values
+
+        Returns:
+            New observable with parameters substituted
+        """
+        result = self.copy()
+
+        # Build substitution dict for sympy
+        subs_dict = {}
+        for param_name, param_value in parameters.items():
+            if param_name in result._parameters:
+                subs_dict[result._parameters[param_name]] = param_value
+
+        # Substitute in parametric coefficients
+        new_pauli_sum = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
+        new_parametric_coeffs = {}
+
+        for term, coeff in self._pauli_sum:
+            if term in self._parametric_coeffs:
+                # This term has a symbolic coefficient
+                symbolic_coeff = self._parametric_coeffs[term]
+                substituted_coeff = symbolic_coeff.subs(subs_dict)
+
+                if substituted_coeff.is_number:
+                    # Fully evaluated, add to PauliSum with concrete value
+                    new_pauli_sum.add_term(term, complex(substituted_coeff))
+                else:
+                    # Partially evaluated, keep as parametric
+                    new_parametric_coeffs[term] = substituted_coeff
+                    new_pauli_sum.add_term(term, 1.0)  # Placeholder
+            else:
+                # Non-parametric term, just copy
+                new_pauli_sum.add_term(term, coeff)
+
+        result._pauli_sum = new_pauli_sum
+        result._parametric_coeffs = new_parametric_coeffs
+
+        # Update parameter tracking - remove fully bound parameters
+        remaining_params = {}
+        for param_name, param_symbol in result._parameters.items():
+            if param_name not in parameters:
+                remaining_params[param_name] = param_symbol
+        result._parameters = remaining_params
+
+        return result
 
     def adjoint(self) -> "PauliPropagationObservable":
         result = self.copy()

@@ -52,6 +52,9 @@ class ExecutorBase(ABC):
             in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
+    _native_circuit_class = None
+    _native_observable_class = None
+
     def __init__(
         self,
         shots: Union[int, None] = None,
@@ -322,21 +325,16 @@ class ExecutorBase(ABC):
         return self._transpile_circuit(circuit)
 
     @overload
-    def transpile_observable(
-        self, operator: QuantumOperatorBase
-    ) -> QuantumOperatorBase:
-        ...
+    def transpile_observable(self, operator: QuantumOperatorBase) -> QuantumOperatorBase: ...
 
     @overload
     def transpile_observable(
         self, operator: List[QuantumOperatorBase]
-    ) -> List[QuantumOperatorBase]:
-        ...
+    ) -> List[QuantumOperatorBase]: ...
 
     def transpile_observable(
         self,
         operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
-        symmetry_strategy: Optional[object] = None,
     ) -> Union[QuantumOperatorBase, List[QuantumOperatorBase]]:
         """
         Transpile the operator for execution on this executor's backend.
@@ -348,8 +346,6 @@ class ExecutorBase(ABC):
         Args:
             operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The
                 quantum operator or a list of operators to transpile.
-            symmetry_strategy (Optional[object]): Strategy for symmetry handling.
-                If provided, takes precedence over executor-level default.
 
         Returns:
             Union[QuantumOperatorBase, List[QuantumOperatorBase]]: The transpiled
@@ -357,22 +353,20 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Transpiling operator")
         if isinstance(operator, list):
-            return [self._transpile_observable_cached(op, symmetry_strategy) for op in operator]
-        return self._transpile_observable_cached(operator, symmetry_strategy)
+            return [self._transpile_observable_cached(op) for op in operator]
+        return self._transpile_observable_cached(operator)
 
-    def _transpile_observable_cached(
-        self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None
-    ) -> QuantumOperatorBase:
+    def _transpile_observable_cached(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """Transpile a single observable, consulting the result cache if enabled."""
         if self._result_cache is not None:
-            key = self._make_result_key("transpile_observable", operator, symmetry_strategy)
+            key = self._make_result_key("transpile_observable", operator)
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for transpile_observable")
                 return self._result_cache[key]
-            result = self._transpile_observable(operator, symmetry_strategy)
+            result = self._transpile_observable(operator)
             self._result_cache[key] = result
             return result
-        return self._transpile_observable(operator, symmetry_strategy)
+        return self._transpile_observable(operator)
 
     # ------------------------------------------------------------------
     # Backend switching – allows changing backend while preserving configuration
@@ -473,9 +467,7 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _transpile_observable(
-        self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None
-    ) -> QuantumOperatorBase:
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """
         Transpile an operator to backend-specific format.
 
@@ -486,9 +478,6 @@ class ExecutorBase(ABC):
 
         Args:
             operator (QuantumOperatorBase): The operator to transpile.
-            symmetry_strategy (Optional[object]): Strategy for symmetry handling.
-                Backend-specific semantics; may be ignored by backends that
-                don't support symmetry.
 
         Returns:
             QuantumOperatorBase: The transpiled operator in backend-native format.

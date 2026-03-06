@@ -31,6 +31,9 @@ class PennyLaneExecutor(ExecutorBase):
             in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
+    _native_circuit_class = PennyLaneCircuit
+    _native_observable_class = PennyLaneObservable
+
     def __init__(
         self,
         shots: Union[int, None] = None,
@@ -549,18 +552,12 @@ class PennyLaneExecutor(ExecutorBase):
         Returns:
             PennyLaneCircuit: The corresponding PennyLaneCircuit.
         """
-        return PennyLaneCircuit(circuit)
+        if isinstance(circuit, self._native_circuit_class):
+            return circuit
+        return self._native_circuit_class.from_quantum_circuit(circuit)
 
-    def _transpile_observable(
-        self, operator: QuantumOperatorBase, symmetry_strategy=None
-    ) -> PennyLaneObservable:
-        """Transpile a generic QuantumOperator to a PennyLane QuantumOperator.
-
-        Args:
-            operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
-            symmetry_strategy: Ignored for PennyLane backend (no symmetry support).
-
-        Returns:
-            PennyLaneObservable: The corresponding PennyLaneObservable.
-        """
-        return PennyLaneObservable(operator)
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> PennyLaneObservable:
+        """Transpile a generic QuantumOperator to a PennyLane QuantumOperator."""
+        if isinstance(operator, self._native_observable_class):
+            return operator
+        return self._native_observable_class.from_quantum_operator(operator)

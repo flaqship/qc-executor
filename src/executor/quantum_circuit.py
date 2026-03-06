@@ -1,14 +1,12 @@
-import numpy as np
 from abc import ABC, abstractmethod
 from typing import List, Union
 
-from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression, Parameter
-
+import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
+from qiskit.circuit import Parameter, ParameterExpression
+from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase, QuantumOperatorBase
-
 from .utils.qiskit_hash_functions import _circuit_key
 
 
@@ -23,6 +21,11 @@ class QuantumCircuit(QuantumCircuitBase):
     def __init__(self, num_qubits: int):
         super().__init__(num_qubits)
         self._qiskit_circuit = QiskitQuantumCircuit(self._num_qubits)
+
+    @classmethod
+    def from_quantum_circuit(cls, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
+        """Identity conversion for generic circuits."""
+        return circuit
 
     @property
     def num_qubits(self) -> int:

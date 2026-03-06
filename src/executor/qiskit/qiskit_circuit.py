@@ -34,6 +34,11 @@ class QiskitCircuit:
             name = p.vector.name
             self._parameter_dimensions[name] = self._parameter_dimensions.get(name, 0) + 1
 
+    @classmethod
+    def from_quantum_circuit(cls, circuit):
+        """Create a native Qiskit circuit wrapper from a generic circuit."""
+        return cls(circuit)
+
     @property
     def num_qubits(self) -> int:
         """Number of qubits in the circuit."""

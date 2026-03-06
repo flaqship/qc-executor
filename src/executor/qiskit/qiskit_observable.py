@@ -34,6 +34,11 @@ class QiskitObservable:
             name = p.vector.name
             self._parameter_dimensions[name] = self._parameter_dimensions.get(name, 0) + 1
 
+    @classmethod
+    def from_quantum_operator(cls, operator):
+        """Create a native Qiskit observable wrapper from a generic operator."""
+        return cls(operator)
+
     @property
     def num_qubits(self) -> int:
         """Number of qubits the operator acts on."""

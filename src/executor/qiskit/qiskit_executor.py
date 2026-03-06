@@ -65,6 +65,9 @@ class QiskitExecutor(ExecutorBase):
             in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
+    _native_circuit_class = QiskitCircuit
+    _native_observable_class = QiskitObservable
+
     def __init__(
         self,
         shots: Union[int, None] = None,
@@ -580,18 +583,18 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             QiskitCircuit: The corresponding QiskitCircuit.
         """
-        return QiskitCircuit(circuit)
+        if isinstance(circuit, self._native_circuit_class):
+            return circuit
+        return self._native_circuit_class.from_quantum_circuit(circuit)
 
-    def _transpile_observable(
-        self, operator: QuantumOperatorBase, symmetry_strategy=None
-    ) -> QiskitObservable:
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> QiskitObservable:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:
             operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
-            symmetry_strategy: Ignored for Qiskit backend (no symmetry support).
-
         Returns:
             QiskitObservable: The corresponding QiskitObservable.
         """
-        return QiskitObservable(operator)
+        if isinstance(operator, self._native_observable_class):
+            return operator
+        return self._native_observable_class.from_quantum_operator(operator)

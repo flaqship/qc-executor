@@ -117,6 +117,11 @@ class PennyLaneObservable:
     --------
     """
 
+    @classmethod
+    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "PennyLaneObservable":
+        """Create a PennyLane native observable from a generic operator."""
+        return cls(operator)
+
     def __init__(
         self,
         observable: Union[

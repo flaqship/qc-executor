@@ -20,6 +20,12 @@ class QuantumCircuitBase(ABC):
         self._num_qubits = num_qubits
         self._free_parameters = set()
 
+    @classmethod
+    @abstractmethod
+    def from_quantum_circuit(cls, circuit: "QuantumCircuitBase") -> "QuantumCircuitBase":
+        """Create a backend-native circuit from a generic quantum circuit."""
+        raise NotImplementedError
+
     @property
     def num_qubits(self) -> int:
         """Return the number of qubits in the circuit."""

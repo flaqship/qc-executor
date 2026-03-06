@@ -16,6 +16,11 @@ from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict
 
 class QulacsCircuit:
 
+    @classmethod
+    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "QulacsCircuit":
+        """Create a Qulacs native circuit from a generic circuit."""
+        return cls(circuit)
+
     def __init__(
         self,
         circuit: QuantumCircuit,

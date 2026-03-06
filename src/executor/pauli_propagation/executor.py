@@ -13,7 +13,7 @@ from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_observable import PauliPropagationObservable
 from .pauli_types import PauliSum
 from .propagation import propagate
-from .qiskit_converter import bind_parameters, convert_circuit
+from .qiskit_converter import bind_parameters
 from .state_overlap import overlap_with_zero
 from .symmetry import NoSymmetry
 from .truncation import TruncationStats, truncate_by_coeff, truncate_combined
@@ -121,6 +121,9 @@ class PauliPropagationExecutor(ExecutorBase):
         max_weight: Maximum Pauli weight for truncation (None = no weight limit)
         symmetry_strategy: Strategy for Pauli symmetry merging (None = no merging)
     """
+
+    _native_circuit_class = PauliPropagationCircuit
+    _native_observable_class = PauliPropagationObservable
 
     def __init__(
         self,
@@ -352,12 +355,33 @@ class PauliPropagationExecutor(ExecutorBase):
 
     @staticmethod
     def _resolve_angle(gate, parameters: Dict[str, float]) -> float:
-        if gate.param_name is not None:
-            if gate.param_name not in parameters:
-                raise ValueError(f"Missing parameter value for '{gate.param_name}'")
-            return float(parameters[gate.param_name])
+        """Resolve the angle value for a rotation gate.
+
+        Args:
+            gate: PauliRotation gate
+            parameters: Dict mapping parameter names to values
+
+        Returns:
+            The resolved angle as a float
+        """
+        if gate.param_expr is not None:
+            # Symbolic expression - substitute parameter values
+            import sympy as sp
+
+            subs_dict = {}
+            for symbol in gate.param_expr.free_symbols:
+                param_name = symbol.name
+                if param_name not in parameters:
+                    raise ValueError(f"Missing parameter value for '{param_name}'")
+                subs_dict[symbol] = parameters[param_name]
+
+            result = gate.param_expr.subs(subs_dict)
+            if not result.is_number:
+                raise ValueError(f"Expression {gate.param_expr} could not be fully evaluated")
+            return float(result)
+
         if gate.param_value is None:
-            raise ValueError("Parametric gate has neither param_name nor param_value.")
+            raise ValueError("Parametric gate has neither param_expr nor param_value.")
         return float(gate.param_value)
 
     def _simulate_statevector(
@@ -550,42 +574,33 @@ class PauliPropagationExecutor(ExecutorBase):
         Raises:
             TypeError: If circuit type is not supported
         """
-        if isinstance(circuit, PauliPropagationCircuit):
-            # Native type - just validate and return
-            return circuit
-
-        # Try to convert generic QuantumCircuit from its internal Qiskit representation
-        if hasattr(circuit, "_qiskit_circuit"):
-            # This is the generic QuantumCircuit - extract and convert
-            qiskit_circuit = circuit._qiskit_circuit
-            gates = convert_circuit(qiskit_circuit, use_cache=True)
-
-            # Create new PauliPropagationCircuit and populate with converted gates
-            pp_circuit = PauliPropagationCircuit(circuit.num_qubits)
-            pp_circuit._gates = gates
-            # Note: parameters are handled through bind_parameters during execution
-            return pp_circuit
-
-        raise TypeError(
-            f"PauliPropagationExecutor._transpile_circuit() expects "
-            f"PauliPropagationCircuit or generic QuantumCircuit, got {type(circuit).__name__}"
-        )
+        return PauliPropagationCircuit.from_quantum_circuit(circuit)
 
     @overload
     def transpile_observable(
         self,
         operator: QuantumOperatorBase,
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
-    ) -> PauliPropagationObservable:
-        ...
+    ) -> PauliPropagationObservable: ...
+
+    @overload
+    def transpile_observable(
+        self,
+        operator: QuantumOperatorBase,
+        symmetry_strategy: "SymmetryStrategy",
+    ) -> PauliPropagationObservable: ...
 
     @overload
     def transpile_observable(
         self,
         operator: List[QuantumOperatorBase],
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
-    ) -> List[PauliPropagationObservable]:
-        ...
+    ) -> List[PauliPropagationObservable]: ...
+
+    @overload
+    def transpile_observable(
+        self,
+        operator: List[QuantumOperatorBase],
+        symmetry_strategy: "SymmetryStrategy",
+    ) -> List[PauliPropagationObservable]: ...
 
     def transpile_observable(
         self,
@@ -605,7 +620,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 If provided, takes precedence over executor-level default.
 
         Returns:
-            Union[PauliPropagationObservable, List[PauliPropagationObservable]]: The 
+            Union[PauliPropagationObservable, List[PauliPropagationObservable]]: The
                 transpiled operator(s) in native format.
         """
         self._logger.info("Transpiling operator")
@@ -613,8 +628,28 @@ class PauliPropagationExecutor(ExecutorBase):
             return [self._transpile_observable_cached(op, symmetry_strategy) for op in operator]
         return self._transpile_observable_cached(operator, symmetry_strategy)
 
-    def _transpile_observable(
-        self, operator: QuantumOperatorBase, symmetry_strategy: Optional[object] = None
+    def _transpile_observable_cached(
+        self,
+        operator: QuantumOperatorBase,
+        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+    ) -> PauliPropagationObservable:
+        if self._result_cache is not None:
+            key = self._make_result_key("transpile_observable", operator, symmetry_strategy)
+            if key in self._result_cache:
+                self._logger.debug("Result cache hit for transpile_observable")
+                return self._result_cache[key]
+            result = self._transpile_observable_with_symmetry(operator, symmetry_strategy)
+            self._result_cache[key] = result
+            return result
+        return self._transpile_observable_with_symmetry(operator, symmetry_strategy)
+
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> PauliPropagationObservable:
+        return self._transpile_observable_with_symmetry(operator)
+
+    def _transpile_observable_with_symmetry(
+        self,
+        operator: QuantumOperatorBase,
+        symmetry_strategy: Optional["SymmetryStrategy"] = None,
     ) -> PauliPropagationObservable:
         """Transpile an operator to PauliPropagationObservable format.
 
@@ -633,36 +668,13 @@ class PauliPropagationExecutor(ExecutorBase):
         Raises:
             TypeError: If operator type is not supported
         """
-        if isinstance(operator, PauliPropagationObservable):
-            # Native type - update symmetry if needed and return
-            result = operator
-            if symmetry_strategy is not None:
-                result.symmetry = symmetry_strategy
-            elif not result.has_active_symmetry:
-                # Use executor default if observable has no active symmetry
-                result.symmetry = self.symmetry_strategy
-            return result
-
-        # Try to convert generic QuantumOperator
-        try:
-            # Generic QuantumOperator with Pauli interface
-            paulis = operator.paulis
-            coeffs = operator.coeffs
-            effective_symmetry = (
-                symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy
-            )
-            return PauliPropagationObservable(
-                paulis=paulis,
-                coeffs=coeffs,
-                symmetry_strategy=effective_symmetry,
-            )
-        except (AttributeError, TypeError):
-            pass
-
-        raise TypeError(
-            f"PauliPropagationExecutor._transpile_observable() expects "
-            f"PauliPropagationObservable or generic QuantumOperator, got {type(operator).__name__}"
+        effective_symmetry = (
+            symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy
         )
+        result = PauliPropagationObservable.from_quantum_operator(operator, effective_symmetry)
+        if not result.has_active_symmetry:
+            result.symmetry = effective_symmetry
+        return result
 
     def get_truncation_stats(self) -> Optional[TruncationStats]:
         """Get statistics from last truncation operation.

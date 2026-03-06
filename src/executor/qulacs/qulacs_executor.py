@@ -29,6 +29,9 @@ class QulacsExecutor(ExecutorBase):
             in-memory cache. ``None`` means unlimited. Defaults to None.
     """
 
+    _native_circuit_class = QulacsCircuit
+    _native_observable_class = QulacsObservable
+
     def __init__(
         self,
         shots: Union[int, None] = None,
@@ -621,18 +624,19 @@ class QulacsExecutor(ExecutorBase):
         Returns:
             QulacsCircuit: The corresponding QulacsCircuit.
         """
-        return QulacsCircuit(circuit)
+        if isinstance(circuit, self._native_circuit_class):
+            return circuit
+        return self._native_circuit_class.from_quantum_circuit(circuit)
 
-    def _transpile_observable(
-        self, operator: QuantumOperatorBase, symmetry_strategy=None
-    ) -> QulacsObservable:
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> QulacsObservable:
         """Transpile a generic QuantumOperator to a Qulacs QuantumOperator.
 
         Args:
             operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
-            symmetry_strategy: Ignored for Qulacs backend (no symmetry support).
 
         Returns:
             QulacsObservable: The corresponding QulacsObservable.
         """
-        return QulacsObservable(operator)
+        if isinstance(operator, self._native_observable_class):
+            return operator
+        return self._native_observable_class.from_quantum_operator(operator)

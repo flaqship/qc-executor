@@ -18,6 +18,12 @@ class QuantumOperatorBase(ABC):
     ):
         self._num_qubits = num_qubits
 
+    @classmethod
+    @abstractmethod
+    def from_quantum_operator(cls, operator: "QuantumOperatorBase") -> "QuantumOperatorBase":
+        """Create a backend-native operator from a generic quantum operator."""
+        raise NotImplementedError
+
     @property
     def num_qubits(self) -> int:
         """Return the number of qubits in the circuit."""

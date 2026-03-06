@@ -74,7 +74,10 @@ class Executor:
         """Create an executor instance for the specified backend.
 
         Args:
-            backend: Name of the backend (e.g., "qiskit", "pennylane", "qulacs")
+            backend: Name of the backend (e.g., "qiskit", "pennylane", "qulacs").
+                May also be a Qiskit ``Backend`` / ``BackendV2`` instance, in
+                which case the ``"qiskit"`` executor is used automatically and
+                the object is forwarded as ``backend=<instance>``.
             **kwargs: Configuration parameters passed to the backend constructor
 
         Returns:
@@ -87,6 +90,10 @@ class Executor:
             >>> executor = Executor.create("qiskit", shots=1024, seed=42)
             >>> executor = Executor.create("pennylane", shots=1000)
         """
+        # Accept a Backend object and route to the qiskit executor
+        if not isinstance(backend, str):
+            return cls.from_backend(backend, **kwargs)
+
         # Try to find backend in registry
         if backend not in cls._registry:
             # Try discovering plugins if not done yet
@@ -109,6 +116,52 @@ class Executor:
         backend_class = cls._registry[backend]
         logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
         return backend_class(**kwargs)
+
+    @classmethod
+    def from_backend(cls, backend, **kwargs) -> "ExecutorBase":
+        """Create an executor from a Qiskit ``Backend`` / ``BackendV2`` instance.
+
+        This is a convenience entry-point for IBM Quantum hardware and
+        noise-aware fake backends.  The *backend* object is forwarded to
+        :class:`~executor.qiskit.qiskit_executor.QiskitExecutor`.
+
+        Args:
+            backend: A Qiskit :class:`~qiskit.providers.Backend` instance
+                (e.g. obtained from ``QiskitRuntimeService``).
+            **kwargs: Extra arguments forwarded to ``QiskitExecutor``
+                (``shots``, ``seed``, ``execution_mode``, ``options``, …).
+
+        Returns:
+            A ``QiskitExecutor`` instance configured for the given backend.
+
+        Raises:
+            ValueError: If the ``"qiskit"`` backend is not registered.
+
+        Example:
+            >>> from qiskit_ibm_runtime import QiskitRuntimeService
+            >>> service = QiskitRuntimeService()
+            >>> ibm_backend = service.least_busy(operational=True, simulator=False)
+            >>> executor = Executor.from_backend(ibm_backend, shots=1024)
+        """
+        # Ensure the qiskit backend is discovered
+        if "qiskit" not in cls._registry:
+            if not cls._plugins_discovered:
+                cls._discover_plugins()
+
+        if "qiskit" not in cls._registry:
+            raise ValueError(
+                "The 'qiskit' backend is not available. "
+                "Install with: pip install executor[qiskit-full]"
+            )
+
+        backend_class = cls._registry["qiskit"]
+        logger.info(
+            "Creating %s from backend instance: %s (kwargs: %s)",
+            backend_class.__name__,
+            backend,
+            kwargs,
+        )
+        return backend_class(backend=backend, **kwargs)
 
     @classmethod
     def _discover_plugins(cls) -> None:

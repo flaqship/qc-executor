@@ -11,8 +11,6 @@ import pytest
 # Skip the entire module if qiskit-ibm-runtime is not installed
 qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
 
-from qiskit.circuit import ParameterVector
-
 from executor.qiskit.qiskit_executor import (
     QiskitExecutor,
     _is_backend_instance,

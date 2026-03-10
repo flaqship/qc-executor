@@ -1,4 +1,4 @@
-from .optree import (
+from .optree import (  # pylint: disable=cyclic-import
     OpTree,
     OpTreeList,
     OpTreeSum,
@@ -10,8 +10,8 @@ from .optree import (
     OpTreeValue,
 )
 
-from .optree_evaluate import OpTreeEvaluate
-from .optree_derivative import OpTreeDerivative
+from .optree_evaluate import OpTreeEvaluate  # pylint: disable=cyclic-import
+from .optree_derivative import OpTreeDerivative  # pylint: disable=cyclic-import
 
 __all__ = [
     "OpTree",

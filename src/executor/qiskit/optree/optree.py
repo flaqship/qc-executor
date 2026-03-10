@@ -5,6 +5,7 @@ from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.circuit import ParameterExpression
 
+# pylint: disable=cyclic-import
 from ...utils.qiskit_hash_functions import _circuit_key, _observable_key
 
 

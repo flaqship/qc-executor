@@ -5,13 +5,8 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import List, Union
 
-from qiskit.circuit import ParameterExpression, ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
-
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
-
-from ..parameters import Parameter, Parameters
 
 
 class _BoundedCache(OrderedDict):
@@ -371,7 +366,7 @@ class ExecutorBase(ABC):
             >>> # qulacs_executor has shots=2048, seed=42
         """
         # Lazy import to avoid circular dependencies
-        from executor import Executor
+        from executor.factory import Executor  # pylint: disable=cyclic-import
 
         # Get current config and apply overrides
         config = self.get_config()

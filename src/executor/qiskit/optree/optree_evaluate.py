@@ -7,6 +7,7 @@ from qiskit.circuit import QuantumCircuit
 from qiskit.circuit import ParameterExpression, Clbit
 from qiskit.quantum_info import SparsePauliOp, PauliList, Pauli
 
+# pylint: disable=cyclic-import
 from ...utils.decompose_to_std import decompose_to_std
 from ...utils.data_preprocessing import ensure_complex_coeffs
 from ...utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0

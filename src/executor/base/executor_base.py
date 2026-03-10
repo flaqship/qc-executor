@@ -207,7 +207,7 @@ class ExecutorBase(ABC):
         operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
         *derivative,
         **parameters,
-    ) -> Union[float, np.array]:
+    ) -> Union[float, np.array, dict]:
         """
         Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
 
@@ -218,7 +218,9 @@ class ExecutorBase(ABC):
             parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
 
         Returns:
-            Union[float, np.array]: The derivative of the expectation value either as a single float or as an numpy array.
+            Union[float, np.array, dict]: The derivative of the expectation value:
+                - single float/array if one derivative parameter is requested
+                - dictionary mapping parameter names to gradient arrays if multiple parameters are requested
         """
         self._logger.info("Computing expectation value derivatives")
         if self._result_cache is not None:

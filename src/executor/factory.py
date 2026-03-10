@@ -1,6 +1,6 @@
 """Factory class for creating executor instances with plugin support."""
 
-from typing import Callable, Type
+from typing import Any, Callable, Type, Union
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class Executor:
         return decorator
 
     @classmethod
-    def create(cls, backend: str, **kwargs) -> "ExecutorBase":
+    def create(cls, backend: Union[str, Any], **kwargs) -> "ExecutorBase":
         """Create an executor instance for the specified backend.
 
         Args:

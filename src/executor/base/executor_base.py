@@ -3,7 +3,7 @@ import os
 import numpy as np
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import List, Union
+from typing import Any, List, Union
 
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
@@ -343,14 +343,19 @@ class ExecutorBase(ABC):
             "max_cache_size": self._max_cache_size,
         }
 
-    def switch_backend(self, backend: str, **overrides) -> "ExecutorBase":
+    def switch_backend(self, backend: Union[str, Any], **overrides) -> "ExecutorBase":
         """Switch to a different backend while preserving configuration.
 
         Creates a new executor instance with the specified backend, copying
         the current configuration and applying any overrides.
 
         Args:
-            backend: Name of the backend to switch to (e.g., "qiskit", "pennylane", "qulacs")
+            backend: Name of the backend to switch to (e.g., ``"qiskit"``,
+                ``"pennylane"``, ``"qulacs"``).  May also be a Qiskit
+                ``Backend`` / ``BackendV2`` instance (e.g. obtained from
+                ``QiskitRuntimeService``), in which case the ``"qiskit"``
+                executor is used automatically and the object is forwarded
+                as ``backend=<instance>``.
             **overrides: Configuration parameters to override (e.g., shots=2048)
 
         Returns:
@@ -364,6 +369,12 @@ class ExecutorBase(ABC):
             >>> # Override specific parameters
             >>> qulacs_executor = executor.switch_backend("qulacs", shots=2048)
             >>> # qulacs_executor has shots=2048, seed=42
+            >>>
+            >>> # Switch to a real IBM Quantum backend
+            >>> from qiskit_ibm_runtime import QiskitRuntimeService
+            >>> service = QiskitRuntimeService()
+            >>> ibm_backend = service.least_busy(operational=True, simulator=False)
+            >>> ibm_executor = executor.switch_backend(ibm_backend)
         """
         # Lazy import to avoid circular dependencies
         from executor.factory import Executor  # pylint: disable=cyclic-import

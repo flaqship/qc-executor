@@ -7,9 +7,8 @@ Encoding scheme: 2 bits per qubit
 - 11 = Z
 
 Internal encoding stays little-endian by qubit index, i.e. qubit 0 occupies
-the least-significant two bits. The public string representation follows the
-same convention as PennyLane, Qulacs, and Qiskit labels: qubit 0 is the
-rightmost character.
+the least-significant two bits. The public string representation uses standard
+mathematical convention: qubit 0 is the leftmost character.
 """
 
 from typing import Tuple
@@ -123,10 +122,10 @@ def term_to_string(term: int, nqubits: int) -> str:
         nqubits: Number of qubits
 
     Returns:
-        String like "IXYZ..." (qubit 0 is rightmost)
+        String like "IXYZ..." (qubit 0 is leftmost)
     """
     symbols = []
-    for qubit_index in reversed(range(nqubits)):
+    for qubit_index in range(nqubits):
         pauli_int = get_pauli(term, qubit_index, nqubits)
         symbols.append(int_to_symbol(pauli_int))
     return "".join(symbols)
@@ -136,7 +135,7 @@ def string_to_term(pauli_string: str, nqubits: int) -> int:
     """Convert string representation to bit-encoded term.
 
     Args:
-        pauli_string: String like "IXYZ..." (qubit 0 is rightmost)
+        pauli_string: String like "IXYZ..." (qubit 0 is leftmost)
         nqubits: Number of qubits
 
     Returns:
@@ -148,7 +147,7 @@ def string_to_term(pauli_string: str, nqubits: int) -> int:
     term = 0
     for string_index, symbol in enumerate(pauli_string):
         pauli_int = symbol_to_int(symbol)
-        qubit_index = nqubits - 1 - string_index
+        qubit_index = string_index
         term = set_pauli(term, qubit_index, pauli_int, nqubits)
     return term
 

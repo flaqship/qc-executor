@@ -118,12 +118,12 @@ class TestStringConversion:
     """Test string to term conversion."""
 
     def test_term_to_string(self):
-        # Term = 0b11_10_01_00 = ZYXI (qubit 0 rightmost)
+        # Term = 0b11_10_01_00 = IXYZ (qubit 0 leftmost)
         term = 0b11100100
-        assert term_to_string(term, 4) == "ZYXI"
+        assert term_to_string(term, 4) == "IXYZ"
 
     def test_string_to_term(self):
-        assert string_to_term("ZYXI", 4) == 0b11100100
+        assert string_to_term("IXYZ", 4) == 0b11100100
         assert string_to_term("IIII", 4) == 0
         assert string_to_term("XXXX", 4) == 0b01010101
 

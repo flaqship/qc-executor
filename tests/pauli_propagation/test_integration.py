@@ -156,9 +156,9 @@ class TestDerivativesNative:
             pop=[0.5, 0.6],
         )
 
-        assert np.allclose(gradients["p"], np.array([-0.001499775010124783]), atol=1e-10)
-        assert np.allclose(gradients["pop"], np.array([0.9995500337489875, 0.0]), atol=1e-10)
-        assert np.allclose(gradients["x"], np.array([-0.00449932503037435]), atol=1e-10)
+        assert np.allclose(gradients["p"], np.array([-0.001799730012149741]), atol=1e-10)
+        assert np.allclose(gradients["pop"], np.array([0.0, 0.9995500337489875]), atol=1e-10)
+        assert np.allclose(gradients["x"], np.array([-0.005399190036449223]), atol=1e-10)
 
 
 class TestFactoryIntegration:

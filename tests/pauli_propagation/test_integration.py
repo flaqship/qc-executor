@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+import sympy as sp
 
 from executor.base import ExecutorBase
 from executor.factory import Executor
@@ -130,6 +131,34 @@ class TestDerivativesNative:
         fd_grad = (f_plus - f_minus) / (2 * eps)
 
         assert np.isclose(grad, fd_grad, atol=1e-6)
+
+    def test_derivative_with_composite_gate_expression_matches_expected_values(self):
+        executor = PauliPropagationExecutor()
+
+        x = Parameters("x", 1)
+        p = Parameters("p", 2)
+        circuit = PauliPropagationCircuit(2)
+        circuit.h(0)
+        circuit.ryy(0, 1, p[0] * x[0])
+
+        operator = PauliPropagationObservable(
+            ["ZI", "IZ"], [sp.Symbol("pop[0]"), sp.Symbol("pop[1]")]
+        )
+
+        gradients = executor.expectation_value_derivatives(
+            circuit,
+            operator,
+            "p",
+            "pop",
+            "x",
+            x=[0.1],
+            p=[0.3],
+            pop=[0.5, 0.6],
+        )
+
+        assert np.allclose(gradients["p"], np.array([-0.001499775010124783]), atol=1e-10)
+        assert np.allclose(gradients["pop"], np.array([0.9995500337489875, 0.0]), atol=1e-10)
+        assert np.allclose(gradients["x"], np.array([-0.00449932503037435]), atol=1e-10)
 
 
 class TestFactoryIntegration:

@@ -16,7 +16,7 @@ from .propagation import propagate
 from .qiskit_converter import bind_parameters
 from .state_overlap import overlap_with_zero
 from .symmetry import NoSymmetry
-from .truncation import TruncationStats, truncate_by_coeff, truncate_combined
+from .truncation import TruncationStats, truncate_combined
 
 if TYPE_CHECKING:
     from .symmetry import SymmetryStrategy
@@ -76,6 +76,21 @@ def _normalize_parameters(parameters: Dict) -> Dict[str, float]:
             )
 
     return normalized
+
+
+def _evaluate_symbolic_expression(expression, parameters: Dict[str, float]) -> float:
+    """Evaluate a symbolic expression with normalized parameter values."""
+    subs_dict = {}
+    for symbol in expression.free_symbols:
+        param_name = symbol.name
+        if param_name not in parameters:
+            raise ValueError(f"Missing parameter value for '{param_name}'")
+        subs_dict[symbol] = parameters[param_name]
+
+    result = expression.subs(subs_dict)
+    if not result.is_number:
+        raise ValueError(f"Expression {expression} could not be fully evaluated")
+    return float(result)
 
 
 def _derivative_param_to_name(param):
@@ -366,6 +381,8 @@ class PauliPropagationExecutor(ExecutorBase):
 
         is_single_derivative = len(param_names) == 1
 
+        normalized_parameter_values = _normalize_parameters(parameter_values)
+
         # Build a mapping from base parameter names to their values
         param_mapping = {}
         for key, value in parameter_values.items():
@@ -386,6 +403,8 @@ class PauliPropagationExecutor(ExecutorBase):
         else:
             native_circuit = PauliPropagationCircuit.from_quantum_circuit(circuit)
         circuit_params = set(native_circuit.parameters)
+        uses_indexed_names = observable_params | circuit_params
+        bound_circuit = native_circuit.assign_parameters(normalized_parameter_values)
 
         # Compute gradients for each derivative parameter
         result_dict = {}
@@ -437,7 +456,7 @@ class PauliPropagationExecutor(ExecutorBase):
                     circ_param.startswith(base_name + "[") for circ_param in circuit_params
                 )
 
-            for idx, param_value in enumerate(param_values_list):
+            for idx, _param_value in enumerate(param_values_list):
                 gradient = 0.0
 
                 # For indexed parameters, use the full indexed name
@@ -446,7 +465,10 @@ class PauliPropagationExecutor(ExecutorBase):
                 if "[" not in param_name and "[" in base_name:
                     # param_name was already indexed
                     pass
-                elif "[" not in param_name and len(param_values_list) > 1:
+                elif "[" not in param_name and (
+                    len(param_values_list) > 1
+                    or any(name.startswith(base_name + "[") for name in uses_indexed_names)
+                ):
                     # Base name with multiple values - use indexed notation
                     effective_param_name = f"{base_name}[{idx}]"
 
@@ -479,8 +501,8 @@ class PauliPropagationExecutor(ExecutorBase):
                             if param_symbol in coeff_expr.free_symbols:
                                 # Compute derivative: dcoeff/dparam
                                 coeff_derivative = sp.diff(coeff_expr, param_symbol)
-                                coeff_deriv_value = float(
-                                    coeff_derivative.subs(param_symbol, param_value)
+                                coeff_deriv_value = _evaluate_symbolic_expression(
+                                    coeff_derivative, normalized_parameter_values
                                 )
 
                                 # Create single-term observable for this Pauli
@@ -501,46 +523,69 @@ class PauliPropagationExecutor(ExecutorBase):
 
                 # === CIRCUIT CONTRIBUTION ===
                 if in_circuit:
-                    # Use parameter-shift rule for circuit parameters
-                    # Handle indexed vs. non-indexed format differently
-                    is_indexed = "[" in param_name
+                    effective_symbol = native_circuit._parameters.get(effective_param_name)
+                    if effective_symbol is None and effective_param_name == base_name:
+                        effective_symbol = native_circuit._parameters.get(base_name)
 
-                    params_plus = dict(parameter_values)
-                    params_minus = dict(parameter_values)
+                    if effective_symbol is not None:
+                        from .gates import PauliRotation
 
-                    if is_indexed:
-                        # For indexed format like "theta[0]", keep as scalar
-                        params_plus[param_name] = param_value + np.pi / 2
-                        params_minus[param_name] = param_value - np.pi / 2
-                    else:
-                        # For base format like "theta", handle list vs. scalar
-                        if param_name in params_plus and isinstance(
-                            params_plus[param_name], (list, tuple)
+                        for gate_index, (source_gate, bound_gate) in enumerate(
+                            zip(native_circuit.gates, bound_circuit.gates)
                         ):
-                            params_plus[param_name] = list(params_plus[param_name])
-                            params_plus[param_name][idx] = param_value + np.pi / 2
-                        else:
-                            params_plus[param_name] = [param_value + np.pi / 2]
+                            if not isinstance(source_gate, PauliRotation):
+                                continue
+                            if source_gate.param_expr is None:
+                                continue
+                            if effective_symbol not in source_gate.param_expr.free_symbols:
+                                continue
 
-                        if param_name in params_minus and isinstance(
-                            params_minus[param_name], (list, tuple)
-                        ):
-                            params_minus[param_name] = list(params_minus[param_name])
-                            params_minus[param_name][idx] = param_value - np.pi / 2
-                        else:
-                            params_minus[param_name] = [param_value - np.pi / 2]
+                            angle_derivative = sp.diff(source_gate.param_expr, effective_symbol)
+                            angle_derivative_value = _evaluate_symbolic_expression(
+                                angle_derivative, normalized_parameter_values
+                            )
+                            if np.isclose(angle_derivative_value, 0.0):
+                                continue
 
-                    # Compute expectation values with shifted parameters
-                    exp_plus = self.expectation_value(
-                        native_circuit, native_operator, **params_plus
-                    )
-                    exp_minus = self.expectation_value(
-                        native_circuit, native_operator, **params_minus
-                    )
+                            current_angle = self._resolve_angle(
+                                bound_gate, normalized_parameter_values
+                            )
 
-                    # Apply parameter-shift rule
-                    circuit_gradient = (exp_plus - exp_minus) / 2.0
-                    gradient += circuit_gradient
+                            shifted_plus_circuit = bound_circuit.copy()
+                            shifted_minus_circuit = bound_circuit.copy()
+
+                            shifted_plus_circuit._gates[gate_index] = PauliRotation(
+                                list(bound_gate.symbols),
+                                (
+                                    bound_gate.qubits
+                                    if len(bound_gate.qubits) > 1
+                                    else bound_gate.qubits[0]
+                                ),
+                                shifted_plus_circuit.num_qubits,
+                                param_expr=None,
+                                param_value=current_angle + np.pi / 2,
+                            )
+                            shifted_minus_circuit._gates[gate_index] = PauliRotation(
+                                list(bound_gate.symbols),
+                                (
+                                    bound_gate.qubits
+                                    if len(bound_gate.qubits) > 1
+                                    else bound_gate.qubits[0]
+                                ),
+                                shifted_minus_circuit.num_qubits,
+                                param_expr=None,
+                                param_value=current_angle - np.pi / 2,
+                            )
+
+                            exp_plus = self.expectation_value(
+                                shifted_plus_circuit, native_operator, **parameter_values
+                            )
+                            exp_minus = self.expectation_value(
+                                shifted_minus_circuit, native_operator, **parameter_values
+                            )
+
+                            gate_gradient = (exp_plus - exp_minus) / 2.0
+                            gradient += angle_derivative_value * gate_gradient
 
                 gradients_for_param.append(gradient)
 
@@ -633,20 +678,7 @@ class PauliPropagationExecutor(ExecutorBase):
             The resolved angle as a float
         """
         if gate.param_expr is not None:
-            # Symbolic expression - substitute parameter values
-            import sympy as sp
-
-            subs_dict = {}
-            for symbol in gate.param_expr.free_symbols:
-                param_name = symbol.name
-                if param_name not in parameters:
-                    raise ValueError(f"Missing parameter value for '{param_name}'")
-                subs_dict[symbol] = parameters[param_name]
-
-            result = gate.param_expr.subs(subs_dict)
-            if not result.is_number:
-                raise ValueError(f"Expression {gate.param_expr} could not be fully evaluated")
-            return float(result)
+            return _evaluate_symbolic_expression(gate.param_expr, parameters)
 
         if gate.param_value is None:
             raise ValueError("Parametric gate has neither param_expr nor param_value.")

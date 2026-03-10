@@ -81,11 +81,17 @@ class QiskitCircuit:
             if not isinstance(values, (list, np.ndarray)):
                 values = [values]
 
-            # Match parameters from circuit with provided values
-            matching_params = [p for p in self._free_parameters if p.vector.name == param_name]
+            # Match parameters from circuit with provided values.
+            # Guard against standalone Parameter objects (no .vector/.index).
+            def _param_name(p) -> str:
+                return p.vector.name if hasattr(p, "vector") else p.name
 
+            def _param_index(p) -> int:
+                return p.index if hasattr(p, "index") else 0
+
+            matching_params = [p for p in self._free_parameters if _param_name(p) == param_name]
             # Sort by index to ensure correct ordering
-            matching_params = sorted(matching_params, key=lambda x: x.index)
+            matching_params = sorted(matching_params, key=_param_index)
 
             for i, param in enumerate(matching_params):
                 if i < len(values):

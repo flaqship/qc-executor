@@ -238,6 +238,7 @@ class QiskitExecutor(ExecutorBase):
         self._ibm_quantum_backend: bool = False
         self._execution_mode = execution_mode
         self._options = options
+        self._sampler_uses_v1_api: bool = QISKIT_SMALLER_1_2
 
         # ── Local simulator backends ──────────────────────────────────────
         if isinstance(backend, str):
@@ -287,11 +288,16 @@ class QiskitExecutor(ExecutorBase):
             # real IBM session is available.
             if self._runtime_primitives_version == "v1" and not self._ibm_quantum_backend:
                 # Local / fake backend with old runtime -> use Qiskit-local primitives
+                # (BackendEstimator / BackendSampler – V2 API on Qiskit >= 1.2)
                 self._estimator = BackendEstimator(backend=self._backend)
                 self._sampler = BackendSampler(backend=self._backend)
+                # The local fallback primitives use V2 API on Qiskit >= 1.2 even
+                # though _runtime_primitives_version is "v1".
+                self._sampler_uses_v1_api: bool = QISKIT_SMALLER_1_2
             else:
                 self._estimator = self._create_runtime_estimator()
                 self._sampler = self._create_runtime_sampler()
+                self._sampler_uses_v1_api = self._runtime_primitives_version == "v1"
 
             logger.info(
                 "Initialised QiskitExecutor with %s (remote=%s, mode=%s)",
@@ -944,9 +950,7 @@ class QiskitExecutor(ExecutorBase):
         # * Qiskit >= 1.2 with V2 primitives → run(pubs, shots=...)
         #   This applies to StatevectorSampler, BackendSamplerV2 and
         #   RuntimeSamplerV2 alike.
-        use_v1_api = (
-            QISKIT_SMALLER_1_2 or getattr(self, "_runtime_primitives_version", "v2") == "v1"
-        )
+        use_v1_api = self._sampler_uses_v1_api
         if use_v1_api:
             # V1: pass a plain list of circuits
             job = self._sampler.run(bound_circuits, shots=self._shots)

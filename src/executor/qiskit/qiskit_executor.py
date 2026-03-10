@@ -1030,25 +1030,7 @@ class QiskitExecutor(ExecutorBase):
             QiskitCircuit: The corresponding QiskitCircuit.
         """
         qc = QiskitCircuit(circuit)
-
-        if self._backend is not None and _is_backend_instance(self._backend):
-            # ISA transpilation for real / fake IBM backends
-            try:
-                from qiskit.transpiler.preset_passmanagers import (
-                    generate_preset_pass_manager,
-                )
-
-                pm = generate_preset_pass_manager(
-                    optimization_level=1,
-                    backend=self._backend,
-                )
-                isa_circuit = pm.run(qc._qiskit_circuit)
-                return QiskitCircuit._from_qiskit(isa_circuit)
-            except ImportError:
-                # generate_preset_pass_manager unavailable (Qiskit < 1.2)
-                from qiskit import transpile
-
-                transpiled = transpile(qc._qiskit_circuit, backend=self._backend)
-                return QiskitCircuit._from_qiskit(transpiled)
-
+        isa_circuit = self._isa_transpile_qiskit_circuit(qc._qiskit_circuit)
+        if isa_circuit is not qc._qiskit_circuit:
+            return QiskitCircuit._from_qiskit(isa_circuit)
         return qc

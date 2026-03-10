@@ -528,6 +528,12 @@ class QiskitExecutor(ExecutorBase):
         try:
             return operator.apply_layout(layout)
         except Exception:
+            logger.warning(
+                "Failed to apply layout to operator; using original operator. "
+                "This may lead to incorrect expectation values if the operator "
+                "does not match the transpiled circuit's qubit mapping.",
+                exc_info=True,
+            )
             return operator
 
     def _convert_to_optree(

@@ -110,11 +110,7 @@ def _load_runtime_options_v1():
 
 def _load_runtime_session():
     """Return the ``Session`` class from *qiskit-ibm-runtime*."""
-    if not QISKIT_RUNTIME_AVAILABLE:
-        raise ImportError(
-            "qiskit-ibm-runtime is required for IBM backend support. "
-            "Install with: pip install executor[qiskit-full]"
-        )
+    _check_runtime_available()
     from qiskit_ibm_runtime import Session
 
     return Session

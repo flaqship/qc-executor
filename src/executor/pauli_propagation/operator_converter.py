@@ -3,9 +3,7 @@
 Handles conversion from various Qiskit operator types to our internal PauliSum representation.
 """
 
-from typing import Union
-
-import numpy as np
+from typing import TYPE_CHECKING, Union
 
 from .pauli_types import PauliSum
 
@@ -75,15 +73,9 @@ def _convert_sparse_pauli_op(sparse_op: "SparsePauliOp") -> PauliSum:
 
     # Iterate through Pauli terms and coefficients
     for pauli, coeff in zip(sparse_op.paulis, sparse_op.coeffs):
-        # Convert Pauli to string (Qiskit uses reverse qubit ordering)
+        # Qiskit labels already use the same public ordering as Pauli propagation.
         pauli_str = pauli.to_label()
-
-        # Qiskit labels are in reverse order (rightmost = qubit 0)
-        # Our convention: leftmost = qubit 0
-        # So we need to reverse the string
-        pauli_str_reversed = pauli_str[::-1]
-
-        psum.add_term(pauli_str_reversed, complex(coeff))
+        psum.add_term(pauli_str, complex(coeff))
 
     return psum
 
@@ -100,11 +92,9 @@ def _convert_pauli(pauli: "Pauli") -> PauliSum:
     nqubits = pauli.num_qubits
     psum = PauliSum(nqubits)
 
-    # Convert to string and reverse (Qiskit uses opposite qubit ordering)
+    # Qiskit labels already use the same public ordering as Pauli propagation.
     pauli_str = pauli.to_label()
-    pauli_str_reversed = pauli_str[::-1]
-
-    psum.add_term(pauli_str_reversed, 1.0)
+    psum.add_term(pauli_str, 1.0)
     return psum
 
 
@@ -131,13 +121,10 @@ def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> "SparsePauliOp":
     coeffs = []
 
     for term, coeff in psum:
-        # Convert term to string (our convention: leftmost = qubit 0)
+        # Convert term to string in the shared rightmost-qubit-0 convention.
         pauli_str = term_to_string(term, psum.nqubits)
 
-        # Reverse for Qiskit (rightmost = qubit 0)
-        pauli_str_reversed = pauli_str[::-1]
-
-        pauli_strings.append(pauli_str_reversed)
+        pauli_strings.append(pauli_str)
         coeffs.append(coeff)
 
     if len(pauli_strings) == 0:

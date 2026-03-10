@@ -30,29 +30,29 @@ def _as_list(obj):
 
 def _normalize_parameters(parameters: Dict) -> Dict[str, float]:
     """Normalize parameters from list format to indexed format.
-    
+
     Converts parameters from:
         {"x": [0.1], "p": [0.3], "pop": [0.5, 0.6]}
     To:
         {"x[0]": 0.1, "p[0]": 0.3, "pop[0]": 0.5, "pop[1]": 0.6}
-    
+
     Also accepts already-normalized parameters with indexed keys.
-    
+
     Args:
         parameters: Parameter dictionary, values can be floats or lists
-        
+
     Returns:
         Normalized parameter dictionary with indexed string keys
-        
+
     Raises:
         TypeError: If parameter value is neither float nor list
         ValueError: If parameter name is invalid
     """
     if not parameters:
         return {}
-    
+
     normalized = {}
-    
+
     for name, value in parameters.items():
         if isinstance(value, (list, tuple)):
             # Convert list format: x=[0.1, 0.2] -> {"x[0]": 0.1, "x[1]": 0.2}
@@ -74,7 +74,7 @@ def _normalize_parameters(parameters: Dict) -> Dict[str, float]:
                 f"Parameter '{name}' has invalid value type {type(value)}. "
                 f"Expected float or list of floats."
             )
-    
+
     return normalized
 
 
@@ -111,7 +111,7 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
 
     # Iteratively build up the tensor product
     for qubit_idx in range(nqubits):
-        bit = int(bitstring[qubit_idx])
+        bit = int(bitstring[nqubits - 1 - qubit_idx])
         sign = -1 if bit == 1 else 1
 
         # Multiply result by (I + sign*Z)/2 on this qubit
@@ -123,29 +123,29 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
             new_result.add_term(term, coeff / 2.0)
 
             # Add the Z component (apply Z to this qubit)
-            z_string = list("I" * nqubits)
-            # Build Pauli string with Z at qubit_idx
-            from .pauli_algebra import pauli_multiply, string_to_term, term_to_string
+            from .pauli_algebra import term_to_string
 
             term_str = term_to_string(term, nqubits)
             term_list = list(term_str)
 
             # Apply Z at qubit_idx
-            if term_list[qubit_idx] == "I":
-                term_list[qubit_idx] = "Z"
+            string_index = nqubits - 1 - qubit_idx
+
+            if term_list[string_index] == "I":
+                term_list[string_index] = "Z"
                 phase = 1
-            elif term_list[qubit_idx] == "X":
-                term_list[qubit_idx] = "Y"
+            elif term_list[string_index] == "X":
+                term_list[string_index] = "Y"
                 phase = 1j
-            elif term_list[qubit_idx] == "Y":
-                term_list[qubit_idx] = "X"
+            elif term_list[string_index] == "Y":
+                term_list[string_index] = "X"
                 phase = -1j
-            elif term_list[qubit_idx] == "Z":
+            elif term_list[string_index] == "Z":
                 # Z * Z = I
-                term_list[qubit_idx] = "I"
+                term_list[string_index] = "I"
                 phase = 1
             else:
-                raise ValueError(f"Unknown Pauli: {term_list[qubit_idx]}")
+                raise ValueError(f"Unknown Pauli: {term_list[string_index]}")
 
             new_term_str = "".join(term_list)
             new_result.add_term(new_term_str, sign * coeff * phase / 2.0)
@@ -273,11 +273,16 @@ class PauliPropagationExecutor(ExecutorBase):
 
         # Normalize parameters from list format (x=[0.1]) to indexed format (x[0]=0.1)
         normalized_params = _normalize_parameters(parameters)
-        
+
         # Bind parameters if needed (bind_parameters expects gates list, not circuit)
         bound_params = bind_parameters(gates, normalized_params)
 
-        observable = operator.pauli_sum
+        # Assign parameters to observable if it has parametric coefficients
+        effective_operator = operator
+        if operator.is_parametrized:
+            effective_operator = operator.assign_parameters(normalized_params)
+
+        observable = effective_operator.pauli_sum
 
         # Use observable-level symmetry when explicitly configured.
         # Fall back to executor-level symmetry otherwise.
@@ -315,8 +320,12 @@ class PauliPropagationExecutor(ExecutorBase):
         operator,
         *derivative_params,
         **parameter_values,
-    ) -> Union[float, np.ndarray]:
-        """Calculate derivatives of expectation value using parameter-shift rule.
+    ) -> Union[float, np.ndarray, dict]:
+        """Calculate derivatives of expectation value.
+
+        Handles circuit parameters (via parameter-shift rule) and observable
+        coefficient parameters (via analytical derivatives). When a parameter
+        appears in both, contributions are computed separately and summed.
 
         Accepts both the library's QuantumCircuit/QuantumOperator wrappers
         and raw Qiskit types. Derivative parameters can be strings,
@@ -329,12 +338,14 @@ class PauliPropagationExecutor(ExecutorBase):
             **parameter_values: Parameter values (can be in list or indexed format)
 
         Returns:
-            Derivative of expectation value (float for single param, array for multiple)
+            If single param requested: numpy array or float of gradients
+            If multiple params requested: dict mapping param names to gradient arrays
         """
-        # Normalize parameters first
-        normalized_params = _normalize_parameters(parameter_values)
-        
-        # Convert derivative params to string names
+        import sympy as sp
+
+        from .pauli_algebra import term_to_string
+
+        # Convert derivative params to string names (base parameter names without indices)
         param_names = []
         for p in derivative_params:
             if isinstance(p, (list, tuple)):
@@ -344,40 +355,241 @@ class PauliPropagationExecutor(ExecutorBase):
             else:
                 param_names.append(_derivative_param_to_name(p))
 
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_param_names = []
+        for name in param_names:
+            if name not in seen:
+                unique_param_names.append(name)
+                seen.add(name)
+        param_names = unique_param_names
+
         is_single_derivative = len(param_names) == 1
 
+        # Build a mapping from base parameter names to their values
+        param_mapping = {}
+        for key, value in parameter_values.items():
+            if isinstance(value, (list, tuple)):
+                param_mapping[key] = value
+            else:
+                param_mapping[key] = [value]
+
+        # Get observable and circuit parameters
+        if isinstance(operator, PauliPropagationObservable):
+            native_operator = operator
+        else:
+            native_operator = self._transpile_observable(operator)
+        observable_params = set(native_operator.parameters)
+
+        if isinstance(circuit, PauliPropagationCircuit):
+            native_circuit = circuit
+        else:
+            native_circuit = PauliPropagationCircuit.from_quantum_circuit(circuit)
+        circuit_params = set(native_circuit.parameters)
+
         # Compute gradients for each derivative parameter
-        gradients = []
+        result_dict = {}
 
         for param_name in param_names:
-            # Get current parameter value (default to 0 if not provided)
-            param_value = normalized_params.get(param_name, 0.0)
+            # Normalize the param name (handle indexed format)
+            if "[" in param_name:
+                base_name = param_name.split("[")[0].strip()
+                # Extract the index from indexed format like "pop[0]"
+                index_str = param_name.split("[")[1].rstrip("]")
+                specific_index = int(index_str) if index_str.isdigit() else None
+            else:
+                base_name = param_name
+                specific_index = None
 
-            # Create shifted parameter dictionaries
-            params_plus = normalized_params.copy()
-            params_plus[param_name] = param_value + np.pi / 2
+            # Find the parameter value - could be under base_name or param_name
+            if param_name in param_mapping:
+                all_values = param_mapping[param_name]
+                if specific_index is not None and isinstance(all_values, (list, tuple)):
+                    # Indexed parameter - use only the specific index
+                    param_values_list = [all_values[specific_index]]
+                else:
+                    param_values_list = all_values
+            elif base_name in param_mapping:
+                all_values = param_mapping[base_name]
+                if specific_index is not None and isinstance(all_values, (list, tuple)):
+                    # Indexed parameter - use only the specific index
+                    param_values_list = [all_values[specific_index]]
+                else:
+                    param_values_list = all_values
+            else:
+                raise ValueError(f"Parameter '{param_name}' not found in provided values")
 
-            params_minus = normalized_params.copy()
-            params_minus[param_name] = param_value - np.pi / 2
+            gradients_for_param = []
 
-            # Compute expectation values with shifted parameters
-            exp_plus = self.expectation_value(circuit, operator, **params_plus)
-            exp_minus = self.expectation_value(circuit, operator, **params_minus)
+            # Classify parameter location
+            # For base_name, check if any parameter starts with it (handles indexed params)
+            in_observable = param_name in observable_params
+            if not in_observable and "[" not in param_name:
+                # Base name - check if any observable param starts with this base name
+                in_observable = any(
+                    obs_param.startswith(base_name + "[") for obs_param in observable_params
+                )
 
-            # Apply parameter-shift rule
-            gradient = (exp_plus - exp_minus) / 2.0
+            in_circuit = param_name in circuit_params
+            if not in_circuit and "[" not in param_name:
+                # Base name - check if any circuit param starts with this base name
+                in_circuit = any(
+                    circ_param.startswith(base_name + "[") for circ_param in circuit_params
+                )
 
-            gradients.append(gradient)
+            for idx, param_value in enumerate(param_values_list):
+                gradient = 0.0
 
-        # Return scalar for single derivative, array for multiple
+                # For indexed parameters, use the full indexed name
+                # For base parameters with multiple values, construct the indexed name
+                effective_param_name = param_name
+                if "[" not in param_name and "[" in base_name:
+                    # param_name was already indexed
+                    pass
+                elif "[" not in param_name and len(param_values_list) > 1:
+                    # Base name with multiple values - use indexed notation
+                    effective_param_name = f"{base_name}[{idx}]"
+
+                # === OBSERVABLE CONTRIBUTION ===
+                if in_observable:
+                    # Compute analytical derivative for observable coefficients
+                    # Use the actual symbol from the observable's parameter dict
+                    param_symbol = None
+                    if effective_param_name in native_operator._parameters:
+                        param_symbol = native_operator._parameters[effective_param_name]
+                    elif param_name in native_operator._parameters:
+                        param_symbol = native_operator._parameters[param_name]
+                    elif base_name in native_operator._parameters:
+                        param_symbol = native_operator._parameters[base_name]
+                    else:
+                        # Try to find a matching symbol by name
+                        for sym_name, sym in native_operator._parameters.items():
+                            if sym_name == effective_param_name or sym_name == param_name:
+                                param_symbol = sym
+                                break
+
+                    if (
+                        param_symbol is not None
+                        and hasattr(native_operator, "_parametric_coeffs")
+                        and native_operator._parametric_coeffs
+                    ):
+                        # Observable has parametric coefficients - iterate through them
+                        for term, coeff_expr in native_operator._parametric_coeffs.items():
+                            # Check if parameter appears in this coefficient
+                            if param_symbol in coeff_expr.free_symbols:
+                                # Compute derivative: dcoeff/dparam
+                                coeff_derivative = sp.diff(coeff_expr, param_symbol)
+                                coeff_deriv_value = float(
+                                    coeff_derivative.subs(param_symbol, param_value)
+                                )
+
+                                # Create single-term observable for this Pauli
+                                pauli_str = term_to_string(term, native_operator.num_qubits)
+                                single_term_obs = PauliPropagationObservable(
+                                    paulis=[pauli_str],
+                                    coeffs=[1.0],
+                                    num_qubits=native_operator.num_qubits,
+                                )
+
+                                # Compute expectation of this Pauli term
+                                term_exp = self.expectation_value(
+                                    native_circuit, single_term_obs, **parameter_values
+                                )
+
+                                # Add contribution: (dcoeff/dparam) * <Pauli>
+                                gradient += coeff_deriv_value * term_exp
+
+                # === CIRCUIT CONTRIBUTION ===
+                if in_circuit:
+                    # Use parameter-shift rule for circuit parameters
+                    # Handle indexed vs. non-indexed format differently
+                    is_indexed = "[" in param_name
+
+                    params_plus = dict(parameter_values)
+                    params_minus = dict(parameter_values)
+
+                    if is_indexed:
+                        # For indexed format like "theta[0]", keep as scalar
+                        params_plus[param_name] = param_value + np.pi / 2
+                        params_minus[param_name] = param_value - np.pi / 2
+                    else:
+                        # For base format like "theta", handle list vs. scalar
+                        if param_name in params_plus and isinstance(
+                            params_plus[param_name], (list, tuple)
+                        ):
+                            params_plus[param_name] = list(params_plus[param_name])
+                            params_plus[param_name][idx] = param_value + np.pi / 2
+                        else:
+                            params_plus[param_name] = [param_value + np.pi / 2]
+
+                        if param_name in params_minus and isinstance(
+                            params_minus[param_name], (list, tuple)
+                        ):
+                            params_minus[param_name] = list(params_minus[param_name])
+                            params_minus[param_name][idx] = param_value - np.pi / 2
+                        else:
+                            params_minus[param_name] = [param_value - np.pi / 2]
+
+                    # Compute expectation values with shifted parameters
+                    exp_plus = self.expectation_value(
+                        native_circuit, native_operator, **params_plus
+                    )
+                    exp_minus = self.expectation_value(
+                        native_circuit, native_operator, **params_minus
+                    )
+
+                    # Apply parameter-shift rule
+                    circuit_gradient = (exp_plus - exp_minus) / 2.0
+                    gradient += circuit_gradient
+
+                gradients_for_param.append(gradient)
+
+            # Store gradient(s) for this parameter
+            if len(gradients_for_param) == 1:
+                result_dict[param_name] = np.array([gradients_for_param[0]])
+            else:
+                result_dict[param_name] = np.array(gradients_for_param)
+
+        # Return format based on number of parameters requested
         if is_single_derivative:
-            return (
-                float(gradients[0])
-                if isinstance(gradients[0], (int, float, np.number))
-                else gradients[0]
-            )
+            # Return just the value for single parameter
+            single_key = list(result_dict.keys())[0]
+            single_value = result_dict[single_key]
+            # For indexed format or array format
+            if isinstance(single_value, np.ndarray):
+                if single_value.shape == (1,):
+                    return float(single_value[0])
+                return single_value
+            return float(single_value)
         else:
-            return np.array(gradients)
+            # For multiple parameters, group by base name if they're indexed
+            final_dict = {}
+            for key, value in result_dict.items():
+                if "[" in key:
+                    # Extract base name from indexed name
+                    import re
+
+                    match = re.match(r"(\w+)", key)
+                    if match:
+                        base_name = match.group(1)
+                        if base_name not in final_dict:
+                            final_dict[base_name] = {}
+                        # Extract index
+                        idx_match = re.search(r"\[(\d+)\]", key)
+                        idx = int(idx_match.group(1)) if idx_match else 0
+                        final_dict[base_name][idx] = value
+                else:
+                    # Base name format
+                    final_dict[key] = value
+
+            # Convert indexed dicts to arrays
+            for key in final_dict:
+                if isinstance(final_dict[key], dict):
+                    indices = sorted(final_dict[key].keys())
+                    final_dict[key] = np.array([final_dict[key][i] for i in indices])
+
+            # Return dictionary for multiple parameters
+            return final_dict
 
     @staticmethod
     def _apply_single_qubit_gate(
@@ -447,7 +659,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
         # Normalize parameters from list format to indexed format
         normalized_params = _normalize_parameters(parameters)
-        
+
         nqubits = circuit.num_qubits
         state = np.zeros(2**nqubits, dtype=complex)
         state[0] = 1.0

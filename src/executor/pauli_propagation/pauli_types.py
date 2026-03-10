@@ -87,7 +87,7 @@ class PauliString:
         """Convert to string representation.
 
         Returns:
-            String like "IXYZ..." (qubit 0 is leftmost)
+            String like "IXYZ..." (qubit 0 is rightmost)
         """
         return term_to_string(int(self.term), self.nqubits)
 

@@ -144,18 +144,18 @@ def _decode_pauli_to_string(term: int, nqubits: int) -> str:
         Bits:   00 01 10 11  (grouped by pairs from right)
         Qubits: [3][2][1][0]  (qubit indices, little-endian)
         Paulis:  I  X  Y  Z   (decoded symbols)
-        Result: "ZYXI"  (conventional order: qubit 0 first)
+        Result: "IXYZ"  (public order: qubit 0 rightmost)
 
     Args:
         term: Pauli term encoded as integer
         nqubits: Number of qubits
 
     Returns:
-        Human-readable Pauli string (e.g., "IXYZ")
+        Human-readable Pauli string (e.g., "IXYZ", qubit 0 rightmost)
     """
     pauli_map = {0: "I", 1: "X", 2: "Y", 3: "Z"}
     chars = []
-    for q in range(nqubits):
+    for q in reversed(range(nqubits)):
         # Extract 2 bits for this qubit
         pauli_bits = (term >> (2 * q)) & 0x3
         chars.append(pauli_map[pauli_bits])

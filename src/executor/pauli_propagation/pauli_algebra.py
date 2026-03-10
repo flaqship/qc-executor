@@ -5,6 +5,11 @@ Encoding scheme: 2 bits per qubit
 - 01 = X
 - 10 = Y
 - 11 = Z
+
+Internal encoding stays little-endian by qubit index, i.e. qubit 0 occupies
+the least-significant two bits. The public string representation follows the
+same convention as PennyLane, Qulacs, and Qiskit labels: qubit 0 is the
+rightmost character.
 """
 
 from typing import Tuple
@@ -118,11 +123,11 @@ def term_to_string(term: int, nqubits: int) -> str:
         nqubits: Number of qubits
 
     Returns:
-        String like "IXYZ..." (qubit 0 is leftmost)
+        String like "IXYZ..." (qubit 0 is rightmost)
     """
     symbols = []
-    for i in range(nqubits):
-        pauli_int = get_pauli(term, i, nqubits)
+    for qubit_index in reversed(range(nqubits)):
+        pauli_int = get_pauli(term, qubit_index, nqubits)
         symbols.append(int_to_symbol(pauli_int))
     return "".join(symbols)
 
@@ -131,7 +136,7 @@ def string_to_term(pauli_string: str, nqubits: int) -> int:
     """Convert string representation to bit-encoded term.
 
     Args:
-        pauli_string: String like "IXYZ..." (qubit 0 is leftmost)
+        pauli_string: String like "IXYZ..." (qubit 0 is rightmost)
         nqubits: Number of qubits
 
     Returns:
@@ -141,9 +146,10 @@ def string_to_term(pauli_string: str, nqubits: int) -> int:
         raise ValueError(f"String length {len(pauli_string)} doesn't match nqubits {nqubits}.")
 
     term = 0
-    for i, symbol in enumerate(pauli_string):
+    for string_index, symbol in enumerate(pauli_string):
         pauli_int = symbol_to_int(symbol)
-        term = set_pauli(term, i, pauli_int, nqubits)
+        qubit_index = nqubits - 1 - string_index
+        term = set_pauli(term, qubit_index, pauli_int, nqubits)
     return term
 
 

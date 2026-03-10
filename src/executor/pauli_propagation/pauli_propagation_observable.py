@@ -9,7 +9,7 @@ import sympy as sp
 
 from executor.base.operator_base import QuantumOperatorBase
 
-from .pauli_algebra import term_to_string
+from .pauli_algebra import get_pauli, set_pauli, term_to_string
 from .pauli_types import PauliSum
 from .symmetry import CompositeSymmetry, NoSymmetry
 
@@ -224,14 +224,13 @@ class PauliPropagationObservable(QuantumOperatorBase):
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
 
         for term, coeff in self._pauli_sum:
-            term_str = term_to_string(term, self._num_qubits)
-            mapped_symbols = ["I"] * self._num_qubits
-
-            for source_idx, symbol in enumerate(term_str):
+            remapped_term = 0
+            for source_idx in range(self._num_qubits):
+                symbol = get_pauli(term, source_idx, self._num_qubits)
                 target_idx = layout.get(source_idx, source_idx)
-                mapped_symbols[target_idx] = symbol
+                remapped_term = set_pauli(remapped_term, target_idx, symbol, self._num_qubits)
 
-            remapped.add_term("".join(mapped_symbols), coeff)
+            remapped.add_term(remapped_term, coeff)
 
         return PauliPropagationObservable(pauli_sum=remapped)
 

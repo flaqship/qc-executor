@@ -659,20 +659,6 @@ class QiskitExecutor(ExecutorBase):
         circuits = _collect_objects(circuit)
         operators = _collect_objects(operator) if operator is not None else []
 
-        # collect all qiskit circuits / operators (handle lists)
-        circuits = []
-        if isinstance(circuit, list):
-            circuits = [_unwrap(c) for c in circuit]
-        else:
-            circuits = [_unwrap(circuit)]
-
-        operators = []
-        if operator is not None:
-            if isinstance(operator, list):
-                operators = [_unwrap(o) for o in operator]
-            else:
-                operators = [_unwrap(operator)]
-
         def _build_param_dict(qiskit_objects):
             """Build parameter dict for list of qiskit objects"""
             param_dict = {}

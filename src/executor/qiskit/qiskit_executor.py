@@ -584,18 +584,33 @@ class QiskitExecutor(ExecutorBase):
         def _to_operator(o):
             return o._qiskit_operator if hasattr(o, "_qiskit_operator") else o
 
-        # Use the first transpiled circuit's layout for operator re-mapping
-        ref_circuit = transpiled_circuits[0]
-
         if isinstance(operator, List):
             ops = [_to_operator(o) for o in operator]
             if uses_ibm_backend:
-                ops = [self._isa_apply_layout_to_operator(o, ref_circuit) for o in ops]
+                # Apply per-circuit layout when counts match; fall back to
+                # circuit[0] layout when a single operator is broadcast across
+                # multiple circuits (N circuits × 1 operator is handled by the
+                # scalar branch below, but N×M with M<N is an edge case we
+                # cover conservatively with circuit[0]).
+                if len(ops) == len(transpiled_circuits):
+                    ops = [
+                        self._isa_apply_layout_to_operator(o, c)
+                        for o, c in zip(ops, transpiled_circuits)
+                    ]
+                else:
+                    # Mismatched counts – use circuit[0] layout as best effort
+                    ops = [
+                        self._isa_apply_layout_to_operator(o, transpiled_circuits[0]) for o in ops
+                    ]
             operator_tree = OpTreeList([OpTreeOperator(o) for o in ops])
         else:
             op = _to_operator(operator)
             if uses_ibm_backend:
-                op = self._isa_apply_layout_to_operator(op, ref_circuit)
+                # Single operator broadcast across all circuits – use circuit[0]
+                # layout (ISA transpilation with optimization_level=1 produces
+                # a consistent virtual→physical mapping for identical circuits,
+                # and a single operator is paired with each circuit identically).
+                op = self._isa_apply_layout_to_operator(op, transpiled_circuits[0])
             operator_tree = OpTreeOperator(op)
 
         return circuit_tree, operator_tree

@@ -294,7 +294,6 @@ class TestExecutionFakeBackend:
     These tests are slower because the fake backend simulates noise.
     """
 
-    @pytest.mark.slow
     def test_expectation_value_bell_zz(self):
         backend = _get_fake_backend()
         executor = QiskitExecutor(backend=backend, shots=4096, seed=42)
@@ -304,7 +303,6 @@ class TestExecutionFakeBackend:
         # Noisy result should still be close to 1.0 for ZZ on Bell state
         assert isinstance(result, (float, np.floating, np.ndarray))
 
-    @pytest.mark.slow
     def test_sample_bell_state(self):
         backend = _get_fake_backend()
         executor = QiskitExecutor(backend=backend, shots=1024, seed=42)

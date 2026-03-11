@@ -963,7 +963,22 @@ class QiskitExecutor(ExecutorBase):
 
         result = job.result()
 
-        return self._extract_counts(result, circuit.num_qubits)
+        # Determine num_qubits per circuit for binary-string formatting
+        # (needed by the V1 quasi_dists path in _extract_counts).
+        is_list_input = isinstance(circuit, list)
+        raw_circuits_for_nq = circuit if is_list_input else [circuit]
+        n_qubits_list = [
+            (c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c).num_qubits
+            for c in raw_circuits_for_nq
+        ]
+        # Use the first value as the single n_qubits hint; _extract_counts
+        # iterates over all distributions independently.
+        counts_list = self._extract_counts(result, n_qubits_list[0])
+
+        # Return a single dict for scalar input, list for list input
+        if not is_list_input:
+            return counts_list[0] if isinstance(counts_list, list) else counts_list
+        return counts_list
 
     def _statevector(
         self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values

@@ -241,12 +241,9 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(shots=1000, seed=42)
         result = executor.sample(qc)
 
-        assert isinstance(result, list)
-        assert len(result) == 1
-        samples = result[0]
-        assert isinstance(samples, dict)
+        assert isinstance(result, dict)
         # Bell state should have 00 or 11 outcomes
-        assert any(bit in samples for bit in ["00", "11"])
+        assert any(bit in result for bit in ["00", "11"])
 
     def test_sample_x_gate(self):
         """Test sampling after X gate (should get all 1s)."""
@@ -255,9 +252,9 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(shots=100, seed=42)
         result = executor.sample(qc)
 
-        samples = result[0]
-        assert "11" in samples
-        assert samples["11"] == 100
+        assert isinstance(result, dict)
+        assert "11" in result
+        assert result["11"] == 100
 
     def test_sample_with_parameter(self):
         """Test sampling with parametric circuit."""
@@ -267,11 +264,10 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(shots=1000, seed=42)
         result = executor.sample(qc, x=[np.pi])
 
-        samples = result[0]
-        assert isinstance(samples, dict)
+        assert isinstance(result, dict)
         # After RX(pi), qubit 0 should be flipped
-        assert "01" in samples
-        assert samples["01"] >= 900  # Should have high count
+        assert "01" in result
+        assert result["01"] >= 900  # Should have high count
 
     def test_sample_hadamard(self):
         """Test sampling from Hadamard state."""
@@ -281,11 +277,10 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(shots=1000, seed=42)
         result = executor.sample(qc)
 
-        samples = result[0]
-        assert isinstance(samples, dict)
-        assert len(samples) > 0
+        assert isinstance(result, dict)
+        assert len(result) > 0
         # Total counts should equal shots
-        total_counts = sum(samples.values())
+        total_counts = sum(result.values())
         assert total_counts == 1000
 
     def test_statevector_empty_circuit(self):

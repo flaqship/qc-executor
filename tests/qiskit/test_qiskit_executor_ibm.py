@@ -310,5 +310,5 @@ class TestExecutionFakeBackend:
         executor = QiskitExecutor(backend=backend, shots=1024, seed=42)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         result = executor.sample(qc)
-        assert isinstance(result, list)
+        assert isinstance(result, dict)
         assert len(result) >= 1

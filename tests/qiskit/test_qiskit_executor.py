@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
+from qiskit.circuit import Parameter, ParameterVector
 
 from executor.qiskit.qiskit_executor import QiskitExecutor
 from executor.qiskit.qiskit_circuit import QiskitCircuit
@@ -419,3 +419,175 @@ class TestQiskitExecutor:
         result = executor.expectation_value(QiskitCircuit(circuit), operator)
 
         assert np.allclose(result, 1.0)
+
+
+# =============================================================================
+# Parameter vs ParameterVector compatibility tests
+#
+# These tests verify that _build_param_dict, _prepare_parameter_dicts and the
+# derivative machinery handle both standalone ``Parameter`` objects (no .vector /
+# .index attributes) and ``ParameterVector`` elements (with .vector.name and
+# .index) correctly.
+# =============================================================================
+
+
+class TestStandaloneParameterSupport:
+    """Tests for circuits built with standalone Parameter (not ParameterVector)."""
+
+    def test_expectation_value_standalone_parameter(self):
+        """expectation_value works with a standalone Parameter (no .vector)."""
+        theta = Parameter("theta")
+        qc = _build_circuit(1, [("ry", [0, theta])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        # RY(0)|0> = |0>, <Z> = 1
+        result = executor.expectation_value(qc, op, theta=0.0)
+
+        assert isinstance(result, (float, np.floating, np.ndarray))
+        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+
+    def test_expectation_value_standalone_parameter_pi(self):
+        """RY(pi)|0> = |1>, <Z> = -1 with a standalone Parameter."""
+        theta = Parameter("theta")
+        qc = _build_circuit(1, [("ry", [0, theta])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        result = executor.expectation_value(qc, op, theta=np.pi)
+
+        assert np.isclose(float(np.real(result)), -1.0, atol=1e-5)
+
+    def test_statevector_standalone_parameter(self):
+        """statevector works with a standalone Parameter."""
+        theta = Parameter("theta")
+        qc = _build_circuit(1, [("rx", [0, theta])])
+
+        executor = QiskitExecutor()
+        sv = executor.statevector(qc, theta=0.0)
+
+        assert isinstance(sv, np.ndarray)
+        assert np.isclose(np.sum(np.abs(sv) ** 2), 1.0, atol=1e-5)
+        # RX(0)|0> = |0>
+        assert np.isclose(abs(sv[0]), 1.0, atol=1e-5)
+
+    def test_sample_standalone_parameter(self):
+        """sample works with a standalone Parameter."""
+        theta = Parameter("theta")
+        qc = _build_circuit(1, [("rx", [0, theta])])
+
+        executor = QiskitExecutor(shots=500, seed=0)
+        result = executor.sample(qc, theta=np.pi)
+
+        assert isinstance(result, dict)
+        # RX(pi)|0> = |1> → all counts in "1"
+        assert "1" in result
+        assert result["1"] >= 450
+
+    def test_multiple_standalone_parameters(self):
+        """Multiple standalone Parameters can be passed as separate kwargs."""
+        alpha = Parameter("alpha")
+        beta = Parameter("beta")
+        qc = _build_circuit(2, [("ry", [0, alpha]), ("ry", [1, beta])])
+        op = QuantumOperator(["ZZ"], [1.0])
+
+        executor = QiskitExecutor()
+        # RY(0)⊗RY(0)|00> = |00>, <ZZ> = 1
+        result = executor.expectation_value(qc, op, alpha=0.0, beta=0.0)
+
+        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+
+
+class TestParameterVectorSupport:
+    """Tests confirming ParameterVector behaviour is unchanged."""
+
+    def test_expectation_value_parameter_vector(self):
+        """expectation_value works with a ParameterVector (baseline check)."""
+        x = ParameterVector("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        result = executor.expectation_value(qc, op, x=[0.0])
+
+        assert np.isclose(result, 1.0, atol=1e-5)
+
+    def test_statevector_parameter_vector(self):
+        """statevector works with a ParameterVector."""
+        x = ParameterVector("x", 2)
+        qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
+
+        executor = QiskitExecutor()
+        sv = executor.statevector(qc, x=[0.0, 0.0])
+
+        assert np.isclose(np.sum(np.abs(sv) ** 2), 1.0, atol=1e-5)
+
+    def test_sample_parameter_vector(self):
+        """sample works with a ParameterVector."""
+        x = ParameterVector("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+
+        executor = QiskitExecutor(shots=500, seed=0)
+        result = executor.sample(qc, x=[np.pi])
+
+        assert isinstance(result, dict)
+        assert "1" in result
+        assert result["1"] >= 450
+
+    def test_parameter_vector_index_binding(self):
+        """ParameterVector elements are bound by index correctly."""
+        x = ParameterVector("x", 2)
+        qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
+        op = QuantumOperator(["IZ"], [1.0])
+
+        executor = QiskitExecutor()
+        # x[0]=pi → qubit 0 flipped → <IZ> = -1; x[1]=0 → qubit 1 unchanged
+        result = executor.expectation_value(qc, op, x=[np.pi, 0.0])
+
+        assert np.isclose(result, -1.0, atol=1e-5)
+
+
+class TestMixedParameterEdgeCases:
+    """Edge-case tests mixing or comparing both parameter styles."""
+
+    def test_standalone_and_parametervector_same_result(self):
+        """Standalone Parameter and ParameterVector[0] yield the same expectation value."""
+        angle = np.pi / 4
+
+        executor = QiskitExecutor()
+
+        # Circuit A: standalone Parameter
+        theta = Parameter("theta")
+        qc_a = _build_circuit(1, [("ry", [0, theta])])
+        op_a = QuantumOperator(["Z"], [1.0])
+        result_a = executor.expectation_value(qc_a, op_a, theta=angle)
+
+        # Circuit B: ParameterVector
+        x = ParameterVector("x", 1)
+        qc_b = _build_circuit(1, [("ry", [0, x[0]])])
+        op_b = QuantumOperator(["Z"], [1.0])
+        result_b = executor.expectation_value(qc_b, op_b, x=[angle])
+
+        assert np.isclose(float(np.real(result_a)), float(np.real(result_b)), atol=1e-5)
+
+    def test_scalar_value_for_standalone_parameter(self):
+        """A scalar (non-list) value can be passed for a standalone Parameter."""
+        theta = Parameter("theta")
+        qc = _build_circuit(1, [("ry", [0, theta])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        result = executor.expectation_value(qc, op, theta=0.0)
+
+        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+
+    def test_list_value_for_standalone_parameter(self):
+        """A single-element list is also accepted for a standalone Parameter."""
+        theta = Parameter("theta")
+        qc = _build_circuit(1, [("ry", [0, theta])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        result = executor.expectation_value(qc, op, theta=[0.0])
+
+        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)

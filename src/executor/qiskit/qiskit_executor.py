@@ -660,12 +660,18 @@ class QiskitExecutor(ExecutorBase):
         operators = _collect_objects(operator) if operator is not None else []
 
         def _build_param_dict(qiskit_objects):
-            """Build parameter dict for list of qiskit objects"""
+            """Build parameter dict for list of qiskit objects.
+
+            Handles both ``ParameterVector`` elements (which carry ``.vector.name``
+            and ``.index``) and standalone ``Parameter`` objects (which only have
+            ``.name`` and no ``.index``).
+            """
             param_dict = {}
 
             for qobj in qiskit_objects:
                 for p in qobj.parameters:
-                    name = p.vector.name
+                    # Support both ParameterVector elements and standalone Parameters
+                    name = p.vector.name if hasattr(p, "vector") else p.name
                     if name not in parameters:
                         continue
 
@@ -674,16 +680,21 @@ class QiskitExecutor(ExecutorBase):
                     # Normalize to numpy
                     if isinstance(supplied, (list, tuple, np.ndarray)):
                         arr = np.asarray(supplied)
-                        try:
-                            val = arr[p.index]
-                        except (IndexError, TypeError):
-                            if arr.size == 1:
-                                val = arr.flat[0]
-                            else:
-                                raise ValueError(
-                                    f"Provided values for parameter '{name}' have length {arr.size} "
-                                    f"but parameter index {p.index} is requested."
-                                )
+                        if hasattr(p, "index"):
+                            # ParameterVector element – bind by index
+                            try:
+                                val = arr[p.index]
+                            except (IndexError, TypeError):
+                                if arr.size == 1:
+                                    val = arr.flat[0]
+                                else:
+                                    raise ValueError(
+                                        f"Provided values for parameter '{name}' have length {arr.size} "
+                                        f"but parameter index {p.index} is requested."
+                                    )
+                        else:
+                            # Standalone Parameter – scalar expected; take first element
+                            val = arr.flat[0] if arr.size == 1 else arr
                     else:
                         val = supplied
 
@@ -828,8 +839,12 @@ class QiskitExecutor(ExecutorBase):
         params_to_diff = []
         for dp in derivative_params:
             if isinstance(dp, str):
-                # Find matching parameters by name
-                matching = [p for p in all_params if p.vector.name == dp]
+                # Find matching parameters by name; guard against standalone
+                # Parameter objects that carry .name instead of .vector.name
+                def _param_name(p) -> str:
+                    return p.vector.name if hasattr(p, "vector") else p.name
+
+                matching = [p for p in all_params if _param_name(p) == dp]
                 params_to_diff.extend(matching)
             elif isinstance(dp, ParameterVectorElement):
                 params_to_diff.append(dp)

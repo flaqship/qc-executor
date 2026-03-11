@@ -93,6 +93,9 @@ class PennyLaneExecutor(ExecutorBase):
 
         # Check the cache for already converted circuits
         for circ in circuits:
+            if isinstance(circ, self._native_circuit_class):
+                qulacs_circuits.append(circ)
+                continue
             if circ in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
                 qulacs_circuits.append(self._circuit_cache[circ])
@@ -115,6 +118,9 @@ class PennyLaneExecutor(ExecutorBase):
         qulacs_observables = []
 
         for op in operators:
+            if isinstance(op, self._native_observable_class):
+                qulacs_observables.append(op)
+                continue
             if op in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
                 qulacs_observables.append(self._operator_cache[op])
@@ -461,7 +467,7 @@ class PennyLaneExecutor(ExecutorBase):
             for cp in circuit_parameter_tuples:
                 samples = circuit_func(*cp)
                 # Convert samples to bitstrings
-                bitstrings = ["".join(str(bit) for bit in sample[::-1]) for sample in samples]
+                bitstrings = ["".join(str(bit) for bit in sample) for sample in samples]
                 # Count occurrences of each bitstring
                 circuit_values.append(dict(Counter(bitstrings)))
 
@@ -482,16 +488,6 @@ class PennyLaneExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-
-        def reverse_bits_array(n, num_bits):
-            indices = np.arange(n)
-            reversed_indices = np.zeros_like(indices)
-            for _ in range(num_bits):
-                # Shift left to make space for the next bit
-                reversed_indices = (reversed_indices << 1) | (indices & 1)
-                # Shift original indices right to move to the next bit
-                indices >>= 1
-            return reversed_indices
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 
@@ -525,11 +521,7 @@ class PennyLaneExecutor(ExecutorBase):
                 return qml.state()
 
             for cp in circuit_parameter_tuples:
-                state_wrong_sort = np.array(circuit_func(*cp))
-                n = len(state_wrong_sort)
-                num_bits = circuit.num_qubits
-                indices = reverse_bits_array(n, num_bits)
-                circuit_values.append(state_wrong_sort[indices])
+                circuit_values.append(np.array(circuit_func(*cp)))
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)

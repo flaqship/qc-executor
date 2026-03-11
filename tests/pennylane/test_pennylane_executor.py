@@ -207,8 +207,8 @@ class TestPennylaneExecutor:
         samples = result[0]
         assert isinstance(samples, dict)
         # After RX(pi), qubit 0 should be flipped
-        assert "01" in samples
-        assert samples["01"] >= 900  # Should have high count
+        assert "10" in samples
+        assert samples["10"] >= 900  # Should have high count
 
     def test_sample_hadamard(self):
         """Test sampling from Hadamard state."""

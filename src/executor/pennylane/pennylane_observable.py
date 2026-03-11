@@ -251,7 +251,7 @@ class PennyLaneObservable:
         # Convert Pauli strings into PennyLane Pauli words
         for obs in observable:
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(str(p[::-1])) for p in obs.paulis]
+                [pauli.string_to_pauli_word(str(p)) for p in obs.paulis]
             )
 
         if not islist:

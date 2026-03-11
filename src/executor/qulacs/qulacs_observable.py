@@ -132,7 +132,7 @@ class QulacsObservable:
         self.new_operators_used_parameters = []
         for observable in observables:
 
-            paulis = [str(p[::-1]) for p in observable.paulis]
+            paulis = [str(p) for p in observable.paulis]
             coeff = list(np.real_if_close([c for c in observable.coeffs]))
 
             new_operator = []
@@ -166,9 +166,8 @@ class QulacsObservable:
                     for param_element in _param_free_symbols(c):
                         self._free_parameters.add(param_element)
                         used_parameters_obs_element.append(param_element)
-                        # information about the gradient of the parameter expression
-                        # the 1j fixes a bug in qiskit
-                        param_grad = -1j * ((1j * c).gradient(param_element))
+                        # Use direct symbolic derivative for coefficient gradients.
+                        param_grad = c.gradient(param_element)
                         if isinstance(param_grad, complex):
                             if param_grad.imag == 0:
                                 param_grad = param_grad.real

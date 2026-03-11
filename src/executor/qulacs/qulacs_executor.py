@@ -101,6 +101,9 @@ class QulacsExecutor(ExecutorBase):
 
         # Check the cache for already converted circuits
         for circ in circuits:
+            if isinstance(circ, self._native_circuit_class):
+                qulacs_circuits.append(circ)
+                continue
             if circ in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
                 qulacs_circuits.append(self._circuit_cache[circ])
@@ -133,6 +136,9 @@ class QulacsExecutor(ExecutorBase):
         qulacs_observables = []
 
         for op in operators:
+            if isinstance(op, self._native_observable_class):
+                qulacs_observables.append(op)
+                continue
             if op in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
                 qulacs_observables.append(self._operator_cache[op])
@@ -573,6 +579,15 @@ class QulacsExecutor(ExecutorBase):
             np.ndarray: The statevector of the circuit.
         """
 
+        def reverse_bits_array(n: int, num_bits: int) -> np.ndarray:
+            """Return indices that map backend bit order to public API order."""
+            indices = np.arange(n)
+            reversed_indices = np.zeros_like(indices)
+            for _ in range(num_bits):
+                reversed_indices = (reversed_indices << 1) | (indices & 1)
+                indices >>= 1
+            return reversed_indices
+
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 
         state_vectors = []
@@ -601,7 +616,9 @@ class QulacsExecutor(ExecutorBase):
                 state = QuantumState(qulacs_circuit.num_qubits)
                 qulacs_circuit_object.update_quantum_state(state)
 
-                circuit_values.append(state.get_vector())
+                state_vector = np.array(state.get_vector())
+                indices = reverse_bits_array(len(state_vector), qulacs_circuit.num_qubits)
+                circuit_values.append(state_vector[indices])
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)

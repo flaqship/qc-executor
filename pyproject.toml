@@ -76,6 +76,7 @@ examples = [
     "matplotlib",
     "pylatexenc",
     "qulacsvis>=0.7.6",
+    "scikit-learn>=1.7.2",
 ]
 
 [tool.uv]

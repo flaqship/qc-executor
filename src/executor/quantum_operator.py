@@ -39,7 +39,7 @@ class QuantumOperator(QuantumOperatorBase):
     @property
     def paulis(self) -> List[str]:
         """Return the list of Paulis."""
-        return [str(pauli) for pauli in self._qiskit_operator.paulis]
+        return self._qiskit_operator.paulis.to_labels()
 
     @property
     def coeffs(self) -> List:

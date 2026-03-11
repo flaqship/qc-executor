@@ -235,6 +235,10 @@ class QiskitExecutor(ExecutorBase):
         self._execution_mode = execution_mode
         self._options = options
         self._sampler_uses_v1_api: bool = QISKIT_SMALLER_1_2
+        # True only when an external Backend object (IBM/fake) is passed;
+        # local AerSimulator instances created by the string shortcuts are
+        # never ISA-transpiled.
+        self._isa_transpile: bool = False
 
         # ── Local simulator backends ──────────────────────────────────────
         if isinstance(backend, str):
@@ -269,6 +273,7 @@ class QiskitExecutor(ExecutorBase):
 
             self._backend = backend
             self._remote_backend, self._ibm_quantum_backend = _detect_backend_flags(backend)
+            self._isa_transpile = True
 
             # Determine which primitive generation to use
             self._runtime_primitives_version: str = "v1" if QISKIT_RUNTIME_SMALLER_0_21 else "v2"
@@ -495,7 +500,7 @@ class QiskitExecutor(ExecutorBase):
         The resulting circuit retains its :class:`Parameter` objects so that
         it can still be parameterised afterwards.
         """
-        if self._backend is None or not _is_backend_instance(self._backend):
+        if not self._isa_transpile or self._backend is None:
             return circuit
 
         try:
@@ -556,7 +561,7 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             Tuple of (circuit_tree, operator_tree)
         """
-        uses_ibm_backend = self._backend is not None and _is_backend_instance(self._backend)
+        uses_ibm_backend = self._isa_transpile
 
         # --- Convert & optionally transpile circuits ---
         def _to_qiskit(c):

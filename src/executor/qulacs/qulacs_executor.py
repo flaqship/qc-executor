@@ -224,7 +224,9 @@ class QulacsExecutor(ExecutorBase):
                     observable_parameter_tuples = product(*observable_parameters)
 
                     for op in observable_parameter_tuples:
-                        qulacs_observable_object = qulacs_observable.get_observable_func()(*op[0])
+                        qulacs_observable_object = qulacs_observable.get_observable_func()(
+                            *op[0] if op else ()
+                        )
                         # not sure about the [0] here, but it works for single operators
                         observable_values.append(
                             np.real_if_close(

@@ -199,14 +199,14 @@ def _resolve_param_value(
     # Try to resolve symbolic expression first
     if hasattr(gate, "param_expr") and gate.param_expr is not None:
         expr = gate.param_expr
-        
+
         # Check if all free symbols are in parameters
         subs_dict = {}
         for symbol in expr.free_symbols:
             symbol_name = symbol.name
             if symbol_name in parameters:
                 subs_dict[symbol] = parameters[symbol_name]
-        
+
         # If we have substitutions, try to evaluate
         if subs_dict:
             try:
@@ -215,15 +215,15 @@ def _resolve_param_value(
                     return float(result)
             except (TypeError, ValueError):
                 pass
-    
+
     # Fallback to param_name for backward compatibility
     if gate.param_name and gate.param_name in parameters:
         return parameters[gate.param_name]
-    
+
     # Fallback to concrete param_value
     if hasattr(gate, "param_value") and gate.param_value is not None:
         return gate.param_value
-    
+
     # Try generic "theta" parameter
     return parameters.get("theta", None)
 

@@ -189,9 +189,7 @@ class TestParameterNormalization:
         operator = PauliPropagationObservable(["ZI", "IZ"], [1.0, 1.0])
 
         # Test with list parameters in correct format
-        result = executor.expectation_value(
-            circuit, operator, theta=[0.0, 0.0]
-        )
+        result = executor.expectation_value(circuit, operator, theta=[0.0, 0.0])
         assert np.isfinite(result)
 
     def test_expectation_value_with_indexed_parameters(self):
@@ -217,9 +215,7 @@ class TestParameterNormalization:
         operator = PauliPropagationObservable(["X"], [1.0])
 
         # Test with list parameters
-        result = executor.expectation_value_derivatives(
-            circuit, operator, "theta", theta=[0.0]
-        )
+        result = executor.expectation_value_derivatives(circuit, operator, "theta", theta=[0.0])
         assert isinstance(result, (float, np.ndarray))
 
     def test_statevector_with_list_parameters(self):

@@ -20,6 +20,9 @@ class PennyLaneExecutor(ExecutorBase):
     """Base class for quantum circuit executors.
 
     Args:
+        device (str, optional): Name of the PennyLane device to use (e.g.
+            ``"default.qubit"``, ``"default.mixed"``, ``"lightning.qubit"``).
+            Defaults to ``"default.qubit"``.
         shots (int, optional): Number of shots for sampling. Defaults to None.
         seed (int, optional): Random seed for reproducibility. Defaults to None.
         log_file (str, optional): Path to the log file. Defaults to None.
@@ -33,6 +36,7 @@ class PennyLaneExecutor(ExecutorBase):
 
     def __init__(
         self,
+        device: str = "default.qubit",
         shots: Union[int, None] = None,
         seed: Union[int, None] = None,
         log_file: Union[str, None] = None,
@@ -52,6 +56,8 @@ class PennyLaneExecutor(ExecutorBase):
             max_cache_size=max_cache_size,
         )
 
+        self._device_name = device
+
         self._circuit_cache = self._make_cache()
         self._operator_cache = self._make_cache()
 
@@ -60,8 +66,11 @@ class PennyLaneExecutor(ExecutorBase):
         else:
             self._random = np.random.default_rng()
 
-        self._device = qml.device("default.qubit", wires=1)
-        self._logger.debug("PennyLaneExecutor initialised (shots=%s, seed=%s)", shots, seed)
+        self._device = qml.device(self._device_name, wires=1)
+        self._logger.debug(
+            "PennyLaneExecutor initialised (shots=%s, seed=%s, device=%s)",
+            shots, seed, device,
+        )
 
     @property
     def shots(self) -> Union[int, None]:
@@ -77,6 +86,11 @@ class PennyLaneExecutor(ExecutorBase):
     def remote(self) -> bool:
         """Return True if the execution access a remote backend."""
         return False
+
+    @property
+    def device_name(self) -> str:
+        """Return the name of the PennyLane device."""
+        return self._device_name
 
     def _preprocess_circuits(self, circuit: QuantumCircuitBase):
 
@@ -141,7 +155,7 @@ class PennyLaneExecutor(ExecutorBase):
         pennylane_observables, multiple_operators = self._preprocess_operators(operator)
 
         if circuit.num_qubits != len(self._device.wires):
-            self._device = qml.device(self._device.name, wires=circuit.num_qubits)
+            self._device = qml.device(self._device_name, wires=circuit.num_qubits)
 
         values = []
 
@@ -310,7 +324,7 @@ class PennyLaneExecutor(ExecutorBase):
         values = [to_tuple(v) for v in values]
 
         if circuit.num_qubits != len(self._device.wires):
-            self._device = qml.device(self._device.name, wires=circuit.num_qubits)
+            self._device = qml.device(self._device_name, wires=circuit.num_qubits)
 
         def circuit_func(*args):
             pennylane_circuit.build_pennylane_circuit()(*args)
@@ -446,7 +460,7 @@ class PennyLaneExecutor(ExecutorBase):
             circuit_parameter_tuples = product(*circuit_parameters)
 
             device = qml.device(
-                self._device.name, wires=circuit.num_qubits, shots=self._shots, seed=self._random
+                self._device_name, wires=circuit.num_qubits, shots=self._shots, seed=self._random,
             )
 
             @qml.qnode(device)
@@ -514,7 +528,7 @@ class PennyLaneExecutor(ExecutorBase):
             circuit_parameter_tuples = product(*circuit_parameters)
 
             if pennylane_circuit.num_qubits != len(self._device.wires):
-                self._device = qml.device(self._device.name, wires=circuit.num_qubits)
+                self._device = qml.device(self._device_name, wires=circuit.num_qubits)
 
             @qml.qnode(self._device)
             def circuit_func(*args):

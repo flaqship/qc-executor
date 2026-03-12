@@ -16,8 +16,8 @@ import pytest
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
-from executor.pennylane.pennylane_executor import PennyLaneExecutor
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
+from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 def _build_circuit(num_qubits, operations):
@@ -493,7 +493,6 @@ class TestPennylaneExecutor:
 
     def test_logging_to_file(self, tmp_path):
         """Test that log messages are written to the specified log file."""
-        import logging
 
         log_file = str(tmp_path / "executor.log")
         executor = PennyLaneExecutor(log_level="INFO", log_file=log_file)
@@ -662,3 +661,109 @@ class TestPennylaneExecutor:
         result = executor.transpile_circuit(qc)
         assert isinstance(result, PennyLaneCircuit)
         assert executor._result_cache is None
+
+    # ========================================================================
+    # Device Selection Tests
+    # ========================================================================
+
+    def test_default_device_name(self):
+        """Test that the default device is 'default.qubit'."""
+        executor = PennyLaneExecutor()
+        assert executor.device_name == "default.qubit"
+        assert executor._device.name == "default.qubit"
+
+    def test_custom_device_name(self):
+        """Test that a custom device is stored and used."""
+        executor = PennyLaneExecutor(device="default.mixed")
+        assert executor.device_name == "default.mixed"
+        assert executor._device.name == "default.mixed"
+
+
+    def test_device_name_property_readonly(self):
+        """Test that device_name is a read-only property."""
+        executor = PennyLaneExecutor()
+        with pytest.raises(AttributeError):
+            executor.device_name = "lightning.qubit"
+
+    def test_expectation_value_with_default_mixed_device(self):
+        """Test expectation value computation with default.mixed device."""
+        qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        op = QuantumOperator(["ZZ"], [1.0])
+
+        executor_default = PennyLaneExecutor()
+        executor_mixed = PennyLaneExecutor(device="default.mixed")
+
+        result_default = executor_default.expectation_value(qc, op)
+        result_mixed = executor_mixed.expectation_value(qc, op)
+
+        assert np.isclose(result_default, result_mixed, atol=1e-5)
+
+    def test_statevector_with_default_mixed_device(self):
+        """Test that statevector can be computed with default.mixed device.
+
+        Note: default.mixed returns a density matrix, so we only check
+        that the computation succeeds and returns a valid result.
+        """
+        qc = _build_circuit(1, [("h", [0])])
+
+        executor_mixed = PennyLaneExecutor(device="default.mixed")
+        sv_mixed = executor_mixed.statevector(qc)
+
+        assert sv_mixed is not None
+        assert sv_mixed.size > 0
+
+    def test_sample_with_default_mixed_device(self):
+        """Test sampling with default.mixed device."""
+        qc = _build_circuit(2, [("x", [0]), ("x", [1])])
+
+        executor = PennyLaneExecutor(shots=100, seed=42, device="default.mixed")
+        result = executor.sample(qc)
+
+        samples = result[0]
+        assert "11" in samples
+        assert samples["11"] == 100
+
+    def test_derivatives_with_default_mixed_device(self):
+        """Test that expectation values can be computed with default.mixed device."""
+        qc = _build_circuit(1, [("h", [0])])
+        op = QuantumOperator(["X"], [1.0])
+
+        executor = PennyLaneExecutor(device="default.mixed")
+        result = executor.expectation_value(qc, op)
+
+        assert isinstance(result, (float, np.ndarray))
+        assert np.isclose(result, 1.0, atol=1e-5)
+
+    def test_expectation_value_parametric_with_custom_device(self):
+        """Test expectation value with custom device on a non-trivial circuit."""
+        qc = _build_circuit(1, [("x", [0])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = PennyLaneExecutor(device="default.mixed")
+        result = executor.expectation_value(qc, op)
+
+        assert np.isclose(result, -1.0, atol=1e-5)
+
+    def test_factory_with_device_name(self):
+        """Test creating executor via factory with device_name."""
+        from executor import Executor
+
+        executor = Executor.create("pennylane", device="default.mixed")
+        assert executor.device_name == "default.mixed"
+
+    def test_device_recreation_preserves_device_name(self):
+        """Test that device recreation (on qubit count change) preserves the device name."""
+        executor = PennyLaneExecutor(device="default.mixed")
+
+        # Run on a 1-qubit circuit first
+        qc1 = _build_circuit(1, [("h", [0])])
+        op1 = QuantumOperator(["Z"], [1.0])
+        executor.expectation_value(qc1, op1)
+        assert executor._device.name == "default.mixed"
+
+        # Run on a 2-qubit circuit to trigger device recreation
+        qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        op2 = QuantumOperator(["ZZ"], [1.0])
+        executor.expectation_value(qc2, op2)
+        assert executor._device.name == "default.mixed"
+

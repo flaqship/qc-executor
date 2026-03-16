@@ -3,7 +3,7 @@
 Handles conversion from various Qiskit operator types to our internal PauliSum representation.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 from .pauli_types import PauliSum
 

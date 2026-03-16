@@ -1,7 +1,6 @@
 """Convert Qiskit circuits to internal gate representation."""
 
 import hashlib
-import pickle
 from typing import Dict, List, Optional, Union
 
 import numpy as np

@@ -61,14 +61,7 @@ class TestPropagatePauliRotation:
         # Should get cos(θ) Z + sin(θ) Y
         assert len(result) == 2
         assert np.isclose(result.get_coeff("Z"), np.cos(theta))
-        # The Y component comes from -i * X * Z = -i * (-iY) = -Y, so sin(theta) * (-1) * i * (-i) = sin(theta)
-        # Actually: exp(-iθX/2) Z exp(iθX/2) = cos(θ)Z + sin(θ)Y
-        # In our implementation: sin_coeff = coeff * sin(θ) * (-i) * pq_phase
-        # X * Z = -iY, so pq_phase = -i
-        # sin_coeff = 1 * sin(θ) * (-i) * (-i) = -sin(θ)
-        # Wait, let me recalculate...
-        # Actually the coefficient should be positive sin(θ) for Y
-        # Let me check the implementation logic
+        assert np.isclose(result.get_coeff("Y"), np.sin(theta))
 
     def test_ry_on_x_observable(self):
         """RY(θ) rotates X observable: X → cos(θ)X - sin(θ)Z."""

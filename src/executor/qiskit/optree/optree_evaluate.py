@@ -1,5 +1,7 @@
+
+from __future__ import annotations
 import time
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 import numpy as np
 from qiskit.circuit import Clbit, ParameterExpression, QuantumCircuit
@@ -70,25 +72,25 @@ else:
         pass
 
 
-def _check_tree_for_matrix_compatibility(element: Union[OpTreeNodeBase, OpTreeLeafBase]):
+def _check_tree_for_matrix_compatibility(element: OpTreeNodeBase | OpTreeLeafBase):
     """
     Function for checking if an OpTree structure requires nested lists with different dimensions
 
     Necessary to check if data can be stored in a numpy float array or in a numpy object array.
 
     Args:
-        element (Union[OpTreeNodeBase, OpTreeLeafContainer]): The OpTree to be checked.
+        element (OpTreeNodeBase | OpTreeLeafContainer): The OpTree to be checked.
 
     Returns:
         True if the OpTree structure is compatible with a numpy float array, False otherwise.
     """
 
-    def _get_dimensions(element: Union[OpTreeNodeBase, OpTreeLeafBase]):
+    def _get_dimensions(element: OpTreeNodeBase | OpTreeLeafBase):
         """
         Helper function for checking the dimensions of the OpTree structure.
 
         Args:
-            element (Union[OpTreeNodeBase, OpTreeLeafContainer]): The OpTree to be checked.
+            element (OpTreeNodeBase | OpTreeLeafContainer): The OpTree to be checked.
 
         Returns:
             Outer dimension of the root of the OpTree structure.
@@ -116,15 +118,15 @@ def _check_tree_for_matrix_compatibility(element: Union[OpTreeNodeBase, OpTreeLe
 
 
 def _evaluate_index_tree(
-    element: Union[OpTreeNodeBase, OpTreeContainer, OpTreeValue],
+    element: OpTreeNodeBase | OpTreeContainer | OpTreeValue,
     result_array: np.ndarray,
     datatype: str = "auto",
-) -> Union[np.ndarray, float]:
+) -> np.ndarray | float:
     """
     Function for evaluating an OpTree structure that has been indexed with a given result array.
 
     Args:
-        element (Union[OpTreeNodeBase, OpTreeLeafContainer]): The OpTree to be evaluated.
+        element (OpTreeNodeBase | OpTreeLeafContainer): The OpTree to be evaluated.
                                                               Has to be indexed first, such that
                                                               the leafs contain the address of the
                                                               result array entries
@@ -141,10 +143,10 @@ def _evaluate_index_tree(
     """
 
     def _evaluate_index_tree_recursive(
-        element: Union[OpTreeNodeBase, OpTreeContainer, OpTreeValue],
+        element: OpTreeNodeBase | OpTreeContainer | OpTreeValue,
         result_array: np.ndarray,
         datatype: str = "float",
-    ) -> Union[np.ndarray, float]:
+    ) -> np.ndarray | float:
         if isinstance(element, OpTreeNodeBase):
             if any(not isinstance(fac, float) for fac in element.factor):
                 raise ValueError("All factors must be numeric for evaluation")
@@ -212,13 +214,13 @@ def _evaluate_index_tree(
 
 
 def _build_circuit_list(
-    optree_element: Union[OpTreeNodeBase, OpTreeCircuit, QuantumCircuit, OpTreeValue],
+    optree_element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit | OpTreeValue,
     dictionary: dict,
     detect_circuit_duplicates: bool = True,
 ) -> Tuple[
     List[QuantumCircuit],
     List[np.ndarray],
-    Union[OpTreeNodeBase, OpTreeContainer, OpTreeValue],
+    OpTreeNodeBase | OpTreeContainer | OpTreeValue,
 ]:
     """
     Helper function for creating a list of circuits from an OpTree structure.
@@ -231,7 +233,7 @@ def _build_circuit_list(
     in the OpTree structure and only adds it once to the circuit list.
 
     Args:
-        element (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): The OpTree to be
+        element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The OpTree to be
                                                                             converted.
         dictionary (dict): The dictionary that contains the values for the parameters in the
                            circuit and the OpTree structure.
@@ -252,7 +254,7 @@ def _build_circuit_list(
     circuit_counter = 0
 
     def _build_lists_and_index_tree(
-        optree_element: Union[OpTreeNodeBase, OpTreeLeafBase, QuantumCircuit, OpTreeValue],
+        optree_element: OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | OpTreeValue,
     ):
         """
         Helper function for building the circuit list and the parameter list, and
@@ -323,17 +325,10 @@ def _build_circuit_list(
 
 
 def _build_operator_list(
-    optree_element: Union[
-        OpTreeNodeBase,
-        OpTreeOperator,
-        OpTreeExpectationValue,
-        OpTreeMeasuredOperator,
-        OpTreeValue,
-        SparsePauliOp,
-    ],
+    optree_element: OpTreeNodeBase | OpTreeOperator | OpTreeExpectationValue | OpTreeMeasuredOperator | OpTreeValue | SparsePauliOp,
     dictionary: dict,
     detect_operator_duplicates: bool = True,
-) -> Tuple[List[SparsePauliOp], Union[OpTreeNodeBase, OpTreeContainer, OpTreeValue]]:
+) -> Tuple[List[SparsePauliOp], OpTreeNodeBase | OpTreeContainer | OpTreeValue]:
     """
     Helper function for creating a list of operators from an OpTree structure.
 
@@ -348,7 +343,7 @@ def _build_operator_list(
     to the operator list.
 
     Args:
-        optree_element (Union[OpTreeNodeBase, OpTreeLeafOperator, OpTreeLeafExpectationValue, OpTreeLeafMeasuredOperator, SparsePauliOp]): The Operator in OpTree format to be converted.
+        optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue | OpTreeLeafMeasuredOperator | SparsePauliOp): The Operator in OpTree format to be converted.
         dictionary (dict): The dictionary that contains the values for the parameters in the
                            operator and the OpTree structure.
         detect_operator_duplicates (bool): If True, the removes duplicate operators from the
@@ -366,7 +361,7 @@ def _build_operator_list(
     operator_counter = 0
 
     def _build_lists_and_index_tree(
-        optree_element: Union[OpTreeNodeBase, OpTreeOperator, SparsePauliOp, OpTreeValue],
+        optree_element: OpTreeNodeBase | OpTreeOperator | SparsePauliOp | OpTreeValue,
     ):
         """
         Helper function for building the circuit list and the parameter list, and
@@ -444,13 +439,7 @@ def _build_operator_list(
 
 
 def _build_measurement_list(
-    optree_element: Union[
-        OpTreeNodeBase,
-        OpTreeMeasuredOperator,
-        OpTreeOperator,
-        SparsePauliOp,
-        OpTreeValue,
-    ],
+    optree_element: OpTreeNodeBase | OpTreeMeasuredOperator | OpTreeOperator | SparsePauliOp | OpTreeValue,
     detect_measurement_duplicates: bool = True,
     detect_operator_duplicates: bool = True,
 ) -> Tuple[List[QuantumCircuit], List[List[int]]]:
@@ -466,7 +455,7 @@ def _build_measurement_list(
     to the measurement list.
 
     Args:
-        optree_element (Union[OpTreeNodeBase, OpTreeLeafMeasuredOperator, OpTreeLeafOperator, SparsePauliOp]): The Operator in OpTree format to be converted.
+        optree_element (OpTreeNodeBase | OpTreeLeafMeasuredOperator | OpTreeLeafOperator | SparsePauliOp): The Operator in OpTree format to be converted.
         detect_measurement_duplicates (bool): If True, the removes duplicate measurements from the
                                                 measurement list.
         detect_operator_duplicates (bool): If True, the removes duplicate operators from the
@@ -488,7 +477,7 @@ def _build_measurement_list(
     from .optree import OpTree
 
     def build_list(
-        optree_element: Union[OpTreeNodeBase, OpTreeOperator, SparsePauliOp, OpTreeValue],
+        optree_element: OpTreeNodeBase | OpTreeOperator | SparsePauliOp | OpTreeValue,
     ):
         """
         Helper function for building the circuit list and the parameter list, and
@@ -579,7 +568,7 @@ def _build_measurement_list(
 
 
 def _build_expectation_list(
-    optree_element: Union[OpTreeNodeBase, OpTreeExpectationValue, OpTreeValue],
+    optree_element: OpTreeNodeBase | OpTreeExpectationValue | OpTreeValue,
     dictionary: dict,
     detect_expectation_duplicates: bool = True,
     group_circuits: bool = True,
@@ -588,7 +577,7 @@ def _build_expectation_list(
     List[SparsePauliOp],
     List[np.ndarray],
     List[List[int]],
-    Union[OpTreeNodeBase, OpTreeContainer, OpTreeValue],
+    OpTreeNodeBase | OpTreeContainer | OpTreeValue,
 ]:
     """
     Helper function for creating a lists of circuits and operator from an expectation OpTree.
@@ -603,7 +592,7 @@ def _build_expectation_list(
     ``group_circuits``.
 
     Args:
-        optree_element (Union[OpTreeNodeBase, OpTreeLeafExpectationValue]): The expectation values
+        optree_element (OpTreeNodeBase | OpTreeLeafExpectationValue): The expectation values
                                                                             in OpTree format to
                                                                             be converted.
         dictionary (dict): The dictionary that contains the values for the parameters in the
@@ -631,7 +620,7 @@ def _build_expectation_list(
     circuit_operator_list = []
 
     def build_lists_and_index_tree(
-        optree_element: Union[OpTreeNodeBase, OpTreeExpectationValue, OpTreeValue],
+        optree_element: OpTreeNodeBase | OpTreeExpectationValue | OpTreeValue,
     ):
         """
         Helper function for building the circuit list and the parameter list, and
@@ -725,13 +714,13 @@ def _build_expectation_list(
 
 
 def _add_offset_to_tree(
-    optree_element: Union[OpTreeNodeBase, OpTreeContainer, OpTreeValue], offset: int
+    optree_element: OpTreeNodeBase | OpTreeContainer | OpTreeValue, offset: int
 ):
     """
     Helper function for adding a constant offset to all leafs of the OpTree structure.
 
     Args:
-        element (Union[OpTreeNodeBase, OpTreeLeafContainer]): The OpTree to be adjusted.
+        element (OpTreeNodeBase | OpTreeLeafContainer): The OpTree to be adjusted.
         offset (int): The offset to be added to all leafs.
 
     Returns:
@@ -768,8 +757,8 @@ def _add_offset_to_tree(
 
 def _evaluate_expectation_from_sampler(
     operator: List[SparsePauliOp],
-    results: Union[SamplerResult, List[BitArray]],
-    operator_measurement_list: Union[None, List[List[int]]] = None,
+    results: SamplerResult | List[BitArray],
+    operator_measurement_list: List[List[int]] | None = None,
     offset: int = 0,
 ):
     """
@@ -787,7 +776,7 @@ def _evaluate_expectation_from_sampler(
     Args:
         observable (SparsePauliOp): The observable to be evaluated.
         results (BaseSamplerResult): The results of the sampler primitive.
-        operator_measurement_list (Union[None, List[List[int]]]): The index list that is used to
+        operator_measurement_list (List[List[int]] | None): The index list that is used to
                                                                   connect the measured circuit
                                                                   with the inputted operator list.
         offset (int): The offset that is added to the index of the circuits in the sampler results.
@@ -883,8 +872,8 @@ def _evaluate_expectation_from_sampler(
 
 
 def _transform_operator_to_zbasis(
-    operator: Union[OpTreeOperator, SparsePauliOp], abelian_grouping: bool = True
-) -> Union[OpTreeOperator, OpTreeNodeBase, OpTreeSum, OpTreeMeasuredOperator]:
+    operator: OpTreeOperator | SparsePauliOp, abelian_grouping: bool = True
+) -> OpTreeOperator | OpTreeNodeBase | OpTreeSum | OpTreeMeasuredOperator:
     """
     Takes an operator and transforms it to the Z basis by adding measurement circuits.
 
@@ -892,7 +881,7 @@ def _transform_operator_to_zbasis(
     measurement circuits.
 
     Args:
-        operator (Union[OpTreeLeafOperator, SparsePauliOp]): The operator to be transformed.
+        operator (OpTreeLeafOperator | SparsePauliOp): The operator to be transformed.
         abelian_grouping (bool, optional): If True, the operator is grouped into commuting terms.
                                         Defaults to True.
 
@@ -1059,14 +1048,14 @@ class OpTreeEvaluate:
 
     @staticmethod
     def evaluate_with_sampler(
-        circuit: Union[OpTreeNodeBase, OpTreeCircuit, QuantumCircuit],
-        operator: Union[OpTreeNodeBase, OpTreeOperator, SparsePauliOp, OpTreeMeasuredOperator],
-        dictionary_circuit: Union[dict, List[dict]],
-        dictionary_operator: Union[dict, List[dict]],
-        sampler: Union[BaseSamplerV1, BaseSamplerV2],
+        circuit: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit,
+        operator: OpTreeNodeBase | OpTreeOperator | SparsePauliOp | OpTreeMeasuredOperator,
+        dictionary_circuit: dict | List[dict],
+        dictionary_operator: dict | List[dict],
+        sampler: BaseSamplerV1 | BaseSamplerV2,
         dictionaries_combined: bool = False,
         detect_duplicates: bool = True,
-    ) -> Union[float, np.ndarray]:
+    ) -> float | np.ndarray:
         """
         Function for evaluating the expectation value with the sampler primitive.
 
@@ -1080,16 +1069,16 @@ class OpTreeEvaluate:
         it once to the evaluation list. This can be turned off with the ``detect_duplicates`` flag.
 
         Args:
-            circuit (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): The circuit or
+            circuit (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The circuit or
                 OpTree with circuits to be evaluated.
-            operator (Union[OpTreeNodeBase, OpTreeLeafOperator, SparsePauliOp, OpTreeLeafMeasuredOperator]):
+            operator (OpTreeNodeBase | OpTreeLeafOperator | SparsePauliOp | OpTreeLeafMeasuredOperator):
                 The operator or OpTree in the expectation values.
-            dictionary_circuit (Union[dict, List[dict]]): The dictionary or list of dictionaries that
+            dictionary_circuit (dict | List[dict]): The dictionary or list of dictionaries that
                 contain the values for the parameters in the circuit (or the circuit OpTree).
-            dictionary_operator (Union[dict, List[dict]]): The dictionary or list of dictionaries
+            dictionary_operator (dict | List[dict]): The dictionary or list of dictionaries
                 that contain the values for the parameters in the operator
                 (or the operator OpTree).
-            sampler (Union[BaseSamplerV1, BaseSamplerV2]): The sampler primitive that is used
+            sampler (BaseSamplerV1 | BaseSamplerV2): The sampler primitive that is used
                 for the evaluation.
             dictionaries_combined (bool): If True, the function evaluates the expectation value for
                 the same index of the dictionaries (both have to be Lists). Defaults to False.
@@ -1100,7 +1089,7 @@ class OpTreeEvaluate:
             The expectation value of the expectation values as a numpy array.
         """
 
-        def _max_from_nested_list(l: Union[list, int]):
+        def _max_from_nested_list(l: list | int):
             """Helper function for finding the maximum value of a nested list"""
             if isinstance(l, int):
                 return l
@@ -1259,14 +1248,14 @@ class OpTreeEvaluate:
 
     @staticmethod
     def evaluate_with_estimator(
-        circuit: Union[OpTreeNodeBase, OpTreeCircuit, QuantumCircuit],
-        operator: Union[OpTreeNodeBase, OpTreeOperator, SparsePauliOp],
-        dictionary_circuit: Union[dict, List[dict]],
-        dictionary_operator: Union[dict, List[dict]],
-        estimator: Union[BaseEstimatorV1, BaseEstimatorV2],
+        circuit: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit,
+        operator: OpTreeNodeBase | OpTreeOperator | SparsePauliOp,
+        dictionary_circuit: dict | List[dict],
+        dictionary_operator: dict | List[dict],
+        estimator: BaseEstimatorV1 | BaseEstimatorV2,
         dictionaries_combined: bool = False,
         detect_duplicates: bool = True,
-    ) -> Union[float, np.ndarray]:
+    ) -> float | np.ndarray:
         """
         Function for evaluating the expectation value with the estimator primitive.
 
@@ -1282,16 +1271,16 @@ class OpTreeEvaluate:
         it once to the evaluation list. This can be turned off with the ``detect_duplicates`` flag.
 
         Args:
-            circuit (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): The circuit or
+            circuit (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The circuit or
                 OpTree with circuits to be evaluated.
-            operator (Union[OpTreeNodeBase, OpTreeLeafOperator, SparsePauliOp]): The operator or
+            operator (OpTreeNodeBase | OpTreeLeafOperator | SparsePauliOp): The operator or
                 OpTree in the expectation values.
-            dictionary_circuit (Union[dict, List[dict]]): The dictionary or list of dictionaries
+            dictionary_circuit (dict | List[dict]): The dictionary or list of dictionaries
                 that contain the values for the parameters in the circuit (or the circuit OpTree).
-            dictionary_operator (Union[dict, List[dict]]): The dictionary or list of dictionaries
+            dictionary_operator (dict | List[dict]): The dictionary or list of dictionaries
                 that contain the values for the parameters in the operator
                 (or the operator OpTree).
-            estimator (Union[BaseEstimatorV1,BaseEstimatorV2]): The estimator primitive that is
+            estimator (BaseEstimatorV1 | BaseEstimatorV2): The estimator primitive that is
                 used for the evaluation.
             dictionaries_combined (bool): If True, the function evaluates the expectation value for
                 the same index of the dictionaries (both have to be Lists). Defaults to False.
@@ -1303,15 +1292,15 @@ class OpTreeEvaluate:
         """
 
         def adjust_tree_operators(
-            circuit_tree: Union[OpTreeNodeBase, OpTreeContainer],
-            operator_tree: Union[OpTreeNodeBase, OpTreeContainer],
+            circuit_tree: OpTreeNodeBase | OpTreeContainer,
+            operator_tree: OpTreeNodeBase | OpTreeContainer,
             offset: int,
         ):
             """Helper function for merging the operator tree and the circuit tree into a single tree.
 
             Args:
-                circuit_tree (Union[OpTreeNodeBase,OpTreeLeafContainer]): The indexed circuit tree.
-                operator_tree (Union[OpTreeNodeBase,OpTreeLeafContainer]): The indexed operator tree.
+                circuit_tree (OpTreeNodeBase | OpTreeLeafContainer): The indexed circuit tree.
+                operator_tree (OpTreeNodeBase | OpTreeLeafContainer): The indexed operator tree.
                 operator_list_length (int): The length of the operator list.
 
             Returns:
@@ -1433,11 +1422,11 @@ class OpTreeEvaluate:
 
     @staticmethod
     def evaluate_tree_with_estimator(
-        expectation_tree: Union[OpTreeNodeBase, OpTreeExpectationValue],
-        dictionary: Union[List[dict], dict],
-        estimator: Union[BaseEstimatorV1, BaseEstimatorV2],
+        expectation_tree: OpTreeNodeBase | OpTreeExpectationValue,
+        dictionary: List[dict] | dict,
+        estimator: BaseEstimatorV1 | BaseEstimatorV2,
         detect_duplicates: bool = False,
-    ) -> Union[float, np.ndarray]:
+    ) -> float | np.ndarray:
         """
         Evaluate a expectation tree with an estimator.
 
@@ -1449,11 +1438,11 @@ class OpTreeEvaluate:
         it once to the evaluation list. This can be turned off with the ``detect_duplicates`` flag.
 
         Args:
-            expectation_tree (Union[OpTreeNodeBase,OpTreeExpectationValue]): The expectation OpTree
+            expectation_tree (OpTreeNodeBase | OpTreeExpectationValue): The expectation OpTree
                 to be evaluated.
-            dictionary (Union[List(dict),dict]): The dictionary that contains the parameter and
+            dictionary (List(dict) | dict): The dictionary that contains the parameter and
                 their values. Can be list for the evaluation of multiple dictionaries.
-            estimator (Union[BaseEstimatorV1,BaseEstimatorV2]): The estimator primitive that is
+            estimator (BaseEstimatorV1 | BaseEstimatorV2): The estimator primitive that is
                 used for the evaluation.
             detect_expectation_duplicates (bool, optional): If True, duplicate expectation values
                 are detected and only evaluated once. Defaults to True.
@@ -1529,9 +1518,9 @@ class OpTreeEvaluate:
 
     @staticmethod
     def evaluate_tree_with_sampler(
-        expectation_tree: Union[OpTreeNodeBase, OpTreeExpectationValue],
-        dictionary: Union[List[dict], dict],
-        sampler: Union[BaseSamplerV1, BaseSamplerV2],
+        expectation_tree: OpTreeNodeBase | OpTreeExpectationValue,
+        dictionary: List[dict] | dict,
+        sampler: BaseSamplerV1 | BaseSamplerV2,
         detect_duplicates: bool = True,
     ):
         """
@@ -1546,11 +1535,11 @@ class OpTreeEvaluate:
         This can be turned off with the ``detect_duplicates`` flag.
 
         Args:
-            expectation_tree (Union[OpTreeNodeBase, OpTreeExpectationValue]): The expectation
+            expectation_tree (OpTreeNodeBase | OpTreeExpectationValue): The expectation
                 OpTree to be evaluated.
-            dictionary (Union[List(dict),dict]): The dictionary that contains the parameter and
+            dictionary (List(dict) | dict): The dictionary that contains the parameter and
                 their values. Can be list for the evaluation of multiple dictionaries.
-            sampler (Union[BaseSamplerV1, BaseSamplerV2]): The sampler primitive that is used
+            sampler (BaseSamplerV1 | BaseSamplerV2): The sampler primitive that is used
                 for the evaluation.
             detect_expectation_duplicates (bool, optional): If True, duplicate expectation values
                 and circuits are detected and only evaluated once.
@@ -1635,9 +1624,7 @@ class OpTreeEvaluate:
 
     @staticmethod
     def transform_to_zbasis(
-        optree_element: Union[
-            OpTreeNodeBase, OpTreeOperator, OpTreeExpectationValue, SparsePauliOp
-        ],
+        optree_element: OpTreeNodeBase | OpTreeOperator | OpTreeExpectationValue | SparsePauliOp,
         abelian_grouping: bool = True,
     ):
         """
@@ -1647,7 +1634,7 @@ class OpTreeEvaluate:
         The function transforms the operators to the Z basis by adding measurement circuits.
 
         Args:
-            optree_element (Union[OpTreeNodeBase, OpTreeLeafOperator, OpTreeLeafExpectationValue, SparsePauliOp]):
+            optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue | SparsePauliOp):
                 The OpTree structure to be transformed.
             abelian_grouping (bool, optional): If True, the operator is grouped into commuting terms.
                 Defaults to True.

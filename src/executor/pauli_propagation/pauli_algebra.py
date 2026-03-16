@@ -11,6 +11,8 @@ the least-significant two bits. The public string representation uses standard
 mathematical convention: qubit 0 is the leftmost character.
 """
 
+from __future__ import annotations
+
 from typing import Tuple
 
 import numpy as np

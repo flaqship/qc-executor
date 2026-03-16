@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, overload
+from typing import TYPE_CHECKING, Dict, List, Tuple, overload
 
 import numpy as np
 import sympy as sp
@@ -31,14 +31,14 @@ class PauliPropagationObservable(QuantumOperatorBase):
     def from_quantum_operator(
         cls,
         operator: QuantumOperatorBase,
-        symmetry_strategy: "SymmetryStrategy",
+        symmetry_strategy: SymmetryStrategy,
     ) -> "PauliPropagationObservable": ...
 
     @classmethod
     def from_quantum_operator(
         cls,
         operator: QuantumOperatorBase,
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ) -> "PauliPropagationObservable":  # type: ignore[override]
         """Create a PauliPropagationObservable from a generic operator."""
         if isinstance(operator, cls):
@@ -59,11 +59,11 @@ class PauliPropagationObservable(QuantumOperatorBase):
 
     def __init__(
         self,
-        paulis: Optional[List[str]] = None,
-        coeffs: Optional[List[Union[complex, "sp.Expr"]]] = None,
-        num_qubits: Optional[int] = None,
-        pauli_sum: Optional[PauliSum] = None,
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+        paulis: List[str] | None = None,
+        coeffs: List[complex | "sp.Expr"] | None = None,
+        num_qubits: int | None = None,
+        pauli_sum: PauliSum | None = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ):
         # Track symbolic coefficients separately
         self._parametric_coeffs: Dict[int, sp.Expr] = {}  # Maps term -> symbolic expr

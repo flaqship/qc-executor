@@ -3,7 +3,9 @@
 Propagates observables through quantum circuits in the Heisenberg picture.
 """
 
-from typing import Dict, List, Optional
+from __future__ import annotations
+
+from typing import Dict, List
 
 import numpy as np
 
@@ -80,7 +82,7 @@ def _apply_symmetry_merging(psum: PauliSum) -> None:
 def propagate_single_gate(
     gate: Gate,
     psum: PauliSum,
-    param_value: Optional[float] = None,
+    param_value: float | None = None,
 ) -> PauliSum:
     """Propagate PauliSum through a single gate (Heisenberg picture).
 
@@ -106,7 +108,7 @@ def propagate_single_gate(
 def _propagate_pauli_rotation(
     gate: PauliRotation,
     psum: PauliSum,
-    theta: Optional[float],
+    theta: float | None,
 ) -> PauliSum:
     """Propagate through Pauli rotation: exp(-i θ/2 P) Q exp(i θ/2 P).
 
@@ -183,7 +185,7 @@ def _propagate_clifford(gate: CliffordGate, psum: PauliSum) -> PauliSum:
 def _resolve_param_value(
     gate: Gate,
     parameters: Dict[str, float],
-) -> Optional[float]:
+) -> float | None:
     """Resolve the parameter value for a parametric gate.
 
     Handles both symbolic expressions (param_expr with sympy symbols)
@@ -291,9 +293,9 @@ def _split_gates_by_barriers(gates: List) -> List[List[Gate]]:
 def propagate(
     gates: List[Gate],
     observable: PauliSum,
-    parameters: Optional[Dict[str, float]] = None,
-    max_weight: Optional[int] = None,
-    truncate_threshold: Optional[float] = None,
+    parameters: Dict[str, float] | None = None,
+    max_weight: int | None = None,
+    truncate_threshold: float | None = None,
 ) -> PauliSum:
     """Propagate observable through circuit (Heisenberg picture).
 
@@ -372,9 +374,9 @@ def propagate(
 def batch_propagate(
     gates: List[Gate],
     observables: List[PauliSum],
-    parameters: Optional[Dict[str, float]] = None,
-    max_weight: Optional[int] = None,
-    truncate_threshold: Optional[float] = None,
+    parameters: Dict[str, float] | None = None,
+    max_weight: int | None = None,
+    truncate_threshold: float | None = None,
 ) -> List[PauliSum]:
     """Propagate multiple observables through a circuit in a single layer-loop pass.
 

@@ -1,5 +1,7 @@
+
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List
 
 import numpy as np
 from qiskit.circuit import Parameter, ParameterExpression
@@ -50,7 +52,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @property
-    def parameters(self) -> List[Union[Parameter, ParameterExpression]]:
+    def parameters(self) -> List[Parameter | ParameterExpression]:
         """
         Return the parameters of the operator.
 

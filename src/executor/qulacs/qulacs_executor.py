@@ -1,7 +1,9 @@
+
+from __future__ import annotations
 import re
 from collections import Counter
 from itertools import product
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 import numpy as np
 from qiskit.circuit import ParameterVector
@@ -34,13 +36,13 @@ class QulacsExecutor(ExecutorBase):
 
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
+        max_cache_size: int | None = None,
     ):
 
         super().__init__(
@@ -64,12 +66,12 @@ class QulacsExecutor(ExecutorBase):
             self._random = np.random.default_rng()
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         """Return the number of shots."""
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         """Set the number of shots."""
         raise NotImplementedError
 
@@ -79,12 +81,12 @@ class QulacsExecutor(ExecutorBase):
         return False
 
     def _preprocess_circuits(
-        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase]
     ) -> Tuple[List[QulacsCircuit], bool]:
         """Preprocess the circuit(s) and convert them to Qulacs format.
 
         Args:
-            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum
                 circuit(s) to preprocess.
 
         Returns:
@@ -116,12 +118,12 @@ class QulacsExecutor(ExecutorBase):
         return qulacs_circuits, multiple_circuits
 
     def _preprocess_operators(
-        self, operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]]
+        self, operator: QuantumOperatorBase | List[QuantumOperatorBase]
     ) -> Tuple[List[QulacsObservable], bool]:
         """Preprocess the operator(s) and convert them to Qulacs format.
 
         Args:
-            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The quantum
+            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
                 operator(s) to preprocess.
 
         Returns:
@@ -265,14 +267,9 @@ class QulacsExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
+        *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
-    ) -> Union[np.array, dict]:
+    ) -> np.array | dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters
 
@@ -287,7 +284,7 @@ class QulacsExecutor(ExecutorBase):
                 keyword arguments.
 
         Returns:
-            Union[np.array, dict]: The derivatives of the expectation value. If a single value
+            np.array | dict: The derivatives of the expectation value. If a single value
                 is provided, a numpy array is returned. If multiple values are provided, a
                 dictionary with the values as keys and the derivatives as values is returned.
         """
@@ -297,7 +294,7 @@ class QulacsExecutor(ExecutorBase):
             observable: QulacsObservable,
             arguments_circuit,
             arguments_observable,
-            parameters: Union[None, ParameterVectorElement, List[ParameterVectorElement]] = None,
+            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Circuits with the given parameters.
@@ -347,7 +344,7 @@ class QulacsExecutor(ExecutorBase):
             observable: QulacsObservable,
             arguments_circuit,
             arguments_observable,
-            parameters: Union[None, ParameterVectorElement, List[ParameterVectorElement]] = None,
+            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Observables with the given parameters.

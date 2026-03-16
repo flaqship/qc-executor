@@ -1,4 +1,6 @@
-from typing import List, Tuple, Union
+
+from __future__ import annotations
+from typing import List, Tuple
 
 import numpy as np
 from qiskit.primitives import (
@@ -70,13 +72,13 @@ class QiskitExecutor(ExecutorBase):
 
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
+        max_cache_size: int | None = None,
         backend: str = "statevector",
     ):
 
@@ -123,12 +125,12 @@ class QiskitExecutor(ExecutorBase):
             self._random = np.random.default_rng()
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         """Return the number of shots."""
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         """Set the number of shots."""
         self._shots = value
 
@@ -139,9 +141,9 @@ class QiskitExecutor(ExecutorBase):
 
     def _convert_to_optree(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase], None] = None,
-    ) -> Tuple[Union[OpTreeCircuit, OpTreeNodeBase], Union[OpTreeOperator, OpTreeNodeBase, None]]:
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
+    ) -> Tuple[OpTreeCircuit | OpTreeNodeBase, OpTreeOperator | OpTreeNodeBase | None]:
         """
         Convert circuits and operators to OpTree format.
 
@@ -184,8 +186,8 @@ class QiskitExecutor(ExecutorBase):
 
     def _prepare_parameter_dicts(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase], None] = None,
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
         **parameters,
     ) -> Tuple[dict, dict]:
         """
@@ -326,10 +328,10 @@ class QiskitExecutor(ExecutorBase):
 
     def _expectation_value(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameter_values,
-    ) -> Union[float, np.array]:
+    ) -> float | np.array:
         """
         Calculate the expectation value using OpTree and Qiskit Estimator.
 
@@ -364,11 +366,11 @@ class QiskitExecutor(ExecutorBase):
 
     def _expectation_value_derivatives(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative_params,
         **parameter_values,
-    ) -> Union[np.array, dict]:
+    ) -> np.array | dict:
         """
         Calculate the derivatives using OpTree parameter shift.
 
@@ -476,7 +478,7 @@ class QiskitExecutor(ExecutorBase):
             return result_dict
 
     def _sample(
-        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
     ) -> List[dict]:
         """
         Sample from the circuit using OpTree and Qiskit Sampler.
@@ -528,7 +530,7 @@ class QiskitExecutor(ExecutorBase):
         return self._extract_counts(result, circuit.num_qubits)
 
     def _statevector(
-        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]], **parameter_values
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
     ) -> np.ndarray:
         """
         Compute the statevector of the circuit.

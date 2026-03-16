@@ -1,8 +1,10 @@
+
+from __future__ import annotations
 import copy
 import re
 from collections import Counter
 from itertools import product
-from typing import List, Union
+from typing import List
 
 import numpy as np
 import pennylane as qml
@@ -36,13 +38,13 @@ class PennyLaneExecutor(ExecutorBase):
 
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
+        max_cache_size: int | None = None,
     ):
 
         super().__init__(
@@ -67,12 +69,12 @@ class PennyLaneExecutor(ExecutorBase):
         self._logger.debug("PennyLaneExecutor initialised (shots=%s, seed=%s)", shots, seed)
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         """Return the number of shots."""
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         """Set the number of shots."""
         raise NotImplementedError
 
@@ -238,14 +240,9 @@ class PennyLaneExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
+        *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
-    ) -> Union[np.array, dict]:
+    ) -> np.array | dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters
 
@@ -260,7 +257,7 @@ class PennyLaneExecutor(ExecutorBase):
                 keyword arguments.
 
         Returns:
-            Union[np.array, dict]: The derivatives of the expectation value. If a single value
+            np.array | dict: The derivatives of the expectation value. If a single value
                 is provided, a numpy array is returned. If multiple values are provided, a
                 dictionary with the values as keys and the derivatives as values is returned.
         """

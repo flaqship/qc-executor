@@ -3,8 +3,10 @@
 Gates are stored in a form optimized for Heisenberg picture propagation.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union
+from typing import List
 
 import numpy as np
 import sympy as sp
@@ -18,7 +20,7 @@ from .pauli_algebra import (
 class Gate(ABC):
     """Abstract base class for quantum gates."""
 
-    def __init__(self, qubits: Union[int, List[int]], nqubits: int):
+    def __init__(self, qubits: int | List[int], nqubits: int):
         """Initialize a gate.
 
         Args:
@@ -62,11 +64,11 @@ class PauliRotation(Gate):
     def __init__(
         self,
         symbols: List[str],
-        qubits: Union[int, List[int]],
+        qubits: int | List[int],
         nqubits: int,
-        param_name: Optional[str] = None,
-        param_expr: Optional[sp.Expr] = None,
-        param_value: Optional[float] = None,
+        param_name: str | None = None,
+        param_expr: sp.Expr | None = None,
+        param_value: float | None = None,
     ):
         """Initialize a Pauli rotation gate.
 
@@ -180,7 +182,7 @@ class CliffordGate(Gate):
         },
     }
 
-    def __init__(self, gate_type: str, qubits: Union[int, List[int]], nqubits: int):
+    def __init__(self, gate_type: str, qubits: int | List[int], nqubits: int):
         """Initialize a Clifford gate.
 
         Args:

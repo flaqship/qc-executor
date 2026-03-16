@@ -3,8 +3,10 @@
 Implements quantum circuit execution using Heisenberg picture (Pauli propagation).
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Dict, List, Optional, Union, overload
+from typing import TYPE_CHECKING, Dict, List, overload
 
 import numpy as np
 
@@ -192,16 +194,16 @@ class PauliPropagationExecutor(ExecutorBase):
 
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
-        truncate_threshold: Union[float, None] = None,
-        max_weight: Union[int, None] = None,
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+        max_cache_size: int | None = None,
+        truncate_threshold: float | None = None,
+        max_weight: int | None = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ):
         super().__init__(
             shots=shots,
@@ -219,15 +221,15 @@ class PauliPropagationExecutor(ExecutorBase):
         )
 
         # Statistics tracking
-        self.last_truncation_stats: Optional[TruncationStats] = None
+        self.last_truncation_stats: TruncationStats | None = None
         self._random = np.random.default_rng(seed)
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         self._shots = value
 
     @property
@@ -240,7 +242,7 @@ class PauliPropagationExecutor(ExecutorBase):
         circuit,
         operator,
         **parameters,
-    ) -> Union[float, np.ndarray]:
+    ) -> float | np.ndarray:
         is_single_circuit = not isinstance(circuit, list)
         is_single_operator = not isinstance(operator, list)
 
@@ -335,7 +337,7 @@ class PauliPropagationExecutor(ExecutorBase):
         operator,
         *derivative_params,
         **parameter_values,
-    ) -> Union[float, np.ndarray, dict]:
+    ) -> float | np.ndarray | dict:
         """Calculate derivatives of expectation value.
 
         Handles circuit parameters (via parameter-shift rule) and observable
@@ -772,7 +774,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
         return state
 
-    def _sample(self, circuit, **parameters) -> Union[dict, List[dict]]:
+    def _sample(self, circuit, **parameters) -> dict | List[dict]:
         """Sample measurement outcomes from quantum circuit execution.
 
         Accepts both the library's QuantumCircuit wrapper and raw Qiskit types.
@@ -818,7 +820,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
         return results[0] if is_single else results
 
-    def _statevector(self, circuit, **parameters) -> Union[np.ndarray, List[np.ndarray]]:
+    def _statevector(self, circuit, **parameters) -> np.ndarray | List[np.ndarray]:
         """Compute statevector from circuit execution.
 
         Accepts both the library's QuantumCircuit wrapper and raw Qiskit types.
@@ -889,7 +891,7 @@ class PauliPropagationExecutor(ExecutorBase):
     def transpile_observable(
         self,
         operator: QuantumOperatorBase,
-        symmetry_strategy: "SymmetryStrategy",
+        symmetry_strategy: SymmetryStrategy,
     ) -> PauliPropagationObservable: ...
 
     @overload
@@ -902,14 +904,14 @@ class PauliPropagationExecutor(ExecutorBase):
     def transpile_observable(
         self,
         operator: List[QuantumOperatorBase],
-        symmetry_strategy: "SymmetryStrategy",
+        symmetry_strategy: SymmetryStrategy,
     ) -> List[PauliPropagationObservable]: ...
 
     def transpile_observable(
         self,
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
-    ) -> Union[PauliPropagationObservable, List[PauliPropagationObservable]]:
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        symmetry_strategy: SymmetryStrategy | None = None,
+    ) -> PauliPropagationObservable | List[PauliPropagationObservable]:
         """
         Transpile the operator for execution on Pauli Propagation backend.
 
@@ -917,13 +919,13 @@ class PauliPropagationExecutor(ExecutorBase):
         When a list of operators is provided, each operator is transpiled and cached individually.
 
         Args:
-            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The
+            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The
                 quantum operator or a list of operators to transpile.
-            symmetry_strategy (Optional[SymmetryStrategy]): Strategy for symmetry handling.
+            symmetry_strategy (SymmetryStrategy | None): Strategy for symmetry handling.
                 If provided, takes precedence over executor-level default.
 
         Returns:
-            Union[PauliPropagationObservable, List[PauliPropagationObservable]]: The
+            PauliPropagationObservable | List[PauliPropagationObservable]: The
                 transpiled operator(s) in native format.
         """
         self._logger.info("Transpiling operator")
@@ -934,7 +936,7 @@ class PauliPropagationExecutor(ExecutorBase):
     def _transpile_observable_cached(
         self,
         operator: QuantumOperatorBase,
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ) -> PauliPropagationObservable:
         if self._result_cache is not None:
             key = self._make_result_key("transpile_observable", operator, symmetry_strategy)
@@ -952,7 +954,7 @@ class PauliPropagationExecutor(ExecutorBase):
     def _transpile_observable_with_symmetry(
         self,
         operator: QuantumOperatorBase,
-        symmetry_strategy: Optional["SymmetryStrategy"] = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ) -> PauliPropagationObservable:
         """Transpile an operator to PauliPropagationObservable format.
 
@@ -962,7 +964,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
         Args:
             operator (QuantumOperatorBase): Operator to transpile (native or generic)
-            symmetry_strategy (Optional[object]): Symmetry strategy to assign. If None,
+            symmetry_strategy (object | None): Symmetry strategy to assign. If None,
                 uses executor-level default (self.symmetry_strategy)
 
         Returns:
@@ -979,7 +981,7 @@ class PauliPropagationExecutor(ExecutorBase):
             result.symmetry = effective_symmetry
         return result
 
-    def get_truncation_stats(self) -> Optional[TruncationStats]:
+    def get_truncation_stats(self) -> TruncationStats | None:
         """Get statistics from last truncation operation.
 
         Returns:

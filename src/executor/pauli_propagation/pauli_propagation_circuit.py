@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Sequence
 
 import sympy as sp
 
@@ -21,7 +21,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
 
     def __init__(self, num_qubits: int):
         super().__init__(num_qubits)
-        self._gates: List[Union[Gate, LayerBarrier]] = []
+        self._gates: List[Gate | LayerBarrier] = []
         self._parameters: Dict[str, sp.Symbol] = {}  # Maps parameter names to sympy symbols
 
     @classmethod
@@ -48,7 +48,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         return pp_circuit
 
     @property
-    def gates(self) -> List[Union[Gate, LayerBarrier]]:
+    def gates(self) -> List[Gate | LayerBarrier]:
         """Return a shallow copy of gate instructions."""
         return list(self._gates)
 
@@ -105,46 +105,46 @@ class PauliPropagationCircuit(QuantumCircuitBase):
 
         raise TypeError(f"Unsupported parameter type: {type(parameter)!r}")
 
-    def h(self, qubits: Union[int, List[int]]):
+    def h(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             self._gates.append(CliffordGate("H", qubit, self._num_qubits))
 
-    def s(self, qubits: Union[int, List[int]]):
+    def s(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             self._gates.append(CliffordGate("S", qubit, self._num_qubits))
 
-    def sdag(self, qubits: Union[int, List[int]]):
+    def sdag(self, qubits: int | List[int]):
         self.rz(qubits, -1.5707963267948966)
 
-    def t(self, qubits: Union[int, List[int]]):
+    def t(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             self._gates.append(CliffordGate("T", qubit, self._num_qubits))
 
-    def tdag(self, qubits: Union[int, List[int]]):
+    def tdag(self, qubits: int | List[int]):
         self.rz(qubits, -0.7853981633974483)
 
-    def p(self, qubits: Union[int, List[int]], angle: float):
+    def p(self, qubits: int | List[int], angle: float):
         self.rz(qubits, angle)
 
-    def x(self, qubits: Union[int, List[int]]):
+    def x(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             self._gates.append(CliffordGate("X", qubit, self._num_qubits))
 
-    def y(self, qubits: Union[int, List[int]]):
+    def y(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             self._gates.append(CliffordGate("Y", qubit, self._num_qubits))
 
-    def z(self, qubits: Union[int, List[int]]):
+    def z(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             self._gates.append(CliffordGate("Z", qubit, self._num_qubits))
 
-    def rx(self, qubits: Union[int, List[int]], angle: float):
+    def rx(self, qubits: int | List[int], angle: float):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             param_expr, param_value = self._extract_parameter(angle)
@@ -159,7 +159,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 )
             )
 
-    def ry(self, qubits: Union[int, List[int]], angle: float):
+    def ry(self, qubits: int | List[int], angle: float):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             param_expr, param_value = self._extract_parameter(angle)
@@ -174,7 +174,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 )
             )
 
-    def rz(self, qubits: Union[int, List[int]], angle: float):
+    def rz(self, qubits: int | List[int], angle: float):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
             param_expr, param_value = self._extract_parameter(angle)
@@ -254,7 +254,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def swap(self, qubit1: int, qubit2: int):
         self._gates.append(CliffordGate("SWAP", [qubit1, qubit2], self._num_qubits))
 
-    def barrier(self, qubits: Union[int, List[int]]):
+    def barrier(self, qubits: int | List[int]):
         self._gates.append(LayerBarrier())
 
     def measure(self):
@@ -307,7 +307,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
             New circuit with parameters substituted
         """
         assigned = self.copy()
-        new_gates: List[Union[Gate, LayerBarrier]] = []
+        new_gates: List[Gate | LayerBarrier] = []
 
         # Build substitution dict for sympy
         subs_dict = {}

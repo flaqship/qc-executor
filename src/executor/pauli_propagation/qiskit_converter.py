@@ -1,8 +1,9 @@
 """Convert Qiskit circuits to internal gate representation."""
 
+from __future__ import annotations
+
 import hashlib
-import pickle
-from typing import Dict, List, Optional, Union
+from typing import Dict, List
 
 import numpy as np
 import sympy as sp
@@ -64,7 +65,7 @@ class CircuitConversionCache:
         # Hash the string
         return hashlib.md5(circuit_str.encode()).hexdigest()
 
-    def get(self, circuit_hash: str) -> Optional[List[Union[Gate, LayerBarrier]]]:
+    def get(self, circuit_hash: str) -> List[Gate | LayerBarrier] | None:
         """Get cached conversion.
 
         Args:
@@ -75,7 +76,7 @@ class CircuitConversionCache:
         """
         return self._cache.get(circuit_hash)
 
-    def set(self, circuit_hash: str, gates: List[Union[Gate, LayerBarrier]]) -> None:
+    def set(self, circuit_hash: str, gates: List[Gate | LayerBarrier]) -> None:
         """Cache conversion.
 
         Args:
@@ -96,7 +97,7 @@ _circuit_cache = CircuitConversionCache()
 def convert_circuit(
     circuit,
     use_cache: bool = True,
-) -> List[Union[Gate, LayerBarrier]]:
+) -> List[Gate | LayerBarrier]:
     """Convert Qiskit QuantumCircuit to list of internal Gates.
 
     Args:
@@ -139,7 +140,7 @@ def convert_circuit(
     return gates
 
 
-def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Optional[Gate]:
+def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | None:
     """Convert a single Qiskit gate to internal representation.
 
     Args:
@@ -229,7 +230,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Optional[G
         raise ValueError(f"Unsupported gate: {gate_name}")
 
 
-def _extract_parameter_name(param) -> Optional[str]:
+def _extract_parameter_name(param) -> str | None:
     """Extract parameter name from Qiskit parameter.
 
     Args:
@@ -283,7 +284,7 @@ def _extract_parameter(param) -> tuple[sp.Expr | None, float | None]:
 
 
 def bind_parameters(
-    gates: List[Union[Gate, LayerBarrier]],
+    gates: List[Gate | LayerBarrier],
     parameter_values: Dict[str, float],
 ) -> Dict[str, float]:
     """Create a complete parameter binding dict for gates.

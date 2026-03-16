@@ -4,7 +4,9 @@ Computes expectation values ⟨ψ|O|ψ⟩ for Pauli operator sums O
 with respect to various quantum states |ψ⟩.
 """
 
-from typing import List, Union
+from __future__ import annotations
+
+from typing import List
 
 from .pauli_algebra import contains_x_or_y, get_pauli
 from .pauli_types import PauliSum
@@ -36,7 +38,7 @@ def overlap_with_zero(psum: PauliSum) -> complex:
     return result
 
 
-def overlap_with_computational(psum: PauliSum, bitstring: Union[str, List[int]]) -> complex:
+def overlap_with_computational(psum: PauliSum, bitstring: str | List[int]) -> complex:
     """Compute ⟨b|PauliSum|b⟩ for computational basis state |b⟩.
 
     For a computational basis state |b⟩ where b is a binary string:

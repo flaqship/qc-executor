@@ -3,7 +3,8 @@
 Handles conversion from various Qiskit operator types to our internal PauliSum representation.
 """
 
-from typing import TYPE_CHECKING, Union
+from __future__ import annotations
+
 
 from .pauli_types import PauliSum
 
@@ -16,7 +17,7 @@ except ImportError:
     QISKIT_AVAILABLE = False
 
 
-def convert_operator(operator, nqubits: Union[int, None] = None) -> PauliSum:
+def convert_operator(operator, nqubits: int | None = None) -> PauliSum:
     """Convert Qiskit operator to PauliSum.
 
     Supports:

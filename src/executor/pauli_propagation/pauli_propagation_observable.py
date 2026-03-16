@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Sequence, overload
+from typing import TYPE_CHECKING, Dict, List, Tuple, overload
 
 import numpy as np
 import sympy as sp
@@ -31,14 +31,14 @@ class PauliPropagationObservable(QuantumOperatorBase):
     def from_quantum_operator(
         cls,
         operator: QuantumOperatorBase,
-        symmetry_strategy: "SymmetryStrategy",
+        symmetry_strategy: SymmetryStrategy,
     ) -> "PauliPropagationObservable": ...
 
     @classmethod
     def from_quantum_operator(
         cls,
         operator: QuantumOperatorBase,
-        symmetry_strategy: "SymmetryStrategy" | None = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ) -> "PauliPropagationObservable":  # type: ignore[override]
         """Create a PauliPropagationObservable from a generic operator."""
         if isinstance(operator, cls):
@@ -60,10 +60,10 @@ class PauliPropagationObservable(QuantumOperatorBase):
     def __init__(
         self,
         paulis: List[str] | None = None,
-        coeffs: List[complex | sp.Expr] | None = None,
+        coeffs: List[complex | "sp.Expr"] | None = None,
         num_qubits: int | None = None,
         pauli_sum: PauliSum | None = None,
-        symmetry_strategy: "SymmetryStrategy" | None = None,
+        symmetry_strategy: SymmetryStrategy | None = None,
     ):
         # Track symbolic coefficients separately
         self._parametric_coeffs: Dict[int, sp.Expr] = {}  # Maps term -> symbolic expr
@@ -222,6 +222,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
 
     def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationObservable":
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
+        term_mapping: Dict[int, int] = {}
 
         for term, coeff in self._pauli_sum:
             remapped_term = 0
@@ -230,9 +231,17 @@ class PauliPropagationObservable(QuantumOperatorBase):
                 target_idx = layout.get(source_idx, source_idx)
                 remapped_term = set_pauli(remapped_term, target_idx, symbol, self._num_qubits)
 
+            term_mapping[term] = remapped_term
             remapped.add_term(remapped_term, coeff)
 
-        return PauliPropagationObservable(pauli_sum=remapped)
+        result = PauliPropagationObservable(pauli_sum=remapped)
+        result._parametric_coeffs = {
+            term_mapping[old_term]: expr
+            for old_term, expr in self._parametric_coeffs.items()
+            if old_term in term_mapping
+        }
+        result._parameters = dict(self._parameters)
+        return result
 
     def compose(self, other: "QuantumOperatorBase") -> "PauliPropagationObservable":
         if not isinstance(other, PauliPropagationObservable):
@@ -311,14 +320,28 @@ class PauliPropagationObservable(QuantumOperatorBase):
     def is_imaginary(self) -> bool:
         return all(np.isclose(np.real(coeff), 0.0) for _, coeff in self._pauli_sum)
 
+    def _canonical_signature(self) -> Tuple:
+        """Canonical signature used for hashing and equality comparisons.
+
+        Includes the number of qubits, Pauli terms, symmetry name, and any
+        parametric coefficient expressions (if present).
+        """
+        terms_signature = tuple(sorted(self._pauli_sum.terms.items()))
+        symmetry_signature = self.symmetry.name if self.symmetry is not None else None
+        parametric_signature = (
+            tuple(sorted((k, str(v)) for k, v in self._parametric_coeffs.items()))
+            if self._parametric_coeffs
+            else ()
+        )
+        return (self.num_qubits, terms_signature, symmetry_signature, parametric_signature)
+
     def __hash__(self):
-        signature: Sequence[tuple[int, complex]] = tuple(sorted(self._pauli_sum.terms.items()))
-        return hash((self.num_qubits, signature))
+        return hash(self._canonical_signature())
 
     def __eq__(self, other):
         return (
             isinstance(other, PauliPropagationObservable)
-            and self._pauli_sum.terms == other._pauli_sum.terms
+            and self._canonical_signature() == other._canonical_signature()
         )
 
     def __str__(self):

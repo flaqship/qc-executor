@@ -39,6 +39,8 @@ Design Notes:
     - Canonical form is always reorganized in sorted order (I, X, Y, Z)
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 

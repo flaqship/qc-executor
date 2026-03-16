@@ -1,6 +1,8 @@
 """Core Pauli data types: PauliString and PauliSum."""
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
 
@@ -32,7 +34,7 @@ class PauliString:
         coeff: Complex coefficient
     """
 
-    def __init__(self, nqubits: int, term: Union[int, str] = None, coeff: complex = 1.0):
+    def __init__(self, nqubits: int, term: int | str = None, coeff: complex = 1.0):
         """Initialize a PauliString.
 
         Args:
@@ -87,7 +89,7 @@ class PauliString:
         """Convert to string representation.
 
         Returns:
-            String like "IXYZ..." (qubit 0 is rightmost)
+            String like "IXYZ..." (qubit 0 is leftmost)
         """
         return term_to_string(int(self.term), self.nqubits)
 
@@ -208,7 +210,7 @@ class PauliSum:
         symmetry: Optional symmetry strategy for automatic term merging
     """
 
-    def __init__(self, nqubits: int, symmetry: Optional["SymmetryStrategy"] = None):
+    def __init__(self, nqubits: int, symmetry: SymmetryStrategy | None = None):
         """Initialize an empty PauliSum.
 
         Args:
@@ -231,7 +233,7 @@ class PauliSum:
         self.terms = {}  # Dict[uint term → complex coeff]
         self.symmetry = symmetry if symmetry is not None else NoSymmetry()
 
-    def add_term(self, term: Union[int, str, PauliString], coeff: complex = 1.0) -> None:
+    def add_term(self, term: int | str | PauliString, coeff: complex = 1.0) -> None:
         """Add a Pauli term to the sum.
 
         If term already exists, coefficients are added.
@@ -263,7 +265,7 @@ class PauliSum:
             if abs(coeff) >= 1e-15:
                 self.terms[term_int] = complex(coeff)
 
-    def get_coeff(self, term: Union[int, str]) -> complex:
+    def get_coeff(self, term: int | str) -> complex:
         """Get coefficient for a specific term.
 
         Args:
@@ -276,7 +278,7 @@ class PauliSum:
             term = string_to_term(term, self.nqubits)
         return self.terms.get(int(term), 0.0)
 
-    def set_coeff(self, term: Union[int, str], coeff: complex) -> None:
+    def set_coeff(self, term: int | str, coeff: complex) -> None:
         """Set coefficient for a specific term.
 
         Args:

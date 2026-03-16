@@ -1,11 +1,13 @@
+
+from __future__ import annotations
 import numpy as np
-from typing import Tuple, Union
+from typing import Tuple
 from packaging import version
 from qiskit import __version__ as qiskit_version
 from qiskit.quantum_info import SparsePauliOp
 
 
-def adjust_features(x: Union[np.ndarray, float], x_length: int) -> Tuple[np.ndarray, bool]:
+def adjust_features(x: np.ndarray | float, x_length: int) -> Tuple[np.ndarray, bool]:
     """Adjust the feature vector to the form [[]] if necessary.
 
     Args:
@@ -37,7 +39,7 @@ def adjust_parameters(x: np.ndarray, x_length: int) -> Tuple[np.ndarray, bool]:
 
 
 def _adjust_input(
-    x: Union[float, np.ndarray], x_length: int, allow_single_array: bool
+    x: float | np.ndarray, x_length: int, allow_single_array: bool
 ) -> Tuple[np.ndarray, bool]:
     """Adjust the input to the form [[]] if necessary.
 
@@ -90,11 +92,11 @@ def _adjust_input(
     return convert_to_float64(xx), multiple_inputs
 
 
-def convert_to_float64(x: Union[float, np.ndarray, list]) -> np.ndarray:
+def convert_to_float64(x: float | np.ndarray | list) -> np.ndarray:
     """Convert to float64 format, raise Error for complex values
 
     Args:
-        x (Union[float, np.ndarray]): Data that is converted
+        x (float | np.ndarray): Data that is converted
 
     Returns:
         Converted numpy float64 array
@@ -112,11 +114,11 @@ def convert_to_float64(x: Union[float, np.ndarray, list]) -> np.ndarray:
     return x
 
 
-def to_tuple(x: Union[int, str, float, np.ndarray, list, tuple], flatten: bool = True) -> Tuple:
+def to_tuple(x: int | str | float | np.ndarray | list | tuple, flatten: bool = True) -> Tuple:
     """Function for converting data into hashable tuples
 
     Args:
-        x (Union[float,np.ndarray,list,tuple]): Input data.
+        x (float | np.ndarray | list | tuple): Input data.
 
     Return:
         Flattened tuple of the input data

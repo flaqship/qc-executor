@@ -1,5 +1,7 @@
+
+from __future__ import annotations
 import copy
-from typing import List, Set, Union
+from typing import List, Set
 
 import numpy as np
 import sympy as sp
@@ -20,14 +22,14 @@ from .optree import (
 
 
 def _circuit_parameter_shift(
-    element: Union[OpTreeCircuit, QuantumCircuit, OpTreeValue],
+    element: OpTreeCircuit | QuantumCircuit | OpTreeValue,
     parameter: ParameterExpression,
-) -> Union[None, OpTreeSum, OpTreeValue]:
+) -> OpTreeSum | OpTreeValue | None:
     """
     Build the parameter shift derivative of a circuit w.r.t. a single parameter.
 
     Args:
-        element (Union[OpTreeLeafCircuit, QuantumCircuit]): The circuit to be differentiated.
+        element (OpTreeLeafCircuit | QuantumCircuit): The circuit to be differentiated.
         parameter (ParameterExpression): The parameter w.r.t. which the circuit is differentiated.
 
     Returns:
@@ -160,14 +162,14 @@ def _circuit_parameter_shift(
 
 
 def _operator_differentiation(
-    element: Union[OpTreeOperator, SparsePauliOp, OpTreeValue],
+    element: OpTreeOperator | SparsePauliOp | OpTreeValue,
     parameter: ParameterExpression,
-) -> Union[OpTreeOperator, SparsePauliOp, OpTreeValue]:
+) -> OpTreeOperator | SparsePauliOp | OpTreeValue:
     """
     Obtain the derivative of an operator w.r.t. a single parameter.
 
     Args:
-        element (Union[OpTreeLeafOperator, SparsePauliOp]): The operator to be differentiated.
+        element (OpTreeLeafOperator | SparsePauliOp): The operator to be differentiated.
         parameter (ParameterExpression): The parameter w.r.t. which the operator is differentiated.
 
     Returns:
@@ -277,14 +279,14 @@ def _differentiate_inplace(
 
 
 def _differentiate_copy(
-    element: Union[OpTreeNodeBase, OpTreeCircuit, QuantumCircuit, OpTreeOperator, SparsePauliOp],
+    element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit | OpTreeOperator | SparsePauliOp,
     parameter: ParameterExpression,
 ) -> OpTreeNodeBase:
     """
     Create the derivative of a OpTree or circuit w.r.t. a single parameter, the input is untouched.
 
     Args:
-        element (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): The OpTree (or circuit) to be differentiated.
+        element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The OpTree (or circuit) to be differentiated.
         parameter (ParameterExpression): The parameter w.r.t. which the circuit is differentiated.
 
     Returns:
@@ -394,18 +396,16 @@ class OpTreeDerivative:
 
     @staticmethod
     def differentiate(
-        element: Union[
-            OpTreeNodeBase, OpTreeCircuit, QuantumCircuit, OpTreeOperator, SparsePauliOp
-        ],
-        parameters: Union[ParameterExpression, List[ParameterExpression], ParameterVector],
+        element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit | OpTreeOperator | SparsePauliOp,
+        parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
     ) -> OpTreeNodeBase:
         """
         Calculates the derivative of a OpTree (or circuit) w.r.t. to a parameter or a list of parameters.
 
         Args:
-            element (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): OpTree (or circuit)
+            element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
                                                                                 to be differentiated.
-            parameters (Union[ParameterExpression, List[ParameterExpression], ParameterVector]): Parameter(s) w.r.t.
+            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector): Parameter(s) w.r.t.
                                                                                                     the OpTree is
                                                                                                     differentiated
 
@@ -462,10 +462,8 @@ class OpTreeDerivative:
 
     @staticmethod
     def differentiate_v2(
-        element: Union[
-            OpTreeNodeBase, OpTreeCircuit, QuantumCircuit, OpTreeOperator, SparsePauliOp
-        ],
-        parameters: Union[ParameterExpression, List[ParameterExpression], ParameterVector],
+        element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit | OpTreeOperator | SparsePauliOp,
+        parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
     ) -> OpTreeNodeBase:
         """
         Calculates the derivative of a OpTree (or circuit) w.r.t. to a parameter or a list of parameters.
@@ -474,9 +472,9 @@ class OpTreeDerivative:
         computation.
 
         Args:
-            element (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): OpTree (or circuit)
+            element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
                                                                                 to be differentiated.
-            parameters (Union[ParameterExpression, List[ParameterExpression], ParameterVector]): Parameter(s) w.r.t.
+            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector): Parameter(s) w.r.t.
                                                                                                     the OpTree is
                                                                                                     differentiated
 

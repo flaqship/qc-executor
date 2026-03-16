@@ -5,8 +5,10 @@ terms with small coefficients or high weight, enabling controlled trade-off
 between accuracy and computational efficiency.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
+from typing import Callable, Tuple
 
 from .pauli_algebra import count_weight
 from .pauli_types import PauliSum
@@ -149,8 +151,8 @@ def truncate_by_weight(
 def truncate_combined(
     psum: PauliSum,
     min_coeff: float = 1e-10,
-    max_weight: Optional[int] = None,
-    custom_filter: Optional[Callable[[int, complex], bool]] = None,
+    max_weight: int | None = None,
+    custom_filter: Callable[[int, complex], bool] | None = None,
     inplace: bool = False,
 ) -> Tuple[PauliSum, TruncationStats]:
     """Apply multiple truncation criteria (AND logic).

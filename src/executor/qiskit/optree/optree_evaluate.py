@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import time
 from typing import List, Tuple
@@ -325,7 +324,14 @@ def _build_circuit_list(
 
 
 def _build_operator_list(
-    optree_element: OpTreeNodeBase | OpTreeOperator | OpTreeExpectationValue | OpTreeMeasuredOperator | OpTreeValue | SparsePauliOp,
+    optree_element: (
+        OpTreeNodeBase
+        | OpTreeOperator
+        | OpTreeExpectationValue
+        | OpTreeMeasuredOperator
+        | OpTreeValue
+        | SparsePauliOp
+    ),
     dictionary: dict,
     detect_operator_duplicates: bool = True,
 ) -> Tuple[List[SparsePauliOp], OpTreeNodeBase | OpTreeContainer | OpTreeValue]:
@@ -439,7 +445,9 @@ def _build_operator_list(
 
 
 def _build_measurement_list(
-    optree_element: OpTreeNodeBase | OpTreeMeasuredOperator | OpTreeOperator | SparsePauliOp | OpTreeValue,
+    optree_element: (
+        OpTreeNodeBase | OpTreeMeasuredOperator | OpTreeOperator | SparsePauliOp | OpTreeValue
+    ),
     detect_measurement_duplicates: bool = True,
     detect_operator_duplicates: bool = True,
 ) -> Tuple[List[QuantumCircuit], List[List[int]]]:

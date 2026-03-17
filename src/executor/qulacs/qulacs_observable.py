@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import Iterable, List
 
@@ -69,9 +68,7 @@ class QulacsObservable:
         """Hashable object of the circuit and observable for caching"""
         return str(self._qiskit_observable)
 
-    def build_observable_instructions(
-        self, observables: List[SparsePauliOp] | SparsePauliOp
-    ):
+    def build_observable_instructions(self, observables: List[SparsePauliOp] | SparsePauliOp):
         """
         Function to build the instructions for the Qulacs observable from the Qiskit observable.
 

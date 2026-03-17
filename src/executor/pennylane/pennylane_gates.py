@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import pennylane as qml
 from qiskit.transpiler import Target

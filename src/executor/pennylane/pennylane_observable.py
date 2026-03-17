@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import List
 
@@ -249,7 +248,9 @@ class PennyLaneObservable:
 
         # Convert Pauli strings into PennyLane Pauli words
         for obs in observable:
-            self._pennylane_words.append([pauli.string_to_pauli_word(p) for p in obs.paulis.to_labels()])
+            self._pennylane_words.append(
+                [pauli.string_to_pauli_word(p) for p in obs.paulis.to_labels()]
+            )
 
         if not islist:
             self._pennylane_obs_param_function = self._pennylane_obs_param_function[0]

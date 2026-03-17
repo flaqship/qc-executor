@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 import copy
 from typing import Any, Callable, List
@@ -356,9 +355,7 @@ class OpTreeMeasuredOperator(OpTreeExpectationValue):
     The circuit in the class represents the circuit that is measured for the given operator.
     """
 
-    def measure_circuit(
-        self, circuit: QuantumCircuit | OpTreeCircuit
-    ) -> OpTreeExpectationValue:
+    def measure_circuit(self, circuit: QuantumCircuit | OpTreeCircuit) -> OpTreeExpectationValue:
         """
         Applies the measurement of the leaf to the circuit and returns an expectation value.
 

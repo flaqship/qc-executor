@@ -11,9 +11,8 @@ from executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationObservable,
-    PauliString,
-    PauliSum,
 )
+from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
 
 class TestImportPaths:

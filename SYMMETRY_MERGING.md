@@ -19,8 +19,8 @@ Barrier-aware layer semantics:
 from executor.pauli_propagation import (
     PauliPropagationExecutor,
     PermutationSymmetry,
-    PauliSum
 )
+from executor.pauli_propagation.utils.pauli_types import PauliSum
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
@@ -50,8 +50,9 @@ result = executor.expectation_value(qc, operator)
 ### Direct Integration with PauliSum
 
 ```python
-from executor.pauli_propagation import PauliSum, PermutationSymmetry
-from executor.pauli_propagation.propagation import propagate
+from executor.pauli_propagation import PermutationSymmetry
+from executor.pauli_propagation.utils.pauli_types import PauliSum
+from executor.pauli_propagation.utils.propagation import propagate
 
 # Create observable with symmetry
 sym = PermutationSymmetry()

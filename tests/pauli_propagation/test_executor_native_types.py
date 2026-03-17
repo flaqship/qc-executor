@@ -88,7 +88,9 @@ class TestPauliPropagationExecutorNativeTypes:
             captured["symmetry_name"] = obs.symmetry.name
             return obs
 
-        monkeypatch.setattr("executor.pauli_propagation.executor.propagate", fake_propagate)
+        monkeypatch.setattr(
+            "executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+        )
 
         value = executor.expectation_value(circuit, observable)
 
@@ -106,7 +108,9 @@ class TestPauliPropagationExecutorNativeTypes:
             captured["symmetry_name"] = obs.symmetry.name
             return obs
 
-        monkeypatch.setattr("executor.pauli_propagation.executor.propagate", fake_propagate)
+        monkeypatch.setattr(
+            "executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+        )
 
         value = executor.expectation_value(circuit, observable)
 

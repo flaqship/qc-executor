@@ -6,7 +6,7 @@ import time
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.pauli_types import PauliString, PauliSum
+from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 from executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
@@ -297,7 +297,7 @@ class TestPauliSumSymmetryIntegration:
         assert len(ps) == 3
 
         # Manually merge using symmetry
-        from executor.pauli_propagation.propagation import _apply_symmetry_merging
+        from executor.pauli_propagation.utils.propagation import _apply_symmetry_merging
 
         _apply_symmetry_merging(ps)
 
@@ -315,7 +315,7 @@ class TestPropagationSymmetryIntegration:
         """Propagate should apply symmetry merging if enabled."""
         # Simplified test: verify symmetry merging is callable
         # Full integration tests would require constructing realistic gate sequences
-        from executor.pauli_propagation.propagation import propagate
+        from executor.pauli_propagation.utils.propagation import propagate
 
         sym = PermutationSymmetry()
         observable = PauliSum(nqubits=2, symmetry=sym)
@@ -331,7 +331,7 @@ class TestPropagationSymmetryIntegration:
 
     def test_batch_propagate_with_symmetry(self):
         """Batch propagate should apply symmetry merging to all observables."""
-        from executor.pauli_propagation.propagation import batch_propagate
+        from executor.pauli_propagation.utils.propagation import batch_propagate
 
         sym = PermutationSymmetry()
 
@@ -359,14 +359,14 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_default_no_symmetry(self):
         """Executor should default to NoSymmetry."""
-        from executor.pauli_propagation.executor import PauliPropagationExecutor
+        from executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
 
         executor = PauliPropagationExecutor()
         assert isinstance(executor.symmetry_strategy, NoSymmetry)
 
     def test_executor_with_permutation_symmetry(self):
         """Executor should accept PermutationSymmetry."""
-        from executor.pauli_propagation.executor import PauliPropagationExecutor
+        from executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
 
         sym = PermutationSymmetry()
         executor = PauliPropagationExecutor(symmetry_strategy=sym)
@@ -453,7 +453,7 @@ class TestSymmetryPerformance:
     @pytest.mark.benchmark
     def test_merging_reduces_terms(self):
         """Verify that symmetry merging reduces term count on realistic examples."""
-        from executor.pauli_propagation.propagation import _apply_symmetry_merging
+        from executor.pauli_propagation.utils.propagation import _apply_symmetry_merging
 
         nqubits = 10
         sym = PermutationSymmetry()

@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.gates import CliffordGate, PauliRotation
-from executor.pauli_propagation.pauli_types import PauliSum
-from executor.pauli_propagation.propagation import (
+from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from executor.pauli_propagation.utils.pauli_types import PauliSum
+from executor.pauli_propagation.utils.propagation import (
     PropagationCache,
     batch_propagate,
     propagate,

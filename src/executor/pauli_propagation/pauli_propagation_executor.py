@@ -13,12 +13,12 @@ import numpy as np
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_observable import PauliPropagationObservable
-from .pauli_types import PauliSum
-from .propagation import propagate
-from .qiskit_converter import bind_parameters
-from .state_overlap import overlap_with_zero
 from .symmetry import NoSymmetry
-from .truncation import TruncationStats, truncate_combined
+from .utils.pauli_types import PauliSum
+from .utils.propagation import propagate
+from .utils.qiskit_converter import bind_parameters
+from .utils.state_overlap import overlap_with_zero
+from .utils.truncation import TruncationStats, truncate_combined
 
 if TYPE_CHECKING:
     from .symmetry import SymmetryStrategy
@@ -140,7 +140,7 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
             new_result.add_term(term, coeff / 2.0)
 
             # Add the Z component (apply Z to this qubit)
-            from .pauli_algebra import term_to_string
+            from .utils.pauli_algebra import term_to_string
 
             term_str = term_to_string(term, nqubits)
             term_list = list(term_str)
@@ -360,7 +360,7 @@ class PauliPropagationExecutor(ExecutorBase):
         """
         import sympy as sp
 
-        from .pauli_algebra import term_to_string
+        from .utils.pauli_algebra import term_to_string
 
         # Convert derivative params to string names (base parameter names without indices)
         param_names = []
@@ -530,7 +530,7 @@ class PauliPropagationExecutor(ExecutorBase):
                         effective_symbol = native_circuit._parameters.get(base_name)
 
                     if effective_symbol is not None:
-                        from .gates import PauliRotation
+                        from .utils.gates import PauliRotation
 
                         for gate_index, (source_gate, bound_gate) in enumerate(
                             zip(native_circuit.gates, bound_circuit.gates)
@@ -689,7 +689,7 @@ class PauliPropagationExecutor(ExecutorBase):
     def _simulate_statevector(
         self, circuit: PauliPropagationCircuit, parameters: Dict[str, float]
     ) -> np.ndarray:
-        from .gates import CliffordGate, LayerBarrier, PauliRotation
+        from .utils.gates import CliffordGate, LayerBarrier, PauliRotation
 
         # Normalize parameters from list format to indexed format
         normalized_params = _normalize_parameters(parameters)

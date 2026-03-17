@@ -9,7 +9,7 @@ import sympy as sp
 from executor.base.circuit_base import QuantumCircuitBase
 from executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
 
-from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
+from .utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 
 
 class PauliPropagationCircuit(QuantumCircuitBase):
@@ -36,7 +36,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 f"or {cls.__name__}, got {type(circuit).__name__}"
             )
 
-        from .qiskit_converter import convert_circuit
+        from .utils.qiskit_converter import convert_circuit
 
         pp_circuit = cls(circuit.num_qubits)
         pp_circuit._gates = convert_circuit(circuit._qiskit_circuit, use_cache=True)

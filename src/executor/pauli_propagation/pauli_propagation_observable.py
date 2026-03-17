@@ -9,9 +9,9 @@ import sympy as sp
 
 from executor.base.operator_base import QuantumOperatorBase
 
-from .pauli_algebra import get_pauli, set_pauli, term_to_string
-from .pauli_types import PauliSum
 from .symmetry import CompositeSymmetry, NoSymmetry
+from .utils.pauli_algebra import get_pauli, set_pauli, term_to_string
+from .utils.pauli_types import PauliSum
 
 if TYPE_CHECKING:
     from .symmetry import SymmetryStrategy
@@ -92,7 +92,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
                 for pauli, coeff in zip(paulis, coeff_values):
                     # Check if coefficient is symbolic
                     if isinstance(coeff, sp.Expr) and not coeff.is_number:
-                        from .pauli_algebra import string_to_term
+                        from .utils.pauli_algebra import string_to_term
 
                         term = string_to_term(pauli, self._num_qubits)
                         self._parametric_coeffs[term] = coeff
@@ -253,7 +253,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
         composed_sum = PauliSum(self.num_qubits, symmetry=composed_symmetry)
         for left_term, left_coeff in self._pauli_sum:
             for right_term, right_coeff in other._pauli_sum:
-                from .pauli_algebra import pauli_multiply
+                from .utils.pauli_algebra import pauli_multiply
 
                 result_term, phase = pauli_multiply(left_term, right_term, self.num_qubits)
                 composed_sum.add_term(result_term, left_coeff * right_coeff * phase)

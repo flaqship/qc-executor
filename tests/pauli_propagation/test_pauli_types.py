@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.pauli_types import PauliString, PauliSum
+from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
 
 class TestPauliString:

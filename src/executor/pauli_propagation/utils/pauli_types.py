@@ -18,7 +18,7 @@ from .pauli_algebra import (
 )
 
 if TYPE_CHECKING:
-    from .symmetry import SymmetryStrategy
+    from ..symmetry import SymmetryStrategy
 
 
 class PauliString:
@@ -223,10 +223,10 @@ class PauliSum:
             psum = PauliSum(4)
 
             # With qubit permutation symmetry
-            from .symmetry import PermutationSymmetry
+            from ..symmetry import PermutationSymmetry
             psum = PauliSum(4, symmetry=PermutationSymmetry())
         """
-        from .symmetry import NoSymmetry
+        from ..symmetry import NoSymmetry
 
         self.nqubits = nqubits
         self.dtype = get_uint_type(nqubits)
@@ -312,7 +312,7 @@ class PauliSum:
         Returns:
             True if symmetry is not NoSymmetry, False otherwise
         """
-        from .symmetry import NoSymmetry
+        from ..symmetry import NoSymmetry
 
         return not isinstance(self.symmetry, NoSymmetry)
 

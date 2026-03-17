@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.pauli_algebra import (
+from executor.pauli_propagation.utils.pauli_algebra import (
     commutes,
     count_weight,
     get_pauli,
@@ -16,7 +16,7 @@ from executor.pauli_propagation.pauli_algebra import (
     symbol_to_int,
     term_to_string,
 )
-from executor.pauli_propagation.pauli_types import PauliSum
+from executor.pauli_propagation.utils.pauli_types import PauliSum
 
 
 class TestUintType:
@@ -390,7 +390,7 @@ class TestPauliToMatrix:
 
     def test_identity_matrix(self):
         """Test identity operator matrix."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         term = string_to_term("I", 1)
         matrix = pauli_to_matrix(term, 1)
@@ -400,7 +400,7 @@ class TestPauliToMatrix:
 
     def test_x_matrix(self):
         """Test X operator matrix."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         term = string_to_term("X", 1)
         matrix = pauli_to_matrix(term, 1)
@@ -410,7 +410,7 @@ class TestPauliToMatrix:
 
     def test_y_matrix(self):
         """Test Y operator matrix."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         term = string_to_term("Y", 1)
         matrix = pauli_to_matrix(term, 1)
@@ -420,7 +420,7 @@ class TestPauliToMatrix:
 
     def test_z_matrix(self):
         """Test Z operator matrix."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         term = string_to_term("Z", 1)
         matrix = pauli_to_matrix(term, 1)
@@ -430,7 +430,7 @@ class TestPauliToMatrix:
 
     def test_two_qubit_matrix(self):
         """Test two-qubit Pauli matrix (ZZ)."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         term = string_to_term("ZZ", 2)
         matrix = pauli_to_matrix(term, 2)
@@ -443,7 +443,7 @@ class TestPauliToMatrix:
 
     def test_matrix_shape(self):
         """Test that matrix has correct shape."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         for nqubits in [1, 2, 3]:
             term = string_to_term("I" * nqubits, nqubits)
@@ -453,7 +453,7 @@ class TestPauliToMatrix:
 
     def test_hermitian(self):
         """Test that Pauli matrices are Hermitian."""
-        from executor.pauli_propagation.pauli_algebra import pauli_to_matrix, string_to_term
+        from executor.pauli_propagation.utils.pauli_algebra import pauli_to_matrix, string_to_term
 
         for pauli_str in ["X", "Y", "Z", "I"]:
             term = string_to_term(pauli_str, 1)

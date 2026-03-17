@@ -4,7 +4,7 @@ import numpy as np
 
 from executor.parameters import Parameters
 from executor.pauli_propagation import PauliPropagationCircuit
-from executor.pauli_propagation.gates import CliffordGate, LayerBarrier, PauliRotation
+from executor.pauli_propagation.utils.gates import CliffordGate, LayerBarrier, PauliRotation
 
 
 class TestPauliPropagationCircuit:

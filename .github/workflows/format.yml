@@ -33,3 +33,22 @@ jobs:
 
       - name: Check examples/ (notebooks)
         run: uvx black -l 99 --ipynb examples --check
+  isort:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install isort
+        run: uv tool install isort
+
+      - name: Check src/
+        run: uvx isort --check-only src
+
+      - name: Check tests/
+        run: uvx isort --check-only tests

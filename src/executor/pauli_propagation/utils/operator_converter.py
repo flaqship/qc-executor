@@ -5,7 +5,6 @@ Handles conversion from various Qiskit operator types to our internal PauliSum r
 
 from __future__ import annotations
 
-
 from .pauli_types import PauliSum
 
 # Qiskit imports with optional availability check

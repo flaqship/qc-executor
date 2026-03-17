@@ -1,8 +1,9 @@
 """Tests for the Executor factory class."""
 
 import pytest
-from executor.factory import Executor
+
 from executor.base.executor_base import ExecutorBase
+from executor.factory import Executor
 
 
 class MockExecutor(ExecutorBase):

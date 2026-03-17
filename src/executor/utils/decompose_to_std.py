@@ -1,6 +1,7 @@
 from __future__ import annotations
-from qiskit.circuit.library import standard_gates
+
 from qiskit.circuit import QuantumCircuit
+from qiskit.circuit.library import standard_gates
 
 
 def decompose_to_std(circuit: QuantumCircuit, gate_list: list | None = None) -> QuantumCircuit:

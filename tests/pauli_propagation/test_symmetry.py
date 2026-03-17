@@ -6,8 +6,8 @@ import time
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 from executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
+from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
 # and hardware differences. Set RUN_BENCHMARKS=1 to enable them.

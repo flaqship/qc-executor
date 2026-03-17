@@ -1,6 +1,8 @@
 from __future__ import annotations
-import numpy as np
+
 from typing import Tuple
+
+import numpy as np
 from packaging import version
 from qiskit import __version__ as qiskit_version
 from qiskit.quantum_info import SparsePauliOp

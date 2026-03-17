@@ -16,8 +16,8 @@ import pytest
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
-from executor.pennylane.pennylane_executor import PennyLaneExecutor
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
+from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 def _build_circuit(num_qubits, operations):

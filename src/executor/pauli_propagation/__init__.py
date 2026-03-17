@@ -6,8 +6,8 @@ in the Heisenberg picture. Based on PauliPropagation.jl.
 
 from executor.factory import Executor
 
-from .pauli_propagation_executor import PauliPropagationExecutor
 from .pauli_propagation_circuit import PauliPropagationCircuit
+from .pauli_propagation_executor import PauliPropagationExecutor
 from .pauli_propagation_observable import PauliPropagationObservable
 from .symmetry import (
     CompositeSymmetry,

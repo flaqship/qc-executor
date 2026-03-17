@@ -121,7 +121,7 @@ def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> "SparsePauliOp":
     coeffs = []
 
     for term, coeff in psum:
-        # Convert term to string in the shared rightmost-qubit-0 convention.
+        # Convert term to string using the leftmost-qubit-0 convention.
         pauli_str = term_to_string(term, psum.nqubits)
 
         pauli_strings.append(pauli_str)

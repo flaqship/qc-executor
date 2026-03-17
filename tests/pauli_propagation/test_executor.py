@@ -9,6 +9,10 @@ from executor.pauli_propagation import (
     PauliPropagationExecutor,
     PauliPropagationObservable,
 )
+from executor.pauli_propagation.pauli_propagation_executor import (
+    _create_projector_observable,
+)
+from executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 
 class TestPauliPropagationExecutor:
@@ -244,3 +248,53 @@ class TestParameterNormalization:
         result = executor.sample(circuit, theta=[0.0])
         assert isinstance(result, dict)
         assert sum(result.values()) == 100  # Total shots
+
+
+class TestProjectorObservableOrdering:
+    """Regression tests for qubit-ordering convention in _create_projector_observable.
+
+    Convention: qubit 0 is the leftmost character in both bitstrings and Pauli strings.
+    """
+
+    def test_single_qubit_projector_0(self):
+        """Projector onto |0> should be (I + Z)/2."""
+        psum = _create_projector_observable("0", 1)
+        terms = dict(psum)
+
+        i_term = string_to_term("I", 1)
+        z_term = string_to_term("Z", 1)
+        assert np.isclose(terms.get(i_term, 0), 0.5, atol=1e-10)
+        assert np.isclose(terms.get(z_term, 0), 0.5, atol=1e-10)
+
+    def test_single_qubit_projector_1(self):
+        """Projector onto |1> should be (I - Z)/2."""
+        psum = _create_projector_observable("1", 1)
+        terms = dict(psum)
+
+        i_term = string_to_term("I", 1)
+        z_term = string_to_term("Z", 1)
+        assert np.isclose(terms.get(i_term, 0), 0.5, atol=1e-10)
+        assert np.isclose(terms.get(z_term, 0), -0.5, atol=1e-10)
+
+    def test_two_qubit_projector_ordering(self):
+        """Regression test: qubit 0 is leftmost.
+
+        For bitstring "10" (qubit 0 = 1, qubit 1 = 0):
+        Projector = [(I - Z_0)/2] ⊗ [(I + Z_1)/2]
+        The II term must be 0.25 and the IZ term must be +0.25 (from qubit 1)
+        while the ZI term must be -0.25 (from qubit 0).
+        If the convention were reversed ("qubit 0 rightmost"), the signs of
+        the ZI and IZ terms would be swapped, distinguishing the two conventions.
+        """
+        psum = _create_projector_observable("10", 2)
+        terms = dict(psum)
+
+        ii = string_to_term("II", 2)
+        zi = string_to_term("ZI", 2)  # Z on qubit 0, I on qubit 1
+        iz = string_to_term("IZ", 2)  # I on qubit 0, Z on qubit 1
+        zz = string_to_term("ZZ", 2)
+
+        assert np.isclose(terms.get(ii, 0), 0.25, atol=1e-10), "II coefficient"
+        assert np.isclose(terms.get(zi, 0), -0.25, atol=1e-10), "ZI coefficient (qubit 0 = 1)"
+        assert np.isclose(terms.get(iz, 0), 0.25, atol=1e-10), "IZ coefficient (qubit 1 = 0)"
+        assert np.isclose(terms.get(zz, 0), -0.25, atol=1e-10), "ZZ coefficient"

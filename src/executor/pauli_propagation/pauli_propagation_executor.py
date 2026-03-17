@@ -128,7 +128,8 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
 
     # Iteratively build up the tensor product
     for qubit_idx in range(nqubits):
-        bit = int(bitstring[nqubits - 1 - qubit_idx])
+        # qubit 0 is leftmost in the bitstring: bitstring[0] is qubit 0's bit
+        bit = int(bitstring[qubit_idx])
         sign = -1 if bit == 1 else 1
 
         # Multiply result by (I + sign*Z)/2 on this qubit
@@ -145,8 +146,8 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
             term_str = term_to_string(term, nqubits)
             term_list = list(term_str)
 
-            # Apply Z at qubit_idx
-            string_index = nqubits - 1 - qubit_idx
+            # Apply Z at qubit_idx; qubit 0 is leftmost so string_index == qubit_idx
+            string_index = qubit_idx
 
             if term_list[string_index] == "I":
                 term_list[string_index] = "Z"

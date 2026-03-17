@@ -131,37 +131,20 @@ class NoSymmetry(SymmetryStrategy):
 def _decode_pauli_to_string(term: int, nqubits: int) -> str:
     """Convert Pauli term integer to human-readable string.
 
-    Helper function for debugging and testing. Decodes the 2-bit-per-qubit
-    integer encoding back to a Pauli string.
-
-    Encoding (little-endian, 2 bits per qubit):
-        00 = I (identity)
-        01 = X
-        10 = Y
-        11 = Z
-
-    Example:
-        For nqubits=4, term=0x1B (27 in decimal):
-        Binary: 00011011
-        Bits:   00 01 10 11  (grouped by pairs from right)
-        Qubits: [3][2][1][0]  (qubit indices, little-endian)
-        Paulis:  I  X  Y  Z   (decoded symbols)
-        Result: "IXYZ"  (public order: qubit 0 rightmost)
+    Helper function for debugging and testing. Delegates to
+    :func:`~executor.pauli_propagation.utils.pauli_algebra.term_to_string` so
+    that the qubit-ordering convention is defined in a single place.
 
     Args:
         term: Pauli term encoded as integer
         nqubits: Number of qubits
 
     Returns:
-        Human-readable Pauli string (e.g., "IXYZ", qubit 0 rightmost)
+        Human-readable Pauli string (e.g., "ZYXI", qubit 0 is leftmost)
     """
-    pauli_map = {0: "I", 1: "X", 2: "Y", 3: "Z"}
-    chars = []
-    for q in reversed(range(nqubits)):
-        # Extract 2 bits for this qubit
-        pauli_bits = (term >> (2 * q)) & 0x3
-        chars.append(pauli_map[pauli_bits])
-    return "".join(chars)
+    from .utils.pauli_algebra import term_to_string
+
+    return term_to_string(term, nqubits)
 
 
 class PermutationSymmetry(SymmetryStrategy):

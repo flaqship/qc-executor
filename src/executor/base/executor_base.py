@@ -451,7 +451,7 @@ class ExecutorBase(ABC):
         operator: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative,
         **parameters,
-    ) -> float | np.array:
+    ) -> float | np.array | dict:
         raise NotImplementedError
 
     @abstractmethod

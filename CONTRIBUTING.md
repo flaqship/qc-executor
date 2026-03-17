@@ -45,6 +45,30 @@ uv run pylint src/executor
 
 Both are checked automatically in CI on every PR.
 
+### Docstrings
+
+Use Google-style Python docstrings across the project.
+
+- Use section headers like `Args:`, `Returns:`, and `Raises:`.
+- Do not use NumPy-style headers like `Parameters`/`Returns` with dashed underlines.
+- Keep argument and return types aligned with function signatures.
+
+Example:
+
+```python
+def expectation_value(circuit, operator, **parameters):
+   """Compute the expectation value for a circuit/operator pair.
+
+   Args:
+      circuit: Quantum circuit instance.
+      operator: Quantum operator instance.
+      **parameters: Parameter values used for evaluation.
+
+   Returns:
+      float: Computed expectation value.
+   """
+```
+
 ## Adding a New Backend
 
 1. Create a new subpackage under `src/executor/<backend>/`

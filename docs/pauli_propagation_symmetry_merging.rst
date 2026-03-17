@@ -1,5 +1,5 @@
 Pauli Propagation Symmetry Merging
-=================================
+==================================
 
 This page describes the symmetry merging feature in the Pauli Propagation executor, based on the paper `Quantum Computing with Pauli-Based Computation Graphs <https://arxiv.org/abs/2512.12094>`_.
 

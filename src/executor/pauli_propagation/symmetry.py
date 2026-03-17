@@ -1,42 +1,7 @@
 """Symmetry strategies for Pauli propagation.
 
-This module provides pluggable symmetry strategies that enable automatic merging
-of Pauli terms under symmetry transformations. When a PauliSum is assigned a
-SymmetryStrategy, the propagate() function automatically groups and merges
-equivalent terms after each layer when `LayerBarrier` markers are present
-(or after each gate when no barriers are used), reducing computational complexity.
-
-Core Concepts:
-    - SymmetryStrategy: Abstract base for symmetry types
-    - NoSymmetry: Identity strategy (no merging)
-    - PermutationSymmetry: S_n qubit permutations (canonical form = sorted symbol multiset)
-    - CompositeSymmetry: Chain multiple strategies
-
-Usage:
-    from .symmetry import PermutationSymmetry, CompositeSymmetry
-
-    # Single symmetry
-    psum = PauliSum(8, symmetry=PermutationSymmetry())
-
-    # Multiple symmetries
-    psum = PauliSum(8, symmetry=CompositeSymmetry(
-        PermutationSymmetry(),
-        # PointGroupSymmetry(),  # Future
-    ))
-
-    # Automatic merging during propagation
-    propagated = propagate(gates, psum)  # Auto-merges if symmetry active
-
-Performance:
-    - PermutationSymmetry: O(n) per canonical computation (no lookup table)
-    - Scales to 100+ qubits efficiently
-    - Zero memory overhead beyond dict reconstruction during merging
-
-Design Notes:
-    - Symmetry is owned by PauliSum (not passed to propagate())
-    - Merging is transparent to caller (happens in propagate loops)
-    - All strategies use bit manipulation for Pauli term encoding
-    - Canonical form is always reorganized in sorted order (I, X, Y, Z)
+This module defines pluggable strategies that map Pauli terms to canonical
+representatives so equivalent terms can be merged during propagation.
 """
 
 from __future__ import annotations
@@ -181,58 +146,17 @@ class PermutationSymmetry(SymmetryStrategy):
     """
 
     def canonical_representative(self, term: int, nqubits: int) -> int:
-        """Compute canonical Pauli string under qubit permutations.
+        """Compute canonical Pauli term under qubit permutations.
 
-        Canonical form = sorted multiset of Pauli symbols (I, X, Y, Z).
-
-        Algorithm (O(n) bit manipulation):
-        1. Count occurrences of each Pauli type (I/X/Y/Z) in input term
-        2. Reconstruct term with Paulis in sorted order (all I's, then X's, then Y's, then Z's)
-        3. Return reconstructed integer
-
-        Bit Manipulation Details:
-            Pauli Encoding (2 bits per qubit, little-endian):
-                I = 00 (0)
-                X = 01 (1)
-                Y = 10 (2)
-                Z = 11 (3)
-
-            Extraction:
-                For qubit q: pauli = (term >> (2*q)) & 0x3
-                    >> shifts right by 2*q bits (moves qubit q to position 0-1)
-                    & 0x3 masks to keep only lowest 2 bits (00000011 binary)
-
-            Reconstruction:
-                For qubit q at bit position p:
-                    canonical |= pauli << (2*p)
-                    << shifts left by 2*p bits (moves pauli to position p)
-                    |= performs bitwise OR (combines with existing bits)
-
-        Example (4 qubits):
-            Input term:  0x1A = 00011010 binary
-            Decode by qubits (little-endian, 2 bits each):
-                Qubit 0: bits 0-1 = 10 (2) = Y
-                Qubit 1: bits 2-3 = 01 (1) = X
-                Qubit 2: bits 4-5 = 11 (3) = Z
-                Qubit 3: bits 6-7 = 00 (0) = I
-            Input string: YZXI (reading qubits 0→3)
-
-            Count: I=1, X=1, Y=1, Z=1
-
-            Sorted: IXYZ (I first, then X, then Y, then Z)
-            Reconstruct:
-                Qubit 0: I (00)  → canonical = 00000000
-                Qubit 1: X (01)  → canonical = 00000100
-                Qubit 2: Y (10)  → canonical = 00001100
-                Qubit 3: Z (11)  → canonical = 11001100 = 0xCC = 204
-            Output term: 0xCC
+        The canonical form is reconstructed from the multiset of local Pauli
+        symbols in sorted order ``I < X < Y < Z``.
 
         Args:
-            term: Pauli term encoded as integer (2 bits per qubit, little-endian)
-            nqubits: Number of qubits
+            term: Pauli term encoded as integer (2 bits per qubit, little-endian).
+            nqubits: Number of qubits.
 
         Returns:
-            Canonical representative (integer, sorted multiset representation)
+            Canonical representative as integer.
         """
         # Step 1: Count occurrences of each Pauli type
         # Index: 0=I, 1=X, 2=Y, 3=Z
@@ -308,23 +232,14 @@ class CompositeSymmetry(SymmetryStrategy):
         self.strategies = list(strategies)  # Convert tuple to list
 
     def canonical_representative(self, term: int, nqubits: int) -> int:
-        """Apply all strategies sequentially to compute canonical form.
-
-        Chains canonical computations: each strategy processes the output
-        of the previous strategy.
-
-        Algorithm:
-            canonical = term
-            for each strategy in strategies:
-                canonical = strategy.canonical_representative(canonical, nqubits)
-            return canonical
+        """Apply all configured strategies sequentially.
 
         Args:
-            term: Pauli term encoded as integer
-            nqubits: Number of qubits
+            term: Pauli term encoded as integer.
+            nqubits: Number of qubits.
 
         Returns:
-            Canonical representative after applying all strategies
+            Canonical representative after all strategies are applied.
         """
         canonical = term
         for strategy in self.strategies:

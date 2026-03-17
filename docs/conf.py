@@ -23,21 +23,26 @@ extensions = [
 ]
 
 autosummary_generate = True
+autosummary_imported_members = False
+autosummary_ignore_module_all = True
 autodoc_default_options = {
-    "members": True,
-    "undoc-members": True,
-    "show-inheritance": True,
+    "members": False,
+    "undoc-members": False,
+    "show-inheritance": False,
+    "imported-members": False,
 }
 autodoc_typehints = "description"
-napoleon_google_docstring = False
-napoleon_numpy_docstring = True
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "alabaster"
-html_static_path = ["_static"]
+# Avoid warnings when local static assets are not present.
+_static_dir = os.path.join(os.path.dirname(__file__), "_static")
+html_static_path = ["_static"] if os.path.isdir(_static_dir) else []
 html_theme_options = {
     "description": "Abstraction layer for quantum circuits and operators across multiple backends.",
     "github_user": "flaqship",

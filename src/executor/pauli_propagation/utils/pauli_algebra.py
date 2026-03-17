@@ -303,7 +303,7 @@ def contains_x_or_y(term: int, nqubits: int) -> bool:
     """Check if Pauli string contains any X or Y operators.
 
     This is useful for expectation value computations, as X and Y operators
-    give zero when computing overlap with computational basis states |0⟩ or |1⟩.
+    give zero on computational basis states.
 
     Args:
         term: Bit-encoded Pauli string

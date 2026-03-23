@@ -1220,83 +1220,87 @@ class QiskitExecutor(ExecutorBase):
             circuit, operator, **parameter_values
         )
 
-        # Build list of parameters to differentiate
+        # Build separate parameter sets for circuit and operator so we can
+        # apply the product rule correctly.
         if isinstance(circuit, list):
-            all_params = circuit[0]._qiskit_circuit.parameters
+            circuit_param_set = set(circuit[0]._qiskit_circuit.parameters)
         else:
             circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-            all_params = circ.parameters
+            circuit_param_set = set(circ.parameters)
 
-        params_to_diff = []
-        for dp in derivative_params:
-            if isinstance(dp, str):
-                # Find matching parameters by name; guard against standalone
-                # Parameter objects that carry .name instead of .vector.name
-                def _param_name(p) -> str:
-                    return p.vector.name if hasattr(p, "vector") else p.name
-
-                matching = [p for p in all_params if _param_name(p) == dp]
-                params_to_diff.extend(matching)
-            elif isinstance(dp, ParameterVectorElement):
-                params_to_diff.append(dp)
+        if operator is not None:
+            if isinstance(operator, list):
+                operator_param_set: set = set()
+                for op in operator:
+                    op_obj = op._qiskit_operator if hasattr(op, "_qiskit_operator") else op
+                    operator_param_set |= set(op_obj.parameters)
             else:
-                raise ValueError(f"Unknown derivative parameter type: {type(dp)}")
-
-        # Differentiate circuit and operator separately
-        circuit_derivative = OpTreeDerivative.differentiate(circuit_tree, params_to_diff)
-        operator_derivative = OpTreeDerivative.differentiate(operator_tree, params_to_diff)
-
-        results_list = []
-        for i in range(len(params_to_diff)):
-            # Extract i-th derivative
-            if isinstance(circuit_derivative, OpTreeList) and len(circuit_derivative.children) > 0:
-                circ_deriv_i = (
-                    circuit_derivative.children[i]
-                    if i < len(circuit_derivative.children)
-                    else circuit_tree
+                op_obj = (
+                    operator._qiskit_operator
+                    if hasattr(operator, "_qiskit_operator")
+                    else operator
                 )
-            else:
-                circ_deriv_i = circuit_derivative if i == 0 else circuit_tree
+                operator_param_set = set(op_obj.parameters)
+        else:
+            operator_param_set = set()
 
-            if (
-                isinstance(operator_derivative, OpTreeList)
-                and len(operator_derivative.children) > 0
-            ):
-                op_deriv_i = (
-                    operator_derivative.children[i]
-                    if i < len(operator_derivative.children)
-                    else operator_tree
-                )
-            else:
-                op_deriv_i = operator_derivative if i == 0 else operator_tree
+        all_params = circuit_param_set | operator_param_set
 
-            result1 = OpTreeEvaluate.evaluate_with_estimator(
-                circuit=circ_deriv_i,
-                operator=operator_tree,
-                dictionary_circuit=circuit_dict,
-                dictionary_operator=operator_dict,
-                estimator=self._estimator,
-                detect_duplicates=True,
-            )
-            result2 = 0.0
-            if operator_tree != op_deriv_i:
-                result2 = OpTreeEvaluate.evaluate_with_estimator(
-                    circuit=circuit_tree,
-                    operator=op_deriv_i,
+        def _param_name(p) -> str:
+            return p.vector.name if hasattr(p, "vector") else p.name
+
+        def _derivative_for_single_param(p) -> float:
+            """∂E/∂p = circuit contribution + operator contribution (product rule)."""
+            total = 0.0
+
+            # Circuit contribution: ⟨∂ψ/∂p|H|ψ⟩  (parameter shift on circuit)
+            if p in circuit_param_set:
+                circ_deriv = OpTreeDerivative.differentiate(circuit_tree, [p])
+                total += OpTreeEvaluate.evaluate_with_estimator(
+                    circuit=circ_deriv,
+                    operator=operator_tree,
                     dictionary_circuit=circuit_dict,
                     dictionary_operator=operator_dict,
                     estimator=self._estimator,
                     detect_duplicates=True,
                 )
-            results_list.append(result1 + result2)
+
+            # Operator contribution: ⟨ψ|∂H/∂p|ψ⟩
+            if p in operator_param_set:
+                op_deriv = OpTreeDerivative.differentiate(operator_tree, [p])
+                total += OpTreeEvaluate.evaluate_with_estimator(
+                    circuit=circuit_tree,
+                    operator=op_deriv,
+                    dictionary_circuit=circuit_dict,
+                    dictionary_operator=operator_dict,
+                    estimator=self._estimator,
+                    detect_duplicates=True,
+                )
+
+            return total
+
+        results: dict = {}
+        for dp in derivative_params:
+            if isinstance(dp, str):
+                matching = [p for p in all_params if _param_name(p) == dp]
+                if not matching:
+                    results[dp] = 0.0
+                    continue
+                # Sort ParameterVector elements by index; standalone Parameters have no index.
+                matching.sort(key=lambda p: p.index if hasattr(p, "index") else 0)
+                if len(matching) == 1:
+                    results[dp] = _derivative_for_single_param(matching[0])
+                else:
+                    # ParameterVector: return one derivative value per element.
+                    results[dp] = np.array([_derivative_for_single_param(p) for p in matching])
+            elif isinstance(dp, ParameterVectorElement):
+                results[dp] = _derivative_for_single_param(dp)
+            else:
+                raise ValueError(f"Unknown derivative parameter type: {type(dp)}")
 
         if len(derivative_params) == 1:
-            return results_list[0] if results_list else 0.0
-
-        # Multiple parameters - return dict
-        return {
-            dp: results_list[i] for i, dp in enumerate(derivative_params) if i < len(results_list)
-        }
+            return results[derivative_params[0]]
+        return results
 
     def _sample(
         self,

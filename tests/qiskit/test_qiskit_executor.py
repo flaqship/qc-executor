@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pytest
 from qiskit.circuit import Parameter, ParameterVector
+from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
 from executor.qiskit.qiskit_executor import QiskitExecutor
 from executor.qiskit.qiskit_circuit import QiskitCircuit
@@ -46,6 +47,24 @@ class TestQiskitExecutor:
             cache_dir="/tmp/cache",
         )
         assert executor.shots == 2048
+
+    def test_init_with_injected_estimator_autocreates_sampler(self):
+        estimator = StatevectorEstimator()
+        executor = QiskitExecutor(backend=estimator, shots=1024)
+
+        assert executor._estimator is estimator
+        assert isinstance(executor._sampler, StatevectorSampler)
+
+    def test_init_with_injected_sampler_autocreates_estimator(self):
+        sampler = StatevectorSampler()
+        executor = QiskitExecutor(backend=sampler, shots=1024)
+
+        assert executor._sampler is sampler
+        assert isinstance(executor._estimator, StatevectorEstimator)
+
+    def test_init_with_primitive_and_options_raises(self):
+        with pytest.raises(ValueError, match="cannot be combined with injected"):
+            QiskitExecutor(backend=StatevectorEstimator(), options={"resilience_level": 1})
 
     # ========================================================================
     # Logging Tests

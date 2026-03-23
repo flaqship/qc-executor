@@ -64,6 +64,15 @@ def _build_circuit(num_qubits, operations):
     return qc
 
 
+def _get_fake_session_or_skip():
+    backend = _get_fake_backend()
+    try:
+        session_cls = qiskit_ibm_runtime.Session
+        return session_cls(backend=backend)
+    except Exception as exc:
+        pytest.skip(f"Could not create runtime Session for fake backend: {exc}")
+
+
 # ---------------------------------------------------------------------------
 # Version flag sanity
 # ---------------------------------------------------------------------------
@@ -187,6 +196,24 @@ class TestQiskitExecutorFakeBackend:
     def test_invalid_backend_type_raises(self):
         with pytest.raises(TypeError, match="Backend instance"):
             QiskitExecutor(backend=42)
+
+    def test_init_with_injected_session_backend(self):
+        session = _get_fake_session_or_skip()
+        executor = QiskitExecutor(backend=session, shots=1024)
+
+        assert executor.session is session
+
+    def test_close_session_closes_injected_session(self):
+        session = _get_fake_session_or_skip()
+        executor = QiskitExecutor(backend=session, shots=1024)
+
+        executor.close_session()
+        assert executor.session is None
+
+    def test_session_with_execution_mode_raises(self):
+        session = _get_fake_session_or_skip()
+        with pytest.raises(ValueError, match="must remain 'job'"):
+            QiskitExecutor(backend=session, shots=1024, execution_mode="session")
 
     def test_statevector_raises_on_remote(self):
         """Statevector is not available on remote backends.

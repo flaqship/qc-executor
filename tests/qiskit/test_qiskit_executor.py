@@ -285,8 +285,8 @@ class TestQiskitExecutor:
 
         assert isinstance(result, dict)
         # After RX(pi), qubit 0 should be flipped
-        assert "01" in result
-        assert result["01"] >= 900  # Should have high count
+        assert "10" in result
+        assert result["10"] >= 900  # Should have high count
 
     def test_sample_hadamard(self):
         """Test sampling from Hadamard state."""

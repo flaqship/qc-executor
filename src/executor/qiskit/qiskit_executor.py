@@ -34,6 +34,41 @@ from executor.qiskit.optree.optree import (
 logger = logging.getLogger(__name__)
 
 
+def _reverse_qubit_ordering(statevector: np.ndarray) -> np.ndarray:
+    """Reorder statevector amplitudes from Qiskit little-endian to big-endian.
+
+    Qiskit indexes amplitude *i* with q[0] as the LSB, while PennyLane and
+    Qulacs index it with q[0] as the MSB.  The conversion is a permutation
+    that reverses the bit-pattern of each index.
+
+    Example for 2 qubits::
+
+        Qiskit index 1 = 0b01 → reversed = 0b10 = 2  (q[0]=1, q[1]=0)
+        Qiskit index 2 = 0b10 → reversed = 0b01 = 1  (q[0]=0, q[1]=1)
+    """
+    n = int(np.log2(len(statevector)))
+    perm = [int(format(i, f"0{n}b")[::-1], 2) for i in range(len(statevector))]
+    return statevector[perm]
+
+
+def _reverse_bitstring(bitstring: str) -> str:
+    """Reverse a Qiskit measurement bitstring to big-endian qubit ordering.
+
+    Qiskit writes bitstrings as ``q[n-1]...q[1]q[0]`` (q[0] rightmost).
+    PennyLane / Qulacs write ``q[0]q[1]...q[n-1]`` (q[0] leftmost).
+    """
+    return bitstring[::-1]
+
+
+def _convert_counts_endianness(counts: dict) -> dict:
+    """Return a new counts dict with all bitstrings converted to big-endian."""
+    result: dict = {}
+    for bitstring, count in counts.items():
+        key = _reverse_bitstring(bitstring)
+        result[key] = result.get(key, 0) + count
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Lazy-loaded helpers for optional dependencies
 # ---------------------------------------------------------------------------
@@ -1080,7 +1115,7 @@ class QiskitExecutor(ExecutorBase):
                             f"'data.meas.get_counts()' is not available "
                             f"(got type {type(pub)!r})."
                         )
-                    counts_list.append(meas.get_counts())
+                    counts_list.append(_convert_counts_endianness(meas.get_counts()))
                 return counts_list
 
         # --- Qiskit 1.x / V1 primitives ---
@@ -1107,7 +1142,7 @@ class QiskitExecutor(ExecutorBase):
                     )
                 shots = metadata[idx]["shots"]
                 counts = {format(k, f"0{n_qubits}b"): int(round(v * shots)) for k, v in qd.items()}
-                counts_list.append(counts)
+                counts_list.append(_convert_counts_endianness(counts))
             return counts_list
 
         raise ValueError("Unsupported primitive result format: cannot extract counts.")
@@ -1372,7 +1407,7 @@ class QiskitExecutor(ExecutorBase):
             # Bind parameters
             params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
             bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
-            statevectors.append(Statevector(bound_circ).data)
+            statevectors.append(_reverse_qubit_ordering(Statevector(bound_circ).data))
 
         statevectors = np.array(statevectors)
         return statevectors[0] if len(circuits) == 1 else statevectors

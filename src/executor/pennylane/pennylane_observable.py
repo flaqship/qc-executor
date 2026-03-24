@@ -94,29 +94,11 @@ def _get_sympy_interface():
 
 
 class PennyLaneObservable:
-    """
-    Class for converting a Qiskit circuit to a PennyLane circuit.
+    """Convert generic quantum operators to PennyLane-native observables.
 
     Args:
-        circuit (QuantumCircuit): Qiskit circuit to convert to PennyLane
-        observable (SparsePauliOp | List[SparsePauliOp] | str | None): Observable to be measured
-                                                                           Can be also a string like ``"probs"`` or ``"state"``
-        executor (Executor): Executor object to handle the PennyLane circuit. Has to be initialized with a PennyLane device.
-
-    Attributes:
-    -----------
-
-    Attributes:
-        pennylane_circuit (qml.qnode): PennyLane circuit that can be called with parameters
-        circuit_parameter_names (list): List of circuit parameter names
-        observable_parameter_names (list): List of observable parameter names
-        circuit_parameter_dimensions (dict): Dictionary with the dimension of each circuit parameter
-        observable_parameter_dimension (dict): Dictionary with the dimension of each observable parameter
-        circuit_arguments (list): List of all circuit and observable parameters names
-        hash (str): Hashable object of the circuit and observable for caching
-
-    Methods:
-    --------
+        observable (QuantumOperatorBase | list[QuantumOperatorBase]):
+            Observable definition(s) to convert.
     """
 
     @classmethod

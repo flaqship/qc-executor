@@ -19,18 +19,17 @@ from .pennylane_observable import PennyLaneObservable
 
 
 class PennyLaneExecutor(ExecutorBase):
-    """Base class for quantum circuit executors.
+    """PennyLane backend executor implementation.
 
     Args:
-        shots (int, optional): Number of shots for sampling. Defaults to None.
-        seed (int, optional): Random seed for reproducibility. Defaults to None.
-        log_file (str, optional): Path to the log file. Defaults to None.
-        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
-            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
-        caching (bool, optional): Whether to use caching. Defaults to None.
-        cache_dir (str, optional): Directory for caching. Defaults to "cache".
-        max_cache_size (int, optional): Maximum number of entries kept in each
-            in-memory cache. ``None`` means unlimited. Defaults to None.
+        shots (int | None, optional): Number of shots for sampling.
+        seed (int | None, optional): Random seed for reproducibility.
+        log_file (str | None, optional): Path to the log file.
+        log_level (str, optional): Logging level.
+        caching (bool | None, optional): Whether to use in-memory caching.
+        cache_dir (str, optional): Directory for caching.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache.
     """
 
     _native_circuit_class = PennyLaneCircuit

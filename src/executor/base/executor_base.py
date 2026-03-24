@@ -38,20 +38,16 @@ class ExecutorBase(ABC):
     """Base class for quantum circuit executors.
 
     Args:
-        shots (int, optional): Number of shots for sampling. Defaults to None.
-        seed (int, optional): Random seed for reproducibility. Defaults to None.
-        log_file (str, optional): Path to the log file. Defaults to None.
-        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
-            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
-        caching (bool, optional): Whether to cache computation results. When ``True``,
-            the results of :meth:`expectation_value`,
-            :meth:`expectation_value_derivatives`, :meth:`sample`,
-            :meth:`statevector`, and :meth:`transpile_circuit` are stored in an
-            in-memory cache and returned directly on repeated calls with the same
-            arguments. Defaults to None (no caching).
-        cache_dir (str, optional): Directory for caching. Defaults to "cache".
-        max_cache_size (int, optional): Maximum number of entries kept in each
-            in-memory cache. ``None`` means unlimited. Defaults to None.
+        shots (int | None, optional): Number of shots for sampling.
+        seed (int | None, optional): Random seed for reproducibility.
+        log_file (str | None, optional): Path to the log file.
+        log_level (str, optional): Logging level (for example ``"DEBUG"``,
+            ``"INFO"``, ``"WARNING"``, ``"ERROR"``).
+        caching (bool | None, optional): Whether to cache computation results
+            in memory.
+        cache_dir (str, optional): Directory for caching.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache. ``None`` means unlimited.
     """
 
     _native_circuit_class = None
@@ -127,7 +123,7 @@ class ExecutorBase(ABC):
             method_name: Name of the calling method (prevents key collisions
                 between different methods).
             *args: Positional arguments passed to the method.
-            **kwargs: Keyword arguments passed to the method.
+            ``**kwargs``: Keyword arguments passed to the method.
 
         Returns:
             A hashable tuple that uniquely identifies the call.
@@ -406,7 +402,7 @@ class ExecutorBase(ABC):
 
         Args:
             backend: Name of the backend to switch to (e.g., "qiskit", "pennylane", "qulacs")
-            **overrides: Configuration parameters to override (e.g., shots=2048)
+            ``**overrides``: Configuration parameters to override (e.g., shots=2048)
 
         Returns:
             ExecutorBase: New executor instance with the specified backend

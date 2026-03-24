@@ -8,6 +8,8 @@ blocks and version-gated imports.
 Supported Qiskit versions: >= 1.0  (including 2.x).
 """
 
+from __future__ import annotations
+
 from packaging import version
 from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression

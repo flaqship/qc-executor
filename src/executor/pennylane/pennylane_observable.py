@@ -1,4 +1,6 @@
-from typing import Union, List
+from __future__ import annotations
+
+from typing import List
 
 import numpy as np
 import pennylane as qml
@@ -9,7 +11,7 @@ from qiskit.quantum_info import SparsePauliOp
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
-from ..utils.qiskit_compat import _param_to_sympy, _param_is_constant
+from ..utils.qiskit_compat import _param_is_constant, _param_to_sympy
 
 
 def _get_sympy_interface():
@@ -97,7 +99,7 @@ class PennyLaneObservable:
 
     Args:
         circuit (QuantumCircuit): Qiskit circuit to convert to PennyLane
-        observable (Union[None, SparsePauliOp, List[SparsePauliOp], str]): Observable to be measured
+        observable (SparsePauliOp | List[SparsePauliOp] | str | None): Observable to be measured
                                                                            Can be also a string like ``"probs"`` or ``"state"``
         executor (Executor): Executor object to handle the PennyLane circuit. Has to be initialized with a PennyLane device.
 
@@ -117,12 +119,14 @@ class PennyLaneObservable:
     --------
     """
 
+    @classmethod
+    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "PennyLaneObservable":
+        """Create a PennyLane native observable from a generic operator."""
+        return cls(operator)
+
     def __init__(
         self,
-        observable: Union[
-            QuantumOperatorBase,
-            List[QuantumOperatorBase],
-        ],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
@@ -159,7 +163,7 @@ class PennyLaneObservable:
         """Hashable object of the circuit and observable for caching"""
         return hash(str(self._qiskit_observable))
 
-    def build_observable_instructions(self, observable: Union[List[SparsePauliOp], SparsePauliOp]):
+    def build_observable_instructions(self, observable: List[SparsePauliOp] | SparsePauliOp):
         """
         Function to build the instructions for the PennyLane observable from the Qiskit observable.
 
@@ -167,7 +171,7 @@ class PennyLaneObservable:
         compatible Pauli words and functions.
 
         Args:
-            observable (Union[List[SparsePauliOp], SparsePauliOp]): Qiskit observable to convert
+            observable (List[SparsePauliOp] | SparsePauliOp): Qiskit observable to convert
                                                                     to PennyLane
 
         Returns:
@@ -246,7 +250,7 @@ class PennyLaneObservable:
         # Convert Pauli strings into PennyLane Pauli words
         for obs in observable:
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(str(p[::-1])) for p in obs.paulis]
+                [pauli.string_to_pauli_word(p) for p in obs.paulis.to_labels()]
             )
 
         if not islist:

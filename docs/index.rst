@@ -18,3 +18,4 @@ different backends (PennyLane, Qiskit, Qulacs) via a unified interface.
 
    api/index
    examples/index
+   pauli_propagation_symmetry_merging

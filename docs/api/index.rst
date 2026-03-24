@@ -48,6 +48,15 @@ Qulacs Backend
 
    executor.qulacs
 
+Pauli Propagation Backend
+-------------------------
+
+.. autosummary::
+   :toctree: generated
+   :recursive:
+
+   executor.pauli_propagation
+
 Utilities
 ---------
 

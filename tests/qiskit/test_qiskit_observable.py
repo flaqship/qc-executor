@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import SparsePauliOp
 

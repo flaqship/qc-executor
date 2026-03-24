@@ -1,27 +1,30 @@
+from __future__ import annotations
+
+from typing import Iterable, List
+
 import numpy as np
-from typing import List, Union, Iterable
+from qiskit.circuit import ParameterExpression, ParameterVector
+from qiskit.circuit.parametervector import ParameterVectorElement
+from qiskit.quantum_info import SparsePauliOp
+from qulacs import GeneralQuantumOperator, GradCalculator, Observable, PauliOperator
 from sympy import lambdify
 
-from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression, ParameterVector
-from qiskit.quantum_info import SparsePauliOp
-
-
-from qulacs import Observable, GradCalculator, GeneralQuantumOperator, PauliOperator
-
-
 from ..base import QuantumOperatorBase
-from ..utils.qiskit_compat import _param_to_sympy, _param_free_symbols
+from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 
 
 class QulacsObservable:
 
+    @classmethod
+    def from_quantum_operator(
+        cls, operator: QuantumOperatorBase | List[QuantumOperatorBase]
+    ) -> "QulacsObservable":
+        """Create a Qulacs native observable from generic operator(s)."""
+        return cls(operator)
+
     def __init__(
         self,
-        observable: Union[
-            QuantumOperatorBase,
-            List[QuantumOperatorBase],
-        ],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
@@ -66,9 +69,7 @@ class QulacsObservable:
         """Hashable object of the circuit and observable for caching"""
         return str(self._qiskit_observable)
 
-    def build_observable_instructions(
-        self, observables: Union[List[SparsePauliOp], SparsePauliOp]
-    ):
+    def build_observable_instructions(self, observables: List[SparsePauliOp] | SparsePauliOp):
         """
         Function to build the instructions for the Qulacs observable from the Qiskit observable.
 
@@ -76,7 +77,7 @@ class QulacsObservable:
         compatible Pauli words and functions.
 
         Args:
-            observable (Union[List[SparsePauliOp], SparsePauliOp]): Qiskit observable to convert
+            observable (List[SparsePauliOp] | SparsePauliOp): Qiskit observable to convert
                                                                     to Qulacs
 
         Returns:
@@ -128,7 +129,7 @@ class QulacsObservable:
         self.new_operators_used_parameters = []
         for observable in observables:
 
-            paulis = [str(p[::-1]) for p in observable.paulis]
+            paulis = [str(p) for p in observable.paulis]
             coeff = list(np.real_if_close([c for c in observable.coeffs]))
 
             new_operator = []
@@ -162,9 +163,8 @@ class QulacsObservable:
                     for param_element in _param_free_symbols(c):
                         self._free_parameters.add(param_element)
                         used_parameters_obs_element.append(param_element)
-                        # information about the gradient of the parameter expression
-                        # the 1j fixes a bug in qiskit
-                        param_grad = -1j * ((1j * c).gradient(param_element))
+                        # Use direct symbolic derivative for coefficient gradients.
+                        param_grad = c.gradient(param_element)
                         if isinstance(param_grad, complex):
                             if param_grad.imag == 0:
                                 param_grad = param_grad.real
@@ -208,9 +208,7 @@ class QulacsObservable:
 
     def get_gradient_outer_jacobian_observables_new(
         self,
-        gradient_parameters: Union[
-            None, ParameterVectorElement, List[ParameterVectorElement]
-        ] = None,
+        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
     ):
         """Returns the outer jacobian needed for the chain rule in circuit derivatives.
 
@@ -219,7 +217,7 @@ class QulacsObservable:
         parameter expression.
 
         Args:
-            gradient_parameters (Union[None, ParameterVectorElement, List[ParameterVectorElement]]): Parameters to calculate the gradient for
+            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None): Parameters to calculate the gradient for
         """
 
         if isinstance(gradient_parameters, ParameterVectorElement):
@@ -268,9 +266,7 @@ class QulacsObservable:
 
     def get_operators_for_gradient(
         self,
-        gradient_parameters: Union[
-            None, ParameterVectorElement, List[ParameterVectorElement]
-        ] = None,
+        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
     ):
         """Returns the Qulacs observable function for the observable depending on parameters."""
 

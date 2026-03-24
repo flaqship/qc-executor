@@ -45,6 +45,7 @@ dynamic = ["version"]
 pennylane = ["pennylane>=0.34.0"]
 qulacs = ["qulacs>=0.6.4.1"]
 qiskit-full = ["qiskit-aer>=0.12.0", "qiskit-ibm-runtime>=0.18.0"]
+pauli_propagation = []
 all = [
     "pennylane>=0.34.0",
     "qulacs>=0.6.4.1",
@@ -56,6 +57,7 @@ all = [
 pennylane = "executor.pennylane:PennyLaneExecutor"
 qiskit = "executor.qiskit:QiskitExecutor"
 qulacs = "executor.qulacs:QulacsExecutor"
+pauli_propagation = "executor.pauli_propagation:PauliPropagationExecutor"
 
 [dependency-groups]
 dev = [
@@ -74,6 +76,7 @@ examples = [
     "matplotlib",
     "pylatexenc",
     "qulacsvis>=0.7.6",
+    "scikit-learn>=1.7.2",
 ]
 
 [tool.uv]
@@ -87,6 +90,10 @@ packages = ["src/executor"]
 
 [tool.black]
 line-length = 99
+
+[tool.isort]
+profile = "black"
+line_length = 99
 
 [tool.pylint]
 max-line-length = 99

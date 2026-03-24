@@ -1,14 +1,14 @@
-import numpy as np
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List
 
-from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression, Parameter
-
+import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
+from qiskit.circuit import Parameter, ParameterExpression
+from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase, QuantumOperatorBase
-
 from .utils.qiskit_hash_functions import _circuit_key
 
 
@@ -23,6 +23,11 @@ class QuantumCircuit(QuantumCircuitBase):
     def __init__(self, num_qubits: int):
         super().__init__(num_qubits)
         self._qiskit_circuit = QiskitQuantumCircuit(self._num_qubits)
+
+    @classmethod
+    def from_quantum_circuit(cls, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
+        """Identity conversion for generic circuits."""
+        return circuit
 
     @property
     def num_qubits(self) -> int:
@@ -48,27 +53,27 @@ class QuantumCircuit(QuantumCircuitBase):
         """Returns printable string representation of the circuit."""
         raise NotImplementedError
 
-    def h(self, qubits: Union[int, List[int]]):
+    def h(self, qubits: int | List[int]):
         """Add hadamard gates"""
         self._qiskit_circuit.h(qubits)
 
-    def s(self, qubits: Union[int, List[int]]):
+    def s(self, qubits: int | List[int]):
         """Add S gates"""
         self._qiskit_circuit.s(qubits)
 
-    def sdag(self, qubits: Union[int, List[int]]):
+    def sdag(self, qubits: int | List[int]):
         """Add Sdag gates"""
         self._qiskit_circuit.sdg(qubits)
 
-    def t(self, qubits: Union[int, List[int]]):
+    def t(self, qubits: int | List[int]):
         """Add T gates"""
         self._qiskit_circuit.t(qubits)
 
-    def tdag(self, qubits: Union[int, List[int]]):
+    def tdag(self, qubits: int | List[int]):
         """Add Tdg gates"""
         self._qiskit_circuit.tdg(qubits)
 
-    def p(self, qubits: Union[int, List[int]], angle: float):
+    def p(self, qubits: int | List[int], angle: float):
         """Add P gates"""
         self._qiskit_circuit.p(angle, qubits)
 
@@ -76,27 +81,27 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add CP gates"""
         self._qiskit_circuit.cp(angle, control_qubit, target_qubit)
 
-    def x(self, qubits: Union[int, List[int]]):
+    def x(self, qubits: int | List[int]):
         """Add X gates"""
         self._qiskit_circuit.x(qubits)
 
-    def y(self, qubits: Union[int, List[int]]):
+    def y(self, qubits: int | List[int]):
         """Add Y gates"""
         self._qiskit_circuit.y(qubits)
 
-    def z(self, qubits: Union[int, List[int]]):
+    def z(self, qubits: int | List[int]):
         """Add Z gates"""
         self._qiskit_circuit.z(qubits)
 
-    def rx(self, qubits: Union[int, List[int]], angle: float):
+    def rx(self, qubits: int | List[int], angle: float):
         """Add RX gates"""
         self._qiskit_circuit.rx(angle, qubits)
 
-    def ry(self, qubits: Union[int, List[int]], angle: float):
+    def ry(self, qubits: int | List[int], angle: float):
         """Add RY gates"""
         self._qiskit_circuit.ry(angle, qubits)
 
-    def rz(self, qubits: Union[int, List[int]], angle: float):
+    def rz(self, qubits: int | List[int], angle: float):
         """Add RZ gates"""
         self._qiskit_circuit.rz(angle, qubits)
 
@@ -152,7 +157,7 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add SWAP gates"""
         self._qiskit_circuit.swap(qubit1, qubit2)
 
-    def barrier(self, qubits: Union[int, List[int]]):
+    def barrier(self, qubits: int | List[int]):
         """Add barrier gates"""
         self._qiskit_circuit.barrier(qubits)
 
@@ -183,15 +188,15 @@ class QuantumCircuit(QuantumCircuitBase):
     def pauli_evolution(
         self,
         op: QuantumOperatorBase,
-        parameter: Union[ParameterVectorElement, float],
-        working_qubits: Union[List[int], None] = None,
+        parameter: ParameterVectorElement | float,
+        working_qubits: List[int] | None = None,
     ) -> None:
         """
         Applies Pauli evolution exp(itP) where P is a Pauli operator.
 
         Args:
             op (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (Union[ParameterVectorElement, float]): The evolution parameter.
+            parameter (ParameterVectorElement | float): The evolution parameter.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
@@ -254,16 +259,16 @@ class QuantumCircuit(QuantumCircuitBase):
     def controlled_pauli_evolution(
         self,
         op: QuantumOperatorBase,
-        parameter: Union[ParameterVectorElement, float],
+        parameter: ParameterVectorElement | float,
         control_qubit: int,
-        working_qubits: Union[List[int], None] = None,
+        working_qubits: List[int] | None = None,
     ) -> None:
         """
         Applies controlled Pauli evolution exp(itP) where P is a Pauli operator.
 
         Args:
             op (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (Union[ParameterVectorElement, float]): The evolution parameter.
+            parameter (ParameterVectorElement | float): The evolution parameter.
             control_qubit (int): The qubit to control the evolution.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """

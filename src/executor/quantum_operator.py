@@ -1,18 +1,23 @@
-import numpy as np
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List
 
+import numpy as np
+from qiskit.circuit import Parameter, ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression, Parameter
-
 from qiskit.quantum_info import SparsePauliOp
 
 from .base import QuantumOperatorBase
-
 from .utils.qiskit_hash_functions import _observable_key
 
 
 class QuantumOperator(QuantumOperatorBase):
+
+    @classmethod
+    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+        """Identity conversion for generic operators."""
+        return operator
 
     def __init__(
         self, paulis: List[str] = None, coeffs: List[float] = None, num_qubits: int = None
@@ -36,7 +41,7 @@ class QuantumOperator(QuantumOperatorBase):
     @property
     def paulis(self) -> List[str]:
         """Return the list of Paulis."""
-        return self._qiskit_operator.paulis.tolist()
+        return self._qiskit_operator.paulis.to_labels()
 
     @property
     def coeffs(self) -> List:
@@ -49,7 +54,7 @@ class QuantumOperator(QuantumOperatorBase):
         return len(self.parameters) > 0
 
     @property
-    def parameters(self) -> List[Union[Parameter, ParameterExpression]]:
+    def parameters(self) -> List[Parameter | ParameterExpression]:
         """
         Return the parameters of the operator.
 

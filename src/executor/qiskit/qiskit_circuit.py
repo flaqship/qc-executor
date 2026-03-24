@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from typing import List
+
 import numpy as np
 
 
@@ -32,6 +35,11 @@ class QiskitCircuit:
             self._free_parameters.add(p)
             name = p.vector.name
             self._parameter_dimensions[name] = self._parameter_dimensions.get(name, 0) + 1
+
+    @classmethod
+    def from_quantum_circuit(cls, circuit):
+        """Create a native Qiskit circuit wrapper from a generic circuit."""
+        return cls(circuit)
 
     @property
     def num_qubits(self) -> int:

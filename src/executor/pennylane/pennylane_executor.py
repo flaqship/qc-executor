@@ -1,8 +1,9 @@
 import copy
 import re
+import warnings
 from collections import Counter
 from itertools import product
-from typing import List, Union
+from typing import List, Union, overload
 
 import numpy as np
 import pennylane as qml
@@ -17,26 +18,69 @@ from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
 class PennyLaneExecutor(ExecutorBase):
-    """Base class for quantum circuit executors.
+    """Quantum circuit executor backed by PennyLane.
+
+    The *device* parameter accepts either a **string** (device name) or a
+    ready-made :class:`~pennylane.devices.Device` instance.
 
     Args:
-        device (str, optional): Name of the PennyLane device to use (e.g.
-            ``"default.qubit"``, ``"default.mixed"``, ``"lightning.qubit"``).
-            Defaults to ``"default.qubit"``.
+        device (str or qml.devices.Device): PennyLane device name **or**
+            an already-instantiated device.  Defaults to ``"default.qubit"``.
+        *args: Positional arguments forwarded to :func:`pennylane.device`
+            (only when *device* is a ``str``).  The most common positional
+            argument is *wires*.
         shots (int, optional): Number of shots for sampling. Defaults to None.
         seed (int, optional): Random seed for reproducibility. Defaults to None.
         log_file (str, optional): Path to the log file. Defaults to None.
-        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
-            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
+        log_level (str): Logging level (``"DEBUG"`` / ``"INFO"`` /
+            ``"WARNING"`` / ``"ERROR"``). Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
-        cache_dir (str, optional): Directory for caching. Defaults to "cache".
-        max_cache_size (int, optional): Maximum number of entries kept in each
-            in-memory cache. ``None`` means unlimited. Defaults to None.
+        cache_dir (str): Directory for caching. Defaults to ``"cache"``.
+        max_cache_size (int, optional): Maximum cache entries. Defaults to None.
+        **kwargs: Keyword arguments forwarded to :func:`pennylane.device`
+            (only when *device* is a ``str``).  Typical keys are ``config``
+            and ``custom_decomps``.
+
+    .. note::
+
+        If *shots* is set **and** a PennyLane ``config`` object containing a
+        ``shots`` value is passed via ``**kwargs``, the ``config`` value takes
+        precedence and a :class:`UserWarning` is emitted.
     """
+
+    @overload
+    def __init__(
+        self,
+        device: str = ...,
+        *args,
+        shots: Union[int, None] = ...,
+        seed: Union[int, None] = ...,
+        log_file: Union[str, None] = ...,
+        log_level: str = ...,
+        caching: Union[bool, None] = ...,
+        cache_dir: str = ...,
+        max_cache_size: Union[int, None] = ...,
+        **kwargs,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        device: qml.devices.Device,
+        *,
+        shots: Union[int, None] = ...,
+        seed: Union[int, None] = ...,
+        log_file: Union[str, None] = ...,
+        log_level: str = ...,
+        caching: Union[bool, None] = ...,
+        cache_dir: str = ...,
+        max_cache_size: Union[int, None] = ...,
+    ) -> None: ...
 
     def __init__(
         self,
-        device: str = "default.qubit",
+        device: Union[str, qml.devices.Device] = "default.qubit",
+        *args,
         shots: Union[int, None] = None,
         seed: Union[int, None] = None,
         log_file: Union[str, None] = None,
@@ -44,6 +88,7 @@ class PennyLaneExecutor(ExecutorBase):
         caching: Union[bool, None] = None,
         cache_dir: str = "cache",
         max_cache_size: Union[int, None] = None,
+        **kwargs,
     ):
 
         super().__init__(
@@ -56,8 +101,6 @@ class PennyLaneExecutor(ExecutorBase):
             max_cache_size=max_cache_size,
         )
 
-        self._device_name = device
-
         self._circuit_cache = self._make_cache()
         self._operator_cache = self._make_cache()
 
@@ -66,10 +109,47 @@ class PennyLaneExecutor(ExecutorBase):
         else:
             self._random = np.random.default_rng()
 
-        self._device = qml.device(self._device_name, wires=1)
+        if isinstance(device, str):
+            self._device_name = device
+            self._device_args = args
+            self._device_kwargs = kwargs
+            self._custom_device = False
+
+            # --- config / shots conflict detection -------------------------
+            config = kwargs.get("config")
+            if config is not None and shots is not None:
+                config_shots = None
+                if isinstance(config, dict):
+                    config_shots = config.get("shots")
+                elif hasattr(config, "shots"):
+                    config_shots = getattr(config, "shots")
+
+                if config_shots is not None:
+                    warnings.warn(
+                        f"The 'shots' parameter ({shots}) is overridden by the "
+                        f"shots value ({config_shots}) from the provided config.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    self._shots = config_shots
+
+            self._device = self._create_device(wires=1)
+        else:
+            if args or kwargs:
+                raise TypeError(
+                    "Extra positional or keyword arguments are not accepted "
+                    "when 'device' is a Device instance. Configure the device "
+                    "before passing it to PennyLaneExecutor."
+                )
+            self._device_name = getattr(device, "name", type(device).__name__)
+            self._device_args = ()
+            self._device_kwargs = {}
+            self._custom_device = True
+            self._device = device
+
         self._logger.debug(
             "PennyLaneExecutor initialised (shots=%s, seed=%s, device=%s)",
-            shots, seed, device,
+            shots, seed, self._device_name,
         )
 
     @property
@@ -91,6 +171,19 @@ class PennyLaneExecutor(ExecutorBase):
     def device_name(self) -> str:
         """Return the name of the PennyLane device."""
         return self._device_name
+
+    def _create_device(self, **extra_kwargs) -> qml.devices.Device:
+        """Create a PennyLane device from stored configuration.
+
+        This is only used when *device* was given as a string.  The keyword
+        arguments in *extra_kwargs* are merged with the stored
+        ``device_kwargs`` (with *extra_kwargs* taking precedence).
+
+        Returns:
+            qml.devices.Device: A freshly created PennyLane device.
+        """
+        kwargs = {**self._device_kwargs, **extra_kwargs}
+        return qml.device(self._device_name, *self._device_args, **kwargs)
 
     def _preprocess_circuits(self, circuit: QuantumCircuitBase):
 
@@ -154,8 +247,8 @@ class PennyLaneExecutor(ExecutorBase):
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         pennylane_observables, multiple_operators = self._preprocess_operators(operator)
 
-        if circuit.num_qubits != len(self._device.wires):
-            self._device = qml.device(self._device_name, wires=circuit.num_qubits)
+        if not self._custom_device and circuit.num_qubits != len(self._device.wires):
+            self._device = self._create_device(wires=circuit.num_qubits)
 
         values = []
 
@@ -323,8 +416,8 @@ class PennyLaneExecutor(ExecutorBase):
         values = [values[i] for i in indices]
         values = [to_tuple(v) for v in values]
 
-        if circuit.num_qubits != len(self._device.wires):
-            self._device = qml.device(self._device_name, wires=circuit.num_qubits)
+        if not self._custom_device and circuit.num_qubits != len(self._device.wires):
+            self._device = self._create_device(wires=circuit.num_qubits)
 
         def circuit_func(*args):
             pennylane_circuit.build_pennylane_circuit()(*args)
@@ -459,9 +552,12 @@ class PennyLaneExecutor(ExecutorBase):
 
             circuit_parameter_tuples = product(*circuit_parameters)
 
-            device = qml.device(
-                self._device_name, wires=circuit.num_qubits, shots=self._shots, seed=self._random,
-            )
+            if self._custom_device:
+                device = self._device
+            else:
+                device = self._create_device(
+                    wires=circuit.num_qubits, shots=self._shots, seed=self._random,
+                )
 
             @qml.qnode(device)
             def circuit_func(*args):
@@ -527,8 +623,8 @@ class PennyLaneExecutor(ExecutorBase):
 
             circuit_parameter_tuples = product(*circuit_parameters)
 
-            if pennylane_circuit.num_qubits != len(self._device.wires):
-                self._device = qml.device(self._device_name, wires=circuit.num_qubits)
+            if not self._custom_device and pennylane_circuit.num_qubits != len(self._device.wires):
+                self._device = self._create_device(wires=circuit.num_qubits)
 
             @qml.qnode(self._device)
             def circuit_func(*args):

@@ -11,7 +11,11 @@ using PennyLane backend, including:
 - Error handling
 """
 
+import warnings
+from unittest.mock import patch, MagicMock
+
 import numpy as np
+import pennylane as qml
 import pytest
 from qiskit.circuit import ParameterVector
 
@@ -766,4 +770,128 @@ class TestPennylaneExecutor:
         op2 = QuantumOperator(["ZZ"], [1.0])
         executor.expectation_value(qc2, op2)
         assert executor._device.name == "default.mixed"
+
+
+class TestDeviceInit:
+    """Tests for string-vs-instance device initialisation and config/shots handling."""
+
+    # -- String device init -------------------------------------------------
+
+    def test_init_string_device_default(self):
+        """String device with defaults stores the correct internal state."""
+        executor = PennyLaneExecutor("default.qubit")
+        assert executor._custom_device is False
+        assert executor.device_name == "default.qubit"
+        assert executor._device_args == ()
+        assert executor._device_kwargs == {}
+
+    def test_init_string_device_with_kwargs(self):
+        """Extra **kwargs are stored and forwarded to qml.device()."""
+        executor = PennyLaneExecutor("default.qubit", custom_decomps={})
+        assert executor._custom_device is False
+        assert executor._device_kwargs == {"custom_decomps": {}}
+
+    # -- Device instance init -----------------------------------------------
+
+    def test_init_device_instance(self):
+        """Passing a Device instance stores it directly."""
+        dev = qml.device("default.qubit", wires=2)
+        executor = PennyLaneExecutor(dev)
+        assert executor._custom_device is True
+        assert executor._device is dev
+        assert executor.device_name == dev.name
+
+    def test_init_device_instance_no_extra_args(self):
+        """Device-instance path stores empty args/kwargs."""
+        dev = qml.device("default.qubit", wires=2)
+        executor = PennyLaneExecutor(dev, shots=50)
+        assert executor._device_args == ()
+        assert executor._device_kwargs == {}
+
+    def test_init_device_instance_rejects_extra_kwargs(self):
+        """Passing extra **kwargs together with a Device instance is an error."""
+        dev = qml.device("default.qubit", wires=2)
+        with pytest.raises(TypeError, match="Extra positional or keyword arguments"):
+            PennyLaneExecutor(dev, custom_decomps={})
+
+    # -- Config / shots conflict --------------------------------------------
+
+    def test_shots_config_conflict_warning_dict(self):
+        """A dict config with 'shots' triggers a UserWarning and overrides shots."""
+        mock_dev = MagicMock(spec=qml.devices.Device)
+        with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
+            with pytest.warns(UserWarning, match="overridden"):
+                executor = PennyLaneExecutor(
+                    "default.qubit", shots=100, config={"shots": 500}
+                )
+        assert executor.shots == 500
+
+    def test_shots_config_conflict_warning_object(self):
+        """An object config with a .shots attribute triggers a UserWarning."""
+
+        class _FakeConfig:
+            shots = 200
+
+        mock_dev = MagicMock(spec=qml.devices.Device)
+        with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
+            with pytest.warns(UserWarning, match="overridden"):
+                executor = PennyLaneExecutor(
+                    "default.qubit", shots=100, config=_FakeConfig()
+                )
+        assert executor.shots == 200
+
+    def test_no_warning_when_shots_none(self):
+        """No warning when shots is None, even if config has shots."""
+        mock_dev = MagicMock(spec=qml.devices.Device)
+        with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                executor = PennyLaneExecutor(
+                    "default.qubit", config={"shots": 500}
+                )
+        # shots stays None since it was not explicitly set
+        assert executor.shots is None
+
+    def test_no_warning_when_config_has_no_shots(self):
+        """No warning when config is present but contains no shots."""
+        mock_dev = MagicMock(spec=qml.devices.Device)
+        with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                executor = PennyLaneExecutor(
+                    "default.qubit", shots=100, config={"backend": "aer"}
+                )
+        assert executor.shots == 100
+
+    # -- Device recreation behaviour ----------------------------------------
+
+    def test_custom_device_not_recreated(self):
+        """A custom Device instance is never replaced when the qubit count changes."""
+        dev = qml.device("default.qubit", wires=4)
+        executor = PennyLaneExecutor(dev)
+
+        qc1 = _build_circuit(1, [("h", [0])])
+        op1 = QuantumOperator(["Z"], [1.0])
+        executor.expectation_value(qc1, op1)
+        assert executor._device is dev
+
+        qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        op2 = QuantumOperator(["ZZ"], [1.0])
+        executor.expectation_value(qc2, op2)
+        assert executor._device is dev  # still the same object
+
+    def test_string_device_recreated_on_wire_change(self):
+        """A string-based device is recreated when the qubit count changes."""
+        executor = PennyLaneExecutor("default.mixed")
+
+        qc1 = _build_circuit(1, [("h", [0])])
+        op1 = QuantumOperator(["Z"], [1.0])
+        executor.expectation_value(qc1, op1)
+        dev_after_1q = executor._device
+
+        qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        op2 = QuantumOperator(["ZZ"], [1.0])
+        executor.expectation_value(qc2, op2)
+        assert executor._device is not dev_after_1q  # replaced
+        assert executor.device_name == "default.mixed"
 

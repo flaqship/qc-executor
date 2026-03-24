@@ -895,3 +895,29 @@ class TestDeviceInit:
         assert executor._device is not dev_after_1q  # replaced
         assert executor.device_name == "default.mixed"
 
+    # -- get_accepted_backend_types ------------------------------------------
+
+    def test_get_accepted_backend_types_returns_list(self):
+        """get_accepted_backend_types returns a non-empty list of types."""
+        accepted = PennyLaneExecutor.get_accepted_backend_types()
+        assert isinstance(accepted, list)
+        assert len(accepted) > 0
+        assert all(isinstance(t, type) for t in accepted)
+
+    def test_get_accepted_backend_types_contains_device(self):
+        """The PennyLane Device base class must be in accepted types."""
+        accepted = PennyLaneExecutor.get_accepted_backend_types()
+        assert qml.devices.Device in accepted
+
+    def test_get_accepted_backend_types_matches_device_instance(self):
+        """A concrete PennyLane device must be an instance of an accepted type."""
+        dev = qml.device("default.qubit", wires=1)
+        accepted = PennyLaneExecutor.get_accepted_backend_types()
+        assert any(isinstance(dev, t) for t in accepted)
+
+    def test_get_accepted_backend_types_rejects_non_device(self):
+        """A plain string or unrelated object must not match any accepted type."""
+        accepted = PennyLaneExecutor.get_accepted_backend_types()
+        assert not any(isinstance("default.qubit", t) for t in accepted)
+        assert not any(isinstance(42, t) for t in accepted)
+

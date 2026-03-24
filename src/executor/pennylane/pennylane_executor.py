@@ -660,3 +660,16 @@ class PennyLaneExecutor(ExecutorBase):
             PennyLaneCircuit: The corresponding PennyLaneCircuit.
         """
         return PennyLaneCircuit(circuit)
+
+    @classmethod
+    def get_accepted_backend_types(cls) -> List[type]:
+        """Return all types accepted as the ``device`` argument.
+
+        Covers:
+        * PennyLane device instances (:class:`pennylane.devices.Device`)
+
+        Returns:
+            List[type]: List of accepted backend types.
+        """
+        return [qml.devices.Device]
+

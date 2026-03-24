@@ -10,7 +10,6 @@ from typing import Dict, List
 import numpy as np
 
 from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
-from .pauli_algebra import pauli_sum_product
 from .pauli_types import PauliSum
 from .truncation import truncate_combined
 

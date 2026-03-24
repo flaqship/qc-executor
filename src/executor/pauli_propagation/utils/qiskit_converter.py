@@ -9,25 +9,7 @@ import numpy as np
 import sympy as sp
 
 try:
-    from qiskit import QuantumCircuit
     from qiskit.circuit import Parameter, ParameterExpression
-    from qiskit.circuit.library import (
-        CXGate,
-        CZGate,
-        HGate,
-        RXGate,
-        RXXGate,
-        RYGate,
-        RYYGate,
-        RZGate,
-        RZZGate,
-        SGate,
-        SwapGate,
-        TGate,
-        XGate,
-        YGate,
-        ZGate,
-    )
 
     QISKIT_AVAILABLE = True
 except ImportError:
@@ -228,31 +210,6 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
 
     else:
         raise ValueError(f"Unsupported gate: {gate_name}")
-
-
-def _extract_parameter_name(param) -> str | None:
-    """Extract parameter name from Qiskit parameter.
-
-    Args:
-        param: Qiskit parameter (could be Parameter, float, or ParameterExpression)
-
-    Returns:
-        Parameter name string or None if it's a concrete value
-    """
-    if not QISKIT_AVAILABLE:
-        return None
-
-    if isinstance(param, Parameter):
-        return param.name
-    elif isinstance(param, ParameterExpression):
-        # For expressions, get the first parameter name
-        params = param.parameters
-        if len(params) > 0:
-            return list(params)[0].name
-        return None
-    else:
-        # Concrete value (float)
-        return None
 
 
 def _extract_parameter(param) -> tuple[sp.Expr | None, float | None]:

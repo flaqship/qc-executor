@@ -12,9 +12,6 @@ import numpy as np
 import sympy as sp
 
 from .pauli_algebra import commutes as pauli_commutes
-from .pauli_algebra import (
-    string_to_term,
-)
 
 
 class Gate(ABC):
@@ -232,7 +229,6 @@ class CliffordGate(Gate):
         Returns:
             Tuple of (transformed_term, phase)
         """
-        from .pauli_algebra import get_pauli, set_pauli
 
         if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
             return self._transform_single_qubit(pauli_term)

@@ -215,30 +215,24 @@ def _resolve_backend_from_session_or_batch(session_or_batch):
 
 
 def _is_primitive_instance(obj) -> Tuple[bool, bool]:
-    """Detect whether *obj* is a Qiskit primitive.
-
-    Returns
-    -------
-    (is_primitive, is_sampler) : Tuple[bool, bool]
-        ``is_primitive`` is *True* if *obj* is any Sampler or Estimator.
-        ``is_sampler`` is *True* if it is specifically a Sampler variant,
-        *False* if it is an Estimator variant.
-
-    Note: relies on module-level ``Base*V1`` / ``Base*V2`` classes, which are
-    either real imports or harmless dummy classes depending on the installed
-    Qiskit version. Also checks for concrete Qiskit 1.0+ primitives
-    (StatevectorEstimator, StatevectorSampler).
-    """
-    # Check base classes (covers most primitives)
+    """Detect whether *obj* is a Qiskit primitive."""
+    # Qiskit base classes (covers BackendEstimator/Sampler and StatevectorEstimator/Sampler)
     if isinstance(obj, (BaseSamplerV1, BaseSamplerV2)):
         return (True, True)
     if isinstance(obj, (BaseEstimatorV1, BaseEstimatorV2)):
         return (True, False)
 
-    # Check concrete Qiskit 1.0+ primitives
+    # Qiskit concrete statevector primitives
     if isinstance(obj, StatevectorSampler):
         return (True, True)
     if isinstance(obj, StatevectorEstimator):
+        return (True, False)
+
+    # IBM Runtime primitives — may NOT inherit from Qiskit base classes
+    # (especially runtime >= 0.28 where Estimator/Sampler are the V2 primitives)
+    if isinstance(obj, (RuntimeSamplerV1, RuntimeSamplerV2)):
+        return (True, True)
+    if isinstance(obj, (RuntimeEstimatorV1, RuntimeEstimatorV2)):
         return (True, False)
 
     return (False, False)
@@ -1434,3 +1428,50 @@ class QiskitExecutor(ExecutorBase):
         if isa_circuit is not qc._qiskit_circuit:
             return QiskitCircuit._from_qiskit(isa_circuit)
         return qc
+
+    @classmethod
+    def get_accepted_backend_types(cls) -> list[type]:
+        """Return all types accepted as the ``backend`` argument.
+
+        Covers:
+        * Qiskit local backends (``Backend`` / ``BackendV2``)
+        * Qiskit statevector primitives (``StatevectorEstimator``, ``StatevectorSampler``)
+        * Qiskit local primitive base classes (V1 and V2)
+        * IBM Runtime ``Session`` / ``Batch`` (when *qiskit-ibm-runtime* is installed)
+        * IBM Runtime primitive classes (V1 and V2, version-gated)
+
+        Dummy sentinel classes defined when optional dependencies are absent are
+        intentionally excluded so that ``isinstance`` checks never yield false
+        positives.
+        """
+
+        types: list[type] = [
+            Backend,
+            StatevectorEstimator,
+            StatevectorSampler,
+        ]
+
+        for cls_ in (BaseEstimatorV1, BaseEstimatorV2, BaseSamplerV1, BaseSamplerV2):
+            if getattr(cls_, "__module__", "").startswith("qiskit."):
+                types.append(cls_)
+
+        # ── IBM Runtime types (only when the real classes are importable) ───
+        if QISKIT_RUNTIME_AVAILABLE:
+            # Session and Batch are real at this point (imported at module top)
+            types.extend([Session, Batch])
+
+            # Runtime primitives: include only the non-dummy versions.
+            # The module-level conditionals guarantee that the V1/V2 splits are
+            # correctly resolved; we just need to skip the local dummy sentinels.
+            for rt_cls in (
+                RuntimeEstimatorV1,
+                RuntimeEstimatorV2,
+                RuntimeSamplerV1,
+                RuntimeSamplerV2,
+            ):
+                # Dummy classes are defined in this module and have no __module__
+                # pointing to qiskit_ibm_runtime — use that as the guard.
+                if "qiskit_ibm_runtime" in getattr(rt_cls, "__module__", ""):
+                    types.append(rt_cls)
+
+        return types

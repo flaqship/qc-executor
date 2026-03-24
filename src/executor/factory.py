@@ -90,78 +90,61 @@ class Executor:
             >>> executor = Executor.create("qiskit", shots=1024, seed=42)
             >>> executor = Executor.create("pennylane", shots=1000)
         """
-        # Accept a Backend object and route to the qiskit executor
-        if not isinstance(backend, str):
-            return cls.from_backend(backend, **kwargs)
 
-        # Try to find backend in registry
-        if backend not in cls._registry:
-            # Try discovering plugins if not done yet
-            if not cls._plugins_discovered:
-                cls._discover_plugins()
+        # Try discovering plugins if not done yet
+        if not cls._plugins_discovered:
+            cls._discover_plugins()
 
-        # Check if backend is available
-        if backend not in cls._registry:
-            available = cls.available_backends()
-            available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
-            extra_name = cls._backend_extra_map.get(backend, backend)
+        # String path: look up in registry and create instance
+        if isinstance(backend, str):
+            # Check if backend is available
+            if backend not in cls._registry:
+                available = cls.available_backends()
+                available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
+                extra_name = cls._backend_extra_map.get(backend, backend)
 
-            raise ValueError(
-                f"Backend '{backend}' not found. "
-                f"Available backends: {available_str}. "
-                f"Install with: pip install executor[{extra_name}]"
-            )
+                raise ValueError(
+                    f"Backend '{backend}' not found. "
+                    f"Available backends: {available_str}. "
+                    f"Install with: pip install executor[{extra_name}]"
+                )
 
-        # Create and return backend instance
-        backend_class = cls._registry[backend]
-        logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
-        return backend_class(**kwargs)
+            # Create and return backend instance
+            backend_class = cls._registry[backend]
+            logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
+            return backend_class(**kwargs)
 
-    @classmethod
-    def from_backend(cls, backend, **kwargs) -> "ExecutorBase":
-        """Create an executor from a Qiskit ``Backend`` / ``BackendV2`` instance.
+        # Non-string path: auto-detect executor from accepted_types
+        for name, executor_class in cls._registry.items():
+            try:
+                accepted = executor_class.get_accepted_backend_types()
+            except Exception:
+                logger.debug(
+                    "get_accepted_backend_types() failed for '%s'; skipping.", name, exc_info=True
+                )
+                continue
 
-        This is a convenience entry-point for IBM Quantum hardware and
-        noise-aware fake backends.  The *backend* object is forwarded to
-        :class:`~executor.qiskit.qiskit_executor.QiskitExecutor`.
+            if any(isinstance(backend, t) for t in accepted):
+                logger.info(
+                    "Auto-detected backend '%s' for object of type %s.",
+                    name,
+                    type(backend).__name__,
+                )
+                return executor_class(backend=backend, **kwargs)
 
-        Args:
-            backend: A Qiskit :class:`~qiskit.providers.Backend` instance
-                (e.g. obtained from ``QiskitRuntimeService``).
-            **kwargs: Extra arguments forwarded to ``QiskitExecutor``
-                (``shots``, ``seed``, ``execution_mode``, ``options``, …).
-
-        Returns:
-            A ``QiskitExecutor`` instance configured for the given backend.
-
-        Raises:
-            ValueError: If the ``"qiskit"`` backend is not registered.
-
-        Example:
-            >>> from qiskit_ibm_runtime import QiskitRuntimeService
-            >>> service = QiskitRuntimeService()
-            >>> ibm_backend = service.least_busy(operational=True, simulator=False)
-            >>> executor = Executor.from_backend(ibm_backend, shots=1024)
-        """
-        # Ensure the qiskit backend is discovered
-        if "qiskit" not in cls._registry:
-            if not cls._plugins_discovered:
-                cls._discover_plugins()
-
-        if "qiskit" not in cls._registry:
-            raise ValueError(
-                "The 'qiskit' backend is not available. "
-                "Install with: pip install executor[qiskit-full]"
-            )
-
-        backend_class = cls._registry["qiskit"]
-        logger.info(
-            "Creating %s from backend instance: %s (kwargs: %s)",
-            backend_class.__name__,
-            backend,
-            kwargs,
+        # No plugin matched — produce a helpful error message
+        accepted_summary = {
+            name: [t.__name__ for t in executor_class.get_accepted_backend_types()]
+            for name, executor_class in cls._registry.items()
+            if executor_class.get_accepted_backend_types()
+        }
+        raise ValueError(
+            f"No registered executor accepts an object of type "
+            f"'{type(backend).__qualname__}'. "
+            f"Pass the backend name as a string instead, or install the "
+            f"matching plugin.\n"
+            f"Accepted types per backend: {accepted_summary}"
         )
-        return backend_class(backend=backend, **kwargs)
 
     @classmethod
     def _discover_plugins(cls) -> None:

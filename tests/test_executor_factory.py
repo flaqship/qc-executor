@@ -36,6 +36,10 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return circuit
 
+    def get_accepted_backend_types(cls) -> list[type]:
+        """Mock accepted backend types."""
+        return []
+
 
 class TestExecutorFactory:
     """Test cases for Executor factory."""

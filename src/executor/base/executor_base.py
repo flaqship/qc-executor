@@ -425,3 +425,17 @@ class ExecutorBase(ABC):
     @abstractmethod
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
         raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def get_accepted_backend_types(cls) -> List[type]:
+        """Return a list of backend object types accepted by this executor.
+
+        This is used for auto-detection when a non-string backend is passed to
+        :meth:`Executor.create`.  If the backend object is an instance of any
+        of the returned types, this executor will be selected automatically.
+
+        Returns:
+            List[type]: List of accepted backend types (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
+        """
+        raise NotImplementedError

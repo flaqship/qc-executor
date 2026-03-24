@@ -5,6 +5,7 @@ They use FakeBackend instances so that no real IBM Quantum credentials are
 needed.
 """
 
+from random import seed
 import numpy as np
 import pytest
 
@@ -280,37 +281,6 @@ class TestQiskitCircuitFromQiskit:
 
 
 # ---------------------------------------------------------------------------
-# Factory: Executor.from_backend
-# ---------------------------------------------------------------------------
-
-
-class TestExecutorFactory:
-    def test_from_backend(self):
-        backend = _get_fake_backend()
-        executor = Executor.from_backend(backend, shots=1024)
-        assert isinstance(executor, QiskitExecutor)
-        assert executor.shots == 1024
-
-    def test_create_with_backend_object(self):
-        """Executor.create() should also accept a Backend object."""
-        backend = _get_fake_backend()
-        executor = Executor.create(backend, shots=1024)
-        assert isinstance(executor, QiskitExecutor)
-
-    def test_from_backend_with_execution_mode(self):
-        backend = _get_fake_backend()
-        executor = Executor.from_backend(backend, shots=512, execution_mode="job")
-        assert isinstance(executor, QiskitExecutor)
-        assert executor._execution_mode == "job"
-
-    def test_from_backend_with_options(self):
-        backend = _get_fake_backend()
-        executor = Executor.from_backend(backend, shots=512, options={"default_shots": 100})
-        assert isinstance(executor, QiskitExecutor)
-        assert executor._options == {"default_shots": 100}
-
-
-# ---------------------------------------------------------------------------
 # Execution on FakeBackend (integration-level)
 # ---------------------------------------------------------------------------
 
@@ -337,3 +307,196 @@ class TestExecutionFakeBackend:
         result = executor.sample(qc)
         assert isinstance(result, dict)
         assert len(result) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Factory auto-detection tests
+# ---------------------------------------------------------------------------
+
+
+class TestExecutorFactoryQiskitAutoDetection:
+    """Test that Executor.create() auto-detects QiskitExecutor for native
+    Qiskit objects (Backend, Session, Batch, primitives).
+
+    All tests use fake / local backends so no IBM Quantum credentials are
+    required.
+    """
+
+    def test_create_with_fake_backend(self):
+        """Executor.create() should return a QiskitExecutor for a BackendV2."""
+        from executor.qiskit import QiskitExecutor
+
+        backend = _get_fake_backend()
+        executor = Executor.create(backend, shots=1024, seed=42)
+
+        assert isinstance(executor, QiskitExecutor)
+        assert executor.shots == 1024
+        assert executor._seed == 42
+        assert executor.remote is False
+        assert executor.ibm_quantum is False
+
+    def test_create_with_session(self):
+        """Executor.create() should return a QiskitExecutor for a Session."""
+        from executor.qiskit import QiskitExecutor
+
+        session = _get_fake_session_or_skip()
+        try:
+            executor = Executor.create(session, shots=1024)
+            assert isinstance(executor, QiskitExecutor)
+            assert executor.session is session
+            assert executor.shots == 1024
+        finally:
+            session.close()
+
+    def test_create_with_statevector_estimator(self):
+        """Executor.create() should accept a StatevectorEstimator directly."""
+        from qiskit.primitives import StatevectorEstimator
+        from executor.qiskit import QiskitExecutor
+
+        estimator = StatevectorEstimator()
+        executor = Executor.create(estimator)
+
+        assert isinstance(executor, QiskitExecutor)
+
+    def test_create_with_statevector_sampler(self):
+        """Executor.create() should accept a StatevectorSampler directly."""
+        from qiskit.primitives import StatevectorSampler
+        from executor.qiskit import QiskitExecutor
+
+        sampler = StatevectorSampler()
+        executor = Executor.create(sampler)
+
+        assert isinstance(executor, QiskitExecutor)
+
+    def test_create_with_backend_estimator(self):
+        """Executor.create() should accept a BackendEstimatorV2."""
+        from executor.qiskit import QiskitExecutor
+        from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2
+
+        backend = _get_fake_backend()
+        if QISKIT_SMALLER_1_2:
+            from qiskit.primitives import BackendEstimator as BackendEstimatorCls
+        else:
+            from qiskit.primitives import BackendEstimatorV2 as BackendEstimatorCls
+
+        estimator = BackendEstimatorCls(backend=backend)
+        executor = Executor.create(estimator, shots=256)
+
+        assert isinstance(executor, QiskitExecutor)
+
+    def test_create_with_runtime_estimator(self):
+        """Executor.create() should accept a runtime Estimator (V1 or V2).
+
+        V1 runtime primitives (runtime < 0.21) require IBM Quantum credentials
+        even for fake backends and cannot be tested without an account.
+        """
+        if QISKIT_RUNTIME_SMALLER_0_21:
+            pytest.skip(
+                "Runtime V1 primitives require IBM Quantum credentials; "
+                "cannot be instantiated with a fake backend."
+            )
+
+        from executor.qiskit import QiskitExecutor
+
+        backend = _get_fake_backend()
+        if QISKIT_RUNTIME_SMALLER_0_28:
+            from qiskit_ibm_runtime import EstimatorV2
+
+            estimator = EstimatorV2(mode=backend)
+        else:
+            from qiskit_ibm_runtime import Estimator as EstimatorV2
+
+            estimator = EstimatorV2(mode=backend)
+
+        executor = Executor.create(estimator, shots=256)
+        assert isinstance(executor, QiskitExecutor)
+
+    def test_create_with_runtime_sampler(self):
+        """Executor.create() should accept a runtime Sampler (V1 or V2).
+
+        V1 runtime primitives (runtime < 0.21) require IBM Quantum credentials
+        even for fake backends and cannot be tested without an account.
+        """
+        if QISKIT_RUNTIME_SMALLER_0_21:
+            pytest.skip(
+                "Runtime V1 primitives require IBM Quantum credentials; "
+                "cannot be instantiated with a fake backend."
+            )
+
+        from executor.qiskit import QiskitExecutor
+
+        backend = _get_fake_backend()
+        if QISKIT_RUNTIME_SMALLER_0_28:
+            from qiskit_ibm_runtime import SamplerV2
+
+            sampler = SamplerV2(mode=backend)
+        else:
+            from qiskit_ibm_runtime import Sampler as SamplerV2
+
+            sampler = SamplerV2(mode=backend)
+
+        executor = Executor.create(sampler, shots=256)
+        assert isinstance(executor, QiskitExecutor)
+
+    def test_get_accepted_types_contains_backend(self):
+        """get_accepted_types() must include qiskit.providers.Backend."""
+        from qiskit.providers import Backend
+        from executor.qiskit import QiskitExecutor
+
+        accepted = QiskitExecutor.get_accepted_backend_types()
+
+        assert any(issubclass(Backend, t) or t is Backend for t in accepted)
+
+    def test_get_accepted_types_contains_statevector_primitives(self):
+        """get_accepted_types() must include the built-in statevector primitives."""
+        from qiskit.primitives import StatevectorEstimator, StatevectorSampler
+        from executor.qiskit import QiskitExecutor
+
+        accepted = QiskitExecutor.get_accepted_backend_types()
+
+        assert StatevectorEstimator in accepted
+        assert StatevectorSampler in accepted
+
+    def test_get_accepted_types_contains_session_and_batch(self):
+        """get_accepted_types() must include Session and Batch."""
+        from qiskit_ibm_runtime import Session, Batch
+        from executor.qiskit import QiskitExecutor
+
+        accepted = QiskitExecutor.get_accepted_backend_types()
+
+        assert Session in accepted
+        assert Batch in accepted
+
+    def test_get_accepted_types_no_dummy_classes(self):
+        """Dummy sentinel classes must not appear in get_accepted_types()."""
+        from executor.qiskit import QiskitExecutor
+
+        accepted = QiskitExecutor.get_accepted_backend_types()
+
+        # All returned types must originate from a real package, not from
+        # the executor module itself.
+        executor_module = "executor.qiskit.qiskit_executor"
+        for t in accepted:
+            assert (
+                getattr(t, "__module__", "") != executor_module
+            ), f"Dummy class {t.__name__} must not appear in get_accepted_types()"
+
+    def test_get_accepted_types_returns_list_of_types(self):
+        """get_accepted_types() must return a list of actual type objects."""
+        from executor.qiskit import QiskitExecutor
+
+        accepted = QiskitExecutor.get_accepted_backend_types()
+
+        assert isinstance(accepted, list)
+        assert len(accepted) > 0
+        for t in accepted:
+            assert isinstance(t, type), f"Expected type, got {t!r}"
+
+    def test_fake_backend_isinstance_check_against_accepted_types(self):
+        """A FakeBackend instance must match at least one accepted type."""
+        from executor.qiskit import QiskitExecutor
+
+        backend = _get_fake_backend()
+        accepted = QiskitExecutor.get_accepted_backend_types()
+
+        assert any(isinstance(backend, t) for t in accepted)

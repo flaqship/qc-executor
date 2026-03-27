@@ -166,6 +166,63 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     # ------------------------------------------------------------------
+    # Parameter normalization
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize_parameter_values(**parameters) -> dict:
+        """Normalize parameter values by converting indexed keys to vector keys.
+
+        Converts indexed parameter keys like x[0], x[1] to vector form x=[...].
+        This allows unifying parameter passing across backends that expect
+        vector-style keys (e.g., ParameterVector names like "x", "p").
+
+        Example:
+            Input: x=[0.1, 0.2, 0.3], p=[1.0]
+            Output: x=[0.1, 0.2, 0.3], p=[1.0]
+
+            Input: x[0]=0.1, x[1]=0.2, x[2]=0.3, p=[1.0]
+            Output: x=[0.1, 0.2, 0.3], p=[1.0]
+
+        Args:
+            **parameters: Parameter keyword arguments as passed to public methods.
+
+        Returns:
+            Dictionary with normalized parameters using vector keys.
+        """
+        import re
+
+        normalized = {}
+        indexed_params = {}  # Maps "x" -> ["x[0]", "x[1]", ...]
+
+        for key, value in parameters.items():
+            # Check for indexed key pattern: "x[i]" or "p[i]"
+            match = re.match(r"^([a-zA-Z_]\w*)\[(\d+)\]$", key)
+            if match:
+                param_name = match.group(1)
+                index = int(match.group(2))
+                if param_name not in indexed_params:
+                    indexed_params[param_name] = {}
+                indexed_params[param_name][index] = value
+            else:
+                # Non-indexed key; keep as-is
+                if (
+                    key not in indexed_params
+                ):  # Don't overwrite vector key if indexed version exists
+                    normalized[key] = value
+
+        # Convert collected indexed params to vector form
+        for param_name, index_dict in indexed_params.items():
+            if param_name in normalized:
+                # Both indexed and vector forms provided; indexed takes precedence
+                pass
+            max_index = max(index_dict.keys())
+            vector_form = [index_dict.get(i) for i in range(max_index + 1)]
+            normalized[param_name] = vector_form
+
+        return normalized
+
+    # ------------------------------------------------------------------
     # Public interface – logging and result caching are centralized here
     # via the Template Method pattern.  Subclasses implement the
     # _-prefixed counterparts.
@@ -184,11 +241,14 @@ class ExecutorBase(ABC):
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
             operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum operator or a list of operators.
             parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
+                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
             float | np.array: The expectation value either as a single float or as an numpy array if multiple circuits/operators are provided.
         """
         self._logger.info("Computing expectation value")
+        parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             key = self._make_result_key("expectation_value", circuit, operator, **parameters)
             if key in self._result_cache:
@@ -214,6 +274,8 @@ class ExecutorBase(ABC):
             operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum operator or a list of operators.
             derivative: The parameter(s) with respect to which the derivative is calculated.
             parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
+                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
             float | np.array | dict: The derivative of the expectation value:
@@ -221,6 +283,7 @@ class ExecutorBase(ABC):
                 - dictionary mapping parameter names to gradient arrays if multiple parameters are requested
         """
         self._logger.info("Computing expectation value derivatives")
+        parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             key = self._make_result_key(
                 "expectation_value_derivatives", circuit, operator, derivative, **parameters
@@ -248,11 +311,14 @@ class ExecutorBase(ABC):
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
             parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
+                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
             dict | List[dict]: The sampled results either as a single dictionary or a list of dictionaries if multiple circuits are provided.
         """
         self._logger.info("Sampling circuit (shots=%s)", self._shots)
+        parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             # Include shots in the key so that changing shots invalidates cached samples.
             key = self._make_result_key("sample", circuit, self._shots, **parameters)
@@ -273,11 +339,14 @@ class ExecutorBase(ABC):
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
             parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
+                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
             np.ndarray: The statevector of the circuit(s).
         """
         self._logger.info("Computing statevector")
+        parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             key = self._make_result_key("statevector", circuit, **parameters)
             if key in self._result_cache:

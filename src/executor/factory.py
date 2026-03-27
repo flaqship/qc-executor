@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Type, Union
+from typing import Any, Callable, Type
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class Executor:
         return decorator
 
     @classmethod
-    def create(cls, backend: Union[str, Any], **kwargs) -> "ExecutorBase":
+    def create(cls, backend: str | Any, **kwargs) -> "ExecutorBase":
         """Create an executor instance for the specified backend.
 
         Args:

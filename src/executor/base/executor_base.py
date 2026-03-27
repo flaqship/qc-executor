@@ -4,7 +4,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, List, Union
+from typing import Any, List
 
 import numpy as np
 
@@ -154,7 +154,7 @@ class ExecutorBase(ABC):
             "max_cache_size": self._max_cache_size,
         }
 
-    def switch_backend(self, backend: Union[str, Any], **overrides) -> "ExecutorBase":
+    def switch_backend(self, backend: str | Any, **overrides) -> "ExecutorBase":
         """Switch to a different backend while preserving configuration.
 
         Creates a new executor instance with the specified backend, copying

@@ -1369,7 +1369,7 @@ class QiskitExecutor(ExecutorBase):
 
     def _statevector_local(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         **parameter_values,
     ) -> np.ndarray:
         """

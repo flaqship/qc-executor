@@ -1,9 +1,10 @@
-from typing import List, Union, Callable, Any
-import copy
+from __future__ import annotations
 
-from qiskit.circuit import QuantumCircuit
+import copy
+from typing import Any, Callable, List
+
+from qiskit.circuit import ParameterExpression, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.circuit import ParameterExpression
 
 # pylint: disable=cyclic-import
 from ...utils.qiskit_hash_functions import _circuit_key, _observable_key
@@ -26,9 +27,9 @@ class OpTreeNodeBase(OpTreeElementBase):
 
     def __init__(
         self,
-        children_list: Union[None, List[OpTreeElementBase]] = None,
-        factor_list: Union[None, List[float]] = None,
-        operation_list: Union[None, List[Callable], List[None]] = None,
+        children_list: List[OpTreeElementBase] | None = None,
+        factor_list: List[float] | None = None,
+        operation_list: List[Callable] | List[None] | None = None,
     ) -> None:
         # Initialize with a given list of children
         # Factors default to 1.0
@@ -66,7 +67,7 @@ class OpTreeNodeBase(OpTreeElementBase):
         return self._factor_list
 
     @property
-    def operation(self) -> List[Union[Callable, None]]:
+    def operation(self) -> List[Callable | None]:
         """Returns the list of operations of the node."""
         return self._operation_list
 
@@ -74,7 +75,7 @@ class OpTreeNodeBase(OpTreeElementBase):
         self,
         children: OpTreeElementBase,
         factor: float = 1.0,
-        operation: Union[None, Callable] = None,
+        operation: Callable | None = None,
     ):
         """Appends a child to the node.
 
@@ -88,7 +89,7 @@ class OpTreeNodeBase(OpTreeElementBase):
         self._factor_list.append(factor)
         self._operation_list.append(operation)
 
-    def remove(self, index: Union[List[int], int]):
+    def remove(self, index: List[int] | int):
         """Removes children from the node.
 
         Args:
@@ -298,14 +299,14 @@ class OpTreeExpectationValue(OpTreeLeafBase):
     Leaf of the OpTree that represents an expectation value of a circuit and an operator.
 
     Args:
-        circuit (Union[OpTreeLeafCircuit, QuantumCircuit]): The circuit in the expectation value.
-        operator (Union[OpTreeLeafOperator, SparsePauliOp]): The operator in the expectation value.
+        circuit (OpTreeLeafCircuit | QuantumCircuit): The circuit in the expectation value.
+        operator (OpTreeLeafOperator | SparsePauliOp): The operator in the expectation value.
     """
 
     def __init__(
         self,
-        circuit: Union[OpTreeCircuit, QuantumCircuit],
-        operator: Union[OpTreeOperator, SparsePauliOp],
+        circuit: OpTreeCircuit | QuantumCircuit,
+        operator: OpTreeOperator | SparsePauliOp,
     ) -> None:
         if isinstance(circuit, QuantumCircuit):
             circuit = OpTreeCircuit(circuit)
@@ -356,14 +357,12 @@ class OpTreeMeasuredOperator(OpTreeExpectationValue):
     The circuit in the class represents the circuit that is measured for the given operator.
     """
 
-    def measure_circuit(
-        self, circuit: Union[QuantumCircuit, OpTreeCircuit]
-    ) -> OpTreeExpectationValue:
+    def measure_circuit(self, circuit: QuantumCircuit | OpTreeCircuit) -> OpTreeExpectationValue:
         """
         Applies the measurement of the leaf to the circuit and returns an expectation value.
 
         Args:
-            circuit (Union[QuantumCircuit, OpTreeLeafCircuit]): The circuit that is measured.
+            circuit (QuantumCircuit | OpTreeLeafCircuit): The circuit that is measured.
 
         Returns:
             OpTreeLeafExpectationValue: The expectation value leaf with the measured circuit.
@@ -429,8 +428,8 @@ class OpTreeValue(OpTreeLeafBase):
 
 
 def _simplify_operator(
-    element: Union[SparsePauliOp, OpTreeOperator],
-) -> Union[SparsePauliOp, OpTreeOperator]:
+    element: SparsePauliOp | OpTreeOperator,
+) -> SparsePauliOp | OpTreeOperator:
     if isinstance(element, OpTreeOperator):
         operator = element.operator
         input_type = "leaf"
@@ -555,12 +554,12 @@ class OpTree:
 
     @staticmethod
     def get_first_leaf(
-        element: Union[OpTreeNodeBase, OpTreeLeafBase, QuantumCircuit, SparsePauliOp],
-    ) -> Union[OpTreeLeafBase, QuantumCircuit, SparsePauliOp]:
+        element: OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | SparsePauliOp,
+    ) -> OpTreeLeafBase | QuantumCircuit | SparsePauliOp:
         """Returns the first leaf of the supplied OpTree.
 
         Args:
-            element (Union[OpTreeNodeBase, OpTreeLeafBase, QuantumCircuit, SparsePauliOp]): The OpTree.
+            element (OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | SparsePauliOp): The OpTree.
 
         Returns:
             The first found leaf of the OpTree.
@@ -572,10 +571,8 @@ class OpTree:
 
     @staticmethod
     def gen_expectation_tree(
-        circuit_tree: Union[OpTreeNodeBase, OpTreeCircuit, QuantumCircuit],
-        operator_tree: Union[
-            OpTreeNodeBase, OpTreeMeasuredOperator, OpTreeOperator, SparsePauliOp
-        ],
+        circuit_tree: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit,
+        operator_tree: OpTreeNodeBase | OpTreeMeasuredOperator | OpTreeOperator | SparsePauliOp,
     ):
         """
         Function that generates an expectation tree from a circuit tree and an operator tree.
@@ -586,8 +583,8 @@ class OpTree:
         resulting expectation values are returned as :class:`OpTreeExpectationValue`.
 
         Args:
-            circuit_tree (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): The circuit tree.
-            operator_tree (Union[OpTreeNodeBase, OpTreeLeafMeasuredOperator, OpTreeLeafOperator, SparsePauliOp]): The operator tree.
+            circuit_tree (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The circuit tree.
+            operator_tree (OpTreeNodeBase | OpTreeLeafMeasuredOperator | OpTreeLeafOperator | SparsePauliOp): The operator tree.
 
         Returns:
             The combined tree with :class:`OpTreeExpectationValue` at the leafs.
@@ -637,15 +634,15 @@ class OpTree:
 
     @staticmethod
     def simplify(
-        element: Union[OpTreeNodeBase, OpTreeLeafBase, QuantumCircuit, SparsePauliOp],
-    ) -> Union[OpTreeNodeBase, OpTreeLeafBase, QuantumCircuit, SparsePauliOp]:
+        element: OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | SparsePauliOp,
+    ) -> OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | SparsePauliOp:
         """
         Function for simplifying an OpTree structure, the input is kept untouched.
 
         Merges double sums and identifies identical branches or leafs in sums.
 
         Args:
-            element (Union[OpTreeNodeBase, OpTreeLeafBase, QuantumCircuit, SparsePauliOp]): The OpTree to be simplified.
+            element (OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | SparsePauliOp): The OpTree to be simplified.
 
         Returns:
             A simplified copy of the OpTree.
@@ -735,7 +732,7 @@ class OpTree:
 
     @staticmethod
     def assign_parameters(
-        element: Union[OpTreeNodeBase, OpTreeCircuit, QuantumCircuit],
+        element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit,
         dictionary,
         inplace: bool = False,
     ):
@@ -743,7 +740,7 @@ class OpTree:
         Assigns the parameters of the OpTree structure to the values in the dictionary.
 
         Args:
-            element (Union[OpTreeNodeBase, OpTreeLeafCircuit, QuantumCircuit]): The OpTree for which
+            element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The OpTree for which
                                                                                 all parameters are
                                                                                 assigned.
             dictionary (dict): The dictionary that contains the parameter names as keys

@@ -5,9 +5,9 @@ import pytest
 from qiskit.circuit import Parameter, ParameterVector
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
-from executor.qiskit.qiskit_executor import QiskitExecutor
-from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor import QuantumCircuit
+from executor.qiskit.qiskit_circuit import QiskitCircuit
+from executor.qiskit.qiskit_executor import QiskitExecutor
 from executor.quantum_operator import QuantumOperator
 
 

@@ -1,22 +1,27 @@
+from __future__ import annotations
+
+from typing import Iterable, List
+
 import numpy as np
-from typing import List, Union, Iterable
+from qiskit import transpile
+from qiskit.circuit import ParameterExpression
+from qiskit.circuit.parametervector import ParameterVectorElement
+from qulacs import ParametricQuantumCircuit
+from qulacs import QuantumCircuit as QulacsQuantumCircuit
 from sympy import lambdify
 
-from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression
-from qiskit import transpile
-
-from qulacs import QuantumCircuit as QulacsQuantumCircuit
-from qulacs import ParametricQuantumCircuit
-
-from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
-
-from ..utils.decompose_to_std import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
-from ..utils.qiskit_compat import _param_to_sympy, _param_free_symbols
+from ..utils.decompose_to_std import decompose_to_std
+from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
+from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
 
 
 class QulacsCircuit:
+
+    @classmethod
+    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "QulacsCircuit":
+        """Create a Qulacs native circuit from a generic circuit."""
+        return cls(circuit)
 
     def __init__(
         self,
@@ -92,7 +97,7 @@ class QulacsCircuit:
         return self._qulacs_circuit(*args, **kwargs)
 
     def _add_parameter_expression(
-        self, angle: Union[ParameterVectorElement, ParameterExpression, float]
+        self, angle: ParameterVectorElement | ParameterExpression | float
     ):
         """
         Adds a parameter expression to the circuit and do the pre-processing.
@@ -154,7 +159,7 @@ class QulacsCircuit:
 
         return func_list_element, func_grad_list_element, used_parameters, parameterized
 
-    def _add_single_qubit_gate(self, gate_name: str, qubits: Union[int, Iterable[int]]):
+    def _add_single_qubit_gate(self, gate_name: str, qubits: int | Iterable[int]):
         """
         Adds a single qubit gate to the circuit.
 
@@ -175,7 +180,7 @@ class QulacsCircuit:
         self._rebuild_circuit_func = True
 
     def _add_two_qubit_gate(
-        self, gate_name: str, qubit1: Union[int, Iterable[int]], qubit2: Union[int, Iterable[int]]
+        self, gate_name: str, qubit1: int | Iterable[int], qubit2: int | Iterable[int]
     ) -> None:
         """
         Adds a two qubit gate to the circuit.
@@ -202,8 +207,8 @@ class QulacsCircuit:
     def _add_parameterized_single_qubit_gate(
         self,
         gate_name: str,
-        qubits: Union[int, Iterable[int]],
-        angle: Union[ParameterVectorElement, ParameterExpression, float],
+        qubits: int | Iterable[int],
+        angle: ParameterVectorElement | ParameterExpression | float,
     ):
         """
         Adds a single qubit parameterized gate to the circuit.
@@ -238,9 +243,9 @@ class QulacsCircuit:
     def _add_parameterized_two_qubit_gate(
         self,
         gate_name: str,
-        qubit1: Union[int, Iterable[int]],
-        qubit2: Union[int, Iterable[int]],
-        angle: Union[ParameterVectorElement, ParameterExpression, float],
+        qubit1: int | Iterable[int],
+        qubit2: int | Iterable[int],
+        angle: ParameterVectorElement | ParameterExpression | float,
     ):
         """
         Adds a single qubit parameterized gate to the circuit.
@@ -403,9 +408,7 @@ class QulacsCircuit:
 
     def get_gradient_outer_jacobian(
         self,
-        gradient_parameters: Union[
-            None, ParameterVectorElement, List[ParameterVectorElement]
-        ] = None,
+        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
     ):
         """Returns the outer jacobian needed for the chain rule in circuit derivatives.
 
@@ -414,7 +417,7 @@ class QulacsCircuit:
         parameter expression.
 
         Args:
-            gradient_parameters (Union[None, ParameterVectorElement, List[ParameterVectorElement]]): Parameters to calculate the gradient for
+            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None): Parameters to calculate the gradient for
         """
 
         if isinstance(gradient_parameters, ParameterVectorElement):

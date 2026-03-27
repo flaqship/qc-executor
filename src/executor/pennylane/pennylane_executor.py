@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import copy
 import re
 from collections import Counter
 from itertools import product
-from typing import List, Union
+from typing import List
 
 import numpy as np
 import pennylane as qml
@@ -10,36 +12,38 @@ import pennylane.numpy as pnp
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
+from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_observable import PennyLaneObservable
-from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
-from ..utils.data_preprocessing import adjust_features, to_tuple
 
 
 class PennyLaneExecutor(ExecutorBase):
-    """Base class for quantum circuit executors.
+    """PennyLane backend executor implementation.
 
     Args:
-        shots (int, optional): Number of shots for sampling. Defaults to None.
-        seed (int, optional): Random seed for reproducibility. Defaults to None.
-        log_file (str, optional): Path to the log file. Defaults to None.
-        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
-            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
-        caching (bool, optional): Whether to use caching. Defaults to None.
-        cache_dir (str, optional): Directory for caching. Defaults to "cache".
-        max_cache_size (int, optional): Maximum number of entries kept in each
-            in-memory cache. ``None`` means unlimited. Defaults to None.
+        shots (int | None, optional): Number of shots for sampling.
+        seed (int | None, optional): Random seed for reproducibility.
+        log_file (str | None, optional): Path to the log file.
+        log_level (str, optional): Logging level.
+        caching (bool | None, optional): Whether to use in-memory caching.
+        cache_dir (str, optional): Directory for caching.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache.
     """
+
+    _native_circuit_class = PennyLaneCircuit
+    _native_observable_class = PennyLaneObservable
 
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
+        max_cache_size: int | None = None,
     ):
 
         super().__init__(
@@ -64,12 +68,12 @@ class PennyLaneExecutor(ExecutorBase):
         self._logger.debug("PennyLaneExecutor initialised (shots=%s, seed=%s)", shots, seed)
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         """Return the number of shots."""
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         """Set the number of shots."""
         raise NotImplementedError
 
@@ -90,6 +94,9 @@ class PennyLaneExecutor(ExecutorBase):
 
         # Check the cache for already converted circuits
         for circ in circuits:
+            if isinstance(circ, self._native_circuit_class):
+                qulacs_circuits.append(circ)
+                continue
             if circ in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
                 qulacs_circuits.append(self._circuit_cache[circ])
@@ -112,6 +119,9 @@ class PennyLaneExecutor(ExecutorBase):
         qulacs_observables = []
 
         for op in operators:
+            if isinstance(op, self._native_observable_class):
+                qulacs_observables.append(op)
+                continue
             if op in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
                 qulacs_observables.append(self._operator_cache[op])
@@ -229,14 +239,9 @@ class PennyLaneExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
+        *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
-    ) -> Union[np.array, dict]:
+    ) -> np.array | dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters
 
@@ -251,7 +256,7 @@ class PennyLaneExecutor(ExecutorBase):
                 keyword arguments.
 
         Returns:
-            Union[np.array, dict]: The derivatives of the expectation value. If a single value
+            np.array | dict: The derivatives of the expectation value. If a single value
                 is provided, a numpy array is returned. If multiple values are provided, a
                 dictionary with the values as keys and the derivatives as values is returned.
         """
@@ -458,7 +463,7 @@ class PennyLaneExecutor(ExecutorBase):
             for cp in circuit_parameter_tuples:
                 samples = circuit_func(*cp)
                 # Convert samples to bitstrings
-                bitstrings = ["".join(str(bit) for bit in sample[::-1]) for sample in samples]
+                bitstrings = ["".join(str(bit) for bit in sample) for sample in samples]
                 # Count occurrences of each bitstring
                 circuit_values.append(dict(Counter(bitstrings)))
 
@@ -479,16 +484,6 @@ class PennyLaneExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-
-        def reverse_bits_array(n, num_bits):
-            indices = np.arange(n)
-            reversed_indices = np.zeros_like(indices)
-            for _ in range(num_bits):
-                # Shift left to make space for the next bit
-                reversed_indices = (reversed_indices << 1) | (indices & 1)
-                # Shift original indices right to move to the next bit
-                indices >>= 1
-            return reversed_indices
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 
@@ -522,11 +517,7 @@ class PennyLaneExecutor(ExecutorBase):
                 return qml.state()
 
             for cp in circuit_parameter_tuples:
-                state_wrong_sort = np.array(circuit_func(*cp))
-                n = len(state_wrong_sort)
-                num_bits = circuit.num_qubits
-                indices = reverse_bits_array(n, num_bits)
-                circuit_values.append(state_wrong_sort[indices])
+                circuit_values.append(np.array(circuit_func(*cp)))
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)
@@ -549,4 +540,12 @@ class PennyLaneExecutor(ExecutorBase):
         Returns:
             PennyLaneCircuit: The corresponding PennyLaneCircuit.
         """
-        return PennyLaneCircuit(circuit)
+        if isinstance(circuit, self._native_circuit_class):
+            return circuit
+        return self._native_circuit_class.from_quantum_circuit(circuit)
+
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> PennyLaneObservable:
+        """Transpile a generic QuantumOperator to a PennyLane QuantumOperator."""
+        if isinstance(operator, self._native_observable_class):
+            return operator
+        return self._native_observable_class.from_quantum_operator(operator)

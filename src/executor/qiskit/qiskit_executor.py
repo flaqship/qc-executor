@@ -1,10 +1,8 @@
-import logging
-import numpy as np
-from typing import List, Literal, Optional, Tuple, Union
+from __future__ import annotations
 
-from executor.base.circuit_base import QuantumCircuitBase
-from executor.base.executor_base import ExecutorBase
-from executor.base.operator_base import QuantumOperatorBase
+import logging
+from typing import List, Literal, Tuple
+import numpy as np
 from qiskit.primitives import (
     StatevectorEstimator,
     StatevectorSampler,
@@ -12,6 +10,18 @@ from qiskit.primitives import (
 from qiskit.providers import Backend
 from qiskit.quantum_info import Statevector
 
+from executor.base.circuit_base import QuantumCircuitBase
+from executor.base.executor_base import ExecutorBase
+from executor.base.operator_base import QuantumOperatorBase
+from executor.qiskit.optree import OpTreeDerivative, OpTreeEvaluate
+from executor.qiskit.optree.optree import (
+    OpTreeCircuit,
+    OpTreeList,
+    OpTreeNodeBase,
+    OpTreeOperator,
+)
+from executor.qiskit.qiskit_circuit import QiskitCircuit
+from executor.qiskit.qiskit_observable import QiskitObservable
 from executor.utils.qiskit_compat import (
     QISKIT_SMALLER_1_2,
     QISKIT_SMALLER_2_0,
@@ -19,16 +29,6 @@ from executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_SMALLER_0_21,
     QISKIT_RUNTIME_SMALLER_0_23,
     QISKIT_RUNTIME_SMALLER_0_28,
-)
-
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.optree import OpTreeDerivative
-from executor.qiskit.optree import OpTreeEvaluate
-from executor.qiskit.optree.optree import (
-    OpTreeCircuit,
-    OpTreeList,
-    OpTreeNodeBase,
-    OpTreeOperator,
 )
 
 logger = logging.getLogger(__name__)
@@ -321,6 +321,8 @@ elif QISKIT_SMALLER_2_0:
         BaseSamplerV2,
     )
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+    from qiskit.primitives import BackendSamplerV2 as BackendSampler
 else:
     from qiskit.primitives import (
         BackendEstimatorV2 as BackendEstimator,
@@ -331,6 +333,8 @@ else:
         BaseSamplerV2,
     )
     from qiskit.circuit import ParameterVectorElement
+    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+    from qiskit.primitives import BackendSamplerV2 as BackendSampler
 
 
 # Runtime primitive base classes — used for type annotation and isinstance checks.
@@ -420,44 +424,39 @@ class QiskitExecutor(ExecutorBase):
             result = exe.expectation_value(circuit, operator, theta=params)
 
     Args:
-        shots (int, optional): Number of shots for sampling.
-        seed (int, optional): Random seed for reproducibility.
-        log_file (str, optional): Path to the log file.
-        log_level (str, optional): Logging level. Defaults to ``"WARNING"``.
-        caching (bool, optional): Whether to use caching.
-        cache_dir (str, optional): Directory for caching. Defaults to ``"cache"``.
-        max_cache_size (int, optional): Maximum number of in-memory cache entries.
-        backend (str | Backend | Session | Batch | BaseSamplerV2 | BaseEstimatorV2):
-            Backend specification. Defaults to ``"statevector"``.
+        shots (int | None, optional): Number of shots for sampling.
+        seed (int | None, optional): Random seed for reproducibility.
+        log_file (str | None, optional): Path to the log file.
+        log_level (str, optional): Logging level.
+        caching (bool | None, optional): Whether to use in-memory caching.
+        cache_dir (str, optional): Directory for caching.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache.
+        backend (str, optional): Backend identifier, for example
+            ``"statevector"`` or ``"aer"``.
         execution_mode (str, optional): ``"job"`` (default), ``"session"``, or
             ``"batch"``.  Only relevant for real IBM Quantum backends.
             Use ``"session"`` for iterative algorithms (VQE, QAOA) and
             ``"batch"`` for independent parallel jobs.
-        options (dict, optional): Options forwarded to IBM Runtime primitives
+        options (dict | None, optional): Options forwarded to IBM Runtime primitives
             (e.g. ``{"resilience_level": 1}``).  Ignored for local backends.
     """
 
+    _native_circuit_class = QiskitCircuit
+    _native_observable_class = QiskitObservable
+
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
-        backend: Union[
-            str,
-            Backend,
-            Session,
-            Batch,
-            BaseEstimatorV1,
-            BaseSamplerV1,
-            BaseEstimatorV2,
-            BaseSamplerV2,
-        ] = "statevector",
+        max_cache_size: int | None = None,
+        backend: str | Backend | Session | Batch | BaseEstimatorV1 | BaseSamplerV1 | BaseEstimatorV2 | BaseSamplerV2 = "statevector",
         execution_mode: Literal["job", "session", "batch"] = "job",
-        options: Optional[dict] = None,
+        options: dict | None = None,
     ):
         super().__init__(
             shots=shots,
@@ -686,12 +685,12 @@ class QiskitExecutor(ExecutorBase):
     # ------------------------------------------------------------------
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         """Return the number of shots."""
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         """Set the number of shots."""
         self._shots = value
 
@@ -953,9 +952,9 @@ class QiskitExecutor(ExecutorBase):
 
     def _convert_to_optree(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase], None] = None,
-    ) -> Tuple[Union[OpTreeCircuit, OpTreeNodeBase], Union[OpTreeOperator, OpTreeNodeBase, None]]:
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
+    ) -> Tuple[OpTreeCircuit | OpTreeNodeBase, OpTreeOperator | OpTreeNodeBase | None]:
         """
         Convert circuits and operators to OpTree format.
 
@@ -1018,8 +1017,8 @@ class QiskitExecutor(ExecutorBase):
 
     def _prepare_parameter_dicts(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase], None] = None,
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
         **parameters,
     ) -> Tuple[dict, dict]:
         """
@@ -1143,10 +1142,10 @@ class QiskitExecutor(ExecutorBase):
 
     def _expectation_value(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameter_values,
-    ) -> Union[float, np.array]:
+    ) -> float | np.array:
         """
         Calculate the expectation value using OpTree and Qiskit Estimator.
 
@@ -1184,11 +1183,11 @@ class QiskitExecutor(ExecutorBase):
 
     def _expectation_value_derivatives(
         self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]],
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative_params,
         **parameter_values,
-    ) -> Union[np.array, dict]:
+    ) -> np.array | dict:
         """
         Calculate the derivatives using OpTree parameter shift.
 
@@ -1297,9 +1296,7 @@ class QiskitExecutor(ExecutorBase):
         return results
 
     def _sample(
-        self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        **parameter_values,
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
     ) -> List[dict]:
         """Sample from the circuit using OpTree and Qiskit Sampler."""
         if self._sampler is None:
@@ -1353,9 +1350,7 @@ class QiskitExecutor(ExecutorBase):
         return counts_list
 
     def _statevector(
-        self,
-        circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]],
-        **parameter_values,
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
     ) -> np.ndarray:
         """Compute the statevector of the circuit.
 
@@ -1428,6 +1423,18 @@ class QiskitExecutor(ExecutorBase):
         if isa_circuit is not qc._qiskit_circuit:
             return QiskitCircuit._from_qiskit(isa_circuit)
         return qc
+
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> QiskitObservable:
+        """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
+
+        Args:
+            operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
+        Returns:
+            QiskitObservable: The corresponding QiskitObservable.
+        """
+        if isinstance(operator, self._native_observable_class):
+            return operator
+        return self._native_observable_class.from_quantum_operator(operator)
 
     @classmethod
     def get_accepted_backend_types(cls) -> list[type]:

@@ -1,16 +1,15 @@
 """Tests for OpTree evaluation"""
 
-import pytest
-from typing import Tuple, List
+from typing import List, Tuple
+
 import numpy as np
+import pytest
 from packaging import version
-
-from qiskit.circuit import QuantumCircuit
 from qiskit import __version__ as qiskit_version
+from qiskit.circuit import ParameterVector, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.circuit import ParameterVector
 
-from executor.qiskit.optree import OpTree, OpTreeSum, OpTreeList
+from executor.qiskit.optree import OpTree, OpTreeList, OpTreeSum
 
 QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 

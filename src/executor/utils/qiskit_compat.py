@@ -8,7 +8,8 @@ blocks and version-gated imports.
 Supported Qiskit versions: >= 1.0  (including 2.x).
 """
 
-from typing import Union
+from __future__ import annotations
+
 from packaging import version
 from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression
@@ -47,10 +48,9 @@ def _param_to_sympy(param: ParameterExpression):
     * Qiskit >= 2.0 exposes :py:meth:`ParameterExpression.sympify`.
     * Qiskit < 2.0 stores the expression in the private ``_symbol_expr``.
     """
-    if hasattr(param, "sympify"):
-        return param.sympify()
-    # Fallback for Qiskit < 2.0
-    return _sympify(param._symbol_expr)  # pylint: disable=protected-access
+    if QISKIT_SMALLER_2_0:
+        return _sympify(param._symbol_expr)  # pylint: disable=protected-access
+    return param.sympify()
 
 
 def _param_is_constant(param: ParameterExpression) -> bool:

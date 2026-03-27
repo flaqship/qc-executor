@@ -1,7 +1,9 @@
 """Factory class for creating executor instances with plugin support."""
 
-from typing import Any, Callable, Type, Union
+from __future__ import annotations
+
 import logging
+from typing import Any, Callable, Type, Union
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ class Executor:
         "qiskit": "qiskit-full",
         "pennylane": "pennylane",
         "qulacs": "qulacs",
+        "pauli_propagation": "pauli_propagation",
     }
 
     def __init__(self):

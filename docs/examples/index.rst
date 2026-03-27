@@ -18,3 +18,8 @@ Qulacs
 ------
 
 - `01 Basic Usage <../../examples/qulacs/01_basic_usage.ipynb>`_
+
+Pauli Propagation
+-----------------
+
+- `01 Basic Usage <../../examples/pauli_propagation/01_basic_usage.ipynb>`_

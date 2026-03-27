@@ -4,13 +4,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from . import base
+
 # Import factory first to ensure it's available for backend registration
 from .factory import Executor
-
-from . import base
+from .parameters import Parameters
 from .quantum_circuit import QuantumCircuit
 from .quantum_operator import QuantumOperator
-from .parameters import Parameters
 
 try:
     from . import qiskit
@@ -31,6 +31,12 @@ except ImportError as e:
     logger.debug(f"Qulacs backend not available: {e}")
     qulacs = None
 
+try:
+    from . import pauli_propagation
+except ImportError as e:
+    logger.debug(f"Pauli propagation backend not available: {e}")
+    pauli_propagation = None
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -48,3 +54,5 @@ if pennylane is not None:
     __all__.append("pennylane")
 if qulacs is not None:
     __all__.append("qulacs")
+if pauli_propagation is not None:
+    __all__.append("pauli_propagation")

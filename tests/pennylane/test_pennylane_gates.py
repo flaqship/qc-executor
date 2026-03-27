@@ -18,15 +18,15 @@ import pytest
 from executor.pennylane.pennylane_gates import (
     RXX,
     RYY,
-    RZZ,
     RZX,
-    reset,
-    tdg,
-    sdg,
+    RZZ,
     cs,
     csx,
-    qiskit_pennylane_gate_dict,
     pennylane_target,
+    qiskit_pennylane_gate_dict,
+    reset,
+    sdg,
+    tdg,
 )
 
 

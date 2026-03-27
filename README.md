@@ -26,11 +26,14 @@ pip install git+https://github.com/flaqship/Executor.git#egg=executor[qulacs]
 # Install with full Qiskit support (Aer simulator and IBM Runtime)
 pip install git+https://github.com/flaqship/Executor.git#egg=executor[qiskit-full]
 
+# Install with Pauli Propagation backend
+pip install git+https://github.com/flaqship/Executor.git#egg=executor[pauli_propagation]
+
 # Install with all backends
 pip install git+https://github.com/flaqship/Executor.git#egg=executor[all]
 
 # Install multiple specific backends
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[pennylane,qulacs]
+pip install git+https://github.com/flaqship/Executor.git#egg=executor[pennylane,qulacs,pauli_propagation]
 ```
 
 ## Usage
@@ -47,7 +50,7 @@ executor = Executor.create("qiskit", shots=1024, seed=42)
 
 # List available backends
 backends = Executor.available_backends()
-print(backends)  # ['qiskit', 'pennylane', 'qulacs']
+print(backends)  # ['qiskit', 'pennylane', 'qulacs', 'pauli_propagation']
 
 # Create circuit and operator
 from executor import QuantumCircuit, QuantumOperator

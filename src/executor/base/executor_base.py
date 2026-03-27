@@ -4,7 +4,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, List
+from typing import Any, List, overload
 
 import numpy as np
 

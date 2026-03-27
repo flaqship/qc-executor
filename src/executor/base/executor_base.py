@@ -54,7 +54,7 @@ class ExecutorBase(ABC):
     _native_observable_class = None
 
     # ========================================================================
-    # SECTION 1: Initialization & Configuration
+    # Initialization & Configuration
     # ========================================================================
 
     def __init__(
@@ -190,7 +190,7 @@ class ExecutorBase(ABC):
         return Executor.create(backend, **config)
 
     # ========================================================================
-    # SECTION 2: Internal Infrastructure
+    # Internal Infrastructure
     # ========================================================================
 
     @staticmethod
@@ -282,7 +282,7 @@ class ExecutorBase(ABC):
         return normalized
 
     # ========================================================================
-    # SECTION 3: Public API – Core Quantum Operations
+    # Public API – Core Quantum Operations
     # ========================================================================
 
     def expectation_value(
@@ -446,7 +446,7 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     # ========================================================================
-    # SECTION 4: Public API – Circuit/Observable Handling
+    # Public API – Circuit/Observable Handling
     # ========================================================================
 
     def transpile_circuit(

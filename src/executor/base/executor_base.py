@@ -53,6 +53,10 @@ class ExecutorBase(ABC):
     _native_circuit_class = None
     _native_observable_class = None
 
+    # ========================================================================
+    # SECTION 1: Initialization & Configuration
+    # ========================================================================
+
     def __init__(
         self,
         shots: int | None = None,
@@ -115,6 +119,80 @@ class ExecutorBase(ABC):
         """Create a new bounded cache with the configured size limit."""
         return _BoundedCache(self._max_cache_size)
 
+    @property
+    def shots(self) -> int | None:
+        """Return the number of shots."""
+        return self._shots
+
+    @shots.setter
+    def shots(self, value: int | None) -> None:
+        """Set the number of shots."""
+        raise NotImplementedError
+
+    @property
+    def remote(self) -> bool:
+        """Return True if the execution access a remote backend."""
+        raise NotImplementedError
+
+    def get_config(self) -> dict:
+        """Get the current executor configuration.
+
+        Returns:
+            dict: Dictionary containing the executor configuration parameters
+                (shots, seed, log_file, log_level, caching, cache_dir, max_cache_size)
+
+        Example:
+            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
+            >>> config = executor.get_config()
+            >>> print(config)  # {'shots': 1024, 'seed': 42, ...}
+        """
+        return {
+            "shots": self._shots,
+            "seed": self._seed,
+            "log_file": self._log_file,
+            "log_level": logging.getLevelName(self._logger.level),
+            "caching": self._caching,
+            "cache_dir": self._cache_dir,
+            "max_cache_size": self._max_cache_size,
+        }
+
+    def switch_backend(self, backend: str, **overrides) -> "ExecutorBase":
+        """Switch to a different backend while preserving configuration.
+
+        Creates a new executor instance with the specified backend, copying
+        the current configuration and applying any overrides.
+
+        Args:
+            backend: Name of the backend to switch to (e.g., "qiskit", "pennylane", "qulacs")
+            ``**overrides``: Configuration parameters to override (e.g., shots=2048)
+
+        Returns:
+            ExecutorBase: New executor instance with the specified backend
+
+        Example:
+            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
+            >>> pennylane_executor = executor.switch_backend("pennylane")
+            >>> # pennylane_executor has shots=1024, seed=42
+            >>>
+            >>> # Override specific parameters
+            >>> qulacs_executor = executor.switch_backend("qulacs", shots=2048)
+            >>> # qulacs_executor has shots=2048, seed=42
+        """
+        # Lazy import to avoid circular dependencies
+        from executor import Executor
+
+        # Get current config and apply overrides
+        config = self.get_config()
+        config.update(overrides)
+
+        # Create new executor with specified backend
+        self._logger.info("Switching backend from %s to %s", type(self).__name__, backend)
+        return Executor.create(backend, **config)
+
+    # ========================================================================
+    # SECTION 2: Internal Infrastructure
+    # ========================================================================
+
     @staticmethod
     def _make_result_key(method_name: str, *args, **kwargs) -> tuple:
         """Build a hashable cache key for a public-interface call.
@@ -149,25 +227,6 @@ class ExecutorBase(ABC):
             + tuple(_to_hashable(a) for a in args)
             + tuple(sorted((k, _to_hashable(v)) for k, v in kwargs.items()))
         )
-
-    @property
-    def shots(self) -> int | None:
-        """Return the number of shots."""
-        return self._shots
-
-    @shots.setter
-    def shots(self, value: int | None) -> None:
-        """Set the number of shots."""
-        raise NotImplementedError
-
-    @property
-    def remote(self) -> bool:
-        """Return True if the execution access a remote backend."""
-        raise NotImplementedError
-
-    # ------------------------------------------------------------------
-    # Parameter normalization
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _normalize_parameter_values(**parameters) -> dict:
@@ -222,11 +281,9 @@ class ExecutorBase(ABC):
 
         return normalized
 
-    # ------------------------------------------------------------------
-    # Public interface – logging and result caching are centralized here
-    # via the Template Method pattern.  Subclasses implement the
-    # _-prefixed counterparts.
-    # ------------------------------------------------------------------
+    # ========================================================================
+    # SECTION 3: Public API – Core Quantum Operations
+    # ========================================================================
 
     def expectation_value(
         self,
@@ -258,6 +315,16 @@ class ExecutorBase(ABC):
             self._result_cache[key] = result
             return result
         return self._expectation_value(circuit, operator, **parameters)
+
+    @abstractmethod
+    def _expectation_value(
+        self,
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        **parameters,
+    ) -> float | np.array:
+        """Abstract implementation of expectation value computation."""
+        raise NotImplementedError
 
     def expectation_value_derivatives(
         self,
@@ -298,9 +365,16 @@ class ExecutorBase(ABC):
             return result
         return self._expectation_value_derivatives(circuit, operator, *derivative, **parameters)
 
-    # @abstractmethod
-    # def _convert(self, circuit: QuantumCircuitBase, observables: List[QuantumOperatorBase]):
-    #    pass
+    @abstractmethod
+    def _expectation_value_derivatives(
+        self,
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        *derivative,
+        **parameters,
+    ) -> float | np.array | dict:
+        """Abstract implementation of expectation value derivatives computation."""
+        raise NotImplementedError
 
     def sample(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
@@ -330,6 +404,13 @@ class ExecutorBase(ABC):
             return result
         return self._sample(circuit, **parameters)
 
+    @abstractmethod
+    def _sample(
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
+    ) -> dict | List[dict]:
+        """Abstract implementation of circuit sampling."""
+        raise NotImplementedError
+
     def statevector(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
     ) -> np.ndarray:
@@ -356,6 +437,17 @@ class ExecutorBase(ABC):
             self._result_cache[key] = result
             return result
         return self._statevector(circuit, **parameters)
+
+    @abstractmethod
+    def _statevector(
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
+    ) -> np.ndarray:
+        """Abstract implementation of statevector computation."""
+        raise NotImplementedError
+
+    # ========================================================================
+    # SECTION 4: Public API – Circuit/Observable Handling
+    # ========================================================================
 
     def transpile_circuit(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase]
@@ -392,6 +484,11 @@ class ExecutorBase(ABC):
             self._result_cache[key] = result
             return result
         return self._transpile_circuit(circuit)
+
+    @abstractmethod
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
+        """Abstract implementation of circuit transpilation."""
+        raise NotImplementedError
 
     @overload
     def transpile_observable(self, operator: QuantumOperatorBase) -> QuantumOperatorBase: ...
@@ -437,108 +534,9 @@ class ExecutorBase(ABC):
             return result
         return self._transpile_observable(operator)
 
-    # ------------------------------------------------------------------
-    # Backend switching – allows changing backend while preserving configuration
-    # ------------------------------------------------------------------
-
-    def get_config(self) -> dict:
-        """Get the current executor configuration.
-
-        Returns:
-            dict: Dictionary containing the executor configuration parameters
-                (shots, seed, log_file, log_level, caching, cache_dir, max_cache_size)
-
-        Example:
-            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
-            >>> config = executor.get_config()
-            >>> print(config)  # {'shots': 1024, 'seed': 42, ...}
-        """
-        return {
-            "shots": self._shots,
-            "seed": self._seed,
-            "log_file": self._log_file,
-            "log_level": logging.getLevelName(self._logger.level),
-            "caching": self._caching,
-            "cache_dir": self._cache_dir,
-            "max_cache_size": self._max_cache_size,
-        }
-
-    def switch_backend(self, backend: str, **overrides) -> "ExecutorBase":
-        """Switch to a different backend while preserving configuration.
-
-        Creates a new executor instance with the specified backend, copying
-        the current configuration and applying any overrides.
-
-        Args:
-            backend: Name of the backend to switch to (e.g., "qiskit", "pennylane", "qulacs")
-            ``**overrides``: Configuration parameters to override (e.g., shots=2048)
-
-        Returns:
-            ExecutorBase: New executor instance with the specified backend
-
-        Example:
-            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
-            >>> pennylane_executor = executor.switch_backend("pennylane")
-            >>> # pennylane_executor has shots=1024, seed=42
-            >>>
-            >>> # Override specific parameters
-            >>> qulacs_executor = executor.switch_backend("qulacs", shots=2048)
-            >>> # qulacs_executor has shots=2048, seed=42
-        """
-        # Lazy import to avoid circular dependencies
-        from executor import Executor
-
-        # Get current config and apply overrides
-        config = self.get_config()
-        config.update(overrides)
-
-        # Create new executor with specified backend
-        self._logger.info(f"Switching backend from {type(self).__name__} to {backend}")
-        return Executor.create(backend, **config)
-
-    # ------------------------------------------------------------------
-    # Abstract implementation hooks – subclasses override these.
-    # ------------------------------------------------------------------
-
-    @abstractmethod
-    def _expectation_value(
-        self,
-        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
-        **parameters,
-    ) -> float | np.array:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _expectation_value_derivatives(
-        self,
-        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
-        *derivative,
-        **parameters,
-    ) -> float | np.array | dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _sample(
-        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
-    ) -> dict | List[dict]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _statevector(
-        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
-    ) -> np.ndarray:
-        raise NotImplementedError
-
-    @abstractmethod
-    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
-        raise NotImplementedError
-
     @abstractmethod
     def _transpile_observable(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
-        """
-        Transpile an operator to backend-specific format.
+        """Abstract implementation of observable transpilation.
 
         Subclasses override this to convert generic QuantumOperator to
         backend-native types. For backends supporting symmetry (e.g.,

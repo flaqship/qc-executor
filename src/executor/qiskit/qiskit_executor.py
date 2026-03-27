@@ -35,6 +35,100 @@ from executor.utils.qiskit_compat import (
 logger = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Version-gated Qiskit primitive imports (local simulators + base classes)
+# ---------------------------------------------------------------------------
+
+if QISKIT_SMALLER_1_2:
+    from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import BackendEstimator as BackendEstimator
+    from qiskit.primitives import BackendSampler as BackendSampler
+    from qiskit.primitives import BaseEstimator as BaseEstimatorV1
+    from qiskit.primitives import BaseSampler as BaseSamplerV1
+
+    class BaseEstimatorV2:
+        """Dummy BaseEstimatorV2 for Qiskit < 1.0 compat."""
+
+    class BaseSamplerV2:
+        """Dummy BaseSamplerV2 for Qiskit < 1.0 compat."""
+
+elif QISKIT_SMALLER_2_0:
+    from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+    from qiskit.primitives import BackendSamplerV2 as BackendSampler
+    from qiskit.primitives import (
+        BaseEstimatorV1,
+        BaseEstimatorV2,
+        BaseSamplerV1,
+        BaseSamplerV2,
+    )
+else:
+    from qiskit.circuit import ParameterVectorElement
+    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
+    from qiskit.primitives import BackendSamplerV2 as BackendSampler
+    from qiskit.primitives import (
+        BaseEstimatorV1,
+        BaseEstimatorV2,
+        BaseSamplerV1,
+        BaseSamplerV2,
+    )
+
+
+# Runtime primitive base classes — used for type annotation and isinstance checks.
+# Defined as dummies when qiskit-ibm-runtime is not installed.
+if QISKIT_RUNTIME_AVAILABLE:
+    if QISKIT_RUNTIME_SMALLER_0_21:
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV1
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1
+
+        class RuntimeEstimatorV2:
+            """Dummy RuntimeEstimatorV2 for runtime < 0.21."""
+
+        class RuntimeSamplerV2:
+            """Dummy RuntimeSamplerV2 for runtime < 0.21."""
+
+    elif QISKIT_RUNTIME_SMALLER_0_28:
+        from qiskit_ibm_runtime import EstimatorV1 as RuntimeEstimatorV1
+        from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import SamplerV1 as RuntimeSamplerV1
+        from qiskit_ibm_runtime import SamplerV2 as RuntimeSamplerV2
+    else:
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2
+
+        class RuntimeEstimatorV1:
+            """Dummy RuntimeEstimatorV1 for runtime >= 0.28."""
+
+        class RuntimeSamplerV1:
+            """Dummy RuntimeSamplerV1 for runtime >= 0.28."""
+
+else:
+
+    class RuntimeEstimatorV1:
+        """Dummy RuntimeEstimatorV1 — qiskit-ibm-runtime not installed."""
+
+    class RuntimeEstimatorV2:
+        """Dummy RuntimeEstimatorV2 — qiskit-ibm-runtime not installed."""
+
+    class RuntimeSamplerV1:
+        """Dummy RuntimeSamplerV1 — qiskit-ibm-runtime not installed."""
+
+    class RuntimeSamplerV2:
+        """Dummy RuntimeSamplerV2 — qiskit-ibm-runtime not installed."""
+
+
+# Session and Batch: real imports when runtime is available, dummies otherwise.
+if QISKIT_RUNTIME_AVAILABLE:
+    from qiskit_ibm_runtime import Batch, Session
+else:
+
+    class Session:
+        """Dummy Session — qiskit-ibm-runtime not installed."""
+
+    class Batch:
+        """Dummy Batch — qiskit-ibm-runtime not installed."""
+
+
 def _reverse_qubit_ordering(statevector: np.ndarray) -> np.ndarray:
     """Reorder statevector amplitudes from Qiskit little-endian to big-endian.
 
@@ -255,7 +349,7 @@ def _detect_backend_flags(backend) -> Tuple[bool, bool]:
     except ImportError:
         pass
 
-    # 2. FakeBackendV2 (qiskit-ibm-runtime >= 0.21, current canonical location)
+    # 2. FakeBackendV2 — try both export paths used across runtime versions
     try:
         from qiskit_ibm_runtime.fake_provider import FakeBackendV2
 
@@ -263,17 +357,15 @@ def _detect_backend_flags(backend) -> Tuple[bool, bool]:
             return (False, False)
     except ImportError:
         pass
-
-    # 3. Legacy FakeBackend (Qiskit < 1.0 / older fake_provider location)
     try:
-        from qiskit.providers.fake_provider import FakeBackend as LegacyFakeBackend
+        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
-        if isinstance(backend, LegacyFakeBackend):
+        if isinstance(backend, FakeBackendV2):
             return (False, False)
     except ImportError:
         pass
 
-    # 4. Fallback: string matching for unrecognised third-party backends
+    # 3. Fallback: string matching for unrecognised third-party backends
     backend_str = str(backend).lower()
     if "ibm" in backend_str:
         is_fake = "fake" in backend_str
@@ -287,98 +379,26 @@ def _detect_backend_flags(backend) -> Tuple[bool, bool]:
     return (False, False)
 
 
-# ---------------------------------------------------------------------------
-# Version-gated Qiskit primitive imports (local simulators + base classes)
-# ---------------------------------------------------------------------------
+def _is_ibm_fake_backend(backend) -> bool:
+    """Return *True* if *backend* is a fake IBM backend from qiskit-ibm-runtime."""
+    try:
+        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
-if QISKIT_SMALLER_1_2:
-    from qiskit.circuit import ParameterExpression as ParameterVectorElement
-    from qiskit.primitives import BackendEstimator as BackendEstimator
-    from qiskit.primitives import BackendSampler as BackendSampler
-    from qiskit.primitives import BaseEstimator as BaseEstimatorV1
-    from qiskit.primitives import BaseSampler as BaseSamplerV1
+        if isinstance(backend, FakeBackendV2):
+            return True
+    except ImportError:
+        pass
+    try:
+        from qiskit_ibm_runtime.fake_provider import FakeBackendV2
 
-    class BaseEstimatorV2:
-        """Dummy BaseEstimatorV2 for Qiskit < 1.0 compat."""
-
-    class BaseSamplerV2:
-        """Dummy BaseSamplerV2 for Qiskit < 1.0 compat."""
-
-elif QISKIT_SMALLER_2_0:
-    from qiskit.circuit import ParameterExpression as ParameterVectorElement
-    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
-    from qiskit.primitives import BackendSamplerV2 as BackendSampler
-    from qiskit.primitives import (
-        BaseEstimatorV1,
-        BaseEstimatorV2,
-        BaseSamplerV1,
-        BaseSamplerV2,
+        if isinstance(backend, FakeBackendV2):
+            return True
+    except ImportError:
+        pass
+    # Fallback: name-based detection
+    return "fake" in type(backend).__name__.lower() and (
+        "qiskit_ibm_runtime" in getattr(type(backend), "__module__", "")
     )
-else:
-    from qiskit.circuit import ParameterVectorElement
-    from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
-    from qiskit.primitives import BackendSamplerV2 as BackendSampler
-    from qiskit.primitives import (
-        BaseEstimatorV1,
-        BaseEstimatorV2,
-        BaseSamplerV1,
-        BaseSamplerV2,
-    )
-
-
-# Runtime primitive base classes — used for type annotation and isinstance checks.
-# Defined as dummies when qiskit-ibm-runtime is not installed.
-if QISKIT_RUNTIME_AVAILABLE:
-    if QISKIT_RUNTIME_SMALLER_0_21:
-        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV1
-        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1
-
-        class RuntimeEstimatorV2:
-            """Dummy RuntimeEstimatorV2 for runtime < 0.21."""
-
-        class RuntimeSamplerV2:
-            """Dummy RuntimeSamplerV2 for runtime < 0.21."""
-
-    elif QISKIT_RUNTIME_SMALLER_0_28:
-        from qiskit_ibm_runtime import EstimatorV1 as RuntimeEstimatorV1
-        from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimatorV2
-        from qiskit_ibm_runtime import SamplerV1 as RuntimeSamplerV1
-        from qiskit_ibm_runtime import SamplerV2 as RuntimeSamplerV2
-    else:
-        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV2
-        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2
-
-        class RuntimeEstimatorV1:
-            """Dummy RuntimeEstimatorV1 for runtime >= 0.28."""
-
-        class RuntimeSamplerV1:
-            """Dummy RuntimeSamplerV1 for runtime >= 0.28."""
-
-else:
-
-    class RuntimeEstimatorV1:
-        """Dummy RuntimeEstimatorV1 — qiskit-ibm-runtime not installed."""
-
-    class RuntimeEstimatorV2:
-        """Dummy RuntimeEstimatorV2 — qiskit-ibm-runtime not installed."""
-
-    class RuntimeSamplerV1:
-        """Dummy RuntimeSamplerV1 — qiskit-ibm-runtime not installed."""
-
-    class RuntimeSamplerV2:
-        """Dummy RuntimeSamplerV2 — qiskit-ibm-runtime not installed."""
-
-
-# Session and Batch: real imports when runtime is available, dummies otherwise.
-if QISKIT_RUNTIME_AVAILABLE:
-    from qiskit_ibm_runtime import Batch, Session
-else:
-
-    class Session:
-        """Dummy Session — qiskit-ibm-runtime not installed."""
-
-    class Batch:
-        """Dummy Batch — qiskit-ibm-runtime not installed."""
 
 
 class QiskitExecutor(ExecutorBase):
@@ -394,11 +414,11 @@ class QiskitExecutor(ExecutorBase):
     * ``"statevector"`` / ``"aer"`` — local simulation string shortcuts.
     * A :class:`~qiskit.providers.Backend` / ``BackendV2`` instance (e.g.
       from ``QiskitRuntimeService`` or ``fake_provider``).
-        * A ``qiskit_ibm_runtime.Session`` or ``Batch`` — ownership is transferred
-            to the executor, which closes it on exit.
-        * A pre-configured Qiskit primitive (``BaseSamplerV2`` / ``BaseEstimatorV2``
-            or their V1 equivalents) — injected directly; the missing counterpart
-            primitive is created automatically from the same execution context.
+    * A ``qiskit_ibm_runtime.Session`` or ``Batch`` — ownership is transferred
+      to the executor, which closes it on exit.
+    * A pre-configured Qiskit primitive (``BaseSamplerV2`` / ``BaseEstimatorV2``
+      or their V1 equivalents) — injected directly; the missing counterpart
+      primitive is created automatically when possible.
 
     Context-manager use is **strongly recommended** for real IBM backends
     to guarantee that sessions are properly closed::
@@ -407,6 +427,11 @@ class QiskitExecutor(ExecutorBase):
             result = exe.expectation_value(circuit, operator, theta=params)
 
     Args:
+        backend: Backend to use for execution.  Accepts:
+            ``"statevector"`` (default) or ``"aer"`` string shortcuts, a Qiskit
+            :class:`~qiskit.providers.Backend` instance (IBM hardware or fake),
+            a ``qiskit_ibm_runtime.Session`` / ``Batch``, or a pre-configured
+            Qiskit primitive (``BaseSamplerV1/V2`` / ``BaseEstimatorV1/V2``).
         shots (int | None, optional): Number of shots for sampling.
         seed (int | None, optional): Random seed for reproducibility.
         log_file (str | None, optional): Path to the log file.
@@ -415,8 +440,6 @@ class QiskitExecutor(ExecutorBase):
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
             in each in-memory cache.
-        backend (str, optional): Backend identifier, for example
-            ``"statevector"`` or ``"aer"``.
         execution_mode (str, optional): ``"job"`` (default), ``"session"``, or
             ``"batch"``.  Only relevant for real IBM Quantum backends.
             Use ``"session"`` for iterative algorithms (VQE, QAOA) and
@@ -430,13 +453,6 @@ class QiskitExecutor(ExecutorBase):
 
     def __init__(
         self,
-        shots: int | None = None,
-        seed: int | None = None,
-        log_file: str | None = None,
-        log_level: str = "WARNING",
-        caching: bool | None = None,
-        cache_dir: str = "cache",
-        max_cache_size: int | None = None,
         backend: (
             str
             | Backend
@@ -447,6 +463,13 @@ class QiskitExecutor(ExecutorBase):
             | BaseEstimatorV2
             | BaseSamplerV2
         ) = "statevector",
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
+        log_level: str = "WARNING",
+        caching: bool | None = None,
+        cache_dir: str = "cache",
+        max_cache_size: int | None = None,
         execution_mode: Literal["job", "session", "batch"] = "job",
         options: dict | None = None,
     ):
@@ -547,10 +570,9 @@ class QiskitExecutor(ExecutorBase):
                 elif self._backend is not None:
                     self._estimator = BackendEstimator(backend=self._backend)
                 else:
-                    raise ValueError(
-                        "Could not infer execution context for injected Sampler primitive. "
-                        "Please pass a primitive bound to a backend/session."
-                    )
+                    # No context available — leave estimator unset; the user
+                    # may only need the sampler.
+                    self._estimator = None
             else:
                 if isinstance(backend, StatevectorEstimator):
                     self._sampler = StatevectorSampler()
@@ -559,10 +581,9 @@ class QiskitExecutor(ExecutorBase):
                 elif self._backend is not None:
                     self._sampler = BackendSampler(backend=self._backend)
                 else:
-                    raise ValueError(
-                        "Could not infer execution context for injected Estimator primitive. "
-                        "Please pass a primitive bound to a backend/session."
-                    )
+                    # No context available — leave sampler unset; the user
+                    # may only need the estimator.
+                    self._sampler = None
 
             # V1 vs V2 sampler API detection should be based on sampler instance.
             self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
@@ -624,34 +645,44 @@ class QiskitExecutor(ExecutorBase):
 
         # ── 4. Backend object (IBMBackend / FakeBackend / any BackendV2) ──
         elif _is_backend_instance(backend):
-            if not QISKIT_RUNTIME_AVAILABLE:
-                raise ImportError(
-                    "qiskit-ibm-runtime is required to use a Backend instance. "
-                    "Install with: pip install executor[qiskit-full]"
-                )
-
             self._backend = backend
             self._remote_backend, self._ibm_quantum_backend = _detect_backend_flags(backend)
             self._isa_transpile = True
-            self._runtime_primitives_version = "v1" if QISKIT_RUNTIME_SMALLER_0_21 else "v2"
 
             # Session / Batch management (only for real IBM Quantum devices)
             if self._ibm_quantum_backend and execution_mode in ("session", "batch"):
+                _check_runtime_available()
                 self._create_session()
 
-            # Create primitives.
-            # For runtime < 0.21 with fake/local backends, fall back to
-            # Qiskit-local BackendEstimator/BackendSampler because the V1
-            # runtime primitives require an active IBM account even for fakes.
-            if self._runtime_primitives_version == "v1" and not self._ibm_quantum_backend:
+            # Primitive creation strategy:
+            # - Real IBM hardware:  always use runtime primitives (V1 or V2).
+            # - IBM fake backends:  use runtime primitives if available (>= 0.21);
+            #   fall back to local BackendEstimator/BackendSampler for runtime < 0.21
+            #   because V1 runtime primitives require an active IBM account.
+            # - Non-IBM backends (AerSimulator, etc.): use local primitives only;
+            #   qiskit-ibm-runtime is not required.
+            is_ibm_fake = _is_ibm_fake_backend(backend)
+            needs_runtime = self._ibm_quantum_backend or is_ibm_fake
+            if needs_runtime and QISKIT_RUNTIME_AVAILABLE:
+                self._runtime_primitives_version = "v1" if QISKIT_RUNTIME_SMALLER_0_21 else "v2"
+                if self._runtime_primitives_version == "v1" and not self._ibm_quantum_backend:
+                    # V1 runtime requires IBM account even for fakes — use local fallback
+                    self._estimator = BackendEstimator(backend=self._backend)
+                    self._sampler = BackendSampler(backend=self._backend)
+                    self._sampler_uses_v1_api = QISKIT_SMALLER_1_2
+                else:
+                    _check_runtime_available()
+                    self._estimator = self._create_runtime_estimator()
+                    self._sampler = self._create_runtime_sampler()
+                    self._sampler_uses_v1_api = self._runtime_primitives_version == "v1"
+            elif needs_runtime and not QISKIT_RUNTIME_AVAILABLE and self._ibm_quantum_backend:
+                # Real IBM hardware always needs runtime
+                _check_runtime_available()
+            else:
+                # Generic / non-IBM backend — no runtime required
                 self._estimator = BackendEstimator(backend=self._backend)
                 self._sampler = BackendSampler(backend=self._backend)
-                # BackendSampler uses V2 API on Qiskit >= 1.2
                 self._sampler_uses_v1_api = QISKIT_SMALLER_1_2
-            else:
-                self._estimator = self._create_runtime_estimator()
-                self._sampler = self._create_runtime_sampler()
-                self._sampler_uses_v1_api = self._runtime_primitives_version == "v1"
 
             logger.info(
                 "Initialised QiskitExecutor with %s (remote=%s, mode=%s).",
@@ -722,6 +753,13 @@ class QiskitExecutor(ExecutorBase):
             self._session = Session(backend=self._backend)
             logger.debug("Created new runtime Session for %s.", self._backend)
 
+        logger.warning(
+            "IBM Runtime %s opened outside of a context manager. "
+            "Use 'with QiskitExecutor(...) as exe:' to ensure the session "
+            "is closed when done.",
+            type(self._session).__name__,
+        )
+
     def close_session(self) -> None:
         """Close the current runtime session/batch if one is active.
 
@@ -757,15 +795,13 @@ class QiskitExecutor(ExecutorBase):
         return False
 
     def __del__(self):
-        """Warn when a session is leaked (object destroyed without closing)."""
+        """Attempt to close any open session when the executor is garbage-collected."""
         session = getattr(self, "_session", None)
         if session is not None:
-            logger.warning(
-                "QiskitExecutor destroyed with an open %s that was never closed. "
-                "Use 'with QiskitExecutor(...) as exe:' or call close_session() "
-                "explicitly to avoid resource leaks.",
-                type(session).__name__,
-            )
+            try:
+                session.close()
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Runtime primitive factories
@@ -933,7 +969,7 @@ class QiskitExecutor(ExecutorBase):
             return operator
         try:
             return operator.apply_layout(layout)
-        except Exception:
+        except (ValueError, TypeError):
             logger.warning(
                 "Failed to apply layout to operator; using original operator. "
                 "This may lead to incorrect expectation values if the operator "
@@ -1192,6 +1228,11 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             Derivative values.
         """
+        if self._estimator is None:
+            raise RuntimeError(
+                "No estimator is configured. Pass `backend` as an Estimator primitive "
+                "or use a backend/session that supports estimation."
+            )
 
         # If no derivative parameters specified, return expectation value
         if len(derivative_params) == 0:
@@ -1344,58 +1385,32 @@ class QiskitExecutor(ExecutorBase):
     def _statevector(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
     ) -> np.ndarray:
-        """Compute the statevector of the circuit.
+        """Compute the statevector of the circuit using local Qiskit simulation.
 
-        Raises
-        ------
-        RuntimeError
-            If the executor targets a remote backend where statevector
-            simulation is not available.
+        Statevector computation is always performed locally regardless of the
+        configured backend, since it is a purely classical computation.
         """
-        if self._remote_backend:
-            raise RuntimeError(
-                "Statevector simulation is not available on remote IBM Quantum "
-                "backends. Use expectation_value() or sample() instead."
-            )
-        return self._statevector_local(circuit, **parameter_values)
+        # Convert to OpTree but without ISA transpilation — use the raw circuit
+        if isinstance(circuit, list):
+            raw_circuits = [
+                c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c for c in circuit
+            ]
+        else:
+            raw_circuits = [
+                circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
+            ]
 
-    def _statevector_local(
-        self,
-        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        **parameter_values,
-    ) -> np.ndarray:
-        """
-        Compute the statevector of the circuit (local only).
-
-        Args:
-            circuit: The quantum circuit(s).
-            parameter_values: Parameter values as keyword arguments.
-
-        Returns:
-            Statevector(s) as numpy array(s).
-        """
-        # Convert to OpTree format
-        circuit_tree, _ = self._convert_to_optree(circuit, operator=None)
-
-        # Prepare parameter dictionary (only for circuits)
+        # Prepare parameter dictionary
         circuit_dict, _ = self._prepare_parameter_dicts(circuit, operator=None, **parameter_values)
 
-        # Extract circuits
-        if isinstance(circuit_tree, OpTreeCircuit):
-            circuits = [circuit_tree.circuit]
-        else:
-            circuits = [child.circuit for child in circuit_tree.children]
-
-        # Compute statevectors
         statevectors = []
-        for circ in circuits:
-            # Bind parameters
+        for circ in raw_circuits:
             params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
             bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
             statevectors.append(_reverse_qubit_ordering(Statevector(bound_circ).data))
 
         statevectors = np.array(statevectors)
-        return statevectors[0] if len(circuits) == 1 else statevectors
+        return statevectors[0] if len(raw_circuits) == 1 else statevectors
 
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.

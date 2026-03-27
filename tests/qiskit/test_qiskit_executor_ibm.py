@@ -6,19 +6,20 @@ needed.
 """
 
 from random import seed
+
 import numpy as np
 import pytest
 
 # Skip the entire module if qiskit-ibm-runtime is not installed
 qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
 
+from executor import Executor, QuantumCircuit
+from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor.qiskit.qiskit_executor import (
     QiskitExecutor,
-    _is_backend_instance,
     _detect_backend_flags,
+    _is_backend_instance,
 )
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor import Executor, QuantumCircuit
 from executor.quantum_operator import QuantumOperator
 from executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
@@ -269,7 +270,8 @@ class TestQiskitCircuitFromQiskit:
         assert wrapper.num_qubits == 2
 
     def test_from_qiskit_with_parameters(self):
-        from qiskit.circuit import QuantumCircuit as QiskitQC, ParameterVector
+        from qiskit.circuit import ParameterVector
+        from qiskit.circuit import QuantumCircuit as QiskitQC
 
         p = ParameterVector("p", 2)
         qc = QiskitQC(1)
@@ -351,6 +353,7 @@ class TestExecutorFactoryQiskitAutoDetection:
     def test_create_with_statevector_estimator(self):
         """Executor.create() should accept a StatevectorEstimator directly."""
         from qiskit.primitives import StatevectorEstimator
+
         from executor.qiskit import QiskitExecutor
 
         estimator = StatevectorEstimator()
@@ -361,6 +364,7 @@ class TestExecutorFactoryQiskitAutoDetection:
     def test_create_with_statevector_sampler(self):
         """Executor.create() should accept a StatevectorSampler directly."""
         from qiskit.primitives import StatevectorSampler
+
         from executor.qiskit import QiskitExecutor
 
         sampler = StatevectorSampler()
@@ -441,6 +445,7 @@ class TestExecutorFactoryQiskitAutoDetection:
     def test_get_accepted_types_contains_backend(self):
         """get_accepted_types() must include qiskit.providers.Backend."""
         from qiskit.providers import Backend
+
         from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
@@ -450,6 +455,7 @@ class TestExecutorFactoryQiskitAutoDetection:
     def test_get_accepted_types_contains_statevector_primitives(self):
         """get_accepted_types() must include the built-in statevector primitives."""
         from qiskit.primitives import StatevectorEstimator, StatevectorSampler
+
         from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
@@ -459,7 +465,8 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_contains_session_and_batch(self):
         """get_accepted_types() must include Session and Batch."""
-        from qiskit_ibm_runtime import Session, Batch
+        from qiskit_ibm_runtime import Batch, Session
+
         from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()

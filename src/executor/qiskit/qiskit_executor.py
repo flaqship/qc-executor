@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import List, Literal, Tuple
+
 import numpy as np
 from qiskit.primitives import (
     StatevectorEstimator,
@@ -23,12 +24,12 @@ from executor.qiskit.optree.optree import (
 from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor.qiskit.qiskit_observable import QiskitObservable
 from executor.utils.qiskit_compat import (
-    QISKIT_SMALLER_1_2,
-    QISKIT_SMALLER_2_0,
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
     QISKIT_RUNTIME_SMALLER_0_23,
     QISKIT_RUNTIME_SMALLER_0_28,
+    QISKIT_SMALLER_1_2,
+    QISKIT_SMALLER_2_0,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,10 +99,8 @@ def _check_runtime_available():
 def _load_runtime_primitives_v1():
     """Return ``(RuntimeEstimatorV1, RuntimeSamplerV1)`` for *qiskit-ibm-runtime < 0.21*."""
     _check_runtime_available()
-    from qiskit_ibm_runtime import (
-        Estimator as RuntimeEstimatorV1,
-        Sampler as RuntimeSamplerV1,
-    )
+    from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV1
+    from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1
 
     return RuntimeEstimatorV1, RuntimeSamplerV1
 
@@ -114,15 +113,11 @@ def _load_runtime_primitives_v2():
     """
     _check_runtime_available()
     if QISKIT_RUNTIME_SMALLER_0_28:
-        from qiskit_ibm_runtime import (
-            EstimatorV2 as RuntimeEstimatorV2,
-            SamplerV2 as RuntimeSamplerV2,
-        )
+        from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import SamplerV2 as RuntimeSamplerV2
     else:
-        from qiskit_ibm_runtime import (
-            Estimator as RuntimeEstimatorV2,
-            Sampler as RuntimeSamplerV2,
-        )
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2
     return RuntimeEstimatorV2, RuntimeSamplerV2
 
 
@@ -297,13 +292,11 @@ def _detect_backend_flags(backend) -> Tuple[bool, bool]:
 # ---------------------------------------------------------------------------
 
 if QISKIT_SMALLER_1_2:
-    from qiskit.primitives import (
-        BackendEstimator as BackendEstimator,
-        BackendSampler as BackendSampler,
-        BaseEstimator as BaseEstimatorV1,
-        BaseSampler as BaseSamplerV1,
-    )
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import BackendEstimator as BackendEstimator
+    from qiskit.primitives import BackendSampler as BackendSampler
+    from qiskit.primitives import BaseEstimator as BaseEstimatorV1
+    from qiskit.primitives import BaseSampler as BaseSamplerV1
 
     class BaseEstimatorV2:
         """Dummy BaseEstimatorV2 for Qiskit < 1.0 compat."""
@@ -312,39 +305,33 @@ if QISKIT_SMALLER_1_2:
         """Dummy BaseSamplerV2 for Qiskit < 1.0 compat."""
 
 elif QISKIT_SMALLER_2_0:
-    from qiskit.primitives import (
-        BackendEstimatorV2 as BackendEstimator,
-        BackendSamplerV2 as BackendSampler,
-        BaseEstimatorV1,
-        BaseEstimatorV2,
-        BaseSamplerV1,
-        BaseSamplerV2,
-    )
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
     from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
     from qiskit.primitives import BackendSamplerV2 as BackendSampler
-else:
     from qiskit.primitives import (
-        BackendEstimatorV2 as BackendEstimator,
-        BackendSamplerV2 as BackendSampler,
         BaseEstimatorV1,
         BaseEstimatorV2,
         BaseSamplerV1,
         BaseSamplerV2,
     )
+else:
     from qiskit.circuit import ParameterVectorElement
     from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
     from qiskit.primitives import BackendSamplerV2 as BackendSampler
+    from qiskit.primitives import (
+        BaseEstimatorV1,
+        BaseEstimatorV2,
+        BaseSamplerV1,
+        BaseSamplerV2,
+    )
 
 
 # Runtime primitive base classes — used for type annotation and isinstance checks.
 # Defined as dummies when qiskit-ibm-runtime is not installed.
 if QISKIT_RUNTIME_AVAILABLE:
     if QISKIT_RUNTIME_SMALLER_0_21:
-        from qiskit_ibm_runtime import (
-            Estimator as RuntimeEstimatorV1,
-            Sampler as RuntimeSamplerV1,
-        )
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV1
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1
 
         class RuntimeEstimatorV2:
             """Dummy RuntimeEstimatorV2 for runtime < 0.21."""
@@ -353,17 +340,13 @@ if QISKIT_RUNTIME_AVAILABLE:
             """Dummy RuntimeSamplerV2 for runtime < 0.21."""
 
     elif QISKIT_RUNTIME_SMALLER_0_28:
-        from qiskit_ibm_runtime import (
-            EstimatorV1 as RuntimeEstimatorV1,
-            EstimatorV2 as RuntimeEstimatorV2,
-            SamplerV1 as RuntimeSamplerV1,
-            SamplerV2 as RuntimeSamplerV2,
-        )
+        from qiskit_ibm_runtime import EstimatorV1 as RuntimeEstimatorV1
+        from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import SamplerV1 as RuntimeSamplerV1
+        from qiskit_ibm_runtime import SamplerV2 as RuntimeSamplerV2
     else:
-        from qiskit_ibm_runtime import (
-            Estimator as RuntimeEstimatorV2,
-            Sampler as RuntimeSamplerV2,
-        )
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2
 
         class RuntimeEstimatorV1:
             """Dummy RuntimeEstimatorV1 for runtime >= 0.28."""
@@ -388,7 +371,7 @@ else:
 
 # Session and Batch: real imports when runtime is available, dummies otherwise.
 if QISKIT_RUNTIME_AVAILABLE:
-    from qiskit_ibm_runtime import Session, Batch
+    from qiskit_ibm_runtime import Batch, Session
 else:
 
     class Session:

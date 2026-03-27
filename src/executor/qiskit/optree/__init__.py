@@ -9,7 +9,6 @@ from .optree import (  # pylint: disable=cyclic-import
     OpTreeSum,
     OpTreeValue,
 )
-
 from .optree_derivative import OpTreeDerivative  # pylint: disable=cyclic-import
 from .optree_evaluate import OpTreeEvaluate  # pylint: disable=cyclic-import
 

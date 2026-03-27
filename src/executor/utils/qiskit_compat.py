@@ -29,7 +29,9 @@ QISKIT_RUNTIME_SMALLER_0_23: bool | None = None
 QISKIT_RUNTIME_SMALLER_0_28: bool | None = None
 
 try:
-    from qiskit_ibm_runtime import __version__ as _ibm_runtime_version  # type: ignore[import-untyped]
+    from qiskit_ibm_runtime import (
+        __version__ as _ibm_runtime_version,  # type: ignore[import-untyped]
+    )
 
     QISKIT_RUNTIME_AVAILABLE = True
     QISKIT_RUNTIME_SMALLER_0_21 = version.parse(_ibm_runtime_version) < version.parse("0.21.0")

@@ -454,7 +454,16 @@ class QiskitExecutor(ExecutorBase):
         caching: bool | None = None,
         cache_dir: str = "cache",
         max_cache_size: int | None = None,
-        backend: str | Backend | Session | Batch | BaseEstimatorV1 | BaseSamplerV1 | BaseEstimatorV2 | BaseSamplerV2 = "statevector",
+        backend: (
+            str
+            | Backend
+            | Session
+            | Batch
+            | BaseEstimatorV1
+            | BaseSamplerV1
+            | BaseEstimatorV2
+            | BaseSamplerV2
+        ) = "statevector",
         execution_mode: Literal["job", "session", "batch"] = "job",
         options: dict | None = None,
     ):

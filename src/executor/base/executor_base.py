@@ -513,7 +513,7 @@ class ExecutorBase(ABC):
     ) -> QuantumOperatorBase | List[QuantumOperatorBase]:
         """
         Transpile the operator for execution on this executor's backend.
-        
+
         Subclasses may override :meth:`_transpile_observable` to apply
         backend-specific conversions (e.g., to wrapper types).  When a list
         of operators is provided, each operator is transpiled and cached individually.

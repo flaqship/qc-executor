@@ -12,7 +12,7 @@ using PennyLane backend, including:
 """
 
 import warnings
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pennylane as qml
@@ -682,7 +682,6 @@ class TestPennylaneExecutor:
         assert executor.device_name == "default.mixed"
         assert executor._device.name == "default.mixed"
 
-
     def test_device_name_property_readonly(self):
         """Test that device_name is a read-only property."""
         executor = PennyLaneExecutor()
@@ -821,9 +820,7 @@ class TestDeviceInit:
         mock_dev = MagicMock(spec=qml.devices.Device)
         with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
             with pytest.warns(UserWarning, match="overridden"):
-                executor = PennyLaneExecutor(
-                    "default.qubit", shots=100, config={"shots": 500}
-                )
+                executor = PennyLaneExecutor("default.qubit", shots=100, config={"shots": 500})
         assert executor.shots == 500
 
     def test_shots_config_conflict_warning_object(self):
@@ -835,9 +832,7 @@ class TestDeviceInit:
         mock_dev = MagicMock(spec=qml.devices.Device)
         with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
             with pytest.warns(UserWarning, match="overridden"):
-                executor = PennyLaneExecutor(
-                    "default.qubit", shots=100, config=_FakeConfig()
-                )
+                executor = PennyLaneExecutor("default.qubit", shots=100, config=_FakeConfig())
         assert executor.shots == 200
 
     def test_no_warning_when_shots_none(self):
@@ -846,9 +841,7 @@ class TestDeviceInit:
         with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
-                executor = PennyLaneExecutor(
-                    "default.qubit", config={"shots": 500}
-                )
+                executor = PennyLaneExecutor("default.qubit", config={"shots": 500})
         # shots stays None since it was not explicitly set
         assert executor.shots is None
 
@@ -858,9 +851,7 @@ class TestDeviceInit:
         with patch.object(PennyLaneExecutor, "_create_device", return_value=mock_dev):
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
-                executor = PennyLaneExecutor(
-                    "default.qubit", shots=100, config={"backend": "aer"}
-                )
+                executor = PennyLaneExecutor("default.qubit", shots=100, config={"backend": "aer"})
         assert executor.shots == 100
 
     # -- Device recreation behaviour ----------------------------------------
@@ -920,4 +911,3 @@ class TestDeviceInit:
         accepted = PennyLaneExecutor.get_accepted_backend_types()
         assert not any(isinstance("default.qubit", t) for t in accepted)
         assert not any(isinstance(42, t) for t in accepted)
-

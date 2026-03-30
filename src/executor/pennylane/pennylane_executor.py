@@ -154,7 +154,9 @@ class PennyLaneExecutor(ExecutorBase):
 
         self._logger.debug(
             "PennyLaneExecutor initialised (shots=%s, seed=%s, device=%s)",
-            shots, seed, self._device_name,
+            shots,
+            seed,
+            self._device_name,
         )
 
     @property
@@ -562,7 +564,9 @@ class PennyLaneExecutor(ExecutorBase):
                 device = self._device
             else:
                 device = self._create_device(
-                    wires=circuit.num_qubits, shots=self._shots, seed=self._random,
+                    wires=circuit.num_qubits,
+                    shots=self._shots,
+                    seed=self._random,
                 )
 
             @qml.qnode(device)

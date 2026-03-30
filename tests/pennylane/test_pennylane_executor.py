@@ -15,8 +15,11 @@ import warnings
 from unittest.mock import MagicMock, patch
 
 import numpy as np
-import pennylane as qml
 import pytest
+
+pytest.importorskip("pennylane")
+
+import pennylane as qml
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator

@@ -1,6 +1,8 @@
-import numpy as np
+from __future__ import annotations
+
 from collections.abc import Iterable
 
+import numpy as np
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 

@@ -1,8 +1,10 @@
-import numpy as np
-from abc import ABC, abstractmethod
-from typing import List, Union
+from __future__ import annotations
 
-from qiskit.circuit import ParameterExpression, Parameter
+from abc import ABC, abstractmethod
+from typing import List
+
+import numpy as np
+from qiskit.circuit import Parameter, ParameterExpression
 
 
 class QuantumOperatorBase(ABC):
@@ -17,6 +19,12 @@ class QuantumOperatorBase(ABC):
         self, num_qubits: int = None, paulis: List[str] = None, coeffs: List[float] = None
     ):
         self._num_qubits = num_qubits
+
+    @classmethod
+    @abstractmethod
+    def from_quantum_operator(cls, operator: "QuantumOperatorBase") -> "QuantumOperatorBase":
+        """Create a backend-native operator from a generic quantum operator."""
+        raise NotImplementedError
 
     @property
     def num_qubits(self) -> int:
@@ -44,7 +52,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @property
-    def parameters(self) -> List[Union[Parameter, ParameterExpression]]:
+    def parameters(self) -> List[Parameter | ParameterExpression]:
         """
         Return the parameters of the operator.
 

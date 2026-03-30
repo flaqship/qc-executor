@@ -1,7 +1,9 @@
 """Factory class for creating executor instances with plugin support."""
 
-from typing import Callable, Type
+from __future__ import annotations
+
 import logging
+from typing import Any, Callable, Type
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ class Executor:
         "qiskit": "qiskit-full",
         "pennylane": "pennylane",
         "qulacs": "qulacs",
+        "pauli_propagation": "pauli_propagation",
     }
 
     def __init__(self):
@@ -70,11 +73,14 @@ class Executor:
         return decorator
 
     @classmethod
-    def create(cls, backend: str, **kwargs) -> "ExecutorBase":
+    def create(cls, backend: str | Any, **kwargs) -> "ExecutorBase":
         """Create an executor instance for the specified backend.
 
         Args:
-            backend: Name of the backend (e.g., "qiskit", "pennylane", "qulacs")
+            backend: Name of the backend (e.g., "qiskit", "pennylane", "qulacs").
+                May also be a Qiskit ``Backend`` / ``BackendV2`` instance, in
+                which case the ``"qiskit"`` executor is used automatically and
+                the object is forwarded as ``backend=<instance>``.
             **kwargs: Configuration parameters passed to the backend constructor
 
         Returns:
@@ -87,28 +93,61 @@ class Executor:
             >>> executor = Executor.create("qiskit", shots=1024, seed=42)
             >>> executor = Executor.create("pennylane", shots=1000)
         """
-        # Try to find backend in registry
-        if backend not in cls._registry:
-            # Try discovering plugins if not done yet
-            if not cls._plugins_discovered:
-                cls._discover_plugins()
 
-        # Check if backend is available
-        if backend not in cls._registry:
-            available = cls.available_backends()
-            available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
-            extra_name = cls._backend_extra_map.get(backend, backend)
+        # Try discovering plugins if not done yet
+        if not cls._plugins_discovered:
+            cls._discover_plugins()
 
-            raise ValueError(
-                f"Backend '{backend}' not found. "
-                f"Available backends: {available_str}. "
-                f"Install with: pip install executor[{extra_name}]"
-            )
+        # String path: look up in registry and create instance
+        if isinstance(backend, str):
+            # Check if backend is available
+            if backend not in cls._registry:
+                available = cls.available_backends()
+                available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
+                extra_name = cls._backend_extra_map.get(backend, backend)
 
-        # Create and return backend instance
-        backend_class = cls._registry[backend]
-        logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
-        return backend_class(**kwargs)
+                raise ValueError(
+                    f"Backend '{backend}' not found. "
+                    f"Available backends: {available_str}. "
+                    f"Install with: pip install executor[{extra_name}]"
+                )
+
+            # Create and return backend instance
+            backend_class = cls._registry[backend]
+            logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
+            return backend_class(**kwargs)
+
+        # Non-string path: auto-detect executor from accepted_types
+        for name, executor_class in cls._registry.items():
+            try:
+                accepted = executor_class.get_accepted_backend_types()
+            except Exception:
+                logger.debug(
+                    "get_accepted_backend_types() failed for '%s'; skipping.", name, exc_info=True
+                )
+                continue
+
+            if any(isinstance(backend, t) for t in accepted):
+                logger.info(
+                    "Auto-detected backend '%s' for object of type %s.",
+                    name,
+                    type(backend).__name__,
+                )
+                return executor_class(backend=backend, **kwargs)
+
+        # No plugin matched — produce a helpful error message
+        accepted_summary = {
+            name: [t.__name__ for t in executor_class.get_accepted_backend_types()]
+            for name, executor_class in cls._registry.items()
+            if executor_class.get_accepted_backend_types()
+        }
+        raise ValueError(
+            f"No registered executor accepts an object of type "
+            f"'{type(backend).__qualname__}'. "
+            f"Pass the backend name as a string instead, or install the "
+            f"matching plugin.\n"
+            f"Accepted types per backend: {accepted_summary}"
+        )
 
     @classmethod
     def _discover_plugins(cls) -> None:

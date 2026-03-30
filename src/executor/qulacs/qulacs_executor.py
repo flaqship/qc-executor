@@ -1,45 +1,47 @@
-import numpy as np
+from __future__ import annotations
+
 import re
-from typing import List, Union, Tuple
 from collections import Counter
 from itertools import product
+from typing import List, Tuple
 
+import numpy as np
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
-
 from qulacs import QuantumState
 
+from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..utils.data_preprocessing import adjust_features, to_tuple
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_observable import QulacsObservable
 
-from ..base import QuantumOperatorBase, QuantumCircuitBase, ExecutorBase
-from ..utils.data_preprocessing import adjust_features, to_tuple
-
 
 class QulacsExecutor(ExecutorBase):
-    """Base class for quantum circuit executors.
+    """Qulacs backend executor implementation.
 
     Args:
-        shots (int, optional): Number of shots for sampling. Defaults to None.
-        seed (int, optional): Random seed for reproducibility. Defaults to None.
-        log_file (str, optional): Path to the log file. Defaults to None.
-        log_level (str, optional): Logging level. One of ``"DEBUG"``, ``"INFO"``,
-            ``"WARNING"``, ``"ERROR"``. Defaults to ``"WARNING"``.
-        caching (bool, optional): Whether to use caching. Defaults to None.
-        cache_dir (str, optional): Directory for caching. Defaults to "cache".
-        max_cache_size (int, optional): Maximum number of entries kept in each
-            in-memory cache. ``None`` means unlimited. Defaults to None.
+        shots (int | None, optional): Number of shots for sampling.
+        seed (int | None, optional): Random seed for reproducibility.
+        log_file (str | None, optional): Path to the log file.
+        log_level (str, optional): Logging level.
+        caching (bool | None, optional): Whether to use in-memory caching.
+        cache_dir (str, optional): Directory for caching.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache.
     """
+
+    _native_circuit_class = QulacsCircuit
+    _native_observable_class = QulacsObservable
 
     def __init__(
         self,
-        shots: Union[int, None] = None,
-        seed: Union[int, None] = None,
-        log_file: Union[str, None] = None,
+        shots: int | None = None,
+        seed: int | None = None,
+        log_file: str | None = None,
         log_level: str = "WARNING",
-        caching: Union[bool, None] = None,
+        caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: Union[int, None] = None,
+        max_cache_size: int | None = None,
     ):
 
         super().__init__(
@@ -63,12 +65,12 @@ class QulacsExecutor(ExecutorBase):
             self._random = np.random.default_rng()
 
     @property
-    def shots(self) -> Union[int, None]:
+    def shots(self) -> int | None:
         """Return the number of shots."""
         return self._shots
 
     @shots.setter
-    def shots(self, value: Union[int, None]) -> None:
+    def shots(self, value: int | None) -> None:
         """Set the number of shots."""
         raise NotImplementedError
 
@@ -78,12 +80,12 @@ class QulacsExecutor(ExecutorBase):
         return False
 
     def _preprocess_circuits(
-        self, circuit: Union[QuantumCircuitBase, List[QuantumCircuitBase]]
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase]
     ) -> Tuple[List[QulacsCircuit], bool]:
         """Preprocess the circuit(s) and convert them to Qulacs format.
 
         Args:
-            circuit (Union[QuantumCircuitBase, List[QuantumCircuitBase]]): The quantum
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum
                 circuit(s) to preprocess.
 
         Returns:
@@ -100,6 +102,9 @@ class QulacsExecutor(ExecutorBase):
 
         # Check the cache for already converted circuits
         for circ in circuits:
+            if isinstance(circ, self._native_circuit_class):
+                qulacs_circuits.append(circ)
+                continue
             if circ in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
                 qulacs_circuits.append(self._circuit_cache[circ])
@@ -112,12 +117,12 @@ class QulacsExecutor(ExecutorBase):
         return qulacs_circuits, multiple_circuits
 
     def _preprocess_operators(
-        self, operator: Union[QuantumOperatorBase, List[QuantumOperatorBase]]
+        self, operator: QuantumOperatorBase | List[QuantumOperatorBase]
     ) -> Tuple[List[QulacsObservable], bool]:
         """Preprocess the operator(s) and convert them to Qulacs format.
 
         Args:
-            operator (Union[QuantumOperatorBase, List[QuantumOperatorBase]]): The quantum
+            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
                 operator(s) to preprocess.
 
         Returns:
@@ -132,6 +137,9 @@ class QulacsExecutor(ExecutorBase):
         qulacs_observables = []
 
         for op in operators:
+            if isinstance(op, self._native_observable_class):
+                qulacs_observables.append(op)
+                continue
             if op in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
                 qulacs_observables.append(self._operator_cache[op])
@@ -217,7 +225,9 @@ class QulacsExecutor(ExecutorBase):
                     observable_parameter_tuples = product(*observable_parameters)
 
                     for op in observable_parameter_tuples:
-                        qulacs_observable_object = qulacs_observable.get_observable_func()(*op[0])
+                        qulacs_observable_object = qulacs_observable.get_observable_func()(
+                            *op[0] if op else ()
+                        )
                         # not sure about the [0] here, but it works for single operators
                         observable_values.append(
                             np.real_if_close(
@@ -256,14 +266,9 @@ class QulacsExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         operator: QuantumOperatorBase,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
+        *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
-    ) -> Union[np.array, dict]:
+    ) -> np.array | dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters
 
@@ -278,7 +283,7 @@ class QulacsExecutor(ExecutorBase):
                 keyword arguments.
 
         Returns:
-            Union[np.array, dict]: The derivatives of the expectation value. If a single value
+            np.array | dict: The derivatives of the expectation value. If a single value
                 is provided, a numpy array is returned. If multiple values are provided, a
                 dictionary with the values as keys and the derivatives as values is returned.
         """
@@ -288,7 +293,7 @@ class QulacsExecutor(ExecutorBase):
             observable: QulacsObservable,
             arguments_circuit,
             arguments_observable,
-            parameters: Union[None, ParameterVectorElement, List[ParameterVectorElement]] = None,
+            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Circuits with the given parameters.
@@ -338,7 +343,7 @@ class QulacsExecutor(ExecutorBase):
             observable: QulacsObservable,
             arguments_circuit,
             arguments_observable,
-            parameters: Union[None, ParameterVectorElement, List[ParameterVectorElement]] = None,
+            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Observables with the given parameters.
@@ -572,6 +577,15 @@ class QulacsExecutor(ExecutorBase):
             np.ndarray: The statevector of the circuit.
         """
 
+        def reverse_bits_array(n: int, num_bits: int) -> np.ndarray:
+            """Return indices that map backend bit order to public API order."""
+            indices = np.arange(n)
+            reversed_indices = np.zeros_like(indices)
+            for _ in range(num_bits):
+                reversed_indices = (reversed_indices << 1) | (indices & 1)
+                indices >>= 1
+            return reversed_indices
+
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
 
         state_vectors = []
@@ -600,7 +614,9 @@ class QulacsExecutor(ExecutorBase):
                 state = QuantumState(qulacs_circuit.num_qubits)
                 qulacs_circuit_object.update_quantum_state(state)
 
-                circuit_values.append(state.get_vector())
+                state_vector = np.array(state.get_vector())
+                indices = reverse_bits_array(len(state_vector), qulacs_circuit.num_qubits)
+                circuit_values.append(state_vector[indices])
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)
@@ -623,4 +639,19 @@ class QulacsExecutor(ExecutorBase):
         Returns:
             QulacsCircuit: The corresponding QulacsCircuit.
         """
-        return QulacsCircuit(circuit)
+        if isinstance(circuit, self._native_circuit_class):
+            return circuit
+        return self._native_circuit_class.from_quantum_circuit(circuit)
+
+    def _transpile_observable(self, operator: QuantumOperatorBase) -> QulacsObservable:
+        """Transpile a generic QuantumOperator to a Qulacs QuantumOperator.
+
+        Args:
+            operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
+
+        Returns:
+            QulacsObservable: The corresponding QulacsObservable.
+        """
+        if isinstance(operator, self._native_observable_class):
+            return operator
+        return self._native_observable_class.from_quantum_operator(operator)

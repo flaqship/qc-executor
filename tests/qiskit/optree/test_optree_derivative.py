@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
 from packaging import version
-
 from qiskit import __version__ as qiskit_version
-from qiskit.circuit import QuantumCircuit
+from qiskit.circuit import ParameterVector, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
-from qiskit.circuit import ParameterVector
 
 from executor.qiskit.optree import OpTree
 

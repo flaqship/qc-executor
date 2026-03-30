@@ -8,14 +8,37 @@ blocks and version-gated imports.
 Supported Qiskit versions: >= 1.0  (including 2.x).
 """
 
+from __future__ import annotations
+
 from packaging import version
 from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterExpression
 from sympy import sympify as _sympify
 
-# ── version flags ──────────────────────────────────────────────────────────
+# ── Qiskit version flags ──────────────────────────────────────────────────
 QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
 QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
+
+# ── qiskit-ibm-runtime version flags ──────────────────────────────────────
+# These are only meaningful when qiskit-ibm-runtime is installed.
+# The flags are set to ``None`` when the package is not available and
+# should be treated as "feature not available".
+QISKIT_RUNTIME_AVAILABLE: bool = False
+QISKIT_RUNTIME_SMALLER_0_21: bool | None = None
+QISKIT_RUNTIME_SMALLER_0_23: bool | None = None
+QISKIT_RUNTIME_SMALLER_0_28: bool | None = None
+
+try:
+    from qiskit_ibm_runtime import (
+        __version__ as _ibm_runtime_version,  # type: ignore[import-untyped]
+    )
+
+    QISKIT_RUNTIME_AVAILABLE = True
+    QISKIT_RUNTIME_SMALLER_0_21 = version.parse(_ibm_runtime_version) < version.parse("0.21.0")
+    QISKIT_RUNTIME_SMALLER_0_23 = version.parse(_ibm_runtime_version) < version.parse("0.23.0")
+    QISKIT_RUNTIME_SMALLER_0_28 = version.parse(_ibm_runtime_version) < version.parse("0.28.0")
+except ImportError:
+    pass
 
 
 # ── ParameterExpression helpers ────────────────────────────────────────────
@@ -27,10 +50,9 @@ def _param_to_sympy(param: ParameterExpression):
     * Qiskit >= 2.0 exposes :py:meth:`ParameterExpression.sympify`.
     * Qiskit < 2.0 stores the expression in the private ``_symbol_expr``.
     """
-    if hasattr(param, "sympify"):
-        return param.sympify()
-    # Fallback for Qiskit < 2.0
-    return _sympify(param._symbol_expr)  # pylint: disable=protected-access
+    if QISKIT_SMALLER_2_0:
+        return _sympify(param._symbol_expr)  # pylint: disable=protected-access
+    return param.sympify()
 
 
 def _param_is_constant(param: ParameterExpression) -> bool:

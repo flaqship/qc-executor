@@ -1,8 +1,9 @@
 """Tests for the Executor factory class."""
 
 import pytest
-from executor.factory import Executor
+
 from executor.base.executor_base import ExecutorBase
+from executor.factory import Executor
 
 
 class MockExecutor(ExecutorBase):
@@ -35,6 +36,14 @@ class MockExecutor(ExecutorBase):
     def _transpile_circuit(self, circuit):
         """Mock implementation."""
         return circuit
+
+    def _transpile_observable(self, observable):
+        """Mock implementation."""
+        return observable
+
+    def get_accepted_backend_types(cls) -> list[type]:
+        """Mock accepted backend types."""
+        return []
 
 
 class TestExecutorFactory:

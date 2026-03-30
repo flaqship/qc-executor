@@ -1,9 +1,11 @@
-import numpy as np
-from abc import ABC, abstractmethod
-from typing import List, Union
+from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from typing import List
+
+import numpy as np
+from qiskit.circuit import Parameter, ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.circuit import ParameterExpression, Parameter
 
 from .operator_base import QuantumOperatorBase
 
@@ -19,6 +21,12 @@ class QuantumCircuitBase(ABC):
     def __init__(self, num_qubits: int):
         self._num_qubits = num_qubits
         self._free_parameters = set()
+
+    @classmethod
+    @abstractmethod
+    def from_quantum_circuit(cls, circuit: "QuantumCircuitBase") -> "QuantumCircuitBase":
+        """Create a backend-native circuit from a generic quantum circuit."""
+        raise NotImplementedError
 
     @property
     def num_qubits(self) -> int:
@@ -46,66 +54,66 @@ class QuantumCircuitBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def h(self, qubits: Union[int, List[int]]):
+    def h(self, qubits: int | List[int]):
         """Add hadamard gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def s(self, qubits: Union[int, List[int]]):
+    def s(self, qubits: int | List[int]):
         """Add S gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def sdag(self, qubits: Union[int, List[int]]):
+    def sdag(self, qubits: int | List[int]):
         """Add Sdag gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def t(self, qubits: Union[int, List[int]]):
+    def t(self, qubits: int | List[int]):
         """Add T gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def tdag(self, qubits: Union[int, List[int]]):
+    def tdag(self, qubits: int | List[int]):
         """Add Tdg gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def p(self, qubits: Union[int, List[int]], angle: float):
+    def p(self, qubits: int | List[int], angle: float):
         """Add P gates"""
         raise NotImplementedError
 
-    def cp(self, qubits: Union[int, List[int]], angle: float):
+    def cp(self, qubits: int | List[int], angle: float):
         """Add CP gates"""
         self.p(qubits, angle)
 
     @abstractmethod
-    def x(self, qubits: Union[int, List[int]]):
+    def x(self, qubits: int | List[int]):
         """Add X gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def y(self, qubits: Union[int, List[int]]):
+    def y(self, qubits: int | List[int]):
         """Add Y gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def z(self, qubits: Union[int, List[int]]):
+    def z(self, qubits: int | List[int]):
         """Add Z gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def rx(self, qubits: Union[int, List[int]], angle: float):
+    def rx(self, qubits: int | List[int], angle: float):
         """Add RX gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def ry(self, qubits: Union[int, List[int]], angle: float):
+    def ry(self, qubits: int | List[int], angle: float):
         """Add RY gates"""
         raise NotImplementedError
 
     @abstractmethod
-    def rz(self, qubits: Union[int, List[int]], angle: float):
+    def rz(self, qubits: int | List[int], angle: float):
         """Add RZ gates"""
         raise NotImplementedError
 
@@ -177,7 +185,7 @@ class QuantumCircuitBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def barrier(self, qubits: Union[int, List[int]]):
+    def barrier(self, qubits: int | List[int]):
         """Add barrier gates"""
         raise NotImplementedError
 
@@ -209,15 +217,15 @@ class QuantumCircuitBase(ABC):
     def pauli_evolution(
         self,
         op: QuantumOperatorBase,
-        parameter: Union[ParameterVectorElement, float],
-        working_qubits: Union[List[int], None] = None,
+        parameter: ParameterVectorElement | float,
+        working_qubits: List[int] | None = None,
     ) -> None:
         """
         Applies Pauli evolution exp(itP) where P is a Pauli operator.
 
         Args:
             op (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (Union[ParameterVectorElement, float]): The evolution parameter.
+            parameter (ParameterVectorElement | float): The evolution parameter.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
@@ -280,16 +288,16 @@ class QuantumCircuitBase(ABC):
     def controlled_pauli_evolution(
         self,
         op: QuantumOperatorBase,
-        parameter: Union[ParameterVectorElement, float],
+        parameter: ParameterVectorElement | float,
         control_qubit: int,
-        working_qubits: Union[List[int], None] = None,
+        working_qubits: List[int] | None = None,
     ) -> None:
         """
         Applies controlled Pauli evolution exp(itP) where P is a Pauli operator.
 
         Args:
             op (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (Union[ParameterVectorElement, float]): The evolution parameter.
+            parameter (ParameterVectorElement | float): The evolution parameter.
             control_qubit (int): The qubit to control the evolution.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
@@ -354,16 +362,16 @@ class QuantumCircuitBase(ABC):
     # def operator_evolution(
     #     self,
     #     hamiltonian: QuantumOperatorBase,
-    #     time: Union[ParameterExpression, Parameter, float],
-    #     controlled_qubits: Union[List[int], int, None] = None,
-    #     working_qubits: Union[List[int], int, None] = None,
+    #     time: ParameterExpression | Parameter | float,
+    #     controlled_qubits: List[int] | int | None = None,
+    #     working_qubits: List[int] | int | None = None,
     #     evolution=LieTrotterEvolution(),
     # ) -> None:
     #     """Apply the imaginary time evolution to the circuit.
 
     #     Args:
     #         hamiltonian (QuantumOperatorBase): Hamiltonian to evolve the state with
-    #         parameter (Union[ParameterVectorElement, float]): Parameter in the evolution
+    #         parameter (ParameterVectorElement | float): Parameter in the evolution
     #     """
 
     #     evolution.apply(self, hamiltonian, time, controlled_qubits, working_qubits)

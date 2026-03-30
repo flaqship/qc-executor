@@ -1,8 +1,8 @@
-from .qiskit_circuit import QiskitCircuit
-from .qiskit_observable import QiskitObservable
-
 # Register QiskitExecutor with the factory
 from executor.factory import Executor
+
+from .qiskit_circuit import QiskitCircuit
+from .qiskit_observable import QiskitObservable
 
 try:
     from .qiskit_executor import QiskitExecutor

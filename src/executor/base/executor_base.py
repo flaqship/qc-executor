@@ -4,11 +4,9 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import List, overload
+from typing import Any, List, overload
 
 import numpy as np
-from qiskit.circuit import ParameterExpression, ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
 
 from ..parameters import Parameter, Parameters
 from .circuit_base import QuantumCircuitBase
@@ -156,15 +154,20 @@ class ExecutorBase(ABC):
             "max_cache_size": self._max_cache_size,
         }
 
-    def switch_backend(self, backend: str, **overrides) -> "ExecutorBase":
+    def switch_backend(self, backend: str | Any, **overrides) -> "ExecutorBase":
         """Switch to a different backend while preserving configuration.
 
         Creates a new executor instance with the specified backend, copying
         the current configuration and applying any overrides.
 
         Args:
-            backend: Name of the backend to switch to (e.g., "qiskit", "pennylane", "qulacs")
-            ``**overrides``: Configuration parameters to override (e.g., shots=2048)
+            backend: Name of the backend to switch to (e.g., ``"qiskit"``,
+                ``"pennylane"``, ``"qulacs"``).  May also be a Qiskit
+                ``Backend`` / ``BackendV2`` instance (e.g. obtained from
+                ``QiskitRuntimeService``), in which case the ``"qiskit"``
+                executor is used automatically and the object is forwarded
+                as ``backend=<instance>``.
+            **overrides: Configuration parameters to override (e.g., shots=2048)
 
         Returns:
             ExecutorBase: New executor instance with the specified backend
@@ -177,9 +180,15 @@ class ExecutorBase(ABC):
             >>> # Override specific parameters
             >>> qulacs_executor = executor.switch_backend("qulacs", shots=2048)
             >>> # qulacs_executor has shots=2048, seed=42
+            >>>
+            >>> # Switch to a real IBM Quantum backend
+            >>> from qiskit_ibm_runtime import QiskitRuntimeService
+            >>> service = QiskitRuntimeService()
+            >>> ibm_backend = service.least_busy(operational=True, simulator=False)
+            >>> ibm_executor = executor.switch_backend(ibm_backend)
         """
         # Lazy import to avoid circular dependencies
-        from executor import Executor
+        from executor.factory import Executor  # pylint: disable=cyclic-import
 
         # Get current config and apply overrides
         config = self.get_config()
@@ -548,5 +557,19 @@ class ExecutorBase(ABC):
 
         Returns:
             QuantumOperatorBase: The transpiled operator in backend-native format.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def get_accepted_backend_types(cls) -> List[type]:
+        """Return a list of backend object types accepted by this executor.
+
+        This is used for auto-detection when a non-string backend is passed to
+        :meth:`Executor.create`.  If the backend object is an instance of any
+        of the returned types, this executor will be selected automatically.
+
+        Returns:
+            List[type]: List of accepted backend types (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
         """
         raise NotImplementedError

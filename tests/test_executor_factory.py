@@ -137,7 +137,8 @@ class TestExecutorFactory:
         error_msg = str(exc_info.value)
         assert "Available backends:" in error_msg
         assert "Known backend aliases:" in error_msg
-        assert "pip install executor[nonexistent_backend_xyz]" in error_msg
+        # No install hint for completely unknown backend names
+        assert "pip install" not in error_msg
 
     def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
         """Test that qiskit backend install hint points to qiskit-full."""
@@ -357,7 +358,7 @@ class TestExecutorAliasRegistration:
             Executor._alias_registry_size = original_alias_registry_size
             Executor._plugins_discovered = original_discovered
 
-    def test_create_uses_alias_routing_with_backend_kwarg(self):
+    def test_create_uses_alias_routing(self):
         original_registry = Executor._registry.copy()
         original_alias_map = Executor._backend_alias_map.copy()
         original_alias_registry_size = Executor._alias_registry_size

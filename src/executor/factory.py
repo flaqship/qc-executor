@@ -128,26 +128,48 @@ class Executor:
                     )
 
                 if backend_class is not None:
+                    if "backend" in kwargs:
+                        raise ValueError(
+                            "Conflicting 'backend' argument: the backend was specified "
+                            f"both via alias routing ('{target}') and explicitly in "
+                            "**kwargs. Please specify the backend only once."
+                        )
                     logger.info(
                         "Routing string target '%s' to backend '%s' via alias.",
                         target,
                         alias_backend_name,
                     )
-                    return backend_class(backend=target, **kwargs)
+                    return backend_class(backend=target_alias, **kwargs)
 
             # Check if backend is available
             available = cls.available_backends()
             available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
             aliases = sorted(cls._backend_alias_map.keys())
             aliases_str = ", ".join(f"'{a}'" for a in aliases) if aliases else "none"
-            extra_name = cls._backend_extra_map.get(target, target)
 
-            raise ValueError(
+            # Determine a valid extra name, if any, for installation hints.
+            # Prefer the canonical backend name resolved from aliases; only fall back
+            # to the raw target if it is itself a known backend name.
+            resolved_backend_name = cls._backend_alias_map.get(target_alias)
+            backend_key_for_extra: str | None = None
+            if resolved_backend_name in cls._backend_extra_map:
+                backend_key_for_extra = resolved_backend_name
+            elif target in cls._backend_extra_map:
+                backend_key_for_extra = target
+
+            base_message = (
                 f"Backend '{target}' not found. "
                 f"Available backends: {available_str}. "
-                f"Known backend aliases: {aliases_str}. "
-                f"Install with: pip install executor[{extra_name}]"
+                f"Known backend aliases: {aliases_str}."
             )
+
+            if backend_key_for_extra is not None:
+                extra_name = cls._backend_extra_map[backend_key_for_extra]
+                install_hint = f" Install with: pip install executor[{extra_name}]"
+            else:
+                install_hint = ""
+
+            raise ValueError(base_message + install_hint)
 
         # Non-string path: auto-detect executor from accepted_types
         for name, executor_class in cls._registry.items():

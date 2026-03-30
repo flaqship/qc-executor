@@ -189,6 +189,21 @@ class TestExecutorIntegration:
         assert isinstance(executor, QiskitExecutor)
         assert executor.shots is None
 
+    def test_autodetect_pennylane_device_instance(self):
+        """Test auto-detection when passing a PennyLane device instance."""
+        try:
+            import pennylane as qml
+        except ImportError:
+            pytest.skip("PennyLane not installed")
+
+        from executor.pennylane import PennyLaneExecutor
+
+        dev = qml.device("default.qubit", wires=1)
+        executor = Executor.create(dev)
+
+        assert isinstance(executor, PennyLaneExecutor)
+        assert executor._device is dev
+
     def test_pennylane_backend_available(self):
         """Test that pennylane backend is available if installed."""
         backends = Executor.available_backends()

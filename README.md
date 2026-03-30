@@ -106,6 +106,18 @@ All executors support the following configuration parameters:
 - `cache_dir` (str, optional): Directory for caching (default: "cache")
 - `max_cache_size` (int, optional): Maximum number of cached results (default: unlimited)
 
+### Backend Object Convention
+
+When an executor accepts a backend-specific object (for example a Qiskit backend
+instance or a PennyLane `qml.devices.Device`), the constructor parameter name is
+`backend`.
+
+```python
+from executor.pennylane import PennyLaneExecutor
+
+executor = PennyLaneExecutor(backend="default.mixed", shots=1000, seed=42)
+```
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first

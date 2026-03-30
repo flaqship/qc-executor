@@ -122,7 +122,9 @@ class Executor:
                     cls._rebuild_backend_alias_map()
                     alias_backend_name = cls._backend_alias_map.get(target_alias)
                     backend_class = (
-                        cls._registry.get(alias_backend_name) if alias_backend_name is not None else None
+                        cls._registry.get(alias_backend_name)
+                        if alias_backend_name is not None
+                        else None
                     )
 
                 if backend_class is not None:
@@ -237,7 +239,9 @@ class Executor:
         return alias.strip().lower()
 
     @classmethod
-    def _index_backend_aliases(cls, backend_name: str, backend_class: Type["ExecutorBase"]) -> None:
+    def _index_backend_aliases(
+        cls, backend_name: str, backend_class: Type["ExecutorBase"]
+    ) -> None:
         """Add aliases for a backend to the central alias map.
 
         Raises:

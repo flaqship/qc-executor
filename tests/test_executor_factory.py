@@ -136,6 +136,7 @@ class TestExecutorFactory:
 
         error_msg = str(exc_info.value)
         assert "Available backends:" in error_msg
+        assert "Known backend aliases:" in error_msg
         assert "pip install executor[nonexistent_backend_xyz]" in error_msg
 
     def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
@@ -205,6 +206,18 @@ class TestExecutorIntegration:
         executor = Executor.create("statevector")
         assert isinstance(executor, QiskitExecutor)
 
+    def test_create_qiskit_via_aer_alias(self):
+        """Test creating QiskitExecutor using the aer alias."""
+        try:
+            import qiskit_aer  # noqa: F401
+        except ImportError:
+            pytest.skip("qiskit-aer not installed")
+
+        from executor.qiskit import QiskitExecutor
+
+        executor = Executor.create("aer")
+        assert isinstance(executor, QiskitExecutor)
+
     def test_autodetect_pennylane_device_instance(self):
         """Test auto-detection when passing a PennyLane device instance."""
         try:
@@ -219,6 +232,18 @@ class TestExecutorIntegration:
 
         assert isinstance(executor, PennyLaneExecutor)
         assert executor._device is dev
+
+    def test_create_pennylane_via_device_string_alias(self):
+        """Test creating PennyLaneExecutor using a device string alias."""
+        try:
+            import pennylane as qml  # noqa: F401
+        except ImportError:
+            pytest.skip("PennyLane not installed")
+
+        from executor.pennylane import PennyLaneExecutor
+
+        executor = Executor.create("default.qubit", wires=1)
+        assert isinstance(executor, PennyLaneExecutor)
 
     def test_pennylane_backend_available(self):
         """Test that pennylane backend is available if installed."""

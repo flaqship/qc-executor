@@ -678,7 +678,7 @@ class TestPennylaneExecutor:
 
     def test_custom_device_name(self):
         """Test that a custom device is stored and used."""
-        executor = PennyLaneExecutor(device="default.mixed")
+        executor = PennyLaneExecutor(backend="default.mixed")
         assert executor.device_name == "default.mixed"
         assert executor._device.name == "default.mixed"
 
@@ -694,7 +694,7 @@ class TestPennylaneExecutor:
         op = QuantumOperator(["ZZ"], [1.0])
 
         executor_default = PennyLaneExecutor()
-        executor_mixed = PennyLaneExecutor(device="default.mixed")
+        executor_mixed = PennyLaneExecutor(backend="default.mixed")
 
         result_default = executor_default.expectation_value(qc, op)
         result_mixed = executor_mixed.expectation_value(qc, op)
@@ -709,7 +709,7 @@ class TestPennylaneExecutor:
         """
         qc = _build_circuit(1, [("h", [0])])
 
-        executor_mixed = PennyLaneExecutor(device="default.mixed")
+        executor_mixed = PennyLaneExecutor(backend="default.mixed")
         sv_mixed = executor_mixed.statevector(qc)
 
         assert sv_mixed is not None
@@ -719,7 +719,7 @@ class TestPennylaneExecutor:
         """Test sampling with default.mixed device."""
         qc = _build_circuit(2, [("x", [0]), ("x", [1])])
 
-        executor = PennyLaneExecutor(shots=100, seed=42, device="default.mixed")
+        executor = PennyLaneExecutor(shots=100, seed=42, backend="default.mixed")
         result = executor.sample(qc)
 
         samples = result[0]
@@ -731,18 +731,18 @@ class TestPennylaneExecutor:
         qc = _build_circuit(1, [("h", [0])])
         op = QuantumOperator(["X"], [1.0])
 
-        executor = PennyLaneExecutor(device="default.mixed")
+        executor = PennyLaneExecutor(backend="default.mixed")
         result = executor.expectation_value(qc, op)
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 1.0, atol=1e-5)
 
-    def test_expectation_value_parametric_with_custom_device(self):
-        """Test expectation value with custom device on a non-trivial circuit."""
+    def test_expectation_value_with_default_mixed_nontrivial_circuit(self):
+        """Test expectation value with default.mixed on a non-trivial circuit."""
         qc = _build_circuit(1, [("x", [0])])
         op = QuantumOperator(["Z"], [1.0])
 
-        executor = PennyLaneExecutor(device="default.mixed")
+        executor = PennyLaneExecutor(backend="default.mixed")
         result = executor.expectation_value(qc, op)
 
         assert np.isclose(result, -1.0, atol=1e-5)
@@ -751,24 +751,8 @@ class TestPennylaneExecutor:
         """Test creating executor via factory with device_name."""
         from executor import Executor
 
-        executor = Executor.create("pennylane", device="default.mixed")
+        executor = Executor.create("pennylane", backend="default.mixed")
         assert executor.device_name == "default.mixed"
-
-    def test_device_recreation_preserves_device_name(self):
-        """Test that device recreation (on qubit count change) preserves the device name."""
-        executor = PennyLaneExecutor(device="default.mixed")
-
-        # Run on a 1-qubit circuit first
-        qc1 = _build_circuit(1, [("h", [0])])
-        op1 = QuantumOperator(["Z"], [1.0])
-        executor.expectation_value(qc1, op1)
-        assert executor._device.name == "default.mixed"
-
-        # Run on a 2-qubit circuit to trigger device recreation
-        qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op2 = QuantumOperator(["ZZ"], [1.0])
-        executor.expectation_value(qc2, op2)
-        assert executor._device.name == "default.mixed"
 
 
 class TestDeviceInit:
@@ -800,18 +784,24 @@ class TestDeviceInit:
         assert executor._device is dev
         assert executor.device_name == dev.name
 
-    def test_init_device_instance_no_extra_args(self):
-        """Device-instance path stores empty args/kwargs."""
+    def test_init_device_instance_rejects_shots_or_seed(self):
+        """Device-instance path rejects executor-level shots/seed overrides."""
         dev = qml.device("default.qubit", wires=2)
-        executor = PennyLaneExecutor(dev, shots=50)
-        assert executor._device_args == ()
-        assert executor._device_kwargs == {}
+        with pytest.raises(ValueError, match="shots' and 'seed'"):
+            PennyLaneExecutor(dev, shots=50)
+        with pytest.raises(ValueError, match="shots' and 'seed'"):
+            PennyLaneExecutor(dev, seed=42)
 
     def test_init_device_instance_rejects_extra_kwargs(self):
         """Passing extra **kwargs together with a Device instance is an error."""
         dev = qml.device("default.qubit", wires=2)
         with pytest.raises(TypeError, match="Extra positional or keyword arguments"):
             PennyLaneExecutor(dev, custom_decomps={})
+
+    def test_init_rejects_wires_positional_and_keyword(self):
+        """Passing wires both positionally and as keyword is rejected clearly."""
+        with pytest.raises(ValueError, match="provided both positionally"):
+            PennyLaneExecutor("default.qubit", 2, wires=2)
 
     # -- Config / shots conflict --------------------------------------------
 
@@ -871,8 +861,8 @@ class TestDeviceInit:
         executor.expectation_value(qc2, op2)
         assert executor._device is dev  # still the same object
 
-    def test_string_device_recreated_on_wire_change(self):
-        """A string-based device is recreated when the qubit count changes."""
+    def test_string_device_not_recreated_on_wire_change(self):
+        """A string-based device is never recreated on qubit-count changes."""
         executor = PennyLaneExecutor("default.mixed")
 
         qc1 = _build_circuit(1, [("h", [0])])
@@ -883,13 +873,23 @@ class TestDeviceInit:
         qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         op2 = QuantumOperator(["ZZ"], [1.0])
         executor.expectation_value(qc2, op2)
-        assert executor._device is not dev_after_1q  # replaced
+        assert executor._device is dev_after_1q
         assert executor.device_name == "default.mixed"
+
+    def test_custom_device_with_too_few_wires_raises_clear_error(self):
+        """A custom device must have enough wires for the executed circuit."""
+        dev = qml.device("default.qubit", wires=1)
+        executor = PennyLaneExecutor(dev)
+        qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        op = QuantumOperator(["ZZ"], [1.0])
+
+        with pytest.raises(ValueError, match="has only 1 wires"):
+            executor.expectation_value(qc, op)
 
     # -- get_accepted_backend_types ------------------------------------------
 
     def test_get_accepted_backend_types_returns_list(self):
-        """get_accepted_backend_types returns a non-empty list of types."""
+        """get_accepted_backend_types returns a list of types."""
         accepted = PennyLaneExecutor.get_accepted_backend_types()
         assert isinstance(accepted, list)
         assert len(accepted) > 0
@@ -901,7 +901,7 @@ class TestDeviceInit:
         assert qml.devices.Device in accepted
 
     def test_get_accepted_backend_types_matches_device_instance(self):
-        """A concrete PennyLane device must be an instance of an accepted type."""
+        """A concrete PennyLane device must match one accepted type."""
         dev = qml.device("default.qubit", wires=1)
         accepted = PennyLaneExecutor.get_accepted_backend_types()
         assert any(isinstance(dev, t) for t in accepted)

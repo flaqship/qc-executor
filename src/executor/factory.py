@@ -73,11 +73,11 @@ class Executor:
         return decorator
 
     @classmethod
-    def create(cls, backend: str | Any, **kwargs) -> "ExecutorBase":
+    def create(cls, target: str | Any, **kwargs) -> "ExecutorBase":
         """Create an executor instance for the specified backend.
 
         Args:
-            backend: Name of the backend (e.g., "qiskit", "pennylane", "qulacs").
+            target: Name of the backend (e.g., "qiskit", "pennylane", "qulacs").
                 May also be a Qiskit ``Backend`` / ``BackendV2`` instance, in
                 which case the ``"qiskit"`` executor is used automatically and
                 the object is forwarded as ``backend=<instance>``.
@@ -99,21 +99,21 @@ class Executor:
             cls._discover_plugins()
 
         # String path: look up in registry and create instance
-        if isinstance(backend, str):
+        if isinstance(target, str):
             # Check if backend is available
-            if backend not in cls._registry:
+            if target not in cls._registry:
                 available = cls.available_backends()
                 available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
-                extra_name = cls._backend_extra_map.get(backend, backend)
+                extra_name = cls._backend_extra_map.get(target, target)
 
                 raise ValueError(
-                    f"Backend '{backend}' not found. "
+                    f"Backend '{target}' not found. "
                     f"Available backends: {available_str}. "
                     f"Install with: pip install executor[{extra_name}]"
                 )
 
             # Create and return backend instance
-            backend_class = cls._registry[backend]
+            backend_class = cls._registry[target]
             logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
             return backend_class(**kwargs)
 
@@ -127,13 +127,13 @@ class Executor:
                 )
                 continue
 
-            if any(isinstance(backend, t) for t in accepted):
+            if any(isinstance(target, t) for t in accepted):
                 logger.info(
                     "Auto-detected backend '%s' for object of type %s.",
                     name,
-                    type(backend).__name__,
+                    type(target).__name__,
                 )
-                return executor_class(backend=backend, **kwargs)
+                return executor_class(backend=target, **kwargs)
 
         # No plugin matched — produce a helpful error message
         accepted_summary = {
@@ -143,7 +143,7 @@ class Executor:
         }
         raise ValueError(
             f"No registered executor accepts an object of type "
-            f"'{type(backend).__qualname__}'. "
+            f"'{type(target).__qualname__}'. "
             f"Pass the backend name as a string instead, or install the "
             f"matching plugin.\n"
             f"Accepted types per backend: {accepted_summary}"

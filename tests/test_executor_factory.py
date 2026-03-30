@@ -41,6 +41,7 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return observable
 
+    @classmethod
     def get_accepted_backend_types(cls) -> list[type]:
         """Mock accepted backend types."""
         return []
@@ -101,6 +102,8 @@ class TestExecutorFactory:
         """Test available_backends when no backends are registered."""
         # Save current registry
         original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
         original_discovered = Executor._plugins_discovered
 
         try:
@@ -117,6 +120,8 @@ class TestExecutorFactory:
         finally:
             # Restore original registry
             Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
             Executor._plugins_discovered = original_discovered
 
     def test_create_unknown_backend(self):
@@ -131,11 +136,15 @@ class TestExecutorFactory:
 
         error_msg = str(exc_info.value)
         assert "Available backends:" in error_msg
-        assert "pip install executor[nonexistent_backend_xyz]" in error_msg
+        assert "Known backend aliases:" in error_msg
+        # No install hint for completely unknown backend names
+        assert "pip install" not in error_msg
 
     def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
         """Test that qiskit backend install hint points to qiskit-full."""
         original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
         original_discovered = Executor._plugins_discovered
 
         try:
@@ -148,6 +157,8 @@ class TestExecutorFactory:
             assert "pip install executor[qiskit-full]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
             Executor._plugins_discovered = original_discovered
 
     def test_create_with_kwargs(self):
@@ -189,6 +200,25 @@ class TestExecutorIntegration:
         assert isinstance(executor, QiskitExecutor)
         assert executor.shots is None
 
+    def test_create_qiskit_via_statevector_alias(self):
+        """Test creating QiskitExecutor using the statevector alias."""
+        from executor.qiskit import QiskitExecutor
+
+        executor = Executor.create("statevector")
+        assert isinstance(executor, QiskitExecutor)
+
+    def test_create_qiskit_via_aer_alias(self):
+        """Test creating QiskitExecutor using the aer alias."""
+        try:
+            import qiskit_aer  # noqa: F401
+        except ImportError:
+            pytest.skip("qiskit-aer not installed")
+
+        from executor.qiskit import QiskitExecutor
+
+        executor = Executor.create("aer")
+        assert isinstance(executor, QiskitExecutor)
+
     def test_autodetect_pennylane_device_instance(self):
         """Test auto-detection when passing a PennyLane device instance."""
         try:
@@ -203,6 +233,18 @@ class TestExecutorIntegration:
 
         assert isinstance(executor, PennyLaneExecutor)
         assert executor._device is dev
+
+    def test_create_pennylane_via_device_string_alias(self):
+        """Test creating PennyLaneExecutor using a device string alias."""
+        try:
+            import pennylane as qml  # noqa: F401
+        except ImportError:
+            pytest.skip("PennyLane not installed")
+
+        from executor.pennylane import PennyLaneExecutor
+
+        executor = Executor.create("default.qubit", wires=1)
+        assert isinstance(executor, PennyLaneExecutor)
 
     def test_pennylane_backend_available(self):
         """Test that pennylane backend is available if installed."""
@@ -279,3 +321,105 @@ class TestExecutorBackendSwitching:
         except ImportError:
             # PennyLane not installed - skip this test
             pass
+
+
+class TestExecutorAliasRegistration:
+    """Tests for backend alias indexing, duplicate detection and rebuild safety."""
+
+    def test_register_duplicate_alias_raises(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        try:
+            Executor._registry = {}
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = 0
+            Executor._plugins_discovered = True
+
+            @Executor.register("dup_a")
+            class DupA(MockExecutor):
+                @classmethod
+                def get_accepted_backend_aliases(cls) -> list[str]:
+                    return ["dup.alias"]
+
+            with pytest.raises(ValueError, match="Duplicate backend alias 'dup.alias'"):
+
+                @Executor.register("dup_b")
+                class DupB(MockExecutor):
+                    @classmethod
+                    def get_accepted_backend_aliases(cls) -> list[str]:
+                        return ["dup.alias"]
+
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_create_uses_alias_routing(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        class AliasExecutor(MockExecutor):
+            def __init__(self, backend=None, **kwargs):
+                super().__init__(**kwargs)
+                self.backend = backend
+
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["alpha.backend"]
+
+        try:
+            Executor._registry = {}
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = 0
+            Executor._plugins_discovered = True
+
+            Executor.register("alias_backend")(AliasExecutor)
+            executor = Executor.create("alpha.backend", shots=5)
+
+            assert isinstance(executor, AliasExecutor)
+            assert executor.backend == "alpha.backend"
+            assert executor.shots == 5
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_rebuild_alias_map_after_registry_direct_change(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        class RebuildExecutor(MockExecutor):
+            def __init__(self, backend=None, **kwargs):
+                super().__init__(**kwargs)
+                self.backend = backend
+
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["rebuild.alias"]
+
+        try:
+            Executor._registry = {}
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = 0
+            Executor._plugins_discovered = True
+
+            # Direct registry mutation simulates existing tests/integrations.
+            Executor._registry["rebuilder"] = RebuildExecutor
+
+            executor = Executor.create("rebuild.alias")
+            assert isinstance(executor, RebuildExecutor)
+            assert executor.backend == "rebuild.alias"
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered

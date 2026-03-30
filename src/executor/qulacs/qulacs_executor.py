@@ -655,3 +655,16 @@ class QulacsExecutor(ExecutorBase):
         if isinstance(operator, self._native_observable_class):
             return operator
         return self._native_observable_class.from_quantum_operator(operator)
+
+    @classmethod
+    def get_accepted_backend_types(cls) -> List[type]:
+        """Return all object types accepted as backend in factory auto-detection.
+
+        QulacsExecutor does not accept backend objects during initialization.
+        """
+        return []
+
+    @classmethod
+    def get_accepted_backend_aliases(cls) -> List[str]:
+        """Return string aliases accepted by this executor in ``Executor.create``."""
+        return []

@@ -22,6 +22,8 @@ class Executor:
     """
 
     _registry: dict[str, Type["ExecutorBase"]] = {}
+    _backend_alias_map: dict[str, str] = {}
+    _alias_registry_size: int = 0
     _plugins_discovered: bool = False
     _backend_extra_map: dict[str, str] = {
         "qiskit": "qiskit-full",
@@ -67,6 +69,8 @@ class Executor:
                 )
 
             cls._registry[name] = backend_class
+            cls._index_backend_aliases(name, backend_class)
+            cls._alias_registry_size = len(cls._registry)
             logger.debug(f"Registered backend '{name}': {backend_class.__name__}")
             return backend_class
 
@@ -98,24 +102,74 @@ class Executor:
         if not cls._plugins_discovered:
             cls._discover_plugins()
 
+        # Keep alias map in sync if tests or callers manipulated _registry directly.
+        cls._ensure_alias_map_consistency()
+
         # String path: look up in registry and create instance
         if isinstance(target, str):
+            target_alias = cls._normalize_backend_alias(target)
+
+            # Exact backend names take precedence over aliases.
+            if target in cls._registry:
+                backend_class = cls._registry[target]
+                logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
+                return backend_class(**kwargs)
+
+            alias_backend_name = cls._backend_alias_map.get(target_alias)
+            if alias_backend_name is not None:
+                backend_class = cls._registry.get(alias_backend_name)
+                if backend_class is None:
+                    cls._rebuild_backend_alias_map()
+                    alias_backend_name = cls._backend_alias_map.get(target_alias)
+                    backend_class = (
+                        cls._registry.get(alias_backend_name)
+                        if alias_backend_name is not None
+                        else None
+                    )
+
+                if backend_class is not None:
+                    if "backend" in kwargs:
+                        raise ValueError(
+                            "Conflicting 'backend' argument: the backend was specified "
+                            f"both via alias routing ('{target}') and explicitly in "
+                            "**kwargs. Please specify the backend only once."
+                        )
+                    logger.info(
+                        "Routing string target '%s' to backend '%s' via alias.",
+                        target,
+                        alias_backend_name,
+                    )
+                    return backend_class(backend=target_alias, **kwargs)
+
             # Check if backend is available
-            if target not in cls._registry:
-                available = cls.available_backends()
-                available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
-                extra_name = cls._backend_extra_map.get(target, target)
+            available = cls.available_backends()
+            available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
+            aliases = sorted(cls._backend_alias_map.keys())
+            aliases_str = ", ".join(f"'{a}'" for a in aliases) if aliases else "none"
 
-                raise ValueError(
-                    f"Backend '{target}' not found. "
-                    f"Available backends: {available_str}. "
-                    f"Install with: pip install executor[{extra_name}]"
-                )
+            # Determine a valid extra name, if any, for installation hints.
+            # Prefer the canonical backend name resolved from aliases; only fall back
+            # to the raw target if it is itself a known backend name.
+            resolved_backend_name = cls._backend_alias_map.get(target_alias)
+            backend_key_for_extra: str | None = None
+            if resolved_backend_name in cls._backend_extra_map:
+                backend_key_for_extra = resolved_backend_name
+            elif target in cls._backend_extra_map:
+                backend_key_for_extra = target
 
-            # Create and return backend instance
-            backend_class = cls._registry[target]
-            logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
-            return backend_class(**kwargs)
+            base_message = (
+                f"Backend '{target}' not found. "
+                f"Available backends: {available_str}. "
+                f"Known backend aliases: {aliases_str}."
+            )
+
+            if backend_key_for_extra is not None:
+                extra_name = cls._backend_extra_map[backend_key_for_extra]
+                install_hint = f" Install with: pip install executor[{extra_name}]"
+            else:
+                install_hint = ""
+
+            raise ValueError(base_message + install_hint)
 
         # Non-string path: auto-detect executor from accepted_types
         for name, executor_class in cls._registry.items():
@@ -200,3 +254,65 @@ class Executor:
             cls._discover_plugins()
 
         return sorted(cls._registry.keys())
+
+    @classmethod
+    def _normalize_backend_alias(cls, alias: str) -> str:
+        """Normalize a backend alias for stable lookups and duplicate checks."""
+        return alias.strip().lower()
+
+    @classmethod
+    def _index_backend_aliases(
+        cls, backend_name: str, backend_class: Type["ExecutorBase"]
+    ) -> None:
+        """Add aliases for a backend to the central alias map.
+
+        Raises:
+            ValueError: If an alias is already owned by another backend.
+        """
+        aliases = backend_class.get_accepted_backend_aliases()
+        for alias in aliases:
+            normalized_alias = cls._normalize_backend_alias(str(alias))
+            if not normalized_alias:
+                continue
+
+            existing_backend = cls._backend_alias_map.get(normalized_alias)
+            if existing_backend is not None and existing_backend != backend_name:
+                raise ValueError(
+                    f"Duplicate backend alias '{normalized_alias}' declared by "
+                    f"'{backend_name}' and '{existing_backend}'."
+                )
+
+            cls._backend_alias_map[normalized_alias] = backend_name
+
+    @classmethod
+    def _rebuild_backend_alias_map(cls) -> None:
+        """Rebuild the alias map from the current backend registry.
+
+        This is a safety net for tests or integrations that modify ``_registry``
+        directly instead of using :meth:`register`.
+        """
+        new_alias_map: dict[str, str] = {}
+        for backend_name, backend_class in cls._registry.items():
+            aliases = backend_class.get_accepted_backend_aliases()
+            for alias in aliases:
+                normalized_alias = cls._normalize_backend_alias(str(alias))
+                if not normalized_alias:
+                    continue
+
+                existing_backend = new_alias_map.get(normalized_alias)
+                if existing_backend is not None and existing_backend != backend_name:
+                    raise ValueError(
+                        f"Duplicate backend alias '{normalized_alias}' declared by "
+                        f"'{backend_name}' and '{existing_backend}'."
+                    )
+
+                new_alias_map[normalized_alias] = backend_name
+
+        cls._backend_alias_map = new_alias_map
+        cls._alias_registry_size = len(cls._registry)
+
+    @classmethod
+    def _ensure_alias_map_consistency(cls) -> None:
+        """Rebuild alias map when registry changes outside of ``register``."""
+        if len(cls._registry) != cls._alias_registry_size:
+            cls._rebuild_backend_alias_map()

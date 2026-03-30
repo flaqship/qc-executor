@@ -16,6 +16,12 @@ from executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 
 class TestPauliPropagationExecutor:
+    def test_get_accepted_backend_types(self):
+        assert PauliPropagationExecutor.get_accepted_backend_types() == []
+
+    def test_get_accepted_backend_aliases(self):
+        assert PauliPropagationExecutor.get_accepted_backend_aliases() == []
+
     def test_init(self):
         executor = PauliPropagationExecutor(
             shots=1000,

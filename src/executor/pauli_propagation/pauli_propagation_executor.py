@@ -989,3 +989,16 @@ class PauliPropagationExecutor(ExecutorBase):
             TruncationStats from most recent execution, or None if no truncation
         """
         return self.last_truncation_stats
+
+    @classmethod
+    def get_accepted_backend_types(cls) -> List[type]:
+        """Return all object types accepted as backend in factory auto-detection.
+
+        PauliPropagationExecutor does not accept backend objects during initialization.
+        """
+        return []
+
+    @classmethod
+    def get_accepted_backend_aliases(cls) -> List[str]:
+        """Return string aliases accepted by this executor in ``Executor.create``."""
+        return []

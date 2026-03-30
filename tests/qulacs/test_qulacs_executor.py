@@ -6,6 +6,12 @@ from executor.qulacs import QulacsExecutor
 
 
 class TestQulacsExecutor:
+    def test_get_accepted_backend_types(self):
+        assert QulacsExecutor.get_accepted_backend_types() == []
+
+    def test_get_accepted_backend_aliases(self):
+        assert QulacsExecutor.get_accepted_backend_aliases() == []
+
     def test_placeholder(self):
         pass
 

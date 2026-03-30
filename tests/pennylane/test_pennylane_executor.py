@@ -50,6 +50,11 @@ class TestPennylaneExecutor:
 
     # Initialization Tests
 
+    def test_get_accepted_backend_aliases(self):
+        aliases = PennyLaneExecutor.get_accepted_backend_aliases()
+        assert "default.qubit" in aliases
+        assert isinstance(aliases, list)
+
     def test_initialization_default(self):
         """Test executor initialization with default parameters."""
         executor = PennyLaneExecutor()

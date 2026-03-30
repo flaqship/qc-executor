@@ -699,3 +699,16 @@ class PennyLaneExecutor(ExecutorBase):
             List[type]: List of accepted backend types.
         """
         return [qml.devices.Device]
+
+    @classmethod
+    def get_accepted_backend_aliases(cls) -> List[str]:
+        """Return all currently available PennyLane device strings.
+
+        The list is discovered from PennyLane's plugin registry so external
+        PennyLane device plugins become available automatically.
+        """
+        aliases = {"default.qubit"}
+        plugin_devices = getattr(qml, "plugin_devices", None)
+        if isinstance(plugin_devices, dict):
+            aliases.update(str(name) for name in plugin_devices.keys())
+        return sorted(aliases)

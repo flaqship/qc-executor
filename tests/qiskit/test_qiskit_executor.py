@@ -21,6 +21,11 @@ def _build_circuit(num_qubits, operations):
 
 class TestQiskitExecutor:
 
+    def test_get_accepted_backend_aliases(self):
+        aliases = QiskitExecutor.get_accepted_backend_aliases()
+        assert "statevector" in aliases
+        assert "aer" in aliases
+
     def test_init_default(self):
         """Test executor initialization with default parameters."""
         executor = QiskitExecutor()

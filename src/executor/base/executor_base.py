@@ -573,3 +573,17 @@ class ExecutorBase(ABC):
             List[type]: List of accepted backend types (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
         """
         raise NotImplementedError
+
+    @classmethod
+    def get_accepted_backend_aliases(cls) -> List[str]:
+        """Return string aliases accepted by this executor.
+
+        This optional list is used by :meth:`Executor.create` when a string
+        target is not a registered backend name. The factory resolves aliases
+        to the owning plugin and forwards the original string via
+        ``backend=<target>``.
+
+        Returns:
+            List[str]: String aliases accepted by the executor.
+        """
+        return []

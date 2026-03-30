@@ -1510,3 +1510,8 @@ class QiskitExecutor(ExecutorBase):
                     types.append(rt_cls)
 
         return types
+
+    @classmethod
+    def get_accepted_backend_aliases(cls) -> list[str]:
+        """Return string aliases accepted by this executor in ``Executor.create``."""
+        return ["statevector", "aer"]

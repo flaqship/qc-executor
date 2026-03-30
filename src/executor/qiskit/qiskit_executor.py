@@ -327,45 +327,44 @@ def _is_primitive_instance(obj) -> Tuple[bool, bool]:
     return (False, False)
 
 
-def _detect_backend_flags(backend) -> Tuple[bool, bool]:
-    """Detect whether *backend* is a remote IBM Quantum device or a fake backend.
-
-    Uses ``isinstance`` checks against the concrete IBM/Fake classes to avoid
-    fragile string matching on ``str(backend)``.  String matching is only used
-    as a last-resort fallback for unknown third-party backends.
+def _classify_backend(backend) -> Tuple[bool, bool, bool]:
+    """Classify backend properties in a single pass.
 
     Returns
     -------
-    (remote, ibm_quantum) : Tuple[bool, bool]
-        ``remote`` is *True* when the backend is a real (non-local) device.
-        ``ibm_quantum`` is *True* only for real IBM Quantum hardware (not fakes).
+    (remote, ibm_quantum, ibm_fake) : Tuple[bool, bool, bool]
+        ``remote`` is *True* for real remote backends.
+        ``ibm_quantum`` is *True* only for real IBM Quantum hardware.
+        ``ibm_fake`` is *True* only for IBM fake backends.
     """
     # 1. Real IBM hardware
     try:
         from qiskit_ibm_runtime import IBMBackend
 
         if isinstance(backend, IBMBackend):
-            return (True, True)
+            return (True, True, False)
     except ImportError:
         pass
 
-    # 2. FakeBackendV2 — try both export paths used across runtime versions
-    try:
-        from qiskit_ibm_runtime.fake_provider import FakeBackendV2
-
-        if isinstance(backend, FakeBackendV2):
-            return (False, False)
-    except ImportError:
-        pass
+    # 2. IBM fake backend
     try:
         from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
         if isinstance(backend, FakeBackendV2):
-            return (False, False)
+            return (False, False, True)
     except ImportError:
         pass
 
-    # 3. Fallback: string matching for unrecognised third-party backends
+    # 3. Generic local fake backend
+    try:
+        from qiskit.providers.fake_provider import GenericBackendV2
+
+        if isinstance(backend, GenericBackendV2):
+            return (False, False, False)
+    except ImportError:
+        pass
+
+    # 4. Fallback: string matching for unrecognised third-party backends
     backend_str = str(backend).lower()
     if "ibm" in backend_str:
         is_fake = "fake" in backend_str
@@ -374,31 +373,9 @@ def _detect_backend_flags(backend) -> Tuple[bool, bool]:
             "falling back to string matching. Consider filing a bug report.",
             type(backend).__name__,
         )
-        return (not is_fake, not is_fake)
+        return (not is_fake, not is_fake, is_fake)
 
-    return (False, False)
-
-
-def _is_ibm_fake_backend(backend) -> bool:
-    """Return *True* if *backend* is a fake IBM backend from qiskit-ibm-runtime."""
-    try:
-        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
-
-        if isinstance(backend, FakeBackendV2):
-            return True
-    except ImportError:
-        pass
-    try:
-        from qiskit_ibm_runtime.fake_provider import FakeBackendV2
-
-        if isinstance(backend, FakeBackendV2):
-            return True
-    except ImportError:
-        pass
-    # Fallback: name-based detection
-    return "fake" in type(backend).__name__.lower() and (
-        "qiskit_ibm_runtime" in getattr(type(backend), "__module__", "")
-    )
+    return (False, False, False)
 
 
 class QiskitExecutor(ExecutorBase):
@@ -533,7 +510,7 @@ class QiskitExecutor(ExecutorBase):
                 )
 
             # Extract backend and session from runtime primitives so that
-            # _detect_backend_flags, ISA transpilation, and session awareness
+            # _classify_backend, ISA transpilation, and session awareness
             # work correctly even when primitives are injected directly.
             # This mirrors the approach used in the sQUlearn Executor.
             if isinstance(backend, (RuntimeEstimatorV2, RuntimeSamplerV2)):
@@ -551,7 +528,7 @@ class QiskitExecutor(ExecutorBase):
                 self._backend = self._backend or backend._backend
 
             if self._backend is not None:
-                self._remote_backend, self._ibm_quantum_backend = _detect_backend_flags(
+                self._remote_backend, self._ibm_quantum_backend, _ = _classify_backend(
                     self._backend
                 )
                 self._isa_transpile = self._ibm_quantum_backend
@@ -602,7 +579,7 @@ class QiskitExecutor(ExecutorBase):
                     type(backend).__name__,
                 )
             if self._backend is not None:
-                self._remote_backend, self._ibm_quantum_backend = _detect_backend_flags(
+                self._remote_backend, self._ibm_quantum_backend, _ = _classify_backend(
                     self._backend
                 )
             else:
@@ -646,7 +623,11 @@ class QiskitExecutor(ExecutorBase):
         # ── 4. Backend object (IBMBackend / FakeBackend / any BackendV2) ──
         elif _is_backend_instance(backend):
             self._backend = backend
-            self._remote_backend, self._ibm_quantum_backend = _detect_backend_flags(backend)
+            (
+                self._remote_backend,
+                self._ibm_quantum_backend,
+                is_ibm_fake,
+            ) = _classify_backend(backend)
             self._isa_transpile = True
 
             # Session / Batch management (only for real IBM Quantum devices)
@@ -661,7 +642,6 @@ class QiskitExecutor(ExecutorBase):
             #   because V1 runtime primitives require an active IBM account.
             # - Non-IBM backends (AerSimulator, etc.): use local primitives only;
             #   qiskit-ibm-runtime is not required.
-            is_ibm_fake = _is_ibm_fake_backend(backend)
             needs_runtime = self._ibm_quantum_backend or is_ibm_fake
             if needs_runtime and QISKIT_RUNTIME_AVAILABLE:
                 self._runtime_primitives_version = "v1" if QISKIT_RUNTIME_SMALLER_0_21 else "v2"

@@ -19,6 +19,7 @@ from executor.qiskit.qiskit_executor import (
     QiskitExecutor,
     _detect_backend_flags,
     _is_backend_instance,
+    _is_ibm_fake_backend,
 )
 from executor.quantum_operator import QuantumOperator
 from executor.utils.qiskit_compat import (
@@ -105,6 +106,17 @@ class TestBackendDetection:
         # and should NOT be detected as remote/ibm_quantum
         assert remote is False
         assert ibm_quantum is False
+
+    def test_detect_fake_backend_wrapper(self):
+        backend = _get_fake_backend()
+        assert _is_ibm_fake_backend(backend) is True
+
+    def test_detection_consistency_for_fake_backend(self):
+        backend = _get_fake_backend()
+        remote, ibm_quantum = _detect_backend_flags(backend)
+        is_fake = _is_ibm_fake_backend(backend)
+        assert (remote, ibm_quantum) == (False, False)
+        assert is_fake is True
 
 
 # ---------------------------------------------------------------------------

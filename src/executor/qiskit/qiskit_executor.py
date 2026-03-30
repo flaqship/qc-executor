@@ -462,6 +462,7 @@ class QiskitExecutor(ExecutorBase):
 
         # Internal state for IBM backend support
         self._session = None
+        self._inside_context_manager: bool = False
         self._remote_backend: bool = False
         self._ibm_quantum_backend: bool = False
         self._execution_mode = execution_mode
@@ -630,11 +631,6 @@ class QiskitExecutor(ExecutorBase):
             ) = _classify_backend(backend)
             self._isa_transpile = True
 
-            # Session / Batch management (only for real IBM Quantum devices)
-            if self._ibm_quantum_backend and execution_mode in ("session", "batch"):
-                _check_runtime_available()
-                self._create_session()
-
             # Primitive creation strategy:
             # - Real IBM hardware:  always use runtime primitives (V1 or V2).
             # - IBM fake backends:  use runtime primitives if available (>= 0.21);
@@ -652,8 +648,15 @@ class QiskitExecutor(ExecutorBase):
                     self._sampler_uses_v1_api = QISKIT_SMALLER_1_2
                 else:
                     _check_runtime_available()
-                    self._estimator = self._create_runtime_estimator()
-                    self._sampler = self._create_runtime_sampler()
+                    if self._uses_managed_session():
+                        # Delay session + primitive creation until the first
+                        # real execution or context-manager entry. This avoids
+                        # noisy warnings for recommended ``with`` usage.
+                        self._estimator = None
+                        self._sampler = None
+                    else:
+                        self._estimator = self._create_runtime_estimator()
+                        self._sampler = self._create_runtime_sampler()
                     self._sampler_uses_v1_api = self._runtime_primitives_version == "v1"
             elif needs_runtime and not QISKIT_RUNTIME_AVAILABLE and self._ibm_quantum_backend:
                 # Real IBM hardware always needs runtime
@@ -716,6 +719,10 @@ class QiskitExecutor(ExecutorBase):
     # Session lifecycle
     # ------------------------------------------------------------------
 
+    def _uses_managed_session(self) -> bool:
+        """Return *True* when this executor should own a runtime Session/Batch."""
+        return self._ibm_quantum_backend and self._execution_mode in ("session", "batch")
+
     def _create_session(self) -> None:
         """Create (or re-create) a :class:`~qiskit_ibm_runtime.Session` or
         :class:`~qiskit_ibm_runtime.Batch` depending on ``execution_mode``.
@@ -724,6 +731,9 @@ class QiskitExecutor(ExecutorBase):
         ``"session"`` mode uses ``Session`` for iterative algorithms (VQE/QAOA)
         that require tight coupling between successive jobs.
         """
+        if self._backend is None:
+            raise RuntimeError("Cannot create a runtime session without a backend.")
+
         if self._execution_mode == "batch":
             Batch = _load_runtime_batch()
             self._session = Batch(backend=self._backend)
@@ -733,12 +743,13 @@ class QiskitExecutor(ExecutorBase):
             self._session = Session(backend=self._backend)
             logger.debug("Created new runtime Session for %s.", self._backend)
 
-        logger.warning(
-            "IBM Runtime %s opened outside of a context manager. "
-            "Use 'with QiskitExecutor(...) as exe:' to ensure the session "
-            "is closed when done.",
-            type(self._session).__name__,
-        )
+        if not self._inside_context_manager:
+            logger.warning(
+                "IBM Runtime %s opened outside of a context manager. "
+                "Use 'with QiskitExecutor(...) as exe:' to ensure the session "
+                "is closed when done.",
+                type(self._session).__name__,
+            )
 
     def close_session(self) -> None:
         """Close the current runtime session/batch if one is active.
@@ -768,9 +779,14 @@ class QiskitExecutor(ExecutorBase):
         exit.  Context-managed use is strongly recommended whenever
         ``execution_mode`` is ``"session"`` or ``"batch"``.
         """
+        self._inside_context_manager = True
+        if self._uses_managed_session() and self._session is None:
+            self._create_session()
+            self._refresh_primitives()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._inside_context_manager = False
         self.close_session()
         return False
 
@@ -794,7 +810,14 @@ class QiskitExecutor(ExecutorBase):
         ``_active`` attributes, which are not guaranteed across runtime
         versions.
         """
-        if not (self._ibm_quantum_backend and self._session is not None):
+        if not self._ibm_quantum_backend:
+            return
+
+        if self._uses_managed_session() and self._session is None:
+            self._create_session()
+            return
+
+        if self._session is None:
             return
         try:
             status = self._session.status()
@@ -805,7 +828,6 @@ class QiskitExecutor(ExecutorBase):
                     status,
                 )
                 self._create_session()
-                self._refresh_primitives()
         except Exception:
             logger.debug(
                 "Could not check %s status; assuming still active.",
@@ -815,6 +837,7 @@ class QiskitExecutor(ExecutorBase):
 
     def _create_runtime_estimator(self):
         """Instantiate the runtime Estimator for the current backend / session."""
+        self._ensure_session_active()
         if self._runtime_primitives_version == "v1":
             cls, _ = _load_runtime_primitives_v1()
             return self._instantiate_runtime_primitive_v1(cls, self._options)
@@ -824,6 +847,7 @@ class QiskitExecutor(ExecutorBase):
 
     def _create_runtime_sampler(self):
         """Instantiate the runtime Sampler for the current backend / session."""
+        self._ensure_session_active()
         if self._runtime_primitives_version == "v1":
             _, cls = _load_runtime_primitives_v1()
             return self._instantiate_runtime_primitive_v1(cls, self._options)
@@ -903,6 +927,14 @@ class QiskitExecutor(ExecutorBase):
         """Re-create primitives after a session renewal."""
         self._estimator = self._create_runtime_estimator()
         self._sampler = self._create_runtime_sampler()
+
+    def _ensure_runtime_primitives(self) -> None:
+        """Lazily create runtime primitives when session management is deferred."""
+        if self._estimator is None:
+            self._estimator = self._create_runtime_estimator()
+        if self._sampler is None:
+            self._sampler = self._create_runtime_sampler()
+        self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
 
     # ------------------------------------------------------------------
     # ISA transpilation (for IBM / fake backends)
@@ -1165,6 +1197,9 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             The expectation value(s).
         """
+        if self._ibm_quantum_backend:
+            self._ensure_runtime_primitives()
+
         if self._estimator is None:
             raise RuntimeError(
                 "No estimator is configured. Pass `backend` as an Estimator primitive "
@@ -1208,6 +1243,9 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             Derivative values.
         """
+        if self._ibm_quantum_backend:
+            self._ensure_runtime_primitives()
+
         if self._estimator is None:
             raise RuntimeError(
                 "No estimator is configured. Pass `backend` as an Estimator primitive "
@@ -1312,6 +1350,9 @@ class QiskitExecutor(ExecutorBase):
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
     ) -> List[dict]:
         """Sample from the circuit using OpTree and Qiskit Sampler."""
+        if self._ibm_quantum_backend:
+            self._ensure_runtime_primitives()
+
         if self._sampler is None:
             raise RuntimeError(
                 "No sampler is configured. Pass `backend` as a Sampler primitive "

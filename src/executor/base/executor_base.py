@@ -303,14 +303,21 @@ class ExecutorBase(ABC):
         Calculate the expectation value of the operator with respect to the circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum operator or a list of operators.
-            parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
-                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
-                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]):
+                The quantum circuit or a list of circuits.
+            operator (QuantumOperatorBase | List[QuantumOperatorBase]):
+                The quantum operator or a list of operators.
+            parameters: Additional values for the free parameters
+                of the circuit(s) and the operator(s) given as
+                keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``)
+                and indexed keys (e.g., ``x[0]=0.1, x[1]=0.2``)
+                are accepted and normalized.
 
         Returns:
-            float | np.array: The expectation value either as a single float or as an numpy array if multiple circuits/operators are provided.
+            float | np.array: The expectation value either as a
+                single float or as an numpy array if multiple
+                circuits/operators are provided.
         """
         self._logger.info("Computing expectation value")
         parameters = self._normalize_parameter_values(**parameters)
@@ -342,20 +349,30 @@ class ExecutorBase(ABC):
         **parameters,
     ) -> float | np.array | dict:
         """
-        Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
+        Calculate the derivatives of the expectation value with
+        respect to the parameters of the circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum operator or a list of operators.
-            derivative: The parameter(s) with respect to which the derivative is calculated.
-            parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
-                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
-                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]):
+                The quantum circuit or a list of circuits.
+            operator (QuantumOperatorBase | List[QuantumOperatorBase]):
+                The quantum operator or a list of operators.
+            derivative: The parameter(s) with respect to which
+                the derivative is calculated.
+            parameters: Additional values for the free parameters
+                of the circuit(s) and the operator(s) given as
+                keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``)
+                and indexed keys (e.g., ``x[0]=0.1, x[1]=0.2``)
+                are accepted and normalized.
 
         Returns:
-            float | np.array | dict: The derivative of the expectation value:
-                - single float/array if one derivative parameter is requested
-                - dictionary mapping parameter names to gradient arrays if multiple parameters are requested
+            float | np.array | dict: The derivative of the
+                expectation value:
+                - single float/array if one derivative parameter
+                  is requested
+                - dictionary mapping parameter names to gradient
+                  arrays if multiple parameters are requested
         """
         self._logger.info("Computing expectation value derivatives")
         parameters = self._normalize_parameter_values(**parameters)
@@ -391,13 +408,18 @@ class ExecutorBase(ABC):
         Computes samples of the quantumstate of the given circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
-                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
-                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]):
+                The quantum circuit or a list of circuits.
+            parameters: Additional values for the free parameters
+                of the circuit(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``)
+                and indexed keys (e.g., ``x[0]=0.1, x[1]=0.2``)
+                are accepted and normalized.
 
         Returns:
-            dict | List[dict]: The sampled results either as a single dictionary or a list of dictionaries if multiple circuits are provided.
+            dict | List[dict]: The sampled results either as a
+                single dictionary or a list of dictionaries if
+                multiple circuits are provided.
         """
         self._logger.info("Sampling circuit (shots=%s)", self._shots)
         parameters = self._normalize_parameter_values(**parameters)
@@ -426,10 +448,13 @@ class ExecutorBase(ABC):
         Computes the statevector of the quantum circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
-                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
-                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]):
+                The quantum circuit or a list of circuits.
+            parameters: Additional values for the free parameters
+                of the circuit(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``)
+                and indexed keys (e.g., ``x[0]=0.1, x[1]=0.2``)
+                are accepted and normalized.
 
         Returns:
             np.ndarray: The statevector of the circuit(s).
@@ -569,7 +594,8 @@ class ExecutorBase(ABC):
         of the returned types, this executor will be selected automatically.
 
         Returns:
-            List[type]: List of accepted backend types (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
+            List[type]: List of accepted backend types
+                (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
         """
         raise NotImplementedError
 

@@ -82,7 +82,8 @@ class OpTreeNodeBase(OpTreeElementBase):
         Args:
             children (OpTreeElementBase): The child to be appended.
             factor (float, optional): The factor that is applied to the child. Defaults to 1.0.
-            operation ([type], optional): The operation that is applied to the child. Defaults to None.
+            operation ([type], optional): The operation that is applied
+                to the child. Defaults to None.
         """
 
         self._children_list.append(children)
@@ -479,7 +480,11 @@ class OpTree:
 
         """
         return _circuit_key(circuit)
-        # return blake2b(str(_circuit_key(circuit)).encode("utf-8"), digest_size=20).hexdigest() # faster for comparison slower for generation
+        # return blake2b(
+        #     str(_circuit_key(circuit)).encode("utf-8"),
+        #     digest_size=20,
+        # ).hexdigest()
+        # faster for comparison slower for generation
 
     @staticmethod
     def hash_operator(operator: SparsePauliOp) -> tuple:
@@ -577,7 +582,9 @@ class OpTree:
 
         Args:
             circuit_tree (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The circuit tree.
-            operator_tree (OpTreeNodeBase | OpTreeLeafMeasuredOperator | OpTreeLeafOperator | SparsePauliOp): The operator tree.
+            operator_tree (OpTreeNodeBase | OpTreeLeafMeasuredOperator
+                | OpTreeLeafOperator | SparsePauliOp): The operator
+                tree.
 
         Returns:
             The combined tree with :class:`OpTreeExpectationValue` at the leafs.
@@ -631,7 +638,9 @@ class OpTree:
         Merges double sums and identifies identical branches or leafs in sums.
 
         Args:
-            element (OpTreeNodeBase | OpTreeLeafBase | QuantumCircuit | SparsePauliOp): The OpTree to be simplified.
+            element (OpTreeNodeBase | OpTreeLeafBase
+                | QuantumCircuit | SparsePauliOp): The OpTree to be
+                simplified.
 
         Returns:
             A simplified copy of the OpTree.

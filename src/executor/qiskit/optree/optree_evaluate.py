@@ -1106,7 +1106,7 @@ class OpTreeEvaluate:
             else:
                 return np.max([_max_from_nested_list(ll) for ll in l])
 
-        start = time.time()
+        _start = time.time()
         # Preprocess the circuit dictionary
         multiple_circuit_dict = True
         if not isinstance(dictionary_circuit, list):
@@ -1179,7 +1179,7 @@ class OpTreeEvaluate:
         # print("Pre-processing: ", time.time() - start)
 
         # Run the sampler primtive
-        start = time.time()
+        _start = time.time()
         # print("Number of circuits for sampler: ", len(total_circuit_list))
 
         if len(total_circuit_list) > 0:
@@ -1195,7 +1195,7 @@ class OpTreeEvaluate:
         # print("Sampler run time: ", time.time() - start)
 
         # Compute the expectation value from the sampler results
-        start = time.time()
+        _start = time.time()
         final_result = []
 
         for i, dictionary_operator_ in enumerate(dictionary_operator):
@@ -1334,7 +1334,7 @@ class OpTreeEvaluate:
                 k = circuit_tree.item
                 return _add_offset_to_tree(operator_tree, k * offset)
 
-        start = time.time()
+        _start = time.time()
 
         multiple_circuit_dict = True
         if not isinstance(dictionary_circuit, list):
@@ -1404,7 +1404,7 @@ class OpTreeEvaluate:
         # print("Pre-processing: ", time.time() - start)
 
         # Evaluation via the estimator
-        start = time.time()
+        _start = time.time()
         # print("Number of circuits for estimator: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             return _evaluate_index_tree(evaluation_tree, [])
@@ -1424,7 +1424,7 @@ class OpTreeEvaluate:
         # print("Estimator run time: ", time.time() - start)
 
         # Assembly the final values from the evaluation tree
-        start = time.time()
+        _start = time.time()
         final_results = _evaluate_index_tree(evaluation_tree, estimator_result)
         # print("Post-processing: ", time.time() - start)
 
@@ -1461,7 +1461,7 @@ class OpTreeEvaluate:
             The expectation value of the expectation OpTree as a numpy array.
         """
 
-        start = time.time()
+        _start = time.time()
 
         # Preprocess the dictionary
         multiple_dict = True
@@ -1502,7 +1502,7 @@ class OpTreeEvaluate:
         # print("Pre-processing: ", time.time() - start)
 
         # Evaluation via the estimator
-        start = time.time()
+        _start = time.time()
         # print("Number of circuits for estimator: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             return _evaluate_index_tree(evaluation_tree, [])
@@ -1521,7 +1521,7 @@ class OpTreeEvaluate:
         # print("Run time of estimator: ", time.time() - start)
 
         # Final assembly of the results
-        start = time.time()
+        _start = time.time()
         final_result = _evaluate_index_tree(evaluation_tree, estimator_result)
         # print("Post-processing: ", time.time() - start)
         return final_result
@@ -1571,7 +1571,7 @@ class OpTreeEvaluate:
         total_circuit_operator_list = []
         total_tree_list = []
         for dict_ in dictionary:
-            start = time.time()
+            _start = time.time()
             # convert tree to lists
             (
                 circuit_list,
@@ -1604,7 +1604,7 @@ class OpTreeEvaluate:
             evaluation_tree = total_tree_list[0]
 
         # Evaluation via the sampler
-        start = time.time()
+        _start = time.time()
         # print("Number of circuits for sampler: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             _evaluate_index_tree(evaluation_tree, [])
@@ -1619,7 +1619,7 @@ class OpTreeEvaluate:
         # print("Sampler run time: ", time.time() - start)
 
         # Computation of the expectation values from the sampler results
-        start = time.time()
+        _start = time.time()
         expec = _evaluate_expectation_from_sampler(
             total_operator_list,
             sampler_result,

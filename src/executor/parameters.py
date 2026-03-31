@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from qiskit.circuit import ParameterExpression as QiskitParameterExpression
-from qiskit.circuit import ParameterVector as QiskitParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParameterVectorElement
 
 # TODO: copied form Qiskit, adjust to don't break copyright problems

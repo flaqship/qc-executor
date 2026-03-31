@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import List
 
-import numpy as np
 from qiskit.circuit import Parameter, ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
 
 from .base import QuantumOperatorBase

@@ -403,8 +403,8 @@ class PennyLaneExecutor(ExecutorBase):
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?]", "", s)
 
-        pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(operator)
+        pennylane_circuits, _multiple_circuits = self._preprocess_circuits(circuit)
+        pennylane_observables, _multiple_operators = self._preprocess_operators(operator)
 
         # TODO: multiple circuits and operators not implemented yet
         pennylane_circuit = pennylane_circuits[0]

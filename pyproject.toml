@@ -148,8 +148,6 @@ disable = [
 
     # Warning checks
     "protected-access",              # W0212 - tightly coupled internal code
-    "unused-import",                 # W0611 - re-exports and conditional imports
-    "unused-variable",               # W0612
     "unused-argument",               # W0613 - common in method overrides
     "redefined-outer-name",          # W0621
     "broad-exception-caught",        # W0718
@@ -166,7 +164,6 @@ disable = [
     "wildcard-import",               # W0401
     "reimported",                    # W0404
     "pointless-string-statement",    # W0105
-    "dangerous-default-value",       # W0102
     "f-string-without-interpolation", # W1309
     "implicit-str-concat",           # W1404
 
@@ -175,7 +172,6 @@ disable = [
     "no-member",                     # E1101 - dynamic attributes
     "import-error",                  # E0401 - optional dependencies
     "possibly-used-before-assignment", # E0606 - code path analysis
-    "undefined-variable",            # E0602 - qulacs wildcard gate imports
 ]
 
 [tool.pytest.ini_options]

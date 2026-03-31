@@ -118,7 +118,7 @@ def _circuit_parameter_shift(
                         f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work. "
                         f"Found polynomial degree {degree} > 1."
                     )
-            except (sp.PolynomialError, sp.GeneratorsNeeded) as e:
+            except (sp.PolynomialError, sp.GeneratorsNeeded):
                 # If it's not a polynomial (e.g., sin, cos, arccos), it's definitely non-linear
                 raise ValueError(
                     f"Parameter shift rule cannot be applied to non-linear parameters. "
@@ -372,7 +372,7 @@ class OpTreeDerivative:
 
     @staticmethod
     def transpile_to_supported_instructions(
-        circuit: QuantumCircuit, supported_gates: Set[str] = SUPPORTED_GATES
+        circuit: QuantumCircuit, supported_gates: Set[str] | None = None
     ) -> QuantumCircuit:
         """Function for transpiling a circuit to a supported instruction set for gradient calculation.
 
@@ -383,6 +383,8 @@ class OpTreeDerivative:
         Returns:
             Circuit which is transpiled to the supported instruction set.
         """
+        if supported_gates is None:
+            supported_gates = OpTreeDerivative.SUPPORTED_GATES
 
         unique_ops = set(circuit.count_ops())
         if not unique_ops.issubset(supported_gates):

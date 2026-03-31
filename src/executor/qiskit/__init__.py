@@ -2,7 +2,7 @@
 from executor.factory import Executor
 
 from .qiskit_circuit import QiskitCircuit
-from .qiskit_observable import QiskitObservable
+from .qiskit_operator import QiskitOperator
 
 try:
     from .qiskit_executor import QiskitExecutor
@@ -17,7 +17,7 @@ except ImportError as e:
 
     __all__ = [
         "QiskitCircuit",
-        "QiskitObservable",
+        "QiskitOperator",
     ]
 else:
     Executor.register("qiskit")(QiskitExecutor)
@@ -25,5 +25,5 @@ else:
     __all__ = [
         "QiskitCircuit",
         "QiskitExecutor",
-        "QiskitObservable",
+        "QiskitOperator",
     ]

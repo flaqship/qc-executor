@@ -82,10 +82,10 @@ class TestCrossBackendParity:
         for backend in backends:
             executor = Executor.create(backend, seed=0)
             native_circuit = executor.transpile_circuit(qc)
-            test_operator = (
+            test_observable = (
                 executor.transpile_observable(op) if backend == "pauli_propagation" else op
             )
-            value = executor.expectation_value(native_circuit, test_operator, **kwargs)
+            value = executor.expectation_value(native_circuit, test_observable, **kwargs)
             values[backend] = _scalar_result(value)
 
         assert np.isclose(values["pauli_propagation"], values["qulacs"], atol=1e-8)
@@ -101,12 +101,12 @@ class TestCrossBackendParity:
         for backend in backends:
             executor = Executor.create(backend, seed=0)
             native_circuit = executor.transpile_circuit(qc)
-            test_operator = (
+            test_observable = (
                 executor.transpile_observable(op) if backend == "pauli_propagation" else op
             )
             result = executor.expectation_value_derivatives(
                 native_circuit,
-                test_operator,
+                test_observable,
                 "x",
                 "p",
                 "pop",

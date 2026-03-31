@@ -73,7 +73,7 @@ class TestNativeTypes:
         assert np.isclose(result0, 1.0, atol=1e-10)
         assert np.isclose(result_pi, -1.0, atol=1e-10)
 
-    def test_batch_operators(self):
+    def test_batch_observables(self):
         executor = PauliPropagationExecutor()
 
         circuit = PauliPropagationCircuit(1)

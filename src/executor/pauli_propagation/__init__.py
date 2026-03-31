@@ -8,7 +8,7 @@ from executor.factory import Executor
 
 from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_executor import PauliPropagationExecutor
-from .pauli_propagation_observable import PauliPropagationObservable
+from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import (
     CompositeSymmetry,
     NoSymmetry,
@@ -22,7 +22,7 @@ __version__ = "0.1.0"
 __all__ = [
     "PauliPropagationExecutor",
     "PauliPropagationCircuit",
-    "PauliPropagationObservable",
+    "PauliPropagationOperator",
     "SymmetryStrategy",
     "NoSymmetry",
     "PermutationSymmetry",

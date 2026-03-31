@@ -93,7 +93,7 @@ def _get_sympy_interface():
     return printer, modules
 
 
-class PennyLaneObservable:
+class PennyLaneOperator:
     """Convert generic quantum operators to PennyLane-native observables.
 
     Args:
@@ -102,7 +102,7 @@ class PennyLaneObservable:
     """
 
     @classmethod
-    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "PennyLaneObservable":
+    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "PennyLaneOperator":
         """Create a PennyLane native observable from a generic operator."""
         return cls(operator)
 

@@ -112,7 +112,7 @@ class TestPauliPropagationExecutor:
 
 
 class TestBatchExpectationValue:
-    def test_multi_operator_matches_single_calls(self):
+    def test_multi_observable_matches_single_calls(self):
         executor = PauliPropagationExecutor()
 
         circuit = PauliPropagationCircuit(1)
@@ -128,7 +128,7 @@ class TestBatchExpectationValue:
         assert np.isclose(batch[0], single_x, atol=1e-10)
         assert np.isclose(batch[1], single_z, atol=1e-10)
 
-    def test_multi_circuit_multi_operator_ordering(self):
+    def test_multi_circuit_multi_observable_ordering(self):
         executor = PauliPropagationExecutor()
 
         c0 = PauliPropagationCircuit(1)
@@ -143,7 +143,7 @@ class TestBatchExpectationValue:
         expected = np.array([1.0, 0.0, -1.0, 0.0])
         assert np.allclose(results, expected, atol=1e-10)
 
-    def test_single_operator_still_returns_float(self):
+    def test_single_observable_still_returns_float(self):
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
         operator = PauliPropagationObservable(["Z"], [1.0])
@@ -160,7 +160,7 @@ class TestStrictInputs:
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
             executor.expectation_value("not a circuit", operator)
 
-    def test_rejects_non_native_operator(self):
+    def test_rejects_non_native_observable(self):
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
 

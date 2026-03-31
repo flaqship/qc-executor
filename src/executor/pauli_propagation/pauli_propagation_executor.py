@@ -191,7 +191,7 @@ class PauliPropagationExecutor(ExecutorBase):
     """
 
     _native_circuit_class = PauliPropagationCircuit
-    _native_observable_class = PauliPropagationObservable
+    _native_operator_class = PauliPropagationOperator
 
     def __init__(
         self,
@@ -241,7 +241,7 @@ class PauliPropagationExecutor(ExecutorBase):
     def _expectation_value(
         self,
         circuit,
-        operator,
+        observable,
         **parameters,
     ) -> float | np.ndarray:
         is_single_circuit = not isinstance(circuit, list)
@@ -398,7 +398,7 @@ class PauliPropagationExecutor(ExecutorBase):
         if isinstance(operator, PauliPropagationObservable):
             native_operator = operator
         else:
-            native_operator = self._transpile_observable(operator)
+            native_operator = self._transpile_operator(operator)
         observable_params = set(native_operator.parameters)
 
         if isinstance(circuit, PauliPropagationCircuit):
@@ -883,32 +883,32 @@ class PauliPropagationExecutor(ExecutorBase):
         return PauliPropagationCircuit.from_quantum_circuit(circuit)
 
     @overload
-    def transpile_observable(
+    def transpile_operator(
         self,
         operator: QuantumOperatorBase,
     ) -> PauliPropagationObservable: ...
 
     @overload
-    def transpile_observable(
+    def transpile_operator(
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy,
     ) -> PauliPropagationObservable: ...
 
     @overload
-    def transpile_observable(
+    def transpile_operator(
         self,
         operator: List[QuantumOperatorBase],
     ) -> List[PauliPropagationObservable]: ...
 
     @overload
-    def transpile_observable(
+    def transpile_operator(
         self,
         operator: List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy,
     ) -> List[PauliPropagationObservable]: ...
 
-    def transpile_observable(
+    def transpile_operator(
         self,
         operator: QuantumOperatorBase | List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy | None = None,
@@ -931,10 +931,10 @@ class PauliPropagationExecutor(ExecutorBase):
         """
         self._logger.info("Transpiling operator")
         if isinstance(operator, list):
-            return [self._transpile_observable_cached(op, symmetry_strategy) for op in operator]
-        return self._transpile_observable_cached(operator, symmetry_strategy)
+            return [self._transpile_operator_cached(op, symmetry_strategy) for op in operator]
+        return self._transpile_operator_cached(operator, symmetry_strategy)
 
-    def _transpile_observable_cached(
+    def _transpile_operator_cached(
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
@@ -949,7 +949,7 @@ class PauliPropagationExecutor(ExecutorBase):
             return result
         return self._transpile_observable_with_symmetry(operator, symmetry_strategy)
 
-    def _transpile_observable(self, operator: QuantumOperatorBase) -> PauliPropagationObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> PauliPropagationObservable:
         return self._transpile_observable_with_symmetry(operator)
 
     def _transpile_observable_with_symmetry(

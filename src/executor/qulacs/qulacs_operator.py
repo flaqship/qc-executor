@@ -13,12 +13,12 @@ from ..base import QuantumOperatorBase
 from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 
 
-class QulacsObservable:
+class QulacsOperator:
 
     @classmethod
     def from_quantum_operator(
         cls, operator: QuantumOperatorBase | List[QuantumOperatorBase]
-    ) -> "QulacsObservable":
+    ) -> "QulacsOperator":
         """Create a Qulacs native observable from generic operator(s)."""
         return cls(operator)
 

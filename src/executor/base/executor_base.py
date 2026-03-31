@@ -49,7 +49,7 @@ class ExecutorBase(ABC):
     """
 
     _native_circuit_class = None
-    _native_observable_class = None
+    _native_operator_class = None
 
     # ========================================================================
     # Initialization & Configuration
@@ -297,16 +297,16 @@ class ExecutorBase(ABC):
     def expectation_value(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameters,
     ) -> float | np.array:
         """
-        Calculate the expectation value of the operator with respect to the circuit.
+        Calculate the expectation value of the observable with respect to the circuit.
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum operator or a list of operators.
-            parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum observable or a list of observables.
+            parameters: Additional values for the free parameters of the circuit(s) and the observable(s) given as keyword arguments.
                 Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
@@ -316,20 +316,20 @@ class ExecutorBase(ABC):
         self._logger.info("Computing expectation value")
         parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
-            key = self._make_result_key("expectation_value", circuit, operator, **parameters)
+            key = self._make_result_key("expectation_value", circuit, observable, **parameters)
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for expectation_value")
                 return self._result_cache[key]
-            result = self._expectation_value(circuit, operator, **parameters)
+            result = self._expectation_value(circuit, observable, **parameters)
             self._result_cache[key] = result
             return result
-        return self._expectation_value(circuit, operator, **parameters)
+        return self._expectation_value(circuit, observable, **parameters)
 
     @abstractmethod
     def _expectation_value(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameters,
     ) -> float | np.array:
         """Abstract implementation of expectation value computation."""
@@ -338,7 +338,7 @@ class ExecutorBase(ABC):
     def expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative,
         **parameters,
     ) -> float | np.array | dict:
@@ -347,9 +347,9 @@ class ExecutorBase(ABC):
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum operator or a list of operators.
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum observable or a list of observables.
             derivative: The parameter(s) with respect to which the derivative is calculated.
-            parameters: Additional values for the free parameters of the circuit(s) and the operator(s) given as keyword arguments.
+            parameters: Additional values for the free parameters of the circuit(s) and the observable(s) given as keyword arguments.
                 Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
@@ -362,23 +362,23 @@ class ExecutorBase(ABC):
         parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             key = self._make_result_key(
-                "expectation_value_derivatives", circuit, operator, derivative, **parameters
+                "expectation_value_derivatives", circuit, observable, derivative, **parameters
             )
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for expectation_value_derivatives")
                 return self._result_cache[key]
             result = self._expectation_value_derivatives(
-                circuit, operator, *derivative, **parameters
+                circuit, observable, *derivative, **parameters
             )
             self._result_cache[key] = result
             return result
-        return self._expectation_value_derivatives(circuit, operator, *derivative, **parameters)
+        return self._expectation_value_derivatives(circuit, observable, *derivative, **parameters)
 
     @abstractmethod
     def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative,
         **parameters,
     ) -> float | np.array | dict:
@@ -500,14 +500,14 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     @overload
-    def transpile_observable(self, operator: QuantumOperatorBase) -> QuantumOperatorBase: ...
+    def transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase: ...
 
     @overload
-    def transpile_observable(
+    def transpile_operator(
         self, operator: List[QuantumOperatorBase]
     ) -> List[QuantumOperatorBase]: ...
 
-    def transpile_observable(
+    def transpile_operator(
         self,
         operator: QuantumOperatorBase | List[QuantumOperatorBase],
     ) -> QuantumOperatorBase | List[QuantumOperatorBase]:
@@ -528,23 +528,23 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Transpiling operator")
         if isinstance(operator, list):
-            return [self._transpile_observable_cached(op) for op in operator]
-        return self._transpile_observable_cached(operator)
+            return [self._transpile_operator_cached(op) for op in operator]
+        return self._transpile_operator_cached(operator)
 
-    def _transpile_observable_cached(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator_cached(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """Transpile a single observable, consulting the result cache if enabled."""
         if self._result_cache is not None:
             key = self._make_result_key("transpile_observable", operator)
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for transpile_observable")
                 return self._result_cache[key]
-            result = self._transpile_observable(operator)
+            result = self._transpile_operator(operator)
             self._result_cache[key] = result
             return result
-        return self._transpile_observable(operator)
+        return self._transpile_operator(operator)
 
     @abstractmethod
-    def _transpile_observable(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """Abstract implementation of observable transpilation.
 
         Subclasses override this to convert generic QuantumOperator to

@@ -6,7 +6,7 @@ from typing import List
 import numpy as np
 
 
-class QiskitObservable:
+class QiskitOperator:
     """
     Wrapper for Qiskit observables (SparsePauliOp) used by QiskitExecutor.
     Handles parameter management for parametrized operators.
@@ -107,7 +107,7 @@ class QiskitObservable:
 
     def copy(self):
         """Return a copy of the observable wrapper."""
-        return QiskitObservable(self._qiskit_operator.copy())
+        return QiskitOperator(self._qiskit_operator.copy())
 
     def __str__(self):
         return str(self._qiskit_operator)

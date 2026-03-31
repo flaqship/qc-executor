@@ -426,7 +426,7 @@ class QiskitExecutor(ExecutorBase):
     """
 
     _native_circuit_class = QiskitCircuit
-    _native_observable_class = QiskitObservable
+    _native_operator_class = QiskitOperator
 
     def __init__(
         self,
@@ -1183,7 +1183,7 @@ class QiskitExecutor(ExecutorBase):
     def _expectation_value(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameter_values,
     ) -> float | np.array:
         """
@@ -1191,7 +1191,7 @@ class QiskitExecutor(ExecutorBase):
 
         Args:
             circuit: The quantum circuit or a list of circuits.
-            operator: The quantum operator or a list of operators.
+            observable: The quantum observable or a list of observables.
             parameter_values: Parameter values as keyword arguments.
 
         Returns:
@@ -1452,7 +1452,7 @@ class QiskitExecutor(ExecutorBase):
             return QiskitCircuit._from_qiskit(isa_circuit)
         return qc
 
-    def _transpile_observable(self, operator: QuantumOperatorBase) -> QiskitObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitObservable:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:
@@ -1460,9 +1460,9 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             QiskitObservable: The corresponding QiskitObservable.
         """
-        if isinstance(operator, self._native_observable_class):
+        if isinstance(operator, self._native_operator_class):
             return operator
-        return self._native_observable_class.from_quantum_operator(operator)
+        return self._native_operator_class.from_quantum_operator(operator)
 
     @classmethod
     def get_accepted_backend_types(cls) -> list[type]:

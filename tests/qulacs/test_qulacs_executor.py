@@ -62,14 +62,14 @@ class TestQulacsExecutor:
         executor = QulacsExecutor(max_cache_size=1)
         assert executor._circuit_cache.max_size == 1
 
-    def test_cache_size_restriction_operators(self):
+    def test_cache_size_restriction_observables(self):
         """Test that operator cache respects max_cache_size."""
         executor = QulacsExecutor(max_cache_size=1)
-        assert executor._operator_cache.max_size == 1
+        assert executor._observable_cache.max_size == 1
 
     def test_unlimited_cache_size_by_default(self):
         """Test that caches are unlimited when max_cache_size is not specified."""
         executor = QulacsExecutor()
         assert executor._max_cache_size is None
         assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._observable_cache.max_size is None

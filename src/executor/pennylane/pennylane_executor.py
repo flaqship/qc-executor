@@ -55,7 +55,7 @@ class PennyLaneExecutor(ExecutorBase):
     """
 
     _native_circuit_class = PennyLaneCircuit
-    _native_observable_class = PennyLaneObservable
+    _native_operator_class = PennyLaneOperator
 
     @overload
     def __init__(
@@ -116,7 +116,7 @@ class PennyLaneExecutor(ExecutorBase):
         )
 
         self._circuit_cache = self._make_cache()
-        self._operator_cache = self._make_cache()
+        self._observable_cache = self._make_cache()
 
         if isinstance(backend, str):
             self._device_name = backend
@@ -260,29 +260,29 @@ class PennyLaneExecutor(ExecutorBase):
         qulacs_observables = []
 
         for op in operators:
-            if isinstance(op, self._native_observable_class):
+            if isinstance(op, self._native_operator_class):
                 qulacs_observables.append(op)
                 continue
-            if op in self._operator_cache:
+            if op in self._observable_cache:
                 self._logger.debug("Operator cache hit for %s", op)
-                qulacs_observables.append(self._operator_cache[op])
+                qulacs_observables.append(self._observable_cache[op])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
                 qulacs_observable = PennyLaneObservable(op)
-                self._operator_cache[op] = qulacs_observable
+                self._observable_cache[op] = qulacs_observable
                 qulacs_observables.append(qulacs_observable)
 
         return qulacs_observables, multiple_operators
 
     def _expectation_value(
-        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
+        self, circuit: QuantumCircuitBase, observable: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
-        Calculate the expectation value of the operator with respect to the circuit.
+        Calculate the expectation value of the observable with respect to the circuit.
 
         Args:
             circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
+            observable (QuantumOperatorBase): The quantum observable.
 
         Returns:
             float: The expectation value.
@@ -682,11 +682,11 @@ class PennyLaneExecutor(ExecutorBase):
             return circuit
         return self._native_circuit_class.from_quantum_circuit(circuit)
 
-    def _transpile_observable(self, operator: QuantumOperatorBase) -> PennyLaneObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> PennyLaneObservable:
         """Transpile a generic QuantumOperator to a PennyLane QuantumOperator."""
-        if isinstance(operator, self._native_observable_class):
+        if isinstance(operator, self._native_operator_class):
             return operator
-        return self._native_observable_class.from_quantum_operator(operator)
+        return self._native_operator_class.from_quantum_operator(operator)
 
     @classmethod
     def get_accepted_backend_types(cls) -> List[type]:

@@ -56,12 +56,12 @@ Use Google-style Python docstrings across the project.
 Example:
 
 ```python
-def expectation_value(circuit, operator, **parameters):
-   """Compute the expectation value for a circuit/operator pair.
+def expectation_value(circuit, observable, **parameters):
+   """Compute the expectation value for a circuit/observable pair.
 
    Args:
       circuit: Quantum circuit instance.
-      operator: Quantum operator instance.
+      observable: Quantum operator instance.
       **parameters: Parameter values used for evaluation.
 
    Returns:

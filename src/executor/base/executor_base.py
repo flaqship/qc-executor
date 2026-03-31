@@ -311,7 +311,7 @@ class ExecutorBase(ABC):
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
-            float | np.array: The expectation value either as a single float or as an numpy array if multiple circuits/operators are provided.
+            float | np.array: The expectation value either as a single float or as a numpy array if multiple circuits/observables are provided.
         """
         self._logger.info("Computing expectation value")
         parameters = self._normalize_parameter_values(**parameters)

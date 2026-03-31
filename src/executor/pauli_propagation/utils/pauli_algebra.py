@@ -302,7 +302,7 @@ def pauli_sum_product(psum1, psum2):
 def contains_x_or_y(term: int, nqubits: int) -> bool:
     """Check if Pauli string contains any X or Y operators.
 
-    This is useful for expectation value computations, as X and Y operators
+    This is useful for expectation value computations, as X and Y observables
     give zero on computational basis states.
 
     Args:

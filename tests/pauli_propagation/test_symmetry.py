@@ -385,7 +385,7 @@ class TestExecutorSymmetryIntegration:
         qc.h(0)
         qc.cx(0, 1)
 
-        operator = PauliPropagationOperator(
+        observable = PauliPropagationOperator(
             ["ZI", "IZ"],
             [1.0, 1.0],
             symmetry_strategy=PermutationSymmetry(),
@@ -394,8 +394,8 @@ class TestExecutorSymmetryIntegration:
         executor_no_sym = PauliPropagationExecutor()
         executor_with_sym = PauliPropagationExecutor(symmetry_strategy=PermutationSymmetry())
 
-        result_no_sym = executor_no_sym.expectation_value(qc, operator)
-        result_with_sym = executor_with_sym.expectation_value(qc, operator)
+        result_no_sym = executor_no_sym.expectation_value(qc, observable)
+        result_with_sym = executor_with_sym.expectation_value(qc, observable)
 
         assert abs(result_no_sym - result_with_sym) < 1e-12
 

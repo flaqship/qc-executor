@@ -401,7 +401,7 @@ class QiskitExecutor(ExecutorBase):
     to guarantee that sessions are properly closed::
 
         with QiskitExecutor(backend=ibm_backend, execution_mode="session") as exe:
-            result = exe.expectation_value(circuit, operator, theta=params)
+            result = exe.expectation_value(circuit, observable, theta=params)
 
     Args:
         backend: Backend to use for execution.  Accepts:
@@ -983,8 +983,8 @@ class QiskitExecutor(ExecutorBase):
             return operator.apply_layout(layout)
         except (ValueError, TypeError):
             logger.warning(
-                "Failed to apply layout to operator; using original operator. "
-                "This may lead to incorrect expectation values if the operator "
+                "Failed to apply layout to observable; using original observable. "
+                "This may lead to incorrect expectation values if the observable "
                 "does not match the transpiled circuit's qubit mapping.",
                 exc_info=True,
             )
@@ -1206,19 +1206,19 @@ class QiskitExecutor(ExecutorBase):
                 "or use a backend/session that supports estimation."
             )
         # Convert to OpTree format
-        circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
+        circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
         # Prepare separate parameter dictionaries
-        circuit_dict, operator_dict = self._prepare_parameter_dicts(
-            circuit, operator, **parameter_values
+        circuit_dict, observable_dict = self._prepare_parameter_dicts(
+            circuit, observable, **parameter_values
         )
 
         # Use OpTree evaluation with Estimator
         return OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
-            operator=operator_tree,
+            operator=observable_tree,
             dictionary_circuit=circuit_dict,
-            dictionary_operator=operator_dict,
+            dictionary_operator=observable_dict,
             estimator=self._estimator,
             dictionaries_combined=False,
             detect_duplicates=True,
@@ -1227,7 +1227,7 @@ class QiskitExecutor(ExecutorBase):
     def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative_params,
         **parameter_values,
     ) -> np.array | dict:
@@ -1236,7 +1236,7 @@ class QiskitExecutor(ExecutorBase):
 
         Args:
             circuit: The quantum circuit.
-            operator: The quantum operator.
+            observable: The quantum observable.
             derivative_params: Parameters to differentiate with respect to.
             parameter_values: Parameter values as keyword arguments.
 
@@ -1254,17 +1254,17 @@ class QiskitExecutor(ExecutorBase):
 
         # If no derivative parameters specified, return expectation value
         if len(derivative_params) == 0:
-            return self._expectation_value(circuit, operator, **parameter_values)
+            return self._expectation_value(circuit, observable, **parameter_values)
 
         # Convert to OpTree format
-        circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
+        circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
         # Prepare separate parameter dictionaries
-        circuit_dict, operator_dict = self._prepare_parameter_dicts(
-            circuit, operator, **parameter_values
+        circuit_dict, observable_dict = self._prepare_parameter_dicts(
+            circuit, observable, **parameter_values
         )
 
-        # Build separate parameter sets for circuit and operator so we can
+        # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
         if isinstance(circuit, list):
             circuit_param_set = set(circuit[0]._qiskit_circuit.parameters)
@@ -1272,23 +1272,23 @@ class QiskitExecutor(ExecutorBase):
             circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
             circuit_param_set = set(circ.parameters)
 
-        if operator is not None:
-            if isinstance(operator, list):
-                operator_param_set: set = set()
-                for op in operator:
+        if observable is not None:
+            if isinstance(observable, list):
+                observable_param_set: set = set()
+                for op in observable:
                     op_obj = op._qiskit_operator if hasattr(op, "_qiskit_operator") else op
-                    operator_param_set |= set(op_obj.parameters)
+                    observable_param_set |= set(op_obj.parameters)
             else:
                 op_obj = (
-                    operator._qiskit_operator
-                    if hasattr(operator, "_qiskit_operator")
-                    else operator
+                    observable._qiskit_operator
+                    if hasattr(observable, "_qiskit_operator")
+                    else observable
                 )
-                operator_param_set = set(op_obj.parameters)
+                observable_param_set = set(op_obj.parameters)
         else:
-            operator_param_set = set()
+            observable_param_set = set()
 
-        all_params = circuit_param_set | operator_param_set
+        all_params = circuit_param_set | observable_param_set
 
         def _param_name(p) -> str:
             return p.vector.name if hasattr(p, "vector") else p.name
@@ -1302,21 +1302,21 @@ class QiskitExecutor(ExecutorBase):
                 circ_deriv = OpTreeDerivative.differentiate(circuit_tree, [p])
                 total += OpTreeEvaluate.evaluate_with_estimator(
                     circuit=circ_deriv,
-                    operator=operator_tree,
+                    operator=observable_tree,
                     dictionary_circuit=circuit_dict,
-                    dictionary_operator=operator_dict,
+                    dictionary_operator=observable_dict,
                     estimator=self._estimator,
                     detect_duplicates=True,
                 )
 
-            # Operator contribution: ⟨ψ|∂H/∂p|ψ⟩
-            if p in operator_param_set:
-                op_deriv = OpTreeDerivative.differentiate(operator_tree, [p])
+            # Observable contribution: ⟨ψ|∂H/∂p|ψ⟩
+            if p in observable_param_set:
+                op_deriv = OpTreeDerivative.differentiate(observable_tree, [p])
                 total += OpTreeEvaluate.evaluate_with_estimator(
                     circuit=circuit_tree,
                     operator=op_deriv,
                     dictionary_circuit=circuit_dict,
-                    dictionary_operator=operator_dict,
+                    dictionary_operator=observable_dict,
                     estimator=self._estimator,
                     detect_duplicates=True,
                 )

@@ -1,6 +1,6 @@
 """State overlap and expectation value computations.
 
-Computes expectation values for Pauli operator sums with respect to
+Computes expectation values for Pauli observable sums with respect to
 computational-basis states.
 """
 

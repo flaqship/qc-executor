@@ -59,10 +59,10 @@ circuit = QuantumCircuit(2)
 circuit.h(0)
 circuit.cx(0, 1)
 
-operator = QuantumOperator.from_pauli_string("ZZ")
+observable = QuantumOperator.from_pauli_string("ZZ")
 
 # Run computation
-result = executor.expectation_value(circuit, operator)
+result = executor.expectation_value(circuit, observable)
 print(result)
 ```
 

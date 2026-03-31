@@ -158,7 +158,7 @@ class TestQiskitExecutor:
         assert executor._max_cache_size is None
 
     def test_expectation_value_bell_state_z_basis(self):
-        """Test expectation value of Bell state with Z operators."""
+        """Test expectation value of Bell state with Z observables."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         op = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
 
@@ -169,7 +169,7 @@ class TestQiskitExecutor:
         assert np.isclose(result, 0.0, atol=1e-5)
 
     def test_expectation_value_bell_state_zz(self):
-        """Test expectation value of Bell state with ZZ operator."""
+        """Test expectation value of Bell state with ZZ observable."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         op = QuantumOperator(["ZZ"], [1.0])
 
@@ -180,7 +180,7 @@ class TestQiskitExecutor:
         assert np.isclose(result, 1.0, atol=1e-5)
 
     def test_expectation_value_hadamard_x_basis(self):
-        """Test expectation value of Hadamard state with X operator."""
+        """Test expectation value of Hadamard state with X observable."""
         qc = _build_circuit(1, [("h", [0])])
         op = QuantumOperator(["X"], [1.0])
 

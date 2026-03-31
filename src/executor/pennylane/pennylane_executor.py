@@ -361,7 +361,7 @@ class PennyLaneExecutor(ExecutorBase):
             raise NotImplementedError("Multiple parameters per circuit not supported yet.")
         num_obs_param = shape.pop(-1)
         if num_obs_param > 1:
-            raise NotImplementedError("Multiple parameters per operator not supported yet.")
+            raise NotImplementedError("Multiple parameters per observable not supported yet.")
         values = values.reshape(shape)
 
         if not multiple_circuits:
@@ -377,7 +377,7 @@ class PennyLaneExecutor(ExecutorBase):
     def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
-        operator: QuantumOperatorBase,
+        observable: QuantumOperatorBase,
         *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
     ) -> np.array | dict:
@@ -386,12 +386,12 @@ class PennyLaneExecutor(ExecutorBase):
 
         Args:
             circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
+            observable (QuantumOperatorBase): The quantum observable.
             values: Values for which the derivatives are calculated. Can be strings (e.g.
                 "expectation_value" or the name of parameters), or
                 ParameterVectors, ParameterVectorElements. Tuples are used for higher
                 order derivatives.
-            parameter_values: Parameters to evaluate the circuit and operator given as
+            parameter_values: Parameters to evaluate the circuit and observable given as
                 keyword arguments.
 
         Returns:

@@ -54,9 +54,9 @@ class TestNativeTypes:
         circuit.h(0)
         circuit.cx(0, 1)
 
-        operator = PauliPropagationOperator(["ZZ"], [1.0])
+        observable = PauliPropagationOperator(["ZZ"], [1.0])
 
-        result = executor.expectation_value(circuit, operator)
+        result = executor.expectation_value(circuit, observable)
         assert np.isclose(result, 1.0, atol=1e-10)
 
     def test_parametric_expectation_value(self):
@@ -65,10 +65,10 @@ class TestNativeTypes:
         p = Parameters("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, p[0])
-        operator = PauliPropagationOperator(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
-        result0 = executor.expectation_value(circuit, operator, **{"theta[0]": 0.0})
-        result_pi = executor.expectation_value(circuit, operator, **{"theta[0]": np.pi})
+        result0 = executor.expectation_value(circuit, observable, **{"theta[0]": 0.0})
+        result_pi = executor.expectation_value(circuit, observable, **{"theta[0]": np.pi})
 
         assert np.isclose(result0, 1.0, atol=1e-10)
         assert np.isclose(result_pi, -1.0, atol=1e-10)
@@ -114,19 +114,19 @@ class TestDerivativesNative:
         p = Parameters("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, p[0])
-        operator = PauliPropagationOperator(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         theta_val = np.pi / 4
         grad = executor.expectation_value_derivatives(
             circuit,
-            operator,
+            observable,
             "theta[0]",
             **{"theta[0]": theta_val},
         )
 
         eps = 1e-5
-        f_plus = executor.expectation_value(circuit, operator, **{"theta[0]": theta_val + eps})
-        f_minus = executor.expectation_value(circuit, operator, **{"theta[0]": theta_val - eps})
+        f_plus = executor.expectation_value(circuit, observable, **{"theta[0]": theta_val + eps})
+        f_minus = executor.expectation_value(circuit, observable, **{"theta[0]": theta_val - eps})
         fd_grad = (f_plus - f_minus) / (2 * eps)
 
         assert np.isclose(grad, fd_grad, atol=1e-6)
@@ -140,13 +140,13 @@ class TestDerivativesNative:
         circuit.h(0)
         circuit.ryy(0, 1, p[0] * x[0])
 
-        operator = PauliPropagationOperator(
+        observable = PauliPropagationOperator(
             ["ZI", "IZ"], [sp.Symbol("pop[0]"), sp.Symbol("pop[1]")]
         )
 
         gradients = executor.expectation_value_derivatives(
             circuit,
-            operator,
+            observable,
             "p",
             "pop",
             "x",

@@ -40,14 +40,14 @@ Basic Usage
    qc.cx(1, 2)
    qc.cx(2, 3)
 
-   operator = SparsePauliOp.from_list([
+   observable = SparsePauliOp.from_list([
        ("ZIII", 1.0),
        ("IZII", 1.0),
        ("IIZI", 1.0),
        ("IIIZ", 1.0),
    ])
 
-   result = executor.expectation_value(qc, operator)
+   result = executor.expectation_value(qc, observable)
 
 Direct Integration with PauliSum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

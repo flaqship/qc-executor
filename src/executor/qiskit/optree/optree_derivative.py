@@ -113,8 +113,11 @@ def _circuit_parameter_shift(
                     raise ValueError(
                         f"Parameter shift rule cannot be applied to non-linear parameters. "
                         f"Parameter '{parameter}' appears in a non-linear function in gate "
-                        f"'{original_gate.name}' with parameter expression '{original_gate.params[0]}'. "
-                        f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work. "
+                        f"'{original_gate.name}' with parameter expression "
+                        f"'{original_gate.params[0]}'. "
+                        f"The parameter must enter the gate linearly "
+                        f"(as a*p + b) for the parameter shift rule "
+                        f"to work. "
                         f"Found polynomial degree {degree} > 1."
                     )
             except (sp.PolynomialError, sp.GeneratorsNeeded) as e:
@@ -122,8 +125,11 @@ def _circuit_parameter_shift(
                 raise ValueError(
                     f"Parameter shift rule cannot be applied to non-linear parameters. "
                     f"Parameter '{parameter}' appears in a non-polynomial function in gate "
-                    f"'{original_gate.name}' with parameter expression '{original_gate.params[0]}'. "
-                    f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work."
+                    f"'{original_gate.name}' with parameter expression "
+                    f"'{original_gate.params[0]}'. "
+                    f"The parameter must enter the gate linearly "
+                    f"(as a*p + b) for the parameter shift rule "
+                    f"to work."
                 )
 
         # Copy the circuit for the shifted ones
@@ -285,8 +291,10 @@ def _differentiate_copy(
     Create the derivative of a OpTree or circuit w.r.t. a single parameter, the input is untouched.
 
     Args:
-        element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The OpTree (or circuit) to be differentiated.
-        parameter (ParameterExpression): The parameter w.r.t. which the circuit is differentiated.
+        element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit):
+            The OpTree (or circuit) to be differentiated.
+        parameter (ParameterExpression): The parameter w.r.t.
+            which the circuit is differentiated.
 
     Returns:
         The derivative of the circuit as an OpTree
@@ -371,7 +379,10 @@ class OpTreeDerivative:
     def transpile_to_supported_instructions(
         circuit: QuantumCircuit, supported_gates: Set[str] = SUPPORTED_GATES
     ) -> QuantumCircuit:
-        """Function for transpiling a circuit to a supported instruction set for gradient calculation.
+        """Transpile a circuit to supported instructions.
+
+        Transpiles to a supported instruction set for
+        gradient calculation.
 
         Args:
             circuit (QuantumCircuit): Circuit to transpile.
@@ -397,14 +408,17 @@ class OpTreeDerivative:
         parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
     ) -> OpTreeNodeBase:
         """
-        Calculates the derivative of a OpTree (or circuit) w.r.t. to a parameter or a list of parameters.
+        Calculates the derivative of a OpTree (or circuit)
+        w.r.t. a parameter or a list of parameters.
 
         Args:
-            element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
-                                                                                to be differentiated.
-            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector): Parameter(s) w.r.t.
-                                                                                                    the OpTree is
-                                                                                                    differentiated
+            element (OpTreeNodeBase | OpTreeLeafCircuit
+                | QuantumCircuit): OpTree (or circuit)
+                to be differentiated.
+            parameters (ParameterExpression
+                | List[ParameterExpression]
+                | ParameterVector): Parameter(s) w.r.t.
+                the OpTree is differentiated
 
         Returns:
             The derivative of the OpTree (or circuit) in OpTree form.
@@ -462,17 +476,21 @@ class OpTreeDerivative:
         parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
     ) -> OpTreeNodeBase:
         """
-        Calculates the derivative of a OpTree (or circuit) w.r.t. to a parameter or a list of parameters.
+        Calculates the derivative of a OpTree (or circuit)
+        w.r.t. a parameter or a list of parameters.
 
-        Second implementation, in which the derivative is calculated during the recursive derivative
+        Second implementation, in which the derivative is
+        calculated during the recursive derivative
         computation.
 
         Args:
-            element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
-                                                                                to be differentiated.
-            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector): Parameter(s) w.r.t.
-                                                                                                    the OpTree is
-                                                                                                    differentiated
+            element (OpTreeNodeBase | OpTreeLeafCircuit
+                | QuantumCircuit): OpTree (or circuit)
+                to be differentiated.
+            parameters (ParameterExpression
+                | List[ParameterExpression]
+                | ParameterVector): Parameter(s) w.r.t.
+                the OpTree is differentiated
 
         Returns:
             The derivative of the OpTree (or circuit) in OpTree form.

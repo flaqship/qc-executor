@@ -49,7 +49,7 @@ def convert_operator(operator, nqubits: int | None = None) -> PauliSum:
     if QISKIT_AVAILABLE:
         if isinstance(operator, SparsePauliOp):
             return _convert_sparse_pauli_op(operator)
-        elif isinstance(operator, Pauli):
+        if isinstance(operator, Pauli):
             return _convert_pauli(operator)
 
     raise ValueError(f"Unsupported operator type: {type(operator)}")

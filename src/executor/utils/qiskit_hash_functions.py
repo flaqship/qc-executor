@@ -27,9 +27,9 @@ else:
     def _format_params(param):
         if isinstance(param, np.ndarray):
             return param.data.tobytes()
-        elif isinstance(param, QuantumCircuit):
+        if isinstance(param, QuantumCircuit):
             return _circuit_key(param)
-        elif isinstance(param, Iterable):
+        if isinstance(param, Iterable):
             return tuple(param)
         return param
 

@@ -221,15 +221,14 @@ class ExecutorBase(ABC):
                 # Include dtype, shape, and strides (memory layout) to avoid collisions
                 # between arrays that share the same raw bytes but differ structurally.
                 return (v.dtype.str, v.shape, v.strides, v.tobytes())
-            elif isinstance(v, (list, tuple)):
+            if isinstance(v, (list, tuple)):
                 return tuple(_to_hashable(i) for i in v)
-            else:
-                try:
-                    hash(v)
-                    return v
-                except TypeError:
-                    # Fall back to object identity for unhashable types
-                    return id(v)
+            try:
+                hash(v)
+                return v
+            except TypeError:
+                # Fall back to object identity for unhashable types
+                return id(v)
 
         return (
             (method_name,)

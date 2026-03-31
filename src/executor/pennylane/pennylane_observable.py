@@ -283,23 +283,22 @@ class PennyLaneObservable:
                                 qml.expval(sum([obs for obs in self._pennylane_words[i]]))
                             )
                 return pnp.stack(tuple(expval_list))
-            else:
-                if len(obs_param_list) > 0:
-                    coeff_list = []
-                    for coeff in self._pennylane_obs_param_function:
-                        if callable(coeff):
-                            evaluated_param = coeff(*obs_param_list)
-                            coeff_list.append(evaluated_param)
-                        else:
-                            coeff_list.append(coeff)
-                    return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
-                else:
-                    # In case no parameters are present in the observable
-                    # Calculate the expectation value of sum of the observables
-                    # since this is more compatible with hardware backends
-                    if len(self._pennylane_words) == 0:
-                        return 0.0
+
+            if len(obs_param_list) > 0:
+                coeff_list = []
+                for coeff in self._pennylane_obs_param_function:
+                    if callable(coeff):
+                        evaluated_param = coeff(*obs_param_list)
+                        coeff_list.append(evaluated_param)
                     else:
-                        return qml.expval(sum([obs for obs in self._pennylane_words]))
+                        coeff_list.append(coeff)
+                return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
+
+            # In case no parameters are present in the observable
+            # Calculate the expectation value of sum of the observables
+            # since this is more compatible with hardware backends
+            if len(self._pennylane_words) == 0:
+                return 0.0
+            return qml.expval(sum([obs for obs in self._pennylane_words]))
 
         return pennylane_observable

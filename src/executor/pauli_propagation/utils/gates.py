@@ -232,14 +232,13 @@ class CliffordGate(Gate):
 
         if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
             return self._transform_single_qubit(pauli_term)
-        elif self.gate_type in ["CNOT", "CX"]:
+        if self.gate_type in ["CNOT", "CX"]:
             return self._transform_cnot(pauli_term)
-        elif self.gate_type == "CZ":
+        if self.gate_type == "CZ":
             return self._transform_cz(pauli_term)
-        elif self.gate_type == "SWAP":
+        if self.gate_type == "SWAP":
             return self._transform_swap(pauli_term)
-        else:
-            raise ValueError(f"Transformation not implemented for {self.gate_type}")
+        raise ValueError(f"Transformation not implemented for {self.gate_type}")
 
     def _transform_single_qubit(self, pauli_term: int):
         """Transform single-qubit Clifford gate."""

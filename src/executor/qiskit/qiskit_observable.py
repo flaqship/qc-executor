@@ -102,8 +102,7 @@ class QiskitObservable:
         # Bind parameters to operator
         if params_dict:
             return self._qiskit_operator.assign_parameters(params_dict)
-        else:
-            return self._qiskit_operator
+        return self._qiskit_operator
 
     def copy(self):
         """Return a copy of the observable wrapper."""

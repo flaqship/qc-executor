@@ -137,23 +137,18 @@ def to_tuple(x: int | str | float | np.ndarray | list | tuple, flatten: bool = T
 
         if isinstance(x, (float, int, str)):
             return tuple([x])
-        elif len(np.shape(x)) == 1:
+        if len(np.shape(x)) == 1:
             return tuple(list(x))
-        else:
-            return tuple(recursive_flatten(x))
+        return tuple(recursive_flatten(x))
 
-    else:
+    def array_to_nested_tuple(arr):
+        if isinstance(arr, (list, tuple, np.ndarray)):
+            return tuple(array_to_nested_tuple(subarr) for subarr in arr)
+        return arr
 
-        def array_to_nested_tuple(arr):
-            if isinstance(arr, (list, tuple, np.ndarray)):
-                return tuple(array_to_nested_tuple(subarr) for subarr in arr)
-            else:
-                return arr
-
-        if isinstance(x, (list, tuple, np.ndarray)):
-            return array_to_nested_tuple(x)
-        else:
-            return tuple([x])
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return array_to_nested_tuple(x)
+    return tuple([x])
 
 
 def ensure_complex_coeffs(operator):

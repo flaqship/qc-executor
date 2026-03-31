@@ -34,14 +34,13 @@ def get_uint_type(nqubits: int):
     nbits = 2 * nqubits  # 2 bits per qubit
     if nbits <= 8:
         return np.uint8
-    elif nbits <= 16:
+    if nbits <= 16:
         return np.uint16
-    elif nbits <= 32:
+    if nbits <= 32:
         return np.uint32
-    elif nbits <= 64:
+    if nbits <= 64:
         return np.uint64
-    else:
-        return int
+    return int
 
 
 def symbol_to_int(symbol: str) -> int:

@@ -41,8 +41,7 @@ def _circuit_parameter_shift(
             return False
         if not isinstance(instruction.params[0], ParameterExpression):
             return parameter == instruction.params[0]
-        else:
-            return parameter in instruction.params[0].parameters
+        return parameter in instruction.params[0].parameters
 
     if isinstance(element, OpTreeValue):
         return OpTreeValue(0.0)
@@ -323,10 +322,9 @@ def _differentiate_copy(
         # Rebuild the tree with the new children and factors (copy part)
         if isinstance(element, OpTreeSum):
             return OpTreeSum(children_list, factor_list)
-        elif isinstance(element, OpTreeList):
+        if isinstance(element, OpTreeList):
             return OpTreeList(children_list, factor_list)
-        else:
-            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+        raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
     elif isinstance(element, (QuantumCircuit, OpTreeCircuit)):
         # Reached a circuit leaf -> grad by parameter shift function
@@ -457,8 +455,7 @@ class OpTreeDerivative:
         # Return either in list form or as single OpTreeNode
         if is_list or len(derivative_list) == 0:
             return OpTreeList(derivative_list, fac_list)
-        else:
-            return derivative_list[0]
+        return derivative_list[0]
 
     @staticmethod
     def differentiate_v2(
@@ -508,5 +505,4 @@ class OpTreeDerivative:
         # Adjust the output for single parameter input
         if is_list or len(derivative_list) == 0:
             return OpTreeList(derivative_list, fac_list)
-        else:
-            return derivative_list[0]
+        return derivative_list[0]

@@ -609,35 +609,35 @@ class PauliPropagationExecutor(ExecutorBase):
                     return float(single_value[0])
                 return single_value
             return float(single_value)
-        else:
-            # For multiple parameters, group by base name if they're indexed
-            final_dict = {}
-            for key, value in result_dict.items():
-                if "[" in key:
-                    # Extract base name from indexed name
-                    import re
 
-                    match = re.match(r"(\w+)", key)
-                    if match:
-                        base_name = match.group(1)
-                        if base_name not in final_dict:
-                            final_dict[base_name] = {}
-                        # Extract index
-                        idx_match = re.search(r"\[(\d+)\]", key)
-                        idx = int(idx_match.group(1)) if idx_match else 0
-                        final_dict[base_name][idx] = value
-                else:
-                    # Base name format
-                    final_dict[key] = value
+        # For multiple parameters, group by base name if they're indexed
+        final_dict = {}
+        for key, value in result_dict.items():
+            if "[" in key:
+                # Extract base name from indexed name
+                import re
 
-            # Convert indexed dicts to arrays
-            for key in final_dict:
-                if isinstance(final_dict[key], dict):
-                    indices = sorted(final_dict[key].keys())
-                    final_dict[key] = np.array([final_dict[key][i] for i in indices])
+                match = re.match(r"(\w+)", key)
+                if match:
+                    base_name = match.group(1)
+                    if base_name not in final_dict:
+                        final_dict[base_name] = {}
+                    # Extract index
+                    idx_match = re.search(r"\[(\d+)\]", key)
+                    idx = int(idx_match.group(1)) if idx_match else 0
+                    final_dict[base_name][idx] = value
+            else:
+                # Base name format
+                final_dict[key] = value
 
-            # Return dictionary for multiple parameters
-            return final_dict
+        # Convert indexed dicts to arrays
+        for key in final_dict:
+            if isinstance(final_dict[key], dict):
+                indices = sorted(final_dict[key].keys())
+                final_dict[key] = np.array([final_dict[key][i] for i in indices])
+
+        # Return dictionary for multiple parameters
+        return final_dict
 
     @staticmethod
     def _apply_single_qubit_gate(

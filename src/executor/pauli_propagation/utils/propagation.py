@@ -98,10 +98,9 @@ def propagate_single_gate(
     """
     if isinstance(gate, PauliRotation):
         return _propagate_pauli_rotation(gate, psum, param_value)
-    elif isinstance(gate, CliffordGate):
+    if isinstance(gate, CliffordGate):
         return _propagate_clifford(gate, psum)
-    else:
-        raise TypeError(f"Unknown gate type: {type(gate)}")
+    raise TypeError(f"Unknown gate type: {type(gate)}")
 
 
 def _propagate_pauli_rotation(

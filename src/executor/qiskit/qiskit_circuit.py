@@ -108,8 +108,7 @@ class QiskitCircuit:
         # Bind parameters to circuit
         if params_dict:
             return self._qiskit_circuit.assign_parameters(params_dict)
-        else:
-            return self._qiskit_circuit
+        return self._qiskit_circuit
 
     @classmethod
     def _from_qiskit(cls, qiskit_circuit) -> "QiskitCircuit":

@@ -92,16 +92,14 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         if hasattr(parameter, "parameters"):
             if _param_is_constant(parameter):
                 return None, _param_to_float(parameter)
-            else:
-                # Convert to sympy expression
-                return _param_to_sympy(parameter), None
+            # Convert to sympy expression
+            return _param_to_sympy(parameter), None
 
         # Handle direct sympy expressions
         if isinstance(parameter, sp.Expr):
             if parameter.is_number:
                 return None, float(parameter)
-            else:
-                return parameter, None
+            return parameter, None
 
         raise TypeError(f"Unsupported parameter type: {type(parameter)!r}")
 

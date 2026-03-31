@@ -841,9 +841,8 @@ class QiskitExecutor(ExecutorBase):
         if self._runtime_primitives_version == "v1":
             cls, _ = _load_runtime_primitives_v1()
             return self._instantiate_runtime_primitive_v1(cls, self._options)
-        else:
-            cls, _ = _load_runtime_primitives_v2()
-            return self._instantiate_runtime_primitive_v2(cls, self._options)
+        cls, _ = _load_runtime_primitives_v2()
+        return self._instantiate_runtime_primitive_v2(cls, self._options)
 
     def _create_runtime_sampler(self):
         """Instantiate the runtime Sampler for the current backend / session."""
@@ -851,9 +850,8 @@ class QiskitExecutor(ExecutorBase):
         if self._runtime_primitives_version == "v1":
             _, cls = _load_runtime_primitives_v1()
             return self._instantiate_runtime_primitive_v1(cls, self._options)
-        else:
-            _, cls = _load_runtime_primitives_v2()
-            return self._instantiate_runtime_primitive_v2(cls, self._options)
+        _, cls = _load_runtime_primitives_v2()
+        return self._instantiate_runtime_primitive_v2(cls, self._options)
 
     # -- V1 instantiation (qiskit-ibm-runtime < 0.21) ---------------------
 
@@ -877,12 +875,11 @@ class QiskitExecutor(ExecutorBase):
                 if opts is not None
                 else primitive_cls(session=self._session)
             )
-        else:
-            return (
-                primitive_cls(backend=self._backend, options=opts)
-                if opts is not None
-                else primitive_cls(backend=self._backend)
-            )
+        return (
+            primitive_cls(backend=self._backend, options=opts)
+            if opts is not None
+            else primitive_cls(backend=self._backend)
+        )
 
     # -- V2 instantiation (qiskit-ibm-runtime >= 0.21) --------------------
 
@@ -902,26 +899,23 @@ class QiskitExecutor(ExecutorBase):
                     if opts
                     else primitive_cls(session=self._session)
                 )
-            else:
-                return (
-                    primitive_cls(mode=self._session, options=opts)
-                    if opts
-                    else primitive_cls(mode=self._session)
-                )
-        else:
-            # Fake backend or real backend in job mode (no session)
-            if QISKIT_RUNTIME_SMALLER_0_23:
-                return (
-                    primitive_cls(backend=self._backend, options=opts)
-                    if opts
-                    else primitive_cls(backend=self._backend)
-                )
-            else:
-                return (
-                    primitive_cls(mode=self._backend, options=opts)
-                    if opts
-                    else primitive_cls(mode=self._backend)
-                )
+            return (
+                primitive_cls(mode=self._session, options=opts)
+                if opts
+                else primitive_cls(mode=self._session)
+            )
+        # Fake backend or real backend in job mode (no session)
+        if QISKIT_RUNTIME_SMALLER_0_23:
+            return (
+                primitive_cls(backend=self._backend, options=opts)
+                if opts
+                else primitive_cls(backend=self._backend)
+            )
+        return (
+            primitive_cls(mode=self._backend, options=opts)
+            if opts
+            else primitive_cls(mode=self._backend)
+        )
 
     def _refresh_primitives(self) -> None:
         """Re-create primitives after a session renewal."""
@@ -1077,7 +1071,7 @@ class QiskitExecutor(ExecutorBase):
         def _unwrap(obj):
             if hasattr(obj, "_qiskit_circuit"):
                 return obj._qiskit_circuit
-            elif hasattr(obj, "_qiskit_operator"):
+            if hasattr(obj, "_qiskit_operator"):
                 return obj._qiskit_operator
             return obj
 

@@ -289,7 +289,7 @@ class PennyLaneExecutor(ExecutorBase):
         """
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(operator)
+        pennylane_observables, multiple_operators = self._preprocess_operators(observable)
         self._validate_device_wires(circuit.num_qubits)
 
         values = []
@@ -404,7 +404,7 @@ class PennyLaneExecutor(ExecutorBase):
             return re.sub(r"\[.*?]", "", s)
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(operator)
+        pennylane_observables, multiple_operators = self._preprocess_operators(observable)
 
         # TODO: multiple circuits and operators not implemented yet
         pennylane_circuit = pennylane_circuits[0]

@@ -166,7 +166,7 @@ class QulacsExecutor(ExecutorBase):
         """
 
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        qulacs_observables, multiple_operators = self._preprocess_operators(operator)
+        qulacs_observables, multiple_operators = self._preprocess_operators(observable)
 
         values = []
 
@@ -265,7 +265,7 @@ class QulacsExecutor(ExecutorBase):
     def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
-        operator: QuantumOperatorBase,
+        observable: QuantumOperatorBase,
         *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
     ) -> np.array | dict:
@@ -394,7 +394,7 @@ class QulacsExecutor(ExecutorBase):
             return re.sub(r"\[.*?\]", "", s)
 
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        qulacs_observables, multiple_operators = self._preprocess_operators(operator)
+        qulacs_observables, multiple_operators = self._preprocess_operators(observable)
 
         # TODO: multiple circuits and operators not implemented yet
         qulacs_circuit = qulacs_circuits[0]
@@ -500,7 +500,7 @@ class QulacsExecutor(ExecutorBase):
                     raise ValueError(f"Unknown derivative: {todo[0]}")
 
                 # compute expectation value
-                result = self._expectation_value(circuit, operator, **parameter_values)
+                result = self._expectation_value(circuit, observable, **parameter_values)
 
             elif len(parameter_vector) > 0 and len(observable_vector) == 0:
                 # compute gradient w.r.t. circuit parameters

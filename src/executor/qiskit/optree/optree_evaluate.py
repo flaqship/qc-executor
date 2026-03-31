@@ -194,7 +194,7 @@ def _evaluate_index_tree(
                 # OpTreeNodeList -> return just the array
                 return temp
             raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
-        elif isinstance(element, OpTreeContainer):
+        if isinstance(element, OpTreeContainer):
             # Return value from the result array
             return result_array[element.item]
         elif isinstance(element, OpTreeValue):
@@ -286,36 +286,35 @@ def _build_circuit_list(
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
             raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
 
-        else:
-            # Reached a CircuitTreeLeaf
-            # Get the circuit, and check for duplicates if necessary.
-            if isinstance(optree_element, QuantumCircuit):
-                circuit = optree_element
-                if detect_circuit_duplicates:
-                    circuit_hash = OpTree.hash_circuit(circuit)
-            elif isinstance(optree_element, OpTreeCircuit):
-                circuit = optree_element.circuit
-                if detect_circuit_duplicates:
-                    circuit_hash = optree_element.hashvalue
-            elif isinstance(optree_element, OpTreeValue):
-                return optree_element  # Add nothing to the lists
-            else:
-                raise ValueError("element must be a CircuitTreeLeaf or a QuantumCircuit")
-
-            # In case of duplicate detection, check if the circuit is already in the
-            # circuit list and return the index of the circuit if it is already present
+        # Reached a CircuitTreeLeaf
+        # Get the circuit, and check for duplicates if necessary.
+        if isinstance(optree_element, QuantumCircuit):
+            circuit = optree_element
             if detect_circuit_duplicates:
-                if circuit_hash in circuit_hash_dict:
-                    return OpTreeContainer(circuit_hash_dict[circuit_hash])
-                circuit_hash_dict[circuit_hash] = circuit_counter
+                circuit_hash = OpTree.hash_circuit(circuit)
+        elif isinstance(optree_element, OpTreeCircuit):
+            circuit = optree_element.circuit
+            if detect_circuit_duplicates:
+                circuit_hash = optree_element.hashvalue
+        elif isinstance(optree_element, OpTreeValue):
+            return optree_element  # Add nothing to the lists
+        else:
+            raise ValueError("element must be a CircuitTreeLeaf or a QuantumCircuit")
 
-            # Otherwise append the circuit to the circuit list, copy the paramerters into vector
-            # form and append them to the parameter list, increase the counter and return the index
-            # in the OpTreeLeafContainer
-            circuit_list.append(circuit)
-            parameter_list.append(np.array([dictionary[p] for p in circuit.parameters]))
-            circuit_counter += 1
-            return OpTreeContainer(circuit_counter - 1)
+        # In case of duplicate detection, check if the circuit is already in the
+        # circuit list and return the index of the circuit if it is already present
+        if detect_circuit_duplicates:
+            if circuit_hash in circuit_hash_dict:
+                return OpTreeContainer(circuit_hash_dict[circuit_hash])
+            circuit_hash_dict[circuit_hash] = circuit_counter
+
+        # Otherwise append the circuit to the circuit list, copy the paramerters into vector
+        # form and append them to the parameter list, increase the counter and return the index
+        # in the OpTreeLeafContainer
+        circuit_list.append(circuit)
+        parameter_list.append(np.array([dictionary[p] for p in circuit.parameters]))
+        circuit_counter += 1
+        return OpTreeContainer(circuit_counter - 1)
 
     index_tree = _build_lists_and_index_tree(optree_element)
 
@@ -396,7 +395,7 @@ def _build_operator_list(
             if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
             raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
-        elif isinstance(optree_element, OpTreeValue):
+        if isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
         else:
             # Reached a Operator
@@ -663,7 +662,7 @@ def _build_expectation_list(
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
             raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-        elif isinstance(optree_element, OpTreeValue):
+        if isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
 
         elif isinstance(optree_element, OpTreeExpectationValue):
@@ -746,7 +745,7 @@ def _add_offset_to_tree(
             return OpTreeList(children_list, optree_element.factor, optree_element.operation)
         raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-    elif isinstance(optree_element, OpTreeContainer):
+    if isinstance(optree_element, OpTreeContainer):
         # Change the item value
         if isinstance(optree_element.item, int):
             return OpTreeContainer(optree_element.item + offset)
@@ -1318,7 +1317,7 @@ class OpTreeEvaluate:
                     return OpTreeList(children_list, circuit_tree.factor, circuit_tree.operation)
                 raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-            elif isinstance(circuit_tree, OpTreeContainer):
+            if isinstance(circuit_tree, OpTreeContainer):
                 k = circuit_tree.item
                 return _add_offset_to_tree(operator_tree, k * offset)
 
@@ -1651,7 +1650,7 @@ class OpTreeEvaluate:
             if isinstance(optree_element, OpTreeList):
                 return OpTreeList(children_list, optree_element.factor, optree_element.operation)
             raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
-        elif isinstance(optree_element, OpTreeOperator):
+        if isinstance(optree_element, OpTreeOperator):
             return _transform_operator_to_zbasis(optree_element.operator, abelian_grouping)
         elif isinstance(optree_element, SparsePauliOp):
             return _transform_operator_to_zbasis(optree_element, abelian_grouping)

@@ -326,7 +326,7 @@ def _differentiate_copy(
             return OpTreeList(children_list, factor_list)
         raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-    elif isinstance(element, (QuantumCircuit, OpTreeCircuit)):
+    if isinstance(element, (QuantumCircuit, OpTreeCircuit)):
         # Reached a circuit leaf -> grad by parameter shift function
         return _circuit_parameter_shift(element, parameter)
     elif isinstance(element, (SparsePauliOp, OpTreeOperator)):

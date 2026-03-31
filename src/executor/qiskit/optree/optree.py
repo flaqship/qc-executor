@@ -596,7 +596,7 @@ class OpTree:
                 return OpTreeList(children_list, factor_list, operation_list)
             raise ValueError("wrong type of circuit_tree")
 
-        elif isinstance(circuit_tree, (OpTreeCircuit, QuantumCircuit)):
+        if isinstance(circuit_tree, (OpTreeCircuit, QuantumCircuit)):
             # Reached a circuit node -> append operation tree
 
             if isinstance(operator_tree, OpTreeNodeBase):
@@ -612,7 +612,7 @@ class OpTree:
                 if isinstance(operator_tree, OpTreeList):
                     return OpTreeList(children_list, factor_list, operation_list)
                 raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
-            elif isinstance(operator_tree, (OpTreeOperator, SparsePauliOp)):
+            if isinstance(operator_tree, (OpTreeOperator, SparsePauliOp)):
                 return OpTreeExpectationValue(circuit_tree, operator_tree)
             elif isinstance(operator_tree, OpTreeMeasuredOperator):
                 return operator_tree.measure_circuit(circuit_tree)

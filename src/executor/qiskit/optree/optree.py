@@ -142,18 +142,16 @@ class OpTreeNodeBase(OpTreeElementBase):
             for child in self._children_list:
                 if child not in other._children_list:
                     return False
-                else:
-                    index = other._children_list.index(child)
-                    if (
-                        self._factor_list[self._children_list.index(child)]
-                        != other._factor_list[index]
-                        and self._operation_list[self._children_list.index(child)]
-                        != other._operation_list[index]
-                    ):
-                        return False
+                index = other._children_list.index(child)
+                if (
+                    self._factor_list[self._children_list.index(child)]
+                    != other._factor_list[index]
+                    and self._operation_list[self._children_list.index(child)]
+                    != other._operation_list[index]
+                ):
+                    return False
             return True
-        else:
-            return False
+        return False
 
     def copy(self):
         """Function for copying a OpTreeNodeBase object."""
@@ -455,8 +453,7 @@ def _simplify_operator(
         if input_type == "leaf":
             return OpTreeOperator(operator_simp)
         return operator_simp
-    else:
-        return None
+    return None
 
 
 class OpTree:
@@ -508,11 +505,10 @@ class OpTree:
         """
         if isinstance(tree, OpTreeLeafBase):
             return 1
-        else:
-            num = 0
-            for child in tree.children:
-                num += OpTree.get_number_of_leafs(child)
-            return num
+        num = 0
+        for child in tree.children:
+            num += OpTree.get_number_of_leafs(child)
+        return num
 
     @staticmethod
     def get_tree_depth(tree: OpTreeElementBase) -> int:
@@ -526,11 +522,10 @@ class OpTree:
         """
         if isinstance(tree, OpTreeLeafBase):
             return 0
-        else:
-            depth = 0
-            for child in tree.children:
-                depth = max(depth, OpTree.get_tree_depth(child))
-            return depth + 1
+        depth = 0
+        for child in tree.children:
+            depth = max(depth, OpTree.get_tree_depth(child))
+        return depth + 1
 
     @staticmethod
     def get_num_nested_lists(tree: OpTreeElementBase) -> int:
@@ -544,13 +539,12 @@ class OpTree:
         """
         if isinstance(tree, OpTreeLeafBase):
             return 0
-        else:
-            depth = 0
-            for child in tree.children:
-                depth = max(depth, OpTree.get_num_nested_lists(child))
-            if isinstance(tree, OpTreeList):
-                return depth + 1
-            return depth
+        depth = 0
+        for child in tree.children:
+            depth = max(depth, OpTree.get_num_nested_lists(child))
+        if isinstance(tree, OpTreeList):
+            return depth + 1
+        return depth
 
     @staticmethod
     def get_first_leaf(
@@ -566,8 +560,7 @@ class OpTree:
         """
         if isinstance(element, OpTreeNodeBase):
             return OpTree.get_first_leaf(element.children[0])
-        else:
-            return element
+        return element
 
     @staticmethod
     def gen_expectation_tree(
@@ -599,10 +592,9 @@ class OpTree:
 
             if isinstance(circuit_tree, OpTreeSum):
                 return OpTreeSum(children_list, factor_list, operation_list)
-            elif isinstance(circuit_tree, OpTreeList):
+            if isinstance(circuit_tree, OpTreeList):
                 return OpTreeList(children_list, factor_list, operation_list)
-            else:
-                raise ValueError("wrong type of circuit_tree")
+            raise ValueError("wrong type of circuit_tree")
 
         elif isinstance(circuit_tree, (OpTreeCircuit, QuantumCircuit)):
             # Reached a circuit node -> append operation tree
@@ -617,10 +609,9 @@ class OpTree:
 
                 if isinstance(operator_tree, OpTreeSum):
                     return OpTreeSum(children_list, factor_list, operation_list)
-                elif isinstance(operator_tree, OpTreeList):
+                if isinstance(operator_tree, OpTreeList):
                     return OpTreeList(children_list, factor_list, operation_list)
-                else:
-                    raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
             elif isinstance(operator_tree, (OpTreeOperator, SparsePauliOp)):
                 return OpTreeExpectationValue(circuit_tree, operator_tree)
             elif isinstance(operator_tree, OpTreeMeasuredOperator):
@@ -655,12 +646,11 @@ class OpTree:
             """
             if op1 is None and op2 is None:
                 return None
-            elif op1 is None and op2 is not None:
+            if op1 is None and op2 is not None:
                 return op2
-            elif op1 is not None and op2 is None:
+            if op1 is not None and op2 is None:
                 return op1
-            else:
-                return lambda x: op1(op2(x))
+            return lambda x: op1(op2(x))
 
         if isinstance(element, OpTreeNodeBase):
             if len(element.children) > 0:
@@ -721,14 +711,12 @@ class OpTree:
 
                 return new_element
 
-            else:
-                # Reached an empty Node -> cancel the recursion
-                return copy.deepcopy(element)
-        elif isinstance(element, (SparsePauliOp, OpTreeOperator)):
-            return _simplify_operator(element)
-        else:
-            # Reached a leaf -> cancel the recursion
+            # Reached an empty Node -> cancel the recursion
             return copy.deepcopy(element)
+        if isinstance(element, (SparsePauliOp, OpTreeOperator)):
+            return _simplify_operator(element)
+        # Reached a leaf -> cancel the recursion
+        return copy.deepcopy(element)
 
     @staticmethod
     def assign_parameters(
@@ -777,10 +765,9 @@ class OpTree:
                 # Recursive rebuild of the OpTree structure
                 if isinstance(element, OpTreeSum):
                     return OpTreeSum(child_list_assigned, factor_list_bound, element.operation)
-                elif isinstance(element, OpTreeList):
+                if isinstance(element, OpTreeList):
                     return OpTreeList(child_list_assigned, factor_list_bound, element.operation)
-                else:
-                    raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
         elif isinstance(element, OpTreeCircuit):
             # Assign the parameters to the circuit
             if inplace:
@@ -800,8 +787,7 @@ class OpTree:
                     "Cannot assign parameters inplace to a bare QuantumCircuit. "
                     "Use inplace=False instead."
                 )
-            else:
-                return element.assign_parameters([dictionary[p] for p in element.parameters])
+            return element.assign_parameters([dictionary[p] for p in element.parameters])
         elif isinstance(element, (OpTreeExpectationValue, OpTreeMeasuredOperator)):
             # Assign the parameters to the circuit and operator
             if inplace:
@@ -839,8 +825,7 @@ class OpTree:
                     "Cannot assign parameters inplace to a bare SparsePauliOp. "
                     "Use inplace=False instead."
                 )
-            else:
-                return element.assign_parameters([dictionary[p] for p in element.parameters])
+            return element.assign_parameters([dictionary[p] for p in element.parameters])
         else:
             raise ValueError(
                 "element must be a OpTreeNodeBase, OpTreeLeafCircuit or a QuantumCircuit"

@@ -101,15 +101,14 @@ def _check_tree_for_matrix_compatibility(element: OpTreeNodeBase | OpTreeLeafBas
             if not all(dim == dim_list[0] for dim in dim_list):
                 raise ValueError("All leafs must have the same dimension")
             return len(dim_list)
-        elif isinstance(element, OpTreeSum):
+        if isinstance(element, OpTreeSum):
             dim_list = [_get_dimensions(child) for child in element.children]
             if not all(dim == dim_list[0] for dim in dim_list):
                 raise ValueError("All leafs must have the same dimension")
             return dim_list[0]
-        elif isinstance(element, OpTreeLeafBase):
+        if isinstance(element, OpTreeLeafBase):
             return 1
-        else:
-            raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
     try:
         _get_dimensions(element)
@@ -191,11 +190,10 @@ def _evaluate_index_tree(
             if isinstance(element, OpTreeSum):
                 # OpTreeNodeSum -> sum over the array
                 return np.sum(temp, axis=0)
-            elif isinstance(element, OpTreeList):
+            if isinstance(element, OpTreeList):
                 # OpTreeNodeList -> return just the array
                 return temp
-            else:
-                raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
+            raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
         elif isinstance(element, OpTreeContainer):
             # Return value from the result array
             return result_array[element.item]
@@ -284,10 +282,9 @@ def _build_circuit_list(
             # Recursive rebuild of the OpTree structure
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(child_list_indexed, factor_list_bound, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
-            else:
-                raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
+            raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
 
         else:
             # Reached a CircuitTreeLeaf
@@ -396,10 +393,9 @@ def _build_operator_list(
             # Recursive rebuild of the OpTree structure
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(child_list_indexed, factor_list_bound, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
-            else:
-                raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
+            raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
         elif isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
         else:
@@ -663,10 +659,9 @@ def _build_expectation_list(
             # Recursive rebuild of the OpTree structure
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(child_list_indexed, factor_list_bound, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
-            else:
-                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
         elif isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
@@ -747,17 +742,15 @@ def _add_offset_to_tree(
         # Rebuild the tree with the new children and factors (copy part)
         if isinstance(optree_element, OpTreeSum):
             return OpTreeSum(children_list, optree_element.factor, optree_element.operation)
-        elif isinstance(optree_element, OpTreeList):
+        if isinstance(optree_element, OpTreeList):
             return OpTreeList(children_list, optree_element.factor, optree_element.operation)
-        else:
-            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+        raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
     elif isinstance(optree_element, OpTreeContainer):
         # Change the item value
         if isinstance(optree_element.item, int):
             return OpTreeContainer(optree_element.item + offset)
-        else:
-            raise ValueError("Offset can only be added to integer leafs")
+        raise ValueError("Offset can only be added to integer leafs")
     elif isinstance(optree_element, OpTreeValue):
         # Return the value
         return optree_element
@@ -876,9 +869,8 @@ def _evaluate_expectation_from_sampler(
             index_list.append(list(np.argsort(flatted_resort_list_circ) + ioff))
             ioff += len(flatted_resort_list_circ)
         return np.take(exp_val, index_list)
-    else:
-        # two nested lists -> No need to resort
-        return exp_val
+    # two nested lists -> No need to resort
+    return exp_val
 
 
 def _transform_operator_to_zbasis(
@@ -987,70 +979,70 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
 
     if circ_in.num_clbits == 0:
         return circ_in.measure_all(inplace=False)
+
+    qubits = [i for i in range(circ_in.num_qubits)]
+    circ_in = decompose_to_std(circ_in)
+    for instruction, qargs, cargs in circ_in.data:
+        if instruction.name == "measure":
+            for qubit in qargs:
+                if circ_in.find_bit(qubit)[0] in qubits:
+                    qubits.remove(circ_in.find_bit(qubit)[0])
+                else:
+                    raise ValueError(
+                        "There are multiple measurements on the same qubit."
+                        "Please remove measurements accordingly. Note that this can happen,"
+                        " if one defines an observable with X,Y Pauli measurements on a qubit,"
+                        " which is already measured in an in-circuit measurement."
+                    )
+
+    circ = circ_in.copy()
+    if not final_measurements:
+        # Add measurements to all non measured qubits if not measured
+        from qiskit.circuit import ClassicalRegister
+
+        new_creg = ClassicalRegister(len(qubits), "meas")
+        circ.add_register(new_creg)
+        if not final_measurements:
+            circ.measure(qubits, new_creg)
+            if len(qubits) == circ_in.num_qubits:
+                return circ
+
+    new_ordering = []
+    for instruction, qargs, cargs in circ.data:
+        if instruction.name == "measure":
+            for n in range(len(qargs)):
+                new_ordering.append([circ.find_bit(qargs[n])[0], circ.find_bit(cargs[n])[0]])
+
+    circ_new = QuantumCircuit(circ.num_qubits)
+    if not final_measurements:
+        from qiskit.circuit import ClassicalRegister
+
+        new_creg = ClassicalRegister(circ.num_qubits, "meas")
     else:
-        qubits = [i for i in range(circ_in.num_qubits)]
-        circ_in = decompose_to_std(circ_in)
-        for instruction, qargs, cargs in circ_in.data:
-            if instruction.name == "measure":
-                for qubit in qargs:
-                    if circ_in.find_bit(qubit)[0] in qubits:
-                        qubits.remove(circ_in.find_bit(qubit)[0])
-                    else:
-                        raise ValueError(
-                            "There are multiple measurements on the same qubit."
-                            "Please remove measurements accordingly. Note that this can happen,"
-                            " if one defines an observable with X,Y Pauli measurements on a qubit,"
-                            " which is already measured in an in-circuit measurement."
-                        )
+        from qiskit.circuit import ClassicalRegister
 
-        circ = circ_in.copy()
-        if not final_measurements:
-            # Add measurements to all non measured qubits if not measured
-            from qiskit.circuit import ClassicalRegister
-
-            new_creg = ClassicalRegister(len(qubits), "meas")
-            circ.add_register(new_creg)
-            if not final_measurements:
-                circ.measure(qubits, new_creg)
-                if len(qubits) == circ_in.num_qubits:
-                    return circ
-
-        new_ordering = []
-        for instruction, qargs, cargs in circ.data:
-            if instruction.name == "measure":
-                for n in range(len(qargs)):
-                    new_ordering.append([circ.find_bit(qargs[n])[0], circ.find_bit(cargs[n])[0]])
-
-        circ_new = QuantumCircuit(circ.num_qubits)
-        if not final_measurements:
-            from qiskit.circuit import ClassicalRegister
-
-            new_creg = ClassicalRegister(circ.num_qubits, "meas")
+        new_creg = ClassicalRegister(circ_in.num_clbits, "meas")
+    circ_new.add_register(new_creg)
+    for instruction, qargs, cargs in circ.data:
+        if (
+            instruction.name == "measure" and not final_measurements
+        ):  # to adjust the clbits of measurements
+            clbits = [circ.find_bit(i)[0] for i in qargs]
         else:
-            from qiskit.circuit import ClassicalRegister
-
-            new_creg = ClassicalRegister(circ_in.num_clbits, "meas")
-        circ_new.add_register(new_creg)
-        for instruction, qargs, cargs in circ.data:
-            if (
-                instruction.name == "measure" and not final_measurements
-            ):  # to adjust the clbits of measurements
-                clbits = [circ.find_bit(i)[0] for i in qargs]
-            else:
-                clbits = [circ.find_bit(i)[0] for i in cargs]
-            operation = instruction.copy()
-            if (
-                hasattr(instruction, "condition") and instruction.condition
-            ):  # to adjust the clbits of c_if
-                operation.condition = (
-                    Clbit(
-                        circ_new.cregs[0],
-                        change_order(circ.find_bit(instruction.condition[0])[0], new_ordering),
-                    ),
-                    instruction.condition[1],
-                )
-            circ_new.append(operation, [circ.find_bit(i)[0] for i in qargs], clbits)
-        return circ_new
+            clbits = [circ.find_bit(i)[0] for i in cargs]
+        operation = instruction.copy()
+        if (
+            hasattr(instruction, "condition") and instruction.condition
+        ):  # to adjust the clbits of c_if
+            operation.condition = (
+                Clbit(
+                    circ_new.cregs[0],
+                    change_order(circ.find_bit(instruction.condition[0])[0], new_ordering),
+                ),
+                instruction.condition[1],
+            )
+        circ_new.append(operation, [circ.find_bit(i)[0] for i in qargs], clbits)
+    return circ_new
 
 
 class OpTreeEvaluate:
@@ -1103,8 +1095,7 @@ class OpTreeEvaluate:
             """Helper function for finding the maximum value of a nested list"""
             if isinstance(l, int):
                 return l
-            else:
-                return np.max([_max_from_nested_list(ll) for ll in l])
+            return np.max([_max_from_nested_list(ll) for ll in l])
 
         start = time.time()
         # Preprocess the circuit dictionary
@@ -1220,9 +1211,8 @@ class OpTreeEvaluate:
                 # If no circuits are present, return evaluated operator with no circuits
                 if len(operator_list) == 0:
                     return np.array([])
-                else:
-                    expec2 = _evaluate_index_tree(operator_tree, [])
-                    final_result.append(_evaluate_index_tree(circ_tree, [expec2]))
+                expec2 = _evaluate_index_tree(operator_tree, [])
+                final_result.append(_evaluate_index_tree(circ_tree, [expec2]))
             else:
                 if _max_from_nested_list(operator_measurement_list) != len(operator_list) - 1:
                     raise ValueError("Operator measurement list does not match operator list!")
@@ -1248,13 +1238,12 @@ class OpTreeEvaluate:
             return np.swapaxes(np.array(final_result), 0, 1)
         if multiple_operator_dict and multiple_circuit_dict and dictionaries_combined:
             return np.array(final_result)
-        elif multiple_operator_dict and not multiple_circuit_dict:
+        if multiple_operator_dict and not multiple_circuit_dict:
             return np.array(final_result)
-        else:
-            return_val = np.array(final_result[0])
-            if len(return_val.shape) == 0:
-                return float(return_val)
-            return return_val
+        return_val = np.array(final_result[0])
+        if len(return_val.shape) == 0:
+            return float(return_val)
+        return return_val
 
     @staticmethod
     def evaluate_with_estimator(
@@ -1325,10 +1314,9 @@ class OpTreeEvaluate:
                 # Rebuild the tree with the new children and factors (copy part)
                 if isinstance(circuit_tree, OpTreeSum):
                     return OpTreeSum(children_list, circuit_tree.factor, circuit_tree.operation)
-                elif isinstance(circuit_tree, OpTreeList):
+                if isinstance(circuit_tree, OpTreeList):
                     return OpTreeList(children_list, circuit_tree.factor, circuit_tree.operation)
-                else:
-                    raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
             elif isinstance(circuit_tree, OpTreeContainer):
                 k = circuit_tree.item
@@ -1660,10 +1648,9 @@ class OpTreeEvaluate:
             ]
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(children_list, optree_element.factor, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(children_list, optree_element.factor, optree_element.operation)
-            else:
-                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
         elif isinstance(optree_element, OpTreeOperator):
             return _transform_operator_to_zbasis(optree_element.operator, abelian_grouping)
         elif isinstance(optree_element, SparsePauliOp):

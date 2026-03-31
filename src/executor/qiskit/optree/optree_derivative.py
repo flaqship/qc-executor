@@ -329,20 +329,19 @@ def _differentiate_copy(
     if isinstance(element, (QuantumCircuit, OpTreeCircuit)):
         # Reached a circuit leaf -> grad by parameter shift function
         return _circuit_parameter_shift(element, parameter)
-    elif isinstance(element, (SparsePauliOp, OpTreeOperator)):
+    if isinstance(element, (SparsePauliOp, OpTreeOperator)):
         # Reached a operator leaf -> grad by parameter shift function
         return _operator_differentiation(element, parameter)
-    elif isinstance(element, OpTreeMeasuredOperator):
+    if isinstance(element, OpTreeMeasuredOperator):
         grad_op = _operator_differentiation(element.operator, parameter)
         if isinstance(grad_op, OpTreeValue):
             return grad_op
         return OpTreeMeasuredOperator(element.circuit, grad_op)
-    elif isinstance(element, OpTreeExpectationValue):
+    if isinstance(element, OpTreeExpectationValue):
         raise NotImplementedError("Expectation value differentiation not implemented yet")
-    elif isinstance(element, OpTreeValue):
+    if isinstance(element, OpTreeValue):
         return OpTreeValue(0.0)
-    else:
-        raise ValueError("Unsupported element type: " + str(type(element)))
+    raise ValueError("Unsupported element type: " + str(type(element)))
 
 
 class OpTreeDerivative:

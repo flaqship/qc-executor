@@ -197,11 +197,10 @@ def _evaluate_index_tree(
         if isinstance(element, OpTreeContainer):
             # Return value from the result array
             return result_array[element.item]
-        elif isinstance(element, OpTreeValue):
+        if isinstance(element, OpTreeValue):
             # Return the value
             return element.value
-        else:
-            raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
     if datatype == "auto":
         if _check_tree_for_matrix_compatibility(element):
@@ -397,44 +396,43 @@ def _build_operator_list(
             raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
         if isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
-        else:
-            # Reached a Operator
+        # Reached a Operator
 
-            if isinstance(optree_element, SparsePauliOp):
-                operator = optree_element
-                if detect_operator_duplicates:
-                    operator_hash = OpTree.hash_operator(operator)
-            elif isinstance(
-                optree_element,
-                (OpTreeOperator, OpTreeExpectationValue, OpTreeMeasuredOperator),
-            ):
-                operator = optree_element.operator
-                if detect_operator_duplicates:
-                    operator_hash = optree_element.hashvalue
-            else:
-                raise ValueError("element must be a OpTreeLeafOperator or a SparsePauliOp")
-
-            # Assign parameters
-            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
-            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
-            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
-            operator = ensure_complex_coeffs(
-                operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
-            )
-
-            if len(operator.parameters) != 0:
-                raise ValueError("Not all parameters are assigned in the operator!")
-
-            # Check if the operator is already part of the evaluation list
-            # If that is the case, return the index of the operator
+        if isinstance(optree_element, SparsePauliOp):
+            operator = optree_element
             if detect_operator_duplicates:
-                if operator_hash in operator_dict:
-                    return OpTreeContainer(operator_dict[operator_hash])
-                operator_dict[operator_hash] = operator_counter
+                operator_hash = OpTree.hash_operator(operator)
+        elif isinstance(
+            optree_element,
+            (OpTreeOperator, OpTreeExpectationValue, OpTreeMeasuredOperator),
+        ):
+            operator = optree_element.operator
+            if detect_operator_duplicates:
+                operator_hash = optree_element.hashvalue
+        else:
+            raise ValueError("element must be a OpTreeLeafOperator or a SparsePauliOp")
 
-            operator_list.append(operator)
-            operator_counter += 1
-            return OpTreeContainer(operator_counter - 1)
+        # Assign parameters
+        # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
+        # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+        # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+        operator = ensure_complex_coeffs(
+            operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
+        )
+
+        if len(operator.parameters) != 0:
+            raise ValueError("Not all parameters are assigned in the operator!")
+
+        # Check if the operator is already part of the evaluation list
+        # If that is the case, return the index of the operator
+        if detect_operator_duplicates:
+            if operator_hash in operator_dict:
+                return OpTreeContainer(operator_dict[operator_hash])
+            operator_dict[operator_hash] = operator_counter
+
+        operator_list.append(operator)
+        operator_counter += 1
+        return OpTreeContainer(operator_counter - 1)
 
     index_tree = _build_lists_and_index_tree(optree_element)
 
@@ -665,7 +663,7 @@ def _build_expectation_list(
         if isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
 
-        elif isinstance(optree_element, OpTreeExpectationValue):
+        if isinstance(optree_element, OpTreeExpectationValue):
             # Reached a Expecation Value Leaf
 
             operator = optree_element.operator
@@ -709,8 +707,7 @@ def _build_expectation_list(
             expectation_counter += 1
             return OpTreeContainer(expectation_counter - 1)
 
-        else:
-            raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
     index_tree = build_lists_and_index_tree(optree_element)
 
@@ -750,11 +747,10 @@ def _add_offset_to_tree(
         if isinstance(optree_element.item, int):
             return OpTreeContainer(optree_element.item + offset)
         raise ValueError("Offset can only be added to integer leafs")
-    elif isinstance(optree_element, OpTreeValue):
+    if isinstance(optree_element, OpTreeValue):
         # Return the value
         return optree_element
-    else:
-        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+    raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
 
 def _evaluate_expectation_from_sampler(
@@ -1652,12 +1648,11 @@ class OpTreeEvaluate:
             raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
         if isinstance(optree_element, OpTreeOperator):
             return _transform_operator_to_zbasis(optree_element.operator, abelian_grouping)
-        elif isinstance(optree_element, SparsePauliOp):
+        if isinstance(optree_element, SparsePauliOp):
             return _transform_operator_to_zbasis(optree_element, abelian_grouping)
-        elif isinstance(optree_element, OpTreeExpectationValue):
+        if isinstance(optree_element, OpTreeExpectationValue):
             operator_in_zbasis = _transform_operator_to_zbasis(optree_element.operator)
             from .optree import OpTree
 
             return OpTree.gen_expectation_tree(optree_element.circuit, operator_in_zbasis)
-        else:
-            raise ValueError("Wrong type of Optree Element:", type(optree_element))
+        raise ValueError("Wrong type of Optree Element:", type(optree_element))

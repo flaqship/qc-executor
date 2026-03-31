@@ -614,14 +614,12 @@ class OpTree:
                 raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
             if isinstance(operator_tree, (OpTreeOperator, SparsePauliOp)):
                 return OpTreeExpectationValue(circuit_tree, operator_tree)
-            elif isinstance(operator_tree, OpTreeMeasuredOperator):
+            if isinstance(operator_tree, OpTreeMeasuredOperator):
                 return operator_tree.measure_circuit(circuit_tree)
-            else:
-                raise ValueError("wrong type of operator_tree")
-        else:
-            raise ValueError(
-                "circuit_tree must be a CircuitTreeSum or a CircuitTreeList", type(circuit_tree)
-            )
+            raise ValueError("wrong type of operator_tree")
+        raise ValueError(
+            "circuit_tree must be a CircuitTreeSum or a CircuitTreeList", type(circuit_tree)
+        )
 
     @staticmethod
     def simplify(

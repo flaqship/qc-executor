@@ -10,7 +10,7 @@ from .qiskit_compat import QISKIT_SMALLER_2_0
 
 if QISKIT_SMALLER_2_0:
     # pylint: disable=ungrouped-imports
-    from qiskit.primitives.utils import _circuit_key, _observable_key  # pylint: disable=unused-import
+    from qiskit.primitives.utils import _circuit_key, _observable_key
 else:
 
     def _bits_key(bits: tuple, circuit: QuantumCircuit) -> tuple:

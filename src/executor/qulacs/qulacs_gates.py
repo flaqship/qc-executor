@@ -1,9 +1,8 @@
-# pylint: disable=undefined-variable
 from __future__ import annotations
 
 from qiskit.transpiler import Target
 from qulacs import ParametricQuantumCircuit
-from qulacs.gate import *  # pylint: disable=wildcard-import
+from qulacs.gate import *
 
 
 def qulacs_gate_i(circuit: ParametricQuantumCircuit, qubit: int) -> None:

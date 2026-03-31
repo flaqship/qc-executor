@@ -8,6 +8,7 @@ from typing import Any, List, overload
 
 import numpy as np
 
+from ..parameters import Parameter, Parameters
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
 

@@ -393,8 +393,8 @@ class QulacsExecutor(ExecutorBase):
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?\]", "", s)
 
-        qulacs_circuits, _multiple_circuits = self._preprocess_circuits(circuit)
-        qulacs_observables, _multiple_operators = self._preprocess_operators(operator)
+        qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
+        qulacs_observables, multiple_operators = self._preprocess_operators(operator)
 
         # TODO: multiple circuits and operators not implemented yet
         qulacs_circuit = qulacs_circuits[0]

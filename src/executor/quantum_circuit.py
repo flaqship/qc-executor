@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import List
 
 import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit import ParameterExpression
+from qiskit.circuit import Parameter, ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase, QuantumOperatorBase

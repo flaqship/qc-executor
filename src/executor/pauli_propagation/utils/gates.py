@@ -304,6 +304,7 @@ class CliffordGate(Gate):
 
         if p_t == 3:  # Target is Z
             # XOR control with Z
+            p_c_new = p_c ^ 3  # Toggle Z bit (special handling needed)
             # Actually simpler: Z_t acts on control
             if p_c == 0:  # I_c Z_t → Z_c Z_t
                 new_term = set_pauli(new_term, control, 3, self.nqubits)

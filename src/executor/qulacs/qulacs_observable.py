@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import List
+from typing import Iterable, List
 
 import numpy as np
-from qiskit.circuit import ParameterExpression
+from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
-from qulacs import GeneralQuantumOperator, PauliOperator
+from qulacs import GeneralQuantumOperator, GradCalculator, Observable, PauliOperator
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase

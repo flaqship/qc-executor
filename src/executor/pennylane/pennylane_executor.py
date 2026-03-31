@@ -116,7 +116,7 @@ class PennyLaneExecutor(ExecutorBase):
         )
 
         self._circuit_cache = self._make_cache()
-        self._observable_cache = self._make_cache()
+        self._operator_cache = self._make_cache()
 
         if isinstance(backend, str):
             self._device_name = backend
@@ -257,22 +257,22 @@ class PennyLaneExecutor(ExecutorBase):
         if not isinstance(operator, List):
             operators = [operator]
             multiple_operators = False
-        qulacs_observables = []
+        pennylane_operators = []
 
         for op in operators:
             if isinstance(op, self._native_operator_class):
-                qulacs_observables.append(op)
+                pennylane_operators.append(op)
                 continue
-            if op in self._observable_cache:
+            if op in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
-                qulacs_observables.append(self._observable_cache[op])
+                pennylane_operators.append(self._operator_cache[op])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
-                qulacs_observable = PennyLaneObservable(op)
-                self._observable_cache[op] = qulacs_observable
-                qulacs_observables.append(qulacs_observable)
+                pennylane_operator = PennyLaneOperator(op)
+                self._operator_cache[op] = pennylane_operator
+                pennylane_operators.append(pennylane_operator)
 
-        return qulacs_observables, multiple_operators
+        return pennylane_operators, multiple_operators
 
     def _expectation_value(
         self, circuit: QuantumCircuitBase, observable: QuantumOperatorBase, **parameter_values
@@ -289,7 +289,7 @@ class PennyLaneExecutor(ExecutorBase):
         """
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(observable)
+        pennylane_operators, multiple_operators = self._preprocess_operators(observable)
         self._validate_device_wires(circuit.num_qubits)
 
         values = []
@@ -316,7 +316,7 @@ class PennyLaneExecutor(ExecutorBase):
 
             circuit_parameter_tuples = product(*circuit_parameters)
 
-            for pennylane_observable in pennylane_observables:
+            for pennylane_observable in pennylane_operators:
                 observable_values = []
                 observable_parameters = []
                 multiple_observable_parameters = []
@@ -404,11 +404,11 @@ class PennyLaneExecutor(ExecutorBase):
             return re.sub(r"\[.*?]", "", s)
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(observable)
+        pennylane_operators, multiple_operators = self._preprocess_operators(observable)
 
         # TODO: multiple circuits and operators not implemented yet
         pennylane_circuit = pennylane_circuits[0]
-        pennylane_observable = pennylane_observables[0]
+        pennylane_observable = pennylane_operators[0]
 
         circuit_parameters = []
         multiple_circuit_parameters = []
@@ -682,7 +682,7 @@ class PennyLaneExecutor(ExecutorBase):
             return circuit
         return self._native_circuit_class.from_quantum_circuit(circuit)
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> PennyLaneObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> PennyLaneOperator:
         """Transpile a generic QuantumOperator to a PennyLane QuantumOperator."""
         if isinstance(operator, self._native_operator_class):
             return operator

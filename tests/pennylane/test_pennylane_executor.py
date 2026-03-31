@@ -432,12 +432,12 @@ class TestPennylaneExecutor:
 
         # First call should add to cache
         executor._preprocess_operators(op)
-        assert op in executor._observable_cache
+        assert op in executor._operator_cache
 
         # Second call should use cache
         cached_operators, _ = executor._preprocess_operators(op)
         assert len(cached_operators) == 1
-        assert cached_operators[0] is executor._observable_cache[op]
+        assert cached_operators[0] is executor._operator_cache[op]
 
     # ========================================================================
     # Property Tests
@@ -562,22 +562,22 @@ class TestPennylaneExecutor:
 
         executor._preprocess_operators(op1)
         executor._preprocess_operators(op2)
-        assert len(executor._observable_cache) == 2
+        assert len(executor._operator_cache) == 2
 
         # Adding a third operator should evict the oldest (op1)
         executor._preprocess_operators(op3)
-        assert len(executor._observable_cache) == 2
-        assert op1 not in executor._observable_cache
-        assert op2 in executor._observable_cache
-        assert op3 in executor._observable_cache
-        assert list(executor._observable_cache.keys()) == [op2, op3]
+        assert len(executor._operator_cache) == 2
+        assert op1 not in executor._operator_cache
+        assert op2 in executor._operator_cache
+        assert op3 in executor._operator_cache
+        assert list(executor._operator_cache.keys()) == [op2, op3]
 
     def test_unlimited_cache_size_by_default(self):
         """Test that cache is unlimited when max_cache_size is not specified."""
         executor = PennyLaneExecutor()
         assert executor._max_cache_size is None
         assert executor._circuit_cache.max_size is None
-        assert executor._observable_cache.max_size is None
+        assert executor._operator_cache.max_size is None
 
     # ========================================================================
     # Result-level Caching Tests

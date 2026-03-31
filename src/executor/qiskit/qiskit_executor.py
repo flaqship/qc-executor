@@ -1452,13 +1452,13 @@ class QiskitExecutor(ExecutorBase):
             return QiskitCircuit._from_qiskit(isa_circuit)
         return qc
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:
             operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
         Returns:
-            QiskitObservable: The corresponding QiskitObservable.
+            QiskitOperator: The corresponding QiskitObservable.
         """
         if isinstance(operator, self._native_operator_class):
             return operator

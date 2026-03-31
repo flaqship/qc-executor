@@ -94,16 +94,16 @@ def _get_sympy_interface():
 
 
 class PennyLaneOperator:
-    """Convert generic quantum operators to PennyLane-native observables.
+    """Convert generic quantum operators to PennyLane-native operators.
 
     Args:
         observable (QuantumOperatorBase | list[QuantumOperatorBase]):
-            Observable definition(s) to convert.
+            Operator definition(s) to convert.
     """
 
     @classmethod
     def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "PennyLaneOperator":
-        """Create a PennyLane native observable from a generic operator."""
+        """Create a PennyLane native operator from a generic operator."""
         return cls(operator)
 
     def __init__(
@@ -112,14 +112,14 @@ class PennyLaneOperator:
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
-            self._qiskit_observable = observable._qiskit_operator
-            self._num_qubits = self._qiskit_observable.num_qubits
+            self._qiskit_operator = observable._qiskit_operator
+            self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(observable, list):
             if all([isinstance(obs, QuantumOperatorBase) for obs in observable]):
-                self._qiskit_observable = [obs._qiskit_operator for obs in observable]
+                self._qiskit_operator = [obs._qiskit_operator for obs in observable]
             else:
                 raise ValueError("Unsupported observable type")
-            self._num_qubits = self._qiskit_observable[0].num_qubits
+            self._num_qubits = self._qiskit_operator[0].num_qubits
         else:
             raise ValueError("Unsupported observable type")
 
@@ -128,7 +128,7 @@ class PennyLaneOperator:
         self._pennylane_words = []
         self._pennylane_obs_parameters_dimensions = {}
 
-        self.build_observable_instructions(self._qiskit_observable)
+        self.build_observable_instructions(self._qiskit_operator)
 
     @property
     def parameter_names(self) -> list:
@@ -142,8 +142,8 @@ class PennyLaneOperator:
 
     @property
     def hash(self) -> int:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(str(self._qiskit_observable))
+        """Hashable object of the circuit and operator for caching"""
+        return hash(str(self._qiskit_operator))
 
     def build_observable_instructions(self, observable: List[SparsePauliOp] | SparsePauliOp):
         """

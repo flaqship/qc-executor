@@ -19,7 +19,7 @@ class QulacsOperator:
     def from_quantum_operator(
         cls, operator: QuantumOperatorBase | List[QuantumOperatorBase]
     ) -> "QulacsOperator":
-        """Create a Qulacs native observable from generic operator(s)."""
+        """Create a Qulacs native operator from generic operator(s)."""
         return cls(operator)
 
     def __init__(
@@ -28,14 +28,14 @@ class QulacsOperator:
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
-            self._qiskit_observable = observable._qiskit_operator
-            self._num_qubits = self._qiskit_observable.num_qubits
+            self._qiskit_operator = observable._qiskit_operator
+            self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(observable, list):
             if all([isinstance(obs, QuantumOperatorBase) for obs in observable]):
-                self._qiskit_observable = [obs._qiskit_operator for obs in observable]
+                self._qiskit_operator = [obs._qiskit_operator for obs in observable]
             else:
                 raise ValueError("Unsupported observable type")
-            self._num_qubits = self._qiskit_observable[0].num_qubits
+            self._num_qubits = self._qiskit_operator[0].num_qubits
         else:
             raise ValueError("Unsupported observable type")
 
@@ -45,7 +45,7 @@ class QulacsOperator:
         self.new_operators_used_parameters = []
         self._qulacs_obs_parameters = {}
         self._free_parameters = set()
-        self.build_observable_instructions(self._qiskit_observable)
+        self.build_observable_instructions(self._qiskit_operator)
 
         self._outer_jacobi_obs_cache = {}
 

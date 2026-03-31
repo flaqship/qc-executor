@@ -72,7 +72,7 @@ def expectation_value(circuit, operator, **parameters):
 ## Adding a New Backend
 
 1. Create a new subpackage under `src/executor/<backend>/`
-2. Implement `<Backend>Circuit`, `<Backend>Observable`, and `<Backend>Executor`
+2. Implement `<Backend>Circuit`, `<Backend>Operator`, and `<Backend>Executor`
    by subclassing the base classes in `src/executor/base/`
 3. Add tests under `tests/<backend>/`
 4. Add an example notebook under `examples/<backend>/`

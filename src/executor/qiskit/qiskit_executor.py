@@ -567,7 +567,8 @@ class QiskitExecutor(ExecutorBase):
             self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
 
         # ── 2. Injected Session / Batch ────────────────────────────────────
-        # Ownership is intentionally transferred to the executor: close_session() will close even externally created objects.
+        # Ownership is intentionally transferred to the executor:
+        # close_session() will close even externally created objects.
         elif _is_session_or_batch_instance(backend):
             _check_runtime_available()
             self._session = backend

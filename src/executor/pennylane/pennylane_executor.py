@@ -507,7 +507,8 @@ class PennyLaneExecutor(ExecutorBase):
 
                     if todo_parameter_name not in argnum_dict:
                         raise ValueError(
-                            f"Parameter '{todo_parameter_name}' not found in the circuit or observable."
+                            f"Parameter '{todo_parameter_name}' not found "
+                            f"in the circuit or observable."
                         )
 
                     arg_index = argnum_dict[todo_parameter_name]

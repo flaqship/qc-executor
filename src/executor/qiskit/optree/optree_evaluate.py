@@ -346,7 +346,9 @@ def _build_operator_list(
     to the operator list.
 
     Args:
-        optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue | OpTreeLeafMeasuredOperator | SparsePauliOp): The Operator in OpTree format to be converted.
+        optree_element (OpTreeNodeBase | OpTreeLeafOperator
+            | OpTreeLeafExpectationValue | OpTreeLeafMeasuredOperator
+            | SparsePauliOp): The Operator in OpTree format to be converted.
         dictionary (dict): The dictionary that contains the values for the parameters in the
                            operator and the OpTree structure.
         detect_operator_duplicates (bool): If True, the removes duplicate operators from the
@@ -458,7 +460,9 @@ def _build_measurement_list(
     to the measurement list.
 
     Args:
-        optree_element (OpTreeNodeBase | OpTreeLeafMeasuredOperator | OpTreeLeafOperator | SparsePauliOp): The Operator in OpTree format to be converted.
+        optree_element (OpTreeNodeBase | OpTreeLeafMeasuredOperator
+            | OpTreeLeafOperator | SparsePauliOp):
+            The Operator in OpTree format to be converted.
         detect_measurement_duplicates (bool): If True, the removes duplicate measurements from the
                                                 measurement list.
         detect_operator_duplicates (bool): If True, the removes duplicate operators from the
@@ -693,8 +697,9 @@ def _build_expectation_list(
                 circuit_eval_counter += 1
 
             # Assign parameters to operator
-            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
-            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+            # .simplify() merges terms with identical Pauli strings
+            # (e.g. +0.5j and -0.5j cancelling out), so that
+            # ensure_complex_coeffs() does not encounter spurious imaginary parts that
             # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
             operator = ensure_complex_coeffs(
                 operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
@@ -1058,17 +1063,20 @@ class OpTreeEvaluate:
 
         Inputted are a circuit and operator in OpTree format, and a dictionaries that contain the
         values for the parameters in the circuit and operator.
-        Dictionary can be a list of dictionaries, in which case the function evaluates the expectation
-        value for all combinations of the dictionaries, or if ``dictionaries_combined==True``, the
+        Dictionary can be a list of dictionaries, in which case the function evaluates the
+        expectation value for all combinations of the dictionaries, or if
+        ``dictionaries_combined==True``, the
         function evaluates the expectation value for the same index of the dictionaries.
 
-        The function also checks if the same circuit or operator occurs multiple times, and only adds
-        it once to the evaluation list. This can be turned off with the ``detect_duplicates`` flag.
+        The function also checks if the same circuit or operator occurs multiple times, and
+        only adds it once to the evaluation list. This can be turned off with the
+        ``detect_duplicates`` flag.
 
         Args:
             circuit (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The circuit or
                 OpTree with circuits to be evaluated.
-            operator (OpTreeNodeBase | OpTreeLeafOperator | SparsePauliOp | OpTreeLeafMeasuredOperator):
+            operator (OpTreeNodeBase | OpTreeLeafOperator
+                | SparsePauliOp | OpTreeLeafMeasuredOperator):
                 The operator or OpTree in the expectation values.
             dictionary_circuit (dict | List[dict]): The dictionary or list of dictionaries that
                 contain the values for the parameters in the circuit (or the circuit OpTree).
@@ -1077,10 +1085,11 @@ class OpTreeEvaluate:
                 (or the operator OpTree).
             sampler (BaseSamplerV1 | BaseSamplerV2): The sampler primitive that is used
                 for the evaluation.
-            dictionaries_combined (bool): If True, the function evaluates the expectation value for
-                the same index of the dictionaries (both have to be Lists). Defaults to False.
-            detect_duplicates (bool): If True, the removes duplicate circuits and operators from the
-                evaluation list. Defaults to True.
+            dictionaries_combined (bool): If True, the function evaluates the
+                expectation value for the same index of the dictionaries
+                (both have to be Lists). Defaults to False.
+            detect_duplicates (bool): If True, the removes duplicate circuits
+                and operators from the evaluation list. Defaults to True.
 
         Returns:
             The expectation value of the expectation values as a numpy array.
@@ -1290,7 +1299,8 @@ class OpTreeEvaluate:
             operator_tree: OpTreeNodeBase | OpTreeContainer,
             offset: int,
         ):
-            """Helper function for merging the operator tree and the circuit tree into a single tree.
+            """Helper function for merging the operator tree and the
+            circuit tree into a single tree.
 
             Args:
                 circuit_tree (OpTreeNodeBase | OpTreeLeafContainer): The indexed circuit tree.
@@ -1627,9 +1637,11 @@ class OpTreeEvaluate:
         The function transforms the operators to the Z basis by adding measurement circuits.
 
         Args:
-            optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue | SparsePauliOp):
+            optree_element (OpTreeNodeBase | OpTreeLeafOperator
+                | OpTreeLeafExpectationValue | SparsePauliOp):
                 The OpTree structure to be transformed.
-            abelian_grouping (bool, optional): If True, the operator is grouped into commuting terms.
+            abelian_grouping (bool, optional): If True, the operator is
+                grouped into commuting terms.
                 Defaults to True.
 
         Returns:

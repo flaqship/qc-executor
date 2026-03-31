@@ -345,7 +345,10 @@ class PauliPropagationObservable(QuantumOperatorBase):
         )
 
     def __str__(self):
-        return f"PauliPropagationObservable(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
+        return (
+            f"PauliPropagationObservable(num_qubits={self.num_qubits}, "
+            f"terms={len(self._pauli_sum)})"
+        )
 
     def __repr__(self):
         return self.__str__()

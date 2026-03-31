@@ -217,7 +217,9 @@ class QulacsObservable:
         parameter expression.
 
         Args:
-            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None): Parameters to calculate the gradient for
+            gradient_parameters (ParameterVectorElement
+                | List[ParameterVectorElement] | None):
+                Parameters to calculate the gradient for
         """
 
         if isinstance(gradient_parameters, ParameterVectorElement):

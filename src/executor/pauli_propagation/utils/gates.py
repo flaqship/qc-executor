@@ -81,7 +81,8 @@ class PauliRotation(Gate):
 
         if len(symbols) != len(self.qubits):
             raise ValueError(
-                f"Number of symbols ({len(symbols)}) must match number of qubits ({len(self.qubits)})"
+                f"Number of symbols ({len(symbols)}) must match "
+                f"number of qubits ({len(self.qubits)})"
             )
 
         self.symbols = symbols

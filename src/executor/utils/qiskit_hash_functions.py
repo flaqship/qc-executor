@@ -41,7 +41,8 @@ else:
 
         Args:
             circuit: Input quantum circuit.
-            functional: If True, the returned key only includes functional data (i.e. execution related).
+            functional: If True, the returned key only includes functional
+                data (i.e. execution related).
 
         Returns:
             Composite key for circuit.

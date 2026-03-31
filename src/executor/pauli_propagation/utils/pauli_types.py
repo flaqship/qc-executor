@@ -115,7 +115,8 @@ class PauliString:
         """
         if self.nqubits != other.nqubits:
             raise ValueError(
-                f"Cannot multiply PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}"
+                f"Cannot multiply PauliStrings with different "
+                f"nqubits: {self.nqubits} vs {other.nqubits}"
             )
 
         result_term, phase = pauli_multiply(int(self.term), int(other.term), self.nqubits)
@@ -134,7 +135,8 @@ class PauliString:
         """
         if self.nqubits != other.nqubits:
             raise ValueError(
-                f"Cannot compare PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}"
+                f"Cannot compare PauliStrings with different "
+                f"nqubits: {self.nqubits} vs {other.nqubits}"
             )
 
         return pauli_commutes(int(self.term), int(other.term), self.nqubits)

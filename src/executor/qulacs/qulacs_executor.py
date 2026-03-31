@@ -356,7 +356,8 @@ class QulacsExecutor(ExecutorBase):
                 observable (QulacsObservable): Qulacs observable to evaluate
                 arguments_circuit: Arguments for the circuit
                 arguments_observable: Arguments for the observable
-                parameters (List[float]): List of observable parameters wrt. the gradient is computed
+                parameters (List[float]): List of observable parameters
+                    wrt. the gradient is computed
 
             Returns:
                 np.ndarray: Result of the evaluation

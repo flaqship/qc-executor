@@ -245,7 +245,8 @@ class PennyLaneCircuit:
                 # All other gates
                 if op.operation.name not in qiskit_pennylane_gate_dict:
                     raise NotImplementedError(
-                        f"Gate {op.operation.name} is unfortunatly not supported in sQUlearn's PennyLane backend."
+                        f"Gate {op.operation.name} is unfortunatly not "
+                        f"supported in sQUlearn's PennyLane backend."
                     )
 
                 self._pennylane_gates.append(qiskit_pennylane_gate_dict[op.operation.name])

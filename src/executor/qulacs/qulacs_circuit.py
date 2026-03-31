@@ -330,7 +330,8 @@ class QulacsCircuit:
                 and op.operation.name not in qiskit_qulacs_param_gate_dict
             ):
                 raise NotImplementedError(
-                    f"Gate {op.operation.name} is unfortunatly not supported in sQUlearn's Qulacs backend."
+                    f"Gate {op.operation.name} is unfortunatly not "
+                    f"supported in sQUlearn's Qulacs backend."
                 )
 
             paramterized_gate = len(op.operation.params) >= 1
@@ -417,7 +418,9 @@ class QulacsCircuit:
         parameter expression.
 
         Args:
-            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None): Parameters to calculate the gradient for
+            gradient_parameters (ParameterVectorElement
+                | List[ParameterVectorElement] | None):
+                Parameters to calculate the gradient for
         """
 
         if isinstance(gradient_parameters, ParameterVectorElement):

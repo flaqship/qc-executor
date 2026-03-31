@@ -256,9 +256,9 @@ class PauliPropagationExecutor(ExecutorBase):
                     "PauliPropagationExecutor expects PauliPropagationCircuit inputs only."
                 )
         for op in operators:
-            if not isinstance(op, PauliPropagationObservable):
+            if not isinstance(op, PauliPropagationOperator):
                 raise TypeError(
-                    "PauliPropagationExecutor expects PauliPropagationObservable inputs only."
+                    "PauliPropagationExecutor expects PauliPropagationOperator inputs only."
                 )
 
         results = []
@@ -274,7 +274,7 @@ class PauliPropagationExecutor(ExecutorBase):
     def _compute_single_expectation(
         self,
         circuit: PauliPropagationCircuit,
-        operator: PauliPropagationObservable,
+        operator: PauliPropagationOperator,
         parameters: Dict,
     ) -> complex:
         """Compute expectation value for a single circuit and operator.
@@ -395,7 +395,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 param_mapping[key] = [value]
 
         # Get observable and circuit parameters
-        if isinstance(operator, PauliPropagationObservable):
+        if isinstance(operator, PauliPropagationOperator):
             native_operator = operator
         else:
             native_operator = self._transpile_operator(operator)
@@ -510,7 +510,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
                                 # Create single-term observable for this Pauli
                                 pauli_str = term_to_string(term, native_operator.num_qubits)
-                                single_term_obs = PauliPropagationObservable(
+                                single_term_obs = PauliPropagationOperator(
                                     paulis=[pauli_str],
                                     coeffs=[1.0],
                                     num_qubits=native_operator.num_qubits,
@@ -886,37 +886,37 @@ class PauliPropagationExecutor(ExecutorBase):
     def transpile_operator(
         self,
         operator: QuantumOperatorBase,
-    ) -> PauliPropagationObservable: ...
+    ) -> PauliPropagationOperator: ...
 
     @overload
     def transpile_operator(
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy,
-    ) -> PauliPropagationObservable: ...
+    ) -> PauliPropagationOperator: ...
 
     @overload
     def transpile_operator(
         self,
         operator: List[QuantumOperatorBase],
-    ) -> List[PauliPropagationObservable]: ...
+    ) -> List[PauliPropagationOperator]: ...
 
     @overload
     def transpile_operator(
         self,
         operator: List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy,
-    ) -> List[PauliPropagationObservable]: ...
+    ) -> List[PauliPropagationOperator]: ...
 
     def transpile_operator(
         self,
         operator: QuantumOperatorBase | List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationObservable | List[PauliPropagationObservable]:
+    ) -> PauliPropagationOperator | List[PauliPropagationOperator]:
         """
         Transpile the operator for execution on Pauli Propagation backend.
 
-        Accepts both native PauliPropagationObservable and generic QuantumOperator types.
+        Accepts both native PauliPropagationOperator and generic QuantumOperator types.
         When a list of operators is provided, each operator is transpiled and cached individually.
 
         Args:
@@ -926,7 +926,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 If provided, takes precedence over executor-level default.
 
         Returns:
-            PauliPropagationObservable | List[PauliPropagationObservable]: The
+            PauliPropagationOperator | List[PauliPropagationOperator]: The
                 transpiled operator(s) in native format.
         """
         self._logger.info("Transpiling operator")
@@ -938,7 +938,7 @@ class PauliPropagationExecutor(ExecutorBase):
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationObservable:
+    ) -> PauliPropagationOperator:
         if self._result_cache is not None:
             key = self._make_result_key("transpile_observable", operator, symmetry_strategy)
             if key in self._result_cache:
@@ -949,17 +949,17 @@ class PauliPropagationExecutor(ExecutorBase):
             return result
         return self._transpile_observable_with_symmetry(operator, symmetry_strategy)
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> PauliPropagationObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> PauliPropagationOperator:
         return self._transpile_observable_with_symmetry(operator)
 
     def _transpile_observable_with_symmetry(
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationObservable:
-        """Transpile an operator to PauliPropagationObservable format.
+    ) -> PauliPropagationOperator:
+        """Transpile an operator to PauliPropagationOperator format.
 
-        Accepts both native PauliPropagationObservable and generic QuantumOperator types.
+        Accepts both native PauliPropagationOperator and generic QuantumOperator types.
         If symmetry_strategy is provided, it takes precedence and is assigned to the
         observable. Otherwise, falls back to the executor's default symmetry_strategy.
 
@@ -969,7 +969,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 uses executor-level default (self.symmetry_strategy)
 
         Returns:
-            PauliPropagationObservable: Transpiled observable in native format
+            PauliPropagationOperator: Transpiled observable in native format
 
         Raises:
             TypeError: If operator type is not supported
@@ -977,7 +977,7 @@ class PauliPropagationExecutor(ExecutorBase):
         effective_symmetry = (
             symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy
         )
-        result = PauliPropagationObservable.from_quantum_operator(operator, effective_symmetry)
+        result = PauliPropagationOperator.from_quantum_operator(operator, effective_symmetry)
         if not result.has_active_symmetry:
             result.symmetry = effective_symmetry
         return result

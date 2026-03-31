@@ -7,7 +7,7 @@ from executor.parameters import Parameters
 from executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
-    PauliPropagationObservable,
+    PauliPropagationOperator,
 )
 from executor.pauli_propagation.pauli_propagation_executor import (
     _create_projector_observable,
@@ -37,7 +37,7 @@ class TestPauliPropagationExecutor:
     def test_expectation_value_identity_circuit(self):
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(2)
-        operator = PauliPropagationObservable(["ZZ"], [1.0])
+        operator = PauliPropagationOperator(["ZZ"], [1.0])
 
         result = executor.expectation_value(circuit, operator)
         assert np.isclose(result, 1.0, atol=1e-10)
@@ -46,7 +46,7 @@ class TestPauliPropagationExecutor:
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
         circuit.h(0)
-        operator = PauliPropagationObservable(["X"], [1.0])
+        operator = PauliPropagationOperator(["X"], [1.0])
 
         result = executor.expectation_value(circuit, operator)
         assert np.isclose(result, 1.0, atol=1e-10)
@@ -55,7 +55,7 @@ class TestPauliPropagationExecutor:
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, np.pi / 2)
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         result = executor.expectation_value(circuit, operator)
         assert np.isclose(result, 0.0, atol=1e-10)
@@ -65,7 +65,7 @@ class TestPauliPropagationExecutor:
         circuit = PauliPropagationCircuit(2)
         circuit.h(0)
         circuit.cx(0, 1)
-        operator = PauliPropagationObservable(["ZZ"], [1.0])
+        operator = PauliPropagationOperator(["ZZ"], [1.0])
 
         result = executor.expectation_value(circuit, operator)
         assert np.isclose(result, 1.0, atol=1e-10)
@@ -76,7 +76,7 @@ class TestPauliPropagationExecutor:
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         result = executor.expectation_value(circuit, operator, **{"theta[0]": 0.0})
         assert np.isclose(result, 1.0, atol=1e-10)
@@ -88,7 +88,7 @@ class TestPauliPropagationExecutor:
         executor = PauliPropagationExecutor(truncate_threshold=0.1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, 0.1)
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         executor.expectation_value(circuit, operator)
         stats = executor.get_truncation_stats()
@@ -102,7 +102,7 @@ class TestPauliPropagationExecutor:
         circuit2 = PauliPropagationCircuit(1)
         circuit2.x(0)
 
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         results = executor.expectation_value([circuit1, circuit2], operator)
 
@@ -118,8 +118,8 @@ class TestBatchExpectationValue:
         circuit = PauliPropagationCircuit(1)
         circuit.h(0)
 
-        op_x = PauliPropagationObservable(["X"], [1.0])
-        op_z = PauliPropagationObservable(["Z"], [1.0])
+        op_x = PauliPropagationOperator(["X"], [1.0])
+        op_z = PauliPropagationOperator(["Z"], [1.0])
 
         batch = executor.expectation_value(circuit, [op_x, op_z])
         single_x = executor.expectation_value(circuit, op_x)
@@ -135,8 +135,8 @@ class TestBatchExpectationValue:
         c1 = PauliPropagationCircuit(1)
         c1.x(0)
 
-        op_z = PauliPropagationObservable(["Z"], [1.0])
-        op_x = PauliPropagationObservable(["X"], [1.0])
+        op_z = PauliPropagationOperator(["Z"], [1.0])
+        op_x = PauliPropagationOperator(["X"], [1.0])
 
         results = executor.expectation_value([c0, c1], [op_z, op_x])
 
@@ -146,7 +146,7 @@ class TestBatchExpectationValue:
     def test_single_observable_still_returns_float(self):
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         result = executor.expectation_value(circuit, operator)
         assert isinstance(result, float)
@@ -155,7 +155,7 @@ class TestBatchExpectationValue:
 class TestStrictInputs:
     def test_rejects_non_native_circuit(self):
         executor = PauliPropagationExecutor()
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
             executor.expectation_value("not a circuit", operator)
@@ -164,7 +164,7 @@ class TestStrictInputs:
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
 
-        with pytest.raises(TypeError, match="PauliPropagationObservable"):
+        with pytest.raises(TypeError, match="PauliPropagationOperator"):
             executor.expectation_value(circuit, "not an operator")
 
 
@@ -176,7 +176,7 @@ class TestParameterNormalization:
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         # Test list format: theta=[0.0]
         result = executor.expectation_value(circuit, operator, theta=[0.0])
@@ -196,7 +196,7 @@ class TestParameterNormalization:
         circuit.rx(0, theta[0])
         circuit.ry(1, theta[1])
 
-        operator = PauliPropagationObservable(["ZI", "IZ"], [1.0, 1.0])
+        operator = PauliPropagationOperator(["ZI", "IZ"], [1.0, 1.0])
 
         # Test with list parameters in correct format
         result = executor.expectation_value(circuit, operator, theta=[0.0, 0.0])
@@ -209,7 +209,7 @@ class TestParameterNormalization:
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        operator = PauliPropagationOperator(["Z"], [1.0])
 
         # Test indexed format: {"theta[0]": 0.0}
         result = executor.expectation_value(circuit, operator, **{"theta[0]": 0.0})
@@ -222,7 +222,7 @@ class TestParameterNormalization:
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
-        operator = PauliPropagationObservable(["X"], [1.0])
+        operator = PauliPropagationOperator(["X"], [1.0])
 
         # Test with list parameters
         result = executor.expectation_value_derivatives(circuit, operator, "theta", theta=[0.0])

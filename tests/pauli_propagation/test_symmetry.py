@@ -378,14 +378,14 @@ class TestExecutorSymmetryIntegration:
         from executor.pauli_propagation import (
             PauliPropagationCircuit,
             PauliPropagationExecutor,
-            PauliPropagationObservable,
+            PauliPropagationOperator,
         )
 
         qc = PauliPropagationCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
 
-        operator = PauliPropagationObservable(
+        operator = PauliPropagationOperator(
             ["ZI", "IZ"],
             [1.0, 1.0],
             symmetry_strategy=PermutationSymmetry(),

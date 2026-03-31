@@ -40,7 +40,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
     ) -> "PauliPropagationOperator":  # type: ignore[override]
-        """Create a PauliPropagationObservable from a generic operator."""
+        """Create a PauliPropagationOperator from a generic operator."""
         if isinstance(operator, cls):
             result = operator.copy()
             if symmetry_strategy is not None:
@@ -53,7 +53,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
             return cls(paulis=paulis, coeffs=coeffs, symmetry_strategy=symmetry_strategy)
         except (AttributeError, TypeError) as exc:
             raise TypeError(
-                "PauliPropagationObservable.from_quantum_operator expects a generic "
+                "PauliPropagationOperator.from_quantum_operator expects a generic "
                 f"QuantumOperator or {cls.__name__}, got {type(operator).__name__}"
             ) from exc
 
@@ -245,7 +245,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     def compose(self, other: "QuantumOperatorBase") -> "PauliPropagationOperator":
         if not isinstance(other, PauliPropagationOperator):
-            raise TypeError("compose currently supports PauliPropagationObservable only.")
+            raise TypeError("compose currently supports PauliPropagationOperator only.")
         if self.num_qubits != other.num_qubits:
             raise ValueError("Cannot compose observables with different qubit counts.")
 
@@ -345,7 +345,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         )
 
     def __str__(self):
-        return f"PauliPropagationObservable(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
+        return f"PauliPropagationOperator(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
 
     def __repr__(self):
         return self.__str__()

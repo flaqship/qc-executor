@@ -14,7 +14,7 @@ class QiskitOperator:
 
     def __init__(self, observable):
         """
-        Initialize QiskitObservable wrapper.
+        Initialize QiskitOperator wrapper.
 
         Args:
             observable: QuantumOperator object (from executor.quantum_operator)
@@ -114,5 +114,5 @@ class QiskitOperator:
 
     def __repr__(self):
         return (
-            f"QiskitObservable({self.num_qubits} qubits, {len(self._free_parameters)} parameters)"
+            f"QiskitOperator({self.num_qubits} qubits, {len(self._free_parameters)} parameters)"
         )

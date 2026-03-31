@@ -1458,7 +1458,7 @@ class QiskitExecutor(ExecutorBase):
         Args:
             operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
         Returns:
-            QiskitOperator: The corresponding QiskitObservable.
+            QiskitOperator: The corresponding QiskitOperator.
         """
         if isinstance(operator, self._native_operator_class):
             return operator

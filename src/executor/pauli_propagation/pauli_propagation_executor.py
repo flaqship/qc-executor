@@ -12,7 +12,7 @@ import numpy as np
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from .pauli_propagation_circuit import PauliPropagationCircuit
-from .pauli_propagation_observable import PauliPropagationObservable
+from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import NoSymmetry
 from .utils.pauli_types import PauliSum
 from .utils.propagation import propagate

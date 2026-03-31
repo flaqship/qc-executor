@@ -16,7 +16,7 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
-from .pennylane_observable import PennyLaneObservable
+from .pennylane_operator import PennyLaneOperator
 
 
 class PennyLaneExecutor(ExecutorBase):

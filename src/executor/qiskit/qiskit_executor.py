@@ -22,7 +22,7 @@ from executor.qiskit.optree.optree import (
     OpTreeOperator,
 )
 from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_observable import QiskitObservable
+from executor.qiskit.qiskit_operator import QiskitOperator
 from executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,

@@ -83,7 +83,7 @@ class TestCrossBackendParity:
             executor = Executor.create(backend, seed=0)
             native_circuit = executor.transpile_circuit(qc)
             test_observable = (
-                executor.transpile_observable(op) if backend == "pauli_propagation" else op
+                executor.transpile_operator(op) if backend == "pauli_propagation" else op
             )
             value = executor.expectation_value(native_circuit, test_observable, **kwargs)
             values[backend] = _scalar_result(value)
@@ -102,7 +102,7 @@ class TestCrossBackendParity:
             executor = Executor.create(backend, seed=0)
             native_circuit = executor.transpile_circuit(qc)
             test_observable = (
-                executor.transpile_observable(op) if backend == "pauli_propagation" else op
+                executor.transpile_operator(op) if backend == "pauli_propagation" else op
             )
             result = executor.expectation_value_derivatives(
                 native_circuit,

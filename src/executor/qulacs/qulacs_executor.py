@@ -13,7 +13,7 @@ from qulacs import QuantumState
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .qulacs_circuit import QulacsCircuit
-from .qulacs_observable import QulacsObservable
+from .qulacs_operator import QulacsOperator
 
 
 class QulacsExecutor(ExecutorBase):

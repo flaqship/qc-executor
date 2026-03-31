@@ -238,4 +238,4 @@ Useful entry points:
 - ``executor.pauli_propagation.symmetry`` for the symmetry strategy classes.
 - ``executor.pauli_propagation.utils.pauli_types`` for ``PauliSum`` and ``PauliString``.
 - ``executor.pauli_propagation.utils.propagation`` for low-level propagation helpers.
-- ``executor.pauli_propagation`` for the public executor, circuit, and observable types.
+- ``executor.pauli_propagation`` for the public executor, circuit, and operator types.

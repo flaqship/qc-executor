@@ -37,9 +37,9 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return circuit
 
-    def _transpile_operator(self, observable):
+    def _transpile_operator(self, operator):
         """Mock implementation."""
-        return observable
+        return operator
 
     @classmethod
     def get_accepted_backend_types(cls) -> list[type]:

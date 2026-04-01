@@ -21,6 +21,12 @@ class QoqoCircuit:
             optimization_level=0,
         )
         self._num_qubits = self._qiskit_circuit.num_qubits
+        self.is_parameterized = len(self._qiskit_circuit.parameters) > 0
+        self._qoqo_gates_parameters = []
+
+        for param in circuit.parameters:
+            if param.vector.name not in self._qoqo_gates_parameters:
+                self._qoqo_gates_parameters.append(param.vector.name)
 
     @property
     def num_qubits(self) -> int:
@@ -49,8 +55,21 @@ class QoqoCircuit:
 
     def get_qoqo_circuit(self) -> Circuit:
         """Builds and returns the qoqo circuit as callable function"""
+        if self.is_parameterized:
+            raise ValueError("Cannot build qoqo circuit from a parameterized circuit")
         self._qoqo_circuit = qasm_str_to_circuit(dumps(self._qiskit_circuit))
         return self._qoqo_circuit
 
     def __call__(self, *args, **kwargs):
         return self._qoqo_circuit(*args, **kwargs)
+
+    def assign_parameters(self, parameters: dict) -> None:
+        """
+        Assigns the given parameters to the circuit's parameters.
+
+        Args:
+            parameters (dict): Dictionary with parameter names as keys and their values as values.
+        """
+        self._qiskit_circuit.assign_parameters(parameters, inplace=True)
+        if len(self._qiskit_circuit.parameters) == 0:
+            self.is_parameterized = False

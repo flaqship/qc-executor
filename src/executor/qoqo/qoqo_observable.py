@@ -23,8 +23,8 @@ class QoqoObservable:
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
-            self._qiskit_observable = observable._qiskit_operator
-            self._num_qubits = self._qiskit_observable.num_qubits
+            self._qiskit_observable = [observable._qiskit_operator]
+            self._num_qubits = self._qiskit_observable[0].num_qubits
         elif isinstance(observable, list):
             if all([isinstance(obs, QuantumOperatorBase) for obs in observable]):
                 self._qiskit_observable = [obs._qiskit_operator for obs in observable]
@@ -39,14 +39,28 @@ class QoqoObservable:
         self.new_operators_coeff_grad = []
         self.new_operators_used_parameters = []
         self._free_parameters = set()
-        self.build_observable_instructions(self._qiskit_observable)
 
+        self._qoqo_obs_parameters = []
+
+        for observable in self._qiskit_observable:
+            for param in observable.parameters:
+                if param.vector.name not in self._qoqo_obs_parameters:
+                    self._qoqo_obs_parameters.append(param.vector.name)
+
+        self.is_parameterized = any(
+            len(observable.parameters) > 0 for observable in self._qiskit_observable
+        )
         self._outer_jacobi_obs_cache = {}
 
     @property
     def num_qubits(self) -> int:
         """Number of qubits of the circuit"""
         return self._num_qubits
+
+    @property
+    def parameter_names(self) -> list:
+        """List of observable parameter names"""
+        return self._qoqo_obs_parameters
 
     @property
     def hash(self) -> str:
@@ -74,7 +88,6 @@ class QoqoObservable:
             identity contribution that must be added after execution.
         """
         observable = self._qiskit_observable
-
         if not isinstance(observable, SparsePauliOp):
             if isinstance(observable, list):
                 if all(isinstance(obs, SparsePauliOp) for obs in observable):
@@ -85,7 +98,7 @@ class QoqoObservable:
                 raise ValueError("Unsupported observable type")
 
         n_qubits = observable.num_qubits
-        meas_input = PauliZProductInput(n_qubits, use_flipped_measurement=True)
+        meas_input = PauliZProductInput(n_qubits, use_flipped_measurement=False)
         measurement_circuit, pattern_map, lin_dict = [], {}, {}
         id_shift = 0.0
 
@@ -127,3 +140,16 @@ class QoqoObservable:
             input=meas_input,
         )
         return measurement, id_shift
+
+    def assign_parameters(self, parameters: dict) -> None:
+        """Assigns the given parameters to each observable's parameters.
+
+        Args:
+            parameters (dict): Dictionary with parameter names as keys and their values as values.
+        """
+        self._qiskit_observable = [
+            observable.assign_parameters(parameters) for observable in self._qiskit_observable
+        ]
+        self.is_parameterized = any(
+            len(observable.parameters) > 0 for observable in self._qiskit_observable
+        )

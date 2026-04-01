@@ -12,6 +12,7 @@ from qoqo_quest import Backend
 
 from .qoqo_circuit import QoqoCircuit
 from .qoqo_observable import QoqoObservable
+from qollage import draw_circuit
 
 
 class QoqoExecutor(ExecutorBase):
@@ -74,21 +75,31 @@ class QoqoExecutor(ExecutorBase):
         Returns:
             float: The expectation value.
         """
-
         if circuit in self._circuit_cache:
             qoqo_circuit = self._circuit_cache[circuit]
         else:
             qoqo_circuit = QoqoCircuit(circuit)
             self._circuit_cache[circuit] = qoqo_circuit
 
-        constant_circuit = qoqo_circuit.get_qoqo_circuit()
         qoqo_observable = QoqoObservable(operator)
+        flat_circuit_parameters = {}
+        for key, vals in parameter_values.items():
+            is_list = isinstance(vals, list)
+            if key in qoqo_circuit.parameter_names:
+                if is_list:
+                    for i, v in enumerate(vals):
+                        flat_circuit_parameters[f"{key}[{i}]"] = v
+                else:
+                    flat_circuit_parameters[key] = vals
+        obs_parameters = [parameter_values[key] for key in qoqo_observable.parameter_names]
+        qoqo_circuit.assign_parameters(flat_circuit_parameters)
+        qoqo_observable.assign_parameters(np.array(obs_parameters).flatten().tolist())
 
+        constant_circuit = qoqo_circuit.get_qoqo_circuit()
         measurement, id_shift = qoqo_observable.get_qoqo_observable_measurement(
-            constant_circuit, qoqo_observable, self._shots
+            constant_circuit, self._shots
         )
         backend = Backend(qoqo_circuit.num_qubits)
-
         expectations = backend.run_measurement(measurement)
 
         return expectations["expectation_value"] + id_shift
@@ -164,10 +175,9 @@ class QoqoExecutor(ExecutorBase):
         running_circuit = Circuit()
         running_circuit += ops.DefinitionComplex("state_vector", qoqo_circuit.num_qubits, True)
         running_circuit += qoqo_circuit.get_qoqo_circuit()
-        running_circuit += ops.PragmaGetStateVector(qoqo_circuit.num_qubits, None)
+        running_circuit += ops.PragmaGetStateVector("state_vector", None)
 
         backend = Backend(qoqo_circuit.num_qubits)
-
         results = backend.run_circuit(running_circuit)
 
         return results[2].get("state_vector")[0]

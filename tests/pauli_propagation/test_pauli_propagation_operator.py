@@ -46,9 +46,7 @@ class TestPauliPropagationOperator:
 
     def test_symmetry_strategy_is_retained(self):
         symmetry = PermutationSymmetry()
-        observable = PauliPropagationOperator(
-            ["ZI", "IZ"], [0.5, 0.5], symmetry_strategy=symmetry
-        )
+        observable = PauliPropagationOperator(["ZI", "IZ"], [0.5, 0.5], symmetry_strategy=symmetry)
 
         assert observable.symmetry.name == "permutation"
         assert observable.has_active_symmetry

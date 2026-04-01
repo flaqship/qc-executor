@@ -280,8 +280,8 @@ class TestExecutionFakeBackend:
         backend = _get_fake_backend()
         executor = QiskitExecutor(backend=backend, shots=4096, seed=42)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op = QuantumOperator(["ZZ"], [1.0])
-        result = executor.expectation_value(qc, op)
+        operator = QuantumOperator(["ZZ"], [1.0])
+        result = executor.expectation_value(qc, operator)
         # Noisy result should still be close to 1.0 for ZZ on Bell state
         assert isinstance(result, (float, np.floating, np.ndarray))
 

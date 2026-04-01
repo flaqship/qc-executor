@@ -19,14 +19,14 @@ pytest.importorskip("pennylane")
 def _build_problem():
     x = Parameters("x", 1)
     p = Parameters("p", 2)
-    pop = Parameters("pop", 2)
+    p_obs = Parameters("p_obs", 2)
 
     qc = QuantumCircuit(2)
     qc.h(0)
     qc.ryy(0, 1, p[0] * x[0])
 
-    op = QuantumOperator(["ZI", "IZ"], [pop[0], pop[1]])
-    return qc, op
+    operator = QuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
+    return qc, operator
 
 
 def _scalar_result(value):
@@ -73,9 +73,9 @@ def _align_global_phase(vec, ref):
 
 class TestCrossBackendParity:
     def test_expectation_value_parity(self):
-        qc, op = _build_problem()
+        qc, operator = _build_problem()
 
-        kwargs = {"x": [0.1], "p": [0.3], "pop": [0.5, 0.6]}
+        kwargs = {"x": [0.1], "p": [0.3], "p_obs": [0.5, 0.6]}
         backends = ("pauli_propagation", "qulacs", "pennylane")
 
         values = {}
@@ -83,7 +83,9 @@ class TestCrossBackendParity:
             executor = Executor.create(backend, seed=0)
             native_circuit = executor.transpile_circuit(qc)
             test_observable = (
-                executor.transpile_operator(op) if backend == "pauli_propagation" else op
+                executor.transpile_operator(operator)
+                if backend == "pauli_propagation"
+                else operator
             )
             value = executor.expectation_value(native_circuit, test_observable, **kwargs)
             values[backend] = _scalar_result(value)
@@ -92,9 +94,9 @@ class TestCrossBackendParity:
         assert np.isclose(values["pauli_propagation"], values["pennylane"], atol=1e-8)
 
     def test_derivative_parity(self):
-        qc, op = _build_problem()
+        qc, operator = _build_problem()
 
-        kwargs = {"x": [0.1], "p": [0.3], "pop": [0.5, 0.6]}
+        kwargs = {"x": [0.1], "p": [0.3], "p_obs": [0.5, 0.6]}
         backends = ("pauli_propagation", "qulacs", "pennylane")
 
         derivatives = {}
@@ -102,19 +104,21 @@ class TestCrossBackendParity:
             executor = Executor.create(backend, seed=0)
             native_circuit = executor.transpile_circuit(qc)
             test_observable = (
-                executor.transpile_operator(op) if backend == "pauli_propagation" else op
+                executor.transpile_operator(operator)
+                if backend == "pauli_propagation"
+                else operator
             )
             result = executor.expectation_value_derivatives(
                 native_circuit,
                 test_observable,
                 "x",
                 "p",
-                "pop",
+                "p_obs",
                 **kwargs,
             )
             derivatives[backend] = result
 
-        for key in ("x", "p", "pop"):
+        for key in ("x", "p", "p_obs"):
             pp_val = np.asarray(derivatives["pauli_propagation"][key], dtype=float)
             qulacs_val = np.asarray(derivatives["qulacs"][key], dtype=float)
             pennylane_val = np.asarray(derivatives["pennylane"][key], dtype=float)

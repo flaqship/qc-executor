@@ -216,7 +216,7 @@ class QuantumCircuitBase(ABC):
 
     def pauli_evolution(
         self,
-        op: QuantumOperatorBase,
+        operator: QuantumOperatorBase,
         parameter: ParameterVectorElement | float,
         working_qubits: List[int] | None = None,
     ) -> None:
@@ -224,13 +224,13 @@ class QuantumCircuitBase(ABC):
         Applies Pauli evolution exp(itP) where P is a Pauli operator.
 
         Args:
-            op (QuantumOperatorBase): The Pauli operator to evolve.
+            operator (QuantumOperatorBase): The Pauli operator to evolve.
             parameter (ParameterVectorElement | float): The evolution parameter.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
-        pauli_str = op.paulis[0].to_label()
-        coeff = op.coeffs
+        pauli_str = operator.paulis[0].to_label()
+        coeff = operator.coeffs
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
         coeff = coeff[0]
@@ -287,7 +287,7 @@ class QuantumCircuitBase(ABC):
 
     def controlled_pauli_evolution(
         self,
-        op: QuantumOperatorBase,
+        operator: QuantumOperatorBase,
         parameter: ParameterVectorElement | float,
         control_qubit: int,
         working_qubits: List[int] | None = None,
@@ -296,14 +296,14 @@ class QuantumCircuitBase(ABC):
         Applies controlled Pauli evolution exp(itP) where P is a Pauli operator.
 
         Args:
-            op (QuantumOperatorBase): The Pauli operator to evolve.
+            operator (QuantumOperatorBase): The Pauli operator to evolve.
             parameter (ParameterVectorElement | float): The evolution parameter.
             control_qubit (int): The qubit to control the evolution.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
-        pauli_str = op.paulis[0].to_label()
-        coeff = op.coeffs
+        pauli_str = operator.paulis[0].to_label()
+        coeff = operator.coeffs
 
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")

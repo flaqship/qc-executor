@@ -34,9 +34,9 @@ def _normalize_parameters(parameters: Dict) -> Dict[str, float]:
     """Normalize parameters from list format to indexed format.
 
     Converts parameters from:
-        {"x": [0.1], "p": [0.3], "pop": [0.5, 0.6]}
+        {"x": [0.1], "p": [0.3], "p_obs": [0.5, 0.6]}
     To:
-        {"x[0]": 0.1, "p[0]": 0.3, "pop[0]": 0.5, "pop[1]": 0.6}
+        {"x[0]": 0.1, "p[0]": 0.3, "p_obs[0]": 0.5, "p_obs[1]": 0.6}
 
     Also accepts already-normalized parameters with indexed keys.
 
@@ -255,16 +255,16 @@ class PauliPropagationExecutor(ExecutorBase):
                 raise TypeError(
                     "PauliPropagationExecutor expects PauliPropagationCircuit inputs only."
                 )
-        for op in observables:
-            if not isinstance(op, PauliPropagationOperator):
+        for observable in observables:
+            if not isinstance(observable, PauliPropagationOperator):
                 raise TypeError(
                     "PauliPropagationExecutor expects PauliPropagationOperator inputs only."
                 )
 
         results = []
         for circ in circuits:
-            for op in observables:
-                exp_val = self._compute_single_expectation(circ, op, parameters)
+            for observable in observables:
+                exp_val = self._compute_single_expectation(circ, observable, parameters)
                 results.append(exp_val)
 
         if is_single_circuit and is_single_observable:
@@ -416,7 +416,7 @@ class PauliPropagationExecutor(ExecutorBase):
             # Normalize the param name (handle indexed format)
             if "[" in param_name:
                 base_name = param_name.split("[")[0].strip()
-                # Extract the index from indexed format like "pop[0]"
+                # Extract the index from indexed format like "p_obs[0]"
                 index_str = param_name.split("[")[1].rstrip("]")
                 specific_index = int(index_str) if index_str.isdigit() else None
             else:
@@ -931,7 +931,10 @@ class PauliPropagationExecutor(ExecutorBase):
         """
         self._logger.info("Transpiling operator")
         if isinstance(operator, list):
-            return [self._transpile_operator_cached(op, symmetry_strategy) for op in operator]
+            return [
+                self._transpile_operator_cached(operator, symmetry_strategy)
+                for operator in operator
+            ]
         return self._transpile_operator_cached(operator, symmetry_strategy)
 
     def _transpile_operator_cached(
@@ -940,19 +943,19 @@ class PauliPropagationExecutor(ExecutorBase):
         symmetry_strategy: SymmetryStrategy | None = None,
     ) -> PauliPropagationOperator:
         if self._result_cache is not None:
-            key = self._make_result_key("transpile_observable", operator, symmetry_strategy)
+            key = self._make_result_key("transpile_operator", operator, symmetry_strategy)
             if key in self._result_cache:
-                self._logger.debug("Result cache hit for transpile_observable")
+                self._logger.debug("Result cache hit for transpile_operator")
                 return self._result_cache[key]
-            result = self._transpile_observable_with_symmetry(operator, symmetry_strategy)
+            result = self._transpile_operator_with_symmetry(operator, symmetry_strategy)
             self._result_cache[key] = result
             return result
-        return self._transpile_observable_with_symmetry(operator, symmetry_strategy)
+        return self._transpile_operator_with_symmetry(operator, symmetry_strategy)
 
     def _transpile_operator(self, operator: QuantumOperatorBase) -> PauliPropagationOperator:
-        return self._transpile_observable_with_symmetry(operator)
+        return self._transpile_operator_with_symmetry(operator)
 
-    def _transpile_observable_with_symmetry(
+    def _transpile_operator_with_symmetry(
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
@@ -961,7 +964,7 @@ class PauliPropagationExecutor(ExecutorBase):
 
         Accepts both native PauliPropagationOperator and generic QuantumOperator types.
         If symmetry_strategy is provided, it takes precedence and is assigned to the
-        observable. Otherwise, falls back to the executor's default symmetry_strategy.
+        operator. Otherwise, falls back to the executor's default symmetry_strategy.
 
         Args:
             operator (QuantumOperatorBase): Operator to transpile (native or generic)
@@ -969,7 +972,7 @@ class PauliPropagationExecutor(ExecutorBase):
                 uses executor-level default (self.symmetry_strategy)
 
         Returns:
-            PauliPropagationOperator: Transpiled observable in native format
+            PauliPropagationOperator: Transpiled operator in native format
 
         Raises:
             TypeError: If operator type is not supported

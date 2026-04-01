@@ -259,17 +259,17 @@ class PennyLaneExecutor(ExecutorBase):
             multiple_operators = False
         pennylane_operators = []
 
-        for op in operators:
-            if isinstance(op, self._native_operator_class):
-                pennylane_operators.append(op)
+        for operator in operators:
+            if isinstance(operator, self._native_operator_class):
+                pennylane_operators.append(operator)
                 continue
-            if op in self._operator_cache:
-                self._logger.debug("Operator cache hit for %s", op)
-                pennylane_operators.append(self._operator_cache[op])
+            if operator in self._operator_cache:
+                self._logger.debug("Operator cache hit for %s", operator)
+                pennylane_operators.append(self._operator_cache[operator])
             else:
-                self._logger.debug("Operator cache miss – converting operator %s", op)
-                pennylane_operator = PennyLaneOperator(op)
-                self._operator_cache[op] = pennylane_operator
+                self._logger.debug("Operator cache miss – converting operator %s", operator)
+                pennylane_operator = PennyLaneOperator(operator)
+                self._operator_cache[operator] = pennylane_operator
                 pennylane_operators.append(pennylane_operator)
 
         return pennylane_operators, multiple_operators
@@ -289,7 +289,7 @@ class PennyLaneExecutor(ExecutorBase):
         """
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_operators, multiple_operators = self._preprocess_operators(observable)
+        pennylane_observables, multiple_observables = self._preprocess_operators(observable)
         self._validate_device_wires(circuit.num_qubits)
 
         values = []
@@ -316,39 +316,37 @@ class PennyLaneExecutor(ExecutorBase):
 
             circuit_parameter_tuples = product(*circuit_parameters)
 
-            for pennylane_operator in pennylane_operators:
+            for observable in pennylane_observables:
                 observable_values = []
                 observable_parameters = []
                 multiple_observable_parameters = []
                 observable_parameters_dimension = []
-                for param in pennylane_operator.parameter_names:
+                for param in observable.parameter_names:
                     if param not in parameter_values:
                         raise ValueError(
                             f"Parameter '{param}' not found in provided parameter values."
                         )
 
                     param_values, multiple_params = adjust_features(
-                        parameter_values[param], pennylane_operator.parameter_dimensions[param]
+                        parameter_values[param], observable.parameter_dimensions[param]
                     )
                     observable_parameters.append(param_values)
                     multiple_observable_parameters.append(multiple_params)
-                    observable_parameters_dimension.append(
-                        pennylane_operator.parameter_dimensions[param]
-                    )
+                    observable_parameters_dimension.append(observable.parameter_dimensions[param])
 
                 observable_parameter_tuples = product(*observable_parameters)
 
                 @qml.qnode(self._device)
                 def circuit_func(*args):
                     pennylane_circuit.build_pennylane_circuit()(*args)
-                    return pennylane_operator.build_pennylane_observable()(
+                    return observable.build_pennylane_observable()(
                         *args[len(pennylane_circuit.parameter_names) :]
                     )
 
                 for cp in circuit_parameter_tuples:
                     cp_values = []
-                    for op in observable_parameter_tuples:
-                        cp_values.append(circuit_func(*cp, *op))
+                    for operator in observable_parameter_tuples:
+                        cp_values.append(circuit_func(*cp, *operator))
 
                     observable_values.append(cp_values)
                 circuit_values.append(observable_values)
@@ -366,10 +364,10 @@ class PennyLaneExecutor(ExecutorBase):
 
         if not multiple_circuits:
             values = values[0]
-            if not multiple_operators:
+            if not multiple_observables:
                 values = values[0]
         else:
-            if not multiple_operators:
+            if not multiple_observables:
                 values = values.reshape(-1)
 
         return values
@@ -403,12 +401,12 @@ class PennyLaneExecutor(ExecutorBase):
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?]", "", s)
 
-        pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_operators, multiple_operators = self._preprocess_operators(observable)
+        pennylane_circuits, _ = self._preprocess_circuits(circuit)
+        pennylane_observables, _ = self._preprocess_operators(observable)
 
         # TODO: multiple circuits and operators not implemented yet
         pennylane_circuit = pennylane_circuits[0]
-        pennylane_operator = pennylane_operators[0]
+        pennylane_observable = pennylane_observables[0]
 
         circuit_parameters = []
         multiple_circuit_parameters = []
@@ -429,17 +427,17 @@ class PennyLaneExecutor(ExecutorBase):
         observable_parameters = []
         multiple_observable_parameters = []
         observable_parameters_dimension = []
-        for param in pennylane_operator.parameter_names:
+        for param in pennylane_observable.parameter_names:
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
             param_values, multiple_params = adjust_features(
-                parameter_values[param], pennylane_operator.parameter_dimensions[param]
+                parameter_values[param], pennylane_observable.parameter_dimensions[param]
             )
             observable_parameters.append(param_values[0])
             multiple_observable_parameters.append(multiple_params)
             observable_parameters_dimension.append(
-                pennylane_operator.parameter_dimensions[param]
+                pennylane_observable.parameter_dimensions[param]
             )
 
         result_dict = {}
@@ -457,7 +455,7 @@ class PennyLaneExecutor(ExecutorBase):
 
         def circuit_func(*args):
             pennylane_circuit.build_pennylane_circuit()(*args)
-            return pennylane_operator.build_pennylane_observable()(
+            return pennylane_observable.build_pennylane_observable()(
                 *args[len(pennylane_circuit.parameter_names) :]
             )
 
@@ -468,7 +466,7 @@ class PennyLaneExecutor(ExecutorBase):
         for param in pennylane_circuit.parameter_names:
             argnum_dict[param] = argnum
             argnum += 1
-        for param in pennylane_operator.parameter_names:
+        for param in pennylane_observable.parameter_names:
             argnum_dict[param] = argnum
             argnum += 1
 

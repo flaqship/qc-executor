@@ -136,17 +136,17 @@ class QulacsExecutor(ExecutorBase):
             multiple_operators = False
         qulacs_operators = []
 
-        for op in operators:
-            if isinstance(op, self._native_operator_class):
-                qulacs_operators.append(op)
+        for operator in operators:
+            if isinstance(operator, self._native_operator_class):
+                qulacs_operators.append(operator)
                 continue
-            if op in self._operator_cache:
-                self._logger.debug("Operator cache hit for %s", op)
-                qulacs_operators.append(self._operator_cache[op])
+            if operator in self._operator_cache:
+                self._logger.debug("Operator cache hit for %s", operator)
+                qulacs_operators.append(self._operator_cache[operator])
             else:
-                self._logger.debug("Operator cache miss – converting operator %s", op)
-                qulacs_operator = QulacsOperator(op)
-                self._operator_cache[op] = qulacs_operator
+                self._logger.debug("Operator cache miss – converting operator %s", operator)
+                qulacs_operator = QulacsOperator(operator)
+                self._operator_cache[operator] = qulacs_operator
                 qulacs_operators.append(qulacs_operator)
 
         return qulacs_operators, multiple_operators
@@ -224,9 +224,9 @@ class QulacsExecutor(ExecutorBase):
 
                     observable_parameter_tuples = product(*observable_parameters)
 
-                    for op in observable_parameter_tuples:
-                        qulacs_observable_object = qulacs_observable.get_observable_func()(
-                            *op[0] if op else ()
+                    for obs in observable_parameter_tuples:
+                        qulacs_observable_object = qulacs_observable.get_operator_func()(
+                            *obs[0] if obs else ()
                         )
                         # not sure about the [0] here, but it works for single observables
                         observable_values.append(
@@ -313,7 +313,7 @@ class QulacsExecutor(ExecutorBase):
             """
             qulacs_circuit = circuit.get_circuit_func(parameters)(*arguments_circuit)
             outer_jacobian = circuit.get_gradient_outer_jacobian(parameters)(*arguments_circuit)
-            qulacs_operator = observable.get_observable_func()(*arguments_observable[0])
+            qulacs_observable = observable.get_operator_func()(*arguments_observable[0])
 
             if isinstance(parameters, ParameterVectorElement):
                 parameters = [parameters]
@@ -325,7 +325,7 @@ class QulacsExecutor(ExecutorBase):
                 param_values = np.array(
                     [
                         outer_jacobian.T @ np.array(qulacs_circuit.backprop(o))
-                        for o in qulacs_operator
+                        for o in qulacs_observable
                     ]
                 )
             else:
@@ -333,12 +333,12 @@ class QulacsExecutor(ExecutorBase):
 
             values = np.real_if_close(param_values)
 
-            if not observable.multiple_observables:
+            if not observable.multiple_operators:
                 return values[0]
 
             return values
 
-        def evaluate_operator_gradient(
+        def evaluate_observable_gradient(
             circuit: QulacsCircuit,
             observable: QulacsOperator,
             arguments_circuit,
@@ -368,7 +368,7 @@ class QulacsExecutor(ExecutorBase):
             qulacs_circuit.update_quantum_state(state)
 
             operators = observable.get_operators_for_gradient(parameters)(*arguments_observable[0])
-            outer_jacobian = observable.get_gradient_outer_jacobian_observables_new(parameters)(
+            outer_jacobian = observable.get_gradient_outer_jacobian_operators_new(parameters)(
                 *arguments_observable
             )
 
@@ -385,7 +385,7 @@ class QulacsExecutor(ExecutorBase):
 
             values = np.real_if_close(param_obs_values)
 
-            if not observable.multiple_observables:
+            if not observable.multiple_operators:
                 return values[0]
 
             return values
@@ -393,12 +393,12 @@ class QulacsExecutor(ExecutorBase):
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?\]", "", s)
 
-        qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        qulacs_operators, multiple_operators = self._preprocess_operators(observable)
+        qulacs_circuits, _ = self._preprocess_circuits(circuit)
+        qulacs_observables, _ = self._preprocess_operators(observable)
 
         # TODO: multiple circuits and operators not implemented yet
         qulacs_circuit = qulacs_circuits[0]
-        qulacs_operator = qulacs_operators[0]
+        qulacs_observable = qulacs_observables[0]
 
         circuit_parameters = []
         multiple_circuit_parameters = []
@@ -419,16 +419,16 @@ class QulacsExecutor(ExecutorBase):
         observable_parameters = []
         multiple_observable_parameters = []
         observable_parameters_dimension = []
-        for param in qulacs_operator.parameter_names:
+        for param in qulacs_observable.parameter_names:
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
 
             param_values, multiple_params = adjust_features(
-                parameter_values[param], qulacs_operator.parameter_dimensions[param]
+                parameter_values[param], qulacs_observable.parameter_dimensions[param]
             )
             observable_parameters.append(param_values[0])
             multiple_observable_parameters.append(multiple_params)
-            observable_parameters_dimension.append(qulacs_operator.parameter_dimensions[param])
+            observable_parameters_dimension.append(qulacs_observable.parameter_dimensions[param])
 
         result_dict = {}
 
@@ -471,7 +471,7 @@ class QulacsExecutor(ExecutorBase):
 
             # get the parameter objects for the requested observable derivatives
             observable_vector = []
-            for param in qulacs_operator._free_parameters:
+            for param in qulacs_observable._free_parameters:
                 if isinstance(todo[0], str):
                     if todo[0] == "" or todo[0] == "expectation_value":
                         pass
@@ -506,16 +506,16 @@ class QulacsExecutor(ExecutorBase):
                 # compute gradient w.r.t. circuit parameters
                 result = evaluate_circuit_gradient(
                     qulacs_circuit,
-                    qulacs_operator,
+                    qulacs_observable,
                     tuple(circuit_parameters),
                     tuple(observable_parameters),
                     parameter_vector,
                 )
             elif len(parameter_vector) == 0 and len(observable_vector) > 0:
                 # compute gradient w.r.t. observable parameters
-                result = evaluate_operator_gradient(
+                result = evaluate_observable_gradient(
                     qulacs_circuit,
-                    qulacs_operator,
+                    qulacs_observable,
                     tuple(circuit_parameters),
                     tuple(observable_parameters),
                     observable_vector,

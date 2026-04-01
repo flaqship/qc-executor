@@ -52,7 +52,7 @@ executor = Executor.create("qiskit", shots=1024, seed=42)
 backends = Executor.available_backends()
 print(backends)  # ['qiskit', 'pennylane', 'qulacs', 'pauli_propagation']
 
-# Create circuit and operator
+# Create circuit and observable
 from executor import QuantumCircuit, QuantumOperator
 
 circuit = QuantumCircuit(2)

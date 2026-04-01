@@ -1,4 +1,4 @@
-"""Pauli propagation native observable datatype."""
+"""Pauli propagation native operator datatype."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class PauliPropagationOperator(QuantumOperatorBase):
-    """Backend-native observable representation for Pauli propagation."""
+    """Backend-native operator representation for Pauli propagation."""
 
     @overload
     @classmethod
@@ -169,7 +169,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
             parameters: Dict mapping parameter names to float values
 
         Returns:
-            New observable with parameters substituted
+            New operator with parameters substituted
         """
         result = self.copy()
 
@@ -247,7 +247,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         if not isinstance(other, PauliPropagationOperator):
             raise TypeError("compose currently supports PauliPropagationOperator only.")
         if self.num_qubits != other.num_qubits:
-            raise ValueError("Cannot compose observables with different qubit counts.")
+            raise ValueError("Cannot compose operators with different qubit counts.")
 
         composed_symmetry = self._compose_symmetry_with(other)
         composed_sum = PauliSum(self.num_qubits, symmetry=composed_symmetry)
@@ -345,7 +345,9 @@ class PauliPropagationOperator(QuantumOperatorBase):
         )
 
     def __str__(self):
-        return f"PauliPropagationOperator(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
+        return (
+            f"PauliPropagationOperator(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
+        )
 
     def __repr__(self):
         return self.__str__()

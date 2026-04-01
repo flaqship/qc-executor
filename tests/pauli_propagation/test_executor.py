@@ -225,9 +225,7 @@ class TestParameterNormalization:
         observable = PauliPropagationOperator(["X"], [1.0])
 
         # Test with list parameters
-        result = executor.expectation_value_derivatives(
-            circuit, observable, "theta", theta=[0.0]
-        )
+        result = executor.expectation_value_derivatives(circuit, observable, "theta", theta=[0.0])
         assert isinstance(result, (float, np.ndarray))
 
     def test_statevector_with_list_parameters(self):

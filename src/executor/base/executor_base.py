@@ -455,7 +455,7 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     # ========================================================================
-    # Public API – Circuit/Observable Handling
+    # Public API – Circuit/Operator Handling
     # ========================================================================
 
     def transpile_circuit(
@@ -514,7 +514,7 @@ class ExecutorBase(ABC):
         """
         Transpile the operator for execution on this executor's backend.
 
-        Subclasses may override :meth:`_transpile_observable` to apply
+        Subclasses may override :meth:`_transpile_operator` to apply
         backend-specific conversions (e.g., to wrapper types).  When a list
         of operators is provided, each operator is transpiled and cached individually.
 
@@ -528,15 +528,15 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Transpiling operator")
         if isinstance(operator, list):
-            return [self._transpile_operator_cached(op) for op in operator]
+            return [self._transpile_operator_cached(operator) for operator in operator]
         return self._transpile_operator_cached(operator)
 
     def _transpile_operator_cached(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """Transpile a single observable, consulting the result cache if enabled."""
         if self._result_cache is not None:
-            key = self._make_result_key("transpile_observable", operator)
+            key = self._make_result_key("transpile_operator", operator)
             if key in self._result_cache:
-                self._logger.debug("Result cache hit for transpile_observable")
+                self._logger.debug("Result cache hit for transpile_operator")
                 return self._result_cache[key]
             result = self._transpile_operator(operator)
             self._result_cache[key] = result
@@ -545,7 +545,7 @@ class ExecutorBase(ABC):
 
     @abstractmethod
     def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
-        """Abstract implementation of observable transpilation.
+        """Abstract implementation of operator transpilation.
 
         Subclasses override this to convert generic QuantumOperator to
         backend-native types. For backends supporting symmetry (e.g.,

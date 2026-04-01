@@ -312,49 +312,55 @@ class QulacsCircuit:
 
         self._symbol_tuple_circuit = tuple([_param_to_sympy(p) for p in circuit.parameters])
 
-        for op in circuit.data:
+        for gate_operation in circuit.data:
 
             # catch conditions of the gate
             # only c_if is supported, the other cases have been caught before
             if (
-                hasattr(op.operation, "condition")
-                and op.operation.condition is not None
-                or op.operation.name == "measure"
+                hasattr(gate_operation.operation, "condition")
+                and gate_operation.operation.condition is not None
+                or gate_operation.operation.name == "measure"
             ):
                 raise NotImplementedError(
                     "Conditions are not supported in sQUlearn's Qulacs backend."
                 )
 
             if (
-                op.operation.name not in qiskit_qulacs_gate_dict
-                and op.operation.name not in qiskit_qulacs_param_gate_dict
+                gate_operation.operation.name not in qiskit_qulacs_gate_dict
+                and gate_operation.operation.name not in qiskit_qulacs_param_gate_dict
             ):
                 raise NotImplementedError(
-                    f"Gate {op.operation.name} is unfortunatly not supported in sQUlearn's Qulacs backend."
+                    f"Gate {gate_operation.operation.name} is unfortunatly not supported in sQUlearn's Qulacs backend."
                 )
 
-            paramterized_gate = len(op.operation.params) >= 1
-            single_qubit_date = len(op.qubits) == 1
+            paramterized_gate = len(gate_operation.operation.params) >= 1
+            single_qubit_date = len(gate_operation.qubits) == 1
 
-            wires = [circuit.find_bit(op.qubits[i]).index for i in range(op.operation.num_qubits)]
+            wires = [
+                circuit.find_bit(gate_operation.qubits[i]).index
+                for i in range(gate_operation.operation.num_qubits)
+            ]
 
             if single_qubit_date:
                 if not paramterized_gate:
-                    self._add_single_qubit_gate(op.operation.name, wires)
+                    self._add_single_qubit_gate(gate_operation.operation.name, wires)
                 else:
                     self._add_parameterized_single_qubit_gate(
-                        op.operation.name, wires, op.operation.params[0]
+                        gate_operation.operation.name, wires, gate_operation.operation.params[0]
                     )
             else:
-                if len(op.qubits) > 2:
+                if len(gate_operation.qubits) > 2:
                     raise NotImplementedError(
                         "Only two qubit gates are supported in sQUlearn's Qulacs backend."
                     )
                 if not paramterized_gate:
-                    self._add_two_qubit_gate(op.operation.name, wires[0], wires[1])
+                    self._add_two_qubit_gate(gate_operation.operation.name, wires[0], wires[1])
                 else:
                     self._add_parameterized_two_qubit_gate(
-                        op.operation.name, wires[0], wires[1], op.operation.params[0]
+                        gate_operation.operation.name,
+                        wires[0],
+                        wires[1],
+                        gate_operation.operation.params[0],
                     )
 
     def get_circuit_func(self, gradient_param=None):
@@ -388,17 +394,23 @@ class QulacsCircuit:
                 circuit = QulacsQuantumCircuit(self.num_qubits)
 
             # Build the Qulacs circuit and evaluate the parametric terms
-            for i, op in enumerate(self._operation_list):
+            for i, qulacs_operation in enumerate(self._operation_list):
                 if self._func_list[i] is None:
-                    qiskit_qulacs_gate_dict[op](circuit, *self._qubit_list[i])
+                    qiskit_qulacs_gate_dict[qulacs_operation](circuit, *self._qubit_list[i])
                 elif isinstance(self._func_list[i], (float, int)):
-                    qiskit_qulacs_gate_dict[op](circuit, self._func_list[i], *self._qubit_list[i])
+                    qiskit_qulacs_gate_dict[qulacs_operation](
+                        circuit, self._func_list[i], *self._qubit_list[i]
+                    )
                 else:
                     value = self._func_list[i](*circ_param_list)
                     if parameterized_operations[i]:
-                        qiskit_qulacs_param_gate_dict[op](circuit, value, *self._qubit_list[i])
+                        qiskit_qulacs_param_gate_dict[qulacs_operation](
+                            circuit, value, *self._qubit_list[i]
+                        )
                     else:
-                        qiskit_qulacs_gate_dict[op](circuit, value, *self._qubit_list[i])
+                        qiskit_qulacs_gate_dict[qulacs_operation](
+                            circuit, value, *self._qubit_list[i]
+                        )
 
             return circuit
 

@@ -141,22 +141,22 @@ class TestDerivativesNative:
         circuit.ryy(0, 1, p[0] * x[0])
 
         observable = PauliPropagationOperator(
-            ["ZI", "IZ"], [sp.Symbol("pop[0]"), sp.Symbol("pop[1]")]
+            ["ZI", "IZ"], [sp.Symbol("p_obs[0]"), sp.Symbol("p_obs[1]")]
         )
 
         gradients = executor.expectation_value_derivatives(
             circuit,
             observable,
             "p",
-            "pop",
+            "p_obs",
             "x",
             x=[0.1],
             p=[0.3],
-            pop=[0.5, 0.6],
+            p_obs=[0.5, 0.6],
         )
 
         assert np.allclose(gradients["p"], np.array([-0.001799730012149741]), atol=1e-10)
-        assert np.allclose(gradients["pop"], np.array([0.0, 0.9995500337489875]), atol=1e-10)
+        assert np.allclose(gradients["p_obs"], np.array([0.0, 0.9995500337489875]), atol=1e-10)
         assert np.allclose(gradients["x"], np.array([-0.005399190036449223]), atol=1e-10)
 
 

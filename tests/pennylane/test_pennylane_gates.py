@@ -239,7 +239,7 @@ class TestPennyLaneGates:
 
     def test_pennylane_target_contains_gates(self):
         """Test that PennyLane target contains expected gate operations."""
-        operation_names = [op.name for op in pennylane_target.operations]
+        operation_names = [operator.name for operator in pennylane_target.operations]
 
         # Check a sample of important gates
         important_gates = ["h", "x", "cx", "rx", "ry", "rz"]

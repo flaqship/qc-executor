@@ -116,8 +116,8 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(log_level="INFO", log_file=log_file)
 
         qc = _build_circuit(1, [("h", [0])])
-        op = QuantumOperator(["Z"], [1.0])
-        executor.expectation_value(qc, op)
+        operator = QuantumOperator(["Z"], [1.0])
+        executor.expectation_value(qc, operator)
 
         with open(log_file) as f:
             content = f.read()
@@ -158,34 +158,34 @@ class TestQiskitExecutor:
         assert executor._max_cache_size is None
 
     def test_expectation_value_bell_state_z_basis(self):
-        """Test expectation value of Bell state with Z operators."""
+        """Test expectation value of Bell state with Z observables."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
+        operator = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op)
+        result = executor.expectation_value(qc, operator)
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 0.0, atol=1e-5)
 
     def test_expectation_value_bell_state_zz(self):
-        """Test expectation value of Bell state with ZZ operator."""
+        """Test expectation value of Bell state with ZZ observable."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op = QuantumOperator(["ZZ"], [1.0])
+        operator = QuantumOperator(["ZZ"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op)
+        result = executor.expectation_value(qc, operator)
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 1.0, atol=1e-5)
 
     def test_expectation_value_hadamard_x_basis(self):
-        """Test expectation value of Hadamard state with X operator."""
+        """Test expectation value of Hadamard state with X observable."""
         qc = _build_circuit(1, [("h", [0])])
-        op = QuantumOperator(["X"], [1.0])
+        operator = QuantumOperator(["X"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op)
+        result = executor.expectation_value(qc, operator)
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 1.0, atol=1e-5)
@@ -193,10 +193,10 @@ class TestQiskitExecutor:
     def test_expectation_value_y_basis(self):
         """Test expectation value in Y basis (H followed by S gate)."""
         qc = _build_circuit(1, [("h", [0]), ("s", [0])])
-        op = QuantumOperator(["Y"], [1.0])
+        operator = QuantumOperator(["Y"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op)
+        result = executor.expectation_value(qc, operator)
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 1.0, atol=1e-5)
@@ -205,10 +205,10 @@ class TestQiskitExecutor:
         """Test expectation value with parametric circuit (RX gate)."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, x=[np.pi])
+        result = executor.expectation_value(qc, operator, x=[np.pi])
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, -1.0, atol=1e-5)
@@ -217,34 +217,34 @@ class TestQiskitExecutor:
         """Test expectation value with multiple circuit parameters."""
         x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        op = QuantumOperator(["ZZ"], [1.0])
+        operator = QuantumOperator(["ZZ"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, x=[0.0, 0.0])
+        result = executor.expectation_value(qc, operator, x=[0.0, 0.0])
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 1.0, atol=1e-5)
 
     def test_expectation_value_with_observable_parameters(self):
         """Test expectation value with parametric observable."""
-        pop = Parameters("pop", 2)
+        p_obs = Parameters("p_obs", 2)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op = QuantumOperator(["ZI", "IZ"], [pop[0], pop[1]])
+        operator = QuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, pop=[0.5, 0.5])
+        result = executor.expectation_value(qc, operator, p_obs=[0.5, 0.5])
 
         assert isinstance(result, (float, np.ndarray))
 
     def test_expectation_value_with_circuit_and_observable_parameters(self):
         """Test expectation value with both circuit and observable parameters."""
         x = Parameters("x", 1)
-        pop = Parameters("pop", 1)
+        p_obs = Parameters("p_obs", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [pop[0]])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, x=[0.0], pop=[1.0])
+        result = executor.expectation_value(qc, operator, x=[0.0], p_obs=[1.0])
 
         assert isinstance(result, (float, np.ndarray))
         assert np.isclose(result, 1.0, atol=1e-5)
@@ -252,10 +252,10 @@ class TestQiskitExecutor:
     def test_expectation_value_three_qubit_chain(self):
         """Test expectation value with three-qubit GHZ-type state."""
         qc = _build_circuit(3, [("h", [0]), ("cx", [0, 1]), ("cx", [1, 2])])
-        op = QuantumOperator(["ZZZ"], [1.0])
+        operator = QuantumOperator(["ZZZ"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op)
+        result = executor.expectation_value(qc, operator)
 
         assert isinstance(result, (float, np.ndarray))
 
@@ -389,10 +389,10 @@ class TestQiskitExecutor:
         """Test derivative with respect to a single parameter."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value_derivatives(qc, op, "x", x=[0.0])
+        result = executor.expectation_value_derivatives(qc, operator, "x", x=[0.0])
 
         assert isinstance(result, (float, np.ndarray))
 
@@ -400,10 +400,10 @@ class TestQiskitExecutor:
         """Test derivative with respect to indexed parameter (e.g., x[0])."""
         x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        op = QuantumOperator(["ZI"], [1.0])
+        operator = QuantumOperator(["ZI"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value_derivatives(qc, op, "x[0]", x=[0.0, 0.0])
+        result = executor.expectation_value_derivatives(qc, operator, "x[0]", x=[0.0, 0.0])
 
         assert isinstance(result, (float, np.ndarray))
 
@@ -411,10 +411,12 @@ class TestQiskitExecutor:
         """Test requesting multiple derivatives (expectation value and parameter)."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value_derivatives(qc, op, "expectation_value", "x", x=[0.0])
+        result = executor.expectation_value_derivatives(
+            qc, operator, "expectation_value", "x", x=[0.0]
+        )
 
         assert isinstance(result, dict)
         assert "expectation_value" in result or "x" in result
@@ -423,10 +425,10 @@ class TestQiskitExecutor:
         """Test derivative computation with known analytical result."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        derivative = executor.expectation_value_derivatives(qc, op, "x", x=[0.0])
+        derivative = executor.expectation_value_derivatives(qc, operator, "x", x=[0.0])
 
         assert isinstance(derivative, (float, np.ndarray))
         # Derivative should be close to 0 at x=0
@@ -463,11 +465,11 @@ class TestStandaloneParameterSupport:
         """expectation_value works with a standalone Parameter (no .vector)."""
         theta = Parameter("theta")
         qc = _build_circuit(1, [("ry", [0, theta])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
         # RY(0)|0> = |0>, <Z> = 1
-        result = executor.expectation_value(qc, op, theta=0.0)
+        result = executor.expectation_value(qc, operator, theta=0.0)
 
         assert isinstance(result, (float, np.floating, np.ndarray))
         assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
@@ -476,10 +478,10 @@ class TestStandaloneParameterSupport:
         """RY(pi)|0> = |1>, <Z> = -1 with a standalone Parameter."""
         theta = Parameter("theta")
         qc = _build_circuit(1, [("ry", [0, theta])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, theta=np.pi)
+        result = executor.expectation_value(qc, operator, theta=np.pi)
 
         assert np.isclose(float(np.real(result)), -1.0, atol=1e-5)
 
@@ -514,11 +516,11 @@ class TestStandaloneParameterSupport:
         alpha = Parameter("alpha")
         beta = Parameter("beta")
         qc = _build_circuit(2, [("ry", [0, alpha]), ("ry", [1, beta])])
-        op = QuantumOperator(["ZZ"], [1.0])
+        operator = QuantumOperator(["ZZ"], [1.0])
 
         executor = QiskitExecutor()
         # RY(0)⊗RY(0)|00> = |00>, <ZZ> = 1
-        result = executor.expectation_value(qc, op, alpha=0.0, beta=0.0)
+        result = executor.expectation_value(qc, operator, alpha=0.0, beta=0.0)
 
         assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
 
@@ -530,10 +532,10 @@ class TestParameterVectorSupport:
         """expectation_value works with a ParameterVector (baseline check)."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, x=[0.0])
+        result = executor.expectation_value(qc, operator, x=[0.0])
 
         assert np.isclose(result, 1.0, atol=1e-5)
 
@@ -563,11 +565,11 @@ class TestParameterVectorSupport:
         """ParameterVector elements are bound by index correctly."""
         x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        op = QuantumOperator(["IZ"], [1.0])
+        operator = QuantumOperator(["IZ"], [1.0])
 
         executor = QiskitExecutor()
         # x[0]=pi → qubit 0 flipped → <IZ> = -1; x[1]=0 → qubit 1 unchanged
-        result = executor.expectation_value(qc, op, x=[np.pi, 0.0])
+        result = executor.expectation_value(qc, operator, x=[np.pi, 0.0])
 
         assert np.isclose(result, -1.0, atol=1e-5)
 
@@ -599,10 +601,10 @@ class TestMixedParameterEdgeCases:
         """A scalar (non-list) value can be passed for a standalone Parameter."""
         theta = Parameter("theta")
         qc = _build_circuit(1, [("ry", [0, theta])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, theta=0.0)
+        result = executor.expectation_value(qc, operator, theta=0.0)
 
         assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
 
@@ -610,10 +612,10 @@ class TestMixedParameterEdgeCases:
         """A single-element list is also accepted for a standalone Parameter."""
         theta = Parameter("theta")
         qc = _build_circuit(1, [("ry", [0, theta])])
-        op = QuantumOperator(["Z"], [1.0])
+        operator = QuantumOperator(["Z"], [1.0])
 
         executor = QiskitExecutor()
-        result = executor.expectation_value(qc, op, theta=[0.0])
+        result = executor.expectation_value(qc, operator, theta=[0.0])
 
         assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
 

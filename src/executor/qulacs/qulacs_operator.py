@@ -13,39 +13,39 @@ from ..base import QuantumOperatorBase
 from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 
 
-class QulacsObservable:
+class QulacsOperator:
 
     @classmethod
     def from_quantum_operator(
         cls, operator: QuantumOperatorBase | List[QuantumOperatorBase]
-    ) -> "QulacsObservable":
-        """Create a Qulacs native observable from generic operator(s)."""
+    ) -> "QulacsOperator":
+        """Create a Qulacs native operator from generic operator(s)."""
         return cls(operator)
 
     def __init__(
         self,
-        observable: QuantumOperatorBase | List[QuantumOperatorBase],
+        operator: QuantumOperatorBase | List[QuantumOperatorBase],
     ) -> None:
 
-        if isinstance(observable, QuantumOperatorBase):
-            self._qiskit_observable = observable._qiskit_operator
-            self._num_qubits = self._qiskit_observable.num_qubits
-        elif isinstance(observable, list):
-            if all([isinstance(obs, QuantumOperatorBase) for obs in observable]):
-                self._qiskit_observable = [obs._qiskit_operator for obs in observable]
+        if isinstance(operator, QuantumOperatorBase):
+            self._qiskit_operator = operator._qiskit_operator
+            self._num_qubits = self._qiskit_operator.num_qubits
+        elif isinstance(operator, list):
+            if all([isinstance(obs, QuantumOperatorBase) for obs in operator]):
+                self._qiskit_operator = [obs._qiskit_operator for obs in operator]
             else:
-                raise ValueError("Unsupported observable type")
-            self._num_qubits = self._qiskit_observable[0].num_qubits
+                raise ValueError("Unsupported operator type")
+            self._num_qubits = self._qiskit_operator[0].num_qubits
         else:
-            raise ValueError("Unsupported observable type")
+            raise ValueError("Unsupported operator type")
 
         self.new_operators = []
         self.new_operators_coeff = []
         self.new_operators_coeff_grad = []
         self.new_operators_used_parameters = []
-        self._qulacs_obs_parameters = {}
+        self._qulacs_op_parameters = {}
         self._free_parameters = set()
-        self.build_observable_instructions(self._qiskit_observable)
+        self.build_operator_instructions(self._qiskit_operator)
 
         self._outer_jacobi_obs_cache = {}
 
@@ -56,56 +56,56 @@ class QulacsObservable:
 
     @property
     def parameter_names(self) -> list:
-        """List of observable parameter names"""
-        return self._qulacs_obs_parameters.keys()
+        """List of operator parameter names"""
+        return self._qulacs_op_parameters.keys()
 
     @property
     def parameter_dimensions(self) -> dict:
         """Dictionary with the dimension of each circuit parameter"""
-        return self._qulacs_obs_parameters
+        return self._qulacs_op_parameters
 
     @property
     def hash(self) -> str:
-        """Hashable object of the circuit and observable for caching"""
-        return str(self._qiskit_observable)
+        """Hashable object of the circuit and operator for caching"""
+        return str(self._qiskit_operator)
 
-    def build_observable_instructions(self, observables: List[SparsePauliOp] | SparsePauliOp):
+    def build_operator_instructions(self, operator: List[SparsePauliOp] | SparsePauliOp):
         """
-        Function to build the instructions for the Qulacs observable from the Qiskit observable.
+        Function to build the instructions for the Qulacs operator from the Qiskit operator.
 
         This functions converts the Qiskit SparsePauli and parameter expressions to Qulacs
         compatible Pauli words and functions.
 
         Args:
-            observable (List[SparsePauliOp] | SparsePauliOp): Qiskit observable to convert
+            operator (List[SparsePauliOp] | SparsePauliOp): Qiskit operator to convert
                                                                     to Qulacs
 
         Returns:
-            Tuple with lists of Qulacs observable parameter functions, Qulacs Pauli words,
-            Qulacs observable parameters and Qulacs observable parameter dimensions
+            Tuple with lists of Qulacs operator parameter functions, Qulacs Pauli words,
+            Qulacs operator parameters and Qulacs operator parameter dimensions
         """
         #        if observables == None:
         #            return None, None, None
 
-        self.multiple_observables = False
-        if isinstance(observables, SparsePauliOp):
-            observables = [observables]
-        elif isinstance(observables, list):
-            self.multiple_observables = True
+        self.multiple_operators = False
+        if isinstance(operator, SparsePauliOp):
+            operator = [operator]
+        elif isinstance(operator, list):
+            self.multiple_operators = True
         else:
-            raise ValueError("Unsupported observable type")
+            raise ValueError("Unsupported operator type")
 
         self._symbol_tuple_obs = tuple()
 
-        self._qulacs_obs_parameters = {}
+        self._qulacs_op_parameters = {}
 
-        for observable in observables:
-            for param in observable.parameters:
+        for op in operator:
+            for param in op.parameters:
                 name = param.vector.name
-                if name not in self._qulacs_obs_parameters:
-                    self._qulacs_obs_parameters[name] = 1
+                if name not in self._qulacs_op_parameters:
+                    self._qulacs_op_parameters[name] = 1
                 else:
-                    self._qulacs_obs_parameters[name] += 1
+                    self._qulacs_op_parameters[name] += 1
 
         def sort_parameters_after_index(parameter_vector):
             index_list = [p.index for p in parameter_vector]
@@ -115,8 +115,8 @@ class QulacsObservable:
         self._symbol_tuple_obs = tuple(
             sum(
                 [
-                    [_param_to_sympy(p) for p in sort_parameters_after_index(obs.parameters)]
-                    for obs in observables
+                    [_param_to_sympy(p) for p in sort_parameters_after_index(op.parameters)]
+                    for op in operator
                 ],
                 [],
             )
@@ -127,10 +127,10 @@ class QulacsObservable:
         self.new_operators_coeff = []
         self.new_operators_coeff_grad = []
         self.new_operators_used_parameters = []
-        for observable in observables:
+        for op in operator:
 
-            paulis = [str(p) for p in observable.paulis]
-            coeff = list(np.real_if_close([c for c in observable.coeffs]))
+            paulis = [str(p) for p in op.paulis]
+            coeff = list(np.real_if_close([c for c in op.coeffs]))
 
             new_operator = []
             new_operators_coeff = []
@@ -190,23 +190,23 @@ class QulacsObservable:
             self.new_operators_coeff_grad.append(new_operators_coeff_grad)
             self.new_operators_used_parameters.append(new_operators_used_parameters)
 
-    def get_observable_func(self):
-        """Returns the Qulacs observable function for the observable depending on parameters."""
+    def get_operator_func(self):
+        """Returns the Qulacs operator function for the operator depending on parameters."""
 
-        def observable_func(*args):
+        def operator_func(*args):
 
             list_operators = []
-            for i, observable in enumerate(self.new_operators):
-                operator = GeneralQuantumOperator(self.num_qubits)
-                for j, op in enumerate(observable):
-                    operator.add_operator(self.new_operators_coeff[i][j](*args), op)
-                list_operators.append(operator)
+            for i, operator in enumerate(self.new_operators):
+                new_operator = GeneralQuantumOperator(self.num_qubits)
+                for j, op in enumerate(operator):
+                    new_operator.add_operator(self.new_operators_coeff[i][j](*args), op)
+                list_operators.append(new_operator)
 
             return list_operators
 
-        return observable_func
+        return operator_func
 
-    def get_gradient_outer_jacobian_observables_new(
+    def get_gradient_outer_jacobian_operators_new(
         self,
         gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
     ):
@@ -234,8 +234,8 @@ class QulacsObservable:
 
         def outer_jacobian(*args):
 
-            # Collects the args values connected to the observable parameters
-            obs_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
+            # Collects the args values connected to the operator parameters
+            op_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
 
             outer_jacobians = []
 
@@ -255,7 +255,7 @@ class QulacsObservable:
                     for j, param in enumerate(self.new_operators_used_parameters[iop][operation]):
                         if param in gradient_parameters:
                             outer_jacobian[i, gradient_param_dict[param]] = (
-                                self.new_operators_coeff_grad[iop][operation][j](*obs_param_list)
+                                self.new_operators_coeff_grad[iop][operation][j](*op_param_list)
                             )
                 outer_jacobians.append(outer_jacobian)
             return outer_jacobians
@@ -268,20 +268,20 @@ class QulacsObservable:
         self,
         gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
     ):
-        """Returns the Qulacs observable function for the observable depending on parameters."""
+        """Returns the Qulacs operator function for the operators depending on parameters."""
 
         if isinstance(gradient_parameters, ParameterVectorElement):
             gradient_parameters = [gradient_parameters]
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
 
-        def observable_func(*args):
+        def operator_func(*args):
 
             list_operators = []
-            for iop, observable in enumerate(self.new_operators):
+            for iop, operator in enumerate(self.new_operators):
 
                 relevant_operations = [
                     i
-                    for i in range(len(observable))
+                    for i in range(len(operator))
                     if any(
                         param in gradient_parameters
                         for param in self.new_operators_used_parameters[iop][i]
@@ -290,9 +290,9 @@ class QulacsObservable:
 
                 list_paulis = []
                 for op in relevant_operations:
-                    list_paulis.append(PauliOperator(observable[op], 1.0))
+                    list_paulis.append(PauliOperator(operator[op], 1.0))
                 list_operators.append(list_paulis)
 
             return list_operators
 
-        return observable_func
+        return operator_func

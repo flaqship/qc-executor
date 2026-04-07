@@ -56,12 +56,12 @@ Use Google-style Python docstrings across the project.
 Example:
 
 ```python
-def expectation_value(circuit, operator, **parameters):
-   """Compute the expectation value for a circuit/operator pair.
+def expectation_value(circuit, observable, **parameters):
+   """Compute the expectation value for a circuit/observable pair.
 
    Args:
       circuit: Quantum circuit instance.
-      operator: Quantum operator instance.
+      observable: Quantum operator instance.
       **parameters: Parameter values used for evaluation.
 
    Returns:
@@ -72,7 +72,7 @@ def expectation_value(circuit, operator, **parameters):
 ## Adding a New Backend
 
 1. Create a new subpackage under `src/executor/<backend>/`
-2. Implement `<Backend>Circuit`, `<Backend>Observable`, and `<Backend>Executor`
+2. Implement `<Backend>Circuit`, `<Backend>Operator`, and `<Backend>Executor`
    by subclassing the base classes in `src/executor/base/`
 3. Add tests under `tests/<backend>/`
 4. Add an example notebook under `examples/<backend>/`

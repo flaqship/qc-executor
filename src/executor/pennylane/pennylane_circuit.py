@@ -193,16 +193,19 @@ class PennyLaneCircuit:
 
         printer, modules = _get_sympy_interface()
 
-        for op in circuit.data:
+        for gate_operation in circuit.data:
 
             # catch conditions of the gate
             # only c_if is supported, the other cases have been caught before
-            if not hasattr(op.operation, "condition") or op.operation.condition is None:
+            if (
+                not hasattr(gate_operation.operation, "condition")
+                or gate_operation.operation.condition is None
+            ):
                 # No condition (usually the case)
                 self._pennylane_conditions.append(None)
             else:
-                classical_bits = op.operation.condition[0]
-                val = op.operation.condition[1]
+                classical_bits = gate_operation.operation.condition[0]
+                val = gate_operation.operation.condition[1]
                 if isinstance(classical_bits, Clbit):
                     i = circuit.find_bit(classical_bits).index
                 else:
@@ -212,9 +215,9 @@ class PennyLaneCircuit:
                 self._pennylane_conditions.append((i, val))
 
             param_tuple = None
-            if len(op.operation.params) >= 1:
+            if len(gate_operation.operation.params) >= 1:
                 param_tuple = ()
-                for param in op.operation.params:
+                for param in gate_operation.operation.params:
                     if isinstance(param, ParameterExpression):
                         if _param_is_constant(param):
                             param = _param_to_float(param)
@@ -230,27 +233,32 @@ class PennyLaneCircuit:
 
             self._pennylane_gates_param_function.append(param_tuple)
 
-            if op.operation.name == "measure":
+            if gate_operation.operation.name == "measure":
                 # Capture special case of measurement, that is stored in classical bits
                 # In the pennylane implementation, classical bits are introduced as an array
                 wires = [
-                    circuit.find_bit(op.qubits[i]).index for i in range(op.operation.num_qubits)
+                    circuit.find_bit(gate_operation.qubits[i]).index
+                    for i in range(gate_operation.operation.num_qubits)
                 ]
                 clbits = [
-                    circuit.find_bit(op.clbits[i]).index for i in range(op.operation.num_clbits)
+                    circuit.find_bit(gate_operation.clbits[i]).index
+                    for i in range(gate_operation.operation.num_clbits)
                 ]
                 self._pennylane_gates.append(("measure", clbits))
                 self._pennylane_gates_wires.append(wires)
             else:
                 # All other gates
-                if op.operation.name not in qiskit_pennylane_gate_dict:
+                if gate_operation.operation.name not in qiskit_pennylane_gate_dict:
                     raise NotImplementedError(
-                        f"Gate {op.operation.name} is unfortunatly not supported in sQUlearn's PennyLane backend."
+                        f"Gate {gate_operation.operation.name} is unfortunatly not supported in sQUlearn's PennyLane backend."
                     )
 
-                self._pennylane_gates.append(qiskit_pennylane_gate_dict[op.operation.name])
+                self._pennylane_gates.append(
+                    qiskit_pennylane_gate_dict[gate_operation.operation.name]
+                )
                 wires = [
-                    circuit.find_bit(op.qubits[i]).index for i in range(op.operation.num_qubits)
+                    circuit.find_bit(gate_operation.qubits[i]).index
+                    for i in range(gate_operation.operation.num_qubits)
                 ]
                 self._pennylane_gates_wires.append(wires)
 
@@ -277,14 +285,14 @@ class PennyLaneCircuit:
             )
 
             # Loop through all penny lane gates
-            for i, op in enumerate(self._pennylane_gates):
+            for i, circuit_gate in enumerate(self._pennylane_gates):
 
-                if isinstance(op, tuple):
+                if isinstance(circuit_gate, tuple):
                     # Special case for measurement
                     # add measurement to the circuit and store the result in the measurements array
-                    if op[0] == "measure":
+                    if circuit_gate[0] == "measure":
                         for j, wire in enumerate(self._pennylane_gates_wires[i]):
-                            measurements[op[1][j]] = qml.measure(wire)
+                            measurements[circuit_gate[1][j]] = qml.measure(wire)
                 else:
                     # Evaluate the (non-linear) parameter expression of the gate
                     if self._pennylane_gates_param_function[i] != None:
@@ -313,10 +321,12 @@ class PennyLaneCircuit:
                             if isinstance(val, int):
                                 # Conditional values are already integers
                                 if val == self._pennylane_conditions[i][1]:
-                                    op(*evaluated_param, wires=self._pennylane_gates_wires[i])
+                                    circuit_gate(
+                                        *evaluated_param, wires=self._pennylane_gates_wires[i]
+                                    )
                             else:
                                 # Otherwise, pennylane condition
-                                qml.cond(val == self._pennylane_conditions[i][1], op)(
+                                qml.cond(val == self._pennylane_conditions[i][1], circuit_gate)(
                                     *evaluated_param, wires=self._pennylane_gates_wires[i]
                                 )
                         else:
@@ -324,16 +334,16 @@ class PennyLaneCircuit:
                             if isinstance(val, int):
                                 # Conditional values are already integers
                                 if val == self._pennylane_conditions[i][1]:
-                                    op(wires=self._pennylane_gates_wires[i])
+                                    circuit_gate(wires=self._pennylane_gates_wires[i])
                             else:
                                 # Otherwise, pennylane condition
-                                qml.cond(val == self._pennylane_conditions[i][1], op)(
+                                qml.cond(val == self._pennylane_conditions[i][1], circuit_gate)(
                                     wires=self._pennylane_gates_wires[i]
                                 )
                     else:
                         if evaluated_param is not None:
-                            op(*evaluated_param, wires=self._pennylane_gates_wires[i])
+                            circuit_gate(*evaluated_param, wires=self._pennylane_gates_wires[i])
                         else:
-                            op(wires=self._pennylane_gates_wires[i])
+                            circuit_gate(wires=self._pennylane_gates_wires[i])
 
         return pennylane_circuit

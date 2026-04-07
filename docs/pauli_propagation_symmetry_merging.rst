@@ -40,14 +40,14 @@ Basic Usage
    qc.cx(1, 2)
    qc.cx(2, 3)
 
-   operator = SparsePauliOp.from_list([
+   observable = SparsePauliOp.from_list([
        ("ZIII", 1.0),
        ("IZII", 1.0),
        ("IIZI", 1.0),
        ("IIIZ", 1.0),
    ])
 
-   result = executor.expectation_value(qc, operator)
+   result = executor.expectation_value(qc, observable)
 
 Direct Integration with PauliSum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -238,4 +238,4 @@ Useful entry points:
 - ``executor.pauli_propagation.symmetry`` for the symmetry strategy classes.
 - ``executor.pauli_propagation.utils.pauli_types`` for ``PauliSum`` and ``PauliString``.
 - ``executor.pauli_propagation.utils.propagation`` for low-level propagation helpers.
-- ``executor.pauli_propagation`` for the public executor, circuit, and observable types.
+- ``executor.pauli_propagation`` for the public executor, circuit, and operator types.

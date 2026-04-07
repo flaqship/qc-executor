@@ -13,11 +13,11 @@ class MockExecutor(ExecutorBase):
         """Initialize mock executor."""
         super().__init__(shots=shots, **kwargs)
 
-    def _expectation_value(self, circuit, operator, parameters=None):
+    def _expectation_value(self, circuit, observable, parameters=None):
         """Mock implementation."""
         return 0.5
 
-    def _expectation_value_derivatives(self, circuit, operator, parameters=None):
+    def _expectation_value_derivatives(self, circuit, observable, parameters=None):
         """Mock implementation."""
         import numpy as np
 
@@ -37,9 +37,9 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return circuit
 
-    def _transpile_observable(self, observable):
+    def _transpile_operator(self, operator):
         """Mock implementation."""
-        return observable
+        return operator
 
     @classmethod
     def get_accepted_backend_types(cls) -> list[type]:
@@ -64,10 +64,10 @@ class TestExecutorFactory:
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
 
-            def _expectation_value(self, circuit, operator, parameters=None):
+            def _expectation_value(self, circuit, observable, parameters=None):
                 return 0.0
 
-            def _expectation_value_derivatives(self, circuit, operator, parameters=None):
+            def _expectation_value_derivatives(self, circuit, observable, parameters=None):
                 import numpy as np
 
                 return np.array([0.0])

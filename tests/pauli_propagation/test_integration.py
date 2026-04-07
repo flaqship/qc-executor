@@ -10,7 +10,7 @@ from executor.parameters import Parameters
 from executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
-    PauliPropagationObservable,
+    PauliPropagationOperator,
 )
 from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
@@ -25,7 +25,7 @@ class TestImportPaths:
 
     def test_import_native_types(self):
         assert PauliPropagationCircuit is not None
-        assert PauliPropagationObservable is not None
+        assert PauliPropagationOperator is not None
 
 
 class TestInheritance:
@@ -54,9 +54,9 @@ class TestNativeTypes:
         circuit.h(0)
         circuit.cx(0, 1)
 
-        operator = PauliPropagationObservable(["ZZ"], [1.0])
+        observable = PauliPropagationOperator(["ZZ"], [1.0])
 
-        result = executor.expectation_value(circuit, operator)
+        result = executor.expectation_value(circuit, observable)
         assert np.isclose(result, 1.0, atol=1e-10)
 
     def test_parametric_expectation_value(self):
@@ -65,22 +65,22 @@ class TestNativeTypes:
         p = Parameters("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, p[0])
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
-        result0 = executor.expectation_value(circuit, operator, **{"theta[0]": 0.0})
-        result_pi = executor.expectation_value(circuit, operator, **{"theta[0]": np.pi})
+        result0 = executor.expectation_value(circuit, observable, **{"theta[0]": 0.0})
+        result_pi = executor.expectation_value(circuit, observable, **{"theta[0]": np.pi})
 
         assert np.isclose(result0, 1.0, atol=1e-10)
         assert np.isclose(result_pi, -1.0, atol=1e-10)
 
-    def test_batch_operators(self):
+    def test_batch_observables(self):
         executor = PauliPropagationExecutor()
 
         circuit = PauliPropagationCircuit(1)
         circuit.h(0)
 
-        op_x = PauliPropagationObservable(["X"], [1.0])
-        op_z = PauliPropagationObservable(["Z"], [1.0])
+        op_x = PauliPropagationOperator(["X"], [1.0])
+        op_z = PauliPropagationOperator(["Z"], [1.0])
 
         results = executor.expectation_value(circuit, [op_x, op_z])
         assert len(results) == 2
@@ -114,19 +114,19 @@ class TestDerivativesNative:
         p = Parameters("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, p[0])
-        operator = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         theta_val = np.pi / 4
         grad = executor.expectation_value_derivatives(
             circuit,
-            operator,
+            observable,
             "theta[0]",
             **{"theta[0]": theta_val},
         )
 
         eps = 1e-5
-        f_plus = executor.expectation_value(circuit, operator, **{"theta[0]": theta_val + eps})
-        f_minus = executor.expectation_value(circuit, operator, **{"theta[0]": theta_val - eps})
+        f_plus = executor.expectation_value(circuit, observable, **{"theta[0]": theta_val + eps})
+        f_minus = executor.expectation_value(circuit, observable, **{"theta[0]": theta_val - eps})
         fd_grad = (f_plus - f_minus) / (2 * eps)
 
         assert np.isclose(grad, fd_grad, atol=1e-6)
@@ -140,23 +140,23 @@ class TestDerivativesNative:
         circuit.h(0)
         circuit.ryy(0, 1, p[0] * x[0])
 
-        operator = PauliPropagationObservable(
-            ["ZI", "IZ"], [sp.Symbol("pop[0]"), sp.Symbol("pop[1]")]
+        observable = PauliPropagationOperator(
+            ["ZI", "IZ"], [sp.Symbol("p_obs[0]"), sp.Symbol("p_obs[1]")]
         )
 
         gradients = executor.expectation_value_derivatives(
             circuit,
-            operator,
+            observable,
             "p",
-            "pop",
+            "p_obs",
             "x",
             x=[0.1],
             p=[0.3],
-            pop=[0.5, 0.6],
+            p_obs=[0.5, 0.6],
         )
 
         assert np.allclose(gradients["p"], np.array([-0.001799730012149741]), atol=1e-10)
-        assert np.allclose(gradients["pop"], np.array([0.0, 0.9995500337489875]), atol=1e-10)
+        assert np.allclose(gradients["p_obs"], np.array([0.0, 0.9995500337489875]), atol=1e-10)
         assert np.allclose(gradients["x"], np.array([-0.005399190036449223]), atol=1e-10)
 
 
@@ -171,7 +171,7 @@ class TestFactoryIntegration:
     def test_factory_executor_works(self):
         executor = Executor.create("pauli_propagation")
         circuit = PauliPropagationCircuit(1)
-        observable = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         value = executor.expectation_value(circuit, observable)
         assert np.isclose(value, 1.0, atol=1e-10)
@@ -180,7 +180,7 @@ class TestFactoryIntegration:
 class TestStrictInputContract:
     def test_reject_legacy_quantumcircuit(self):
         executor = PauliPropagationExecutor()
-        observable = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
             from executor import QuantumCircuit
@@ -192,7 +192,7 @@ class TestStrictInputContract:
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
 
-        with pytest.raises(TypeError, match="PauliPropagationObservable"):
+        with pytest.raises(TypeError, match="PauliPropagationOperator"):
             from executor import QuantumOperator
 
             legacy = QuantumOperator(["Z"], [1.0])

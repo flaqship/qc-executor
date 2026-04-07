@@ -296,11 +296,11 @@ class OpTreeOperator(OpTreeLeafBase):
 
 class OpTreeExpectationValue(OpTreeLeafBase):
     """
-    Leaf of the OpTree that represents an expectation value of a circuit and an operator.
+    Leaf of the OpTree that represents an expectation value of a circuit and an observable.
 
     Args:
         circuit (OpTreeLeafCircuit | QuantumCircuit): The circuit in the expectation value.
-        operator (OpTreeLeafOperator | SparsePauliOp): The operator in the expectation value.
+        operator (OpTreeLeafOperator | SparsePauliOp): The observable in the expectation value.
     """
 
     def __init__(

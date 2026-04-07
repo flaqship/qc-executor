@@ -22,7 +22,7 @@ from executor.qiskit.optree.optree import (
     OpTreeOperator,
 )
 from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_observable import QiskitObservable
+from executor.qiskit.qiskit_operator import QiskitOperator
 from executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
@@ -401,7 +401,7 @@ class QiskitExecutor(ExecutorBase):
     to guarantee that sessions are properly closed::
 
         with QiskitExecutor(backend=ibm_backend, execution_mode="session") as exe:
-            result = exe.expectation_value(circuit, operator, theta=params)
+            result = exe.expectation_value(circuit, observable, theta=params)
 
     Args:
         backend: Backend to use for execution.  Accepts:
@@ -426,7 +426,7 @@ class QiskitExecutor(ExecutorBase):
     """
 
     _native_circuit_class = QiskitCircuit
-    _native_observable_class = QiskitObservable
+    _native_operator_class = QiskitOperator
 
     def __init__(
         self,
@@ -965,30 +965,30 @@ class QiskitExecutor(ExecutorBase):
 
             return transpile(circuit, backend=self._backend)
 
-    def _isa_apply_layout_to_operator(self, operator, circuit):
-        """Apply the transpiled circuit's layout to an operator.
+    def _isa_apply_layout_to_observable(self, observable, circuit):
+        """Apply the transpiled circuit's layout to an observable.
 
         After ISA transpilation the virtual-to-physical qubit mapping may
-        have changed. ``SparsePauliOp.apply_layout`` re-orders the operator
+        have changed. ``SparsePauliOp.apply_layout`` re-orders the observable
         to match the new mapping.
         """
         from qiskit.quantum_info import SparsePauliOp
 
-        if not isinstance(operator, SparsePauliOp):
-            return operator
+        if not isinstance(observable, SparsePauliOp):
+            return observable
         layout = getattr(circuit, "layout", None)
         if layout is None:
-            return operator
+            return observable
         try:
-            return operator.apply_layout(layout)
+            return observable.apply_layout(layout)
         except (ValueError, TypeError):
             logger.warning(
-                "Failed to apply layout to operator; using original operator. "
-                "This may lead to incorrect expectation values if the operator "
+                "Failed to apply layout to observable; using original observable. "
+                "This may lead to incorrect expectation values if the observable "
                 "does not match the transpiled circuit's qubit mapping.",
                 exc_info=True,
             )
-            return operator
+            return observable
 
     def _convert_to_optree(
         self,
@@ -1039,26 +1039,27 @@ class QiskitExecutor(ExecutorBase):
             if uses_ibm_backend:
                 if len(ops) == len(transpiled_circuits):
                     ops = [
-                        self._isa_apply_layout_to_operator(o, c)
+                        self._isa_apply_layout_to_observable(o, c)
                         for o, c in zip(ops, transpiled_circuits)
                     ]
                 else:
                     ops = [
-                        self._isa_apply_layout_to_operator(o, transpiled_circuits[0]) for o in ops
+                        self._isa_apply_layout_to_observable(o, transpiled_circuits[0])
+                        for o in ops
                     ]
             operator_tree = OpTreeList([OpTreeOperator(o) for o in ops])
         else:
-            op = _to_operator(operator)
+            operator = _to_operator(operator)
             if uses_ibm_backend:
-                op = self._isa_apply_layout_to_operator(op, transpiled_circuits[0])
-            operator_tree = OpTreeOperator(op)
+                operator = self._isa_apply_layout_to_observable(operator, transpiled_circuits[0])
+            operator_tree = OpTreeOperator(operator)
 
         return circuit_tree, operator_tree
 
     def _prepare_parameter_dicts(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
+        observable: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
         **parameters,
     ) -> Tuple[dict, dict]:
         """
@@ -1066,11 +1067,11 @@ class QiskitExecutor(ExecutorBase):
 
         Args:
             circuit: The quantum circuit(s)
-            operator: The quantum operator(s)
+            observable: The quantum observable(s)
             **parameters: Keyword arguments with parameter values
 
         Returns:
-            Tuple of (circuit_param_dict, operator_param_dict)
+            Tuple of (circuit_param_dict, observable_param_dict)
         """
 
         # helper to get the underlying qiskit objects
@@ -1086,9 +1087,9 @@ class QiskitExecutor(ExecutorBase):
                 return [_unwrap(o) for o in obj_or_list]
             return [_unwrap(obj_or_list)]
 
-        # Collect all circuits and operators
+        # Collect all circuits and observables
         circuits = _collect_objects(circuit)
-        operators = _collect_objects(operator) if operator is not None else []
+        observables = _collect_objects(observable) if observable is not None else []
 
         def _build_param_dict(qiskit_objects):
             param_dict = {}
@@ -1123,8 +1124,8 @@ class QiskitExecutor(ExecutorBase):
             return param_dict
 
         circuit_dict = _build_param_dict(circuits)
-        operator_dict = _build_param_dict(operators) if operators else {}
-        return circuit_dict, operator_dict
+        observable_dict = _build_param_dict(observables) if observables else {}
+        return circuit_dict, observable_dict
 
     def _extract_counts(self, pub_result, n_qubits=None):
         """Extract measurement counts from a primitive result object.
@@ -1183,7 +1184,7 @@ class QiskitExecutor(ExecutorBase):
     def _expectation_value(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameter_values,
     ) -> float | np.array:
         """
@@ -1191,7 +1192,7 @@ class QiskitExecutor(ExecutorBase):
 
         Args:
             circuit: The quantum circuit or a list of circuits.
-            operator: The quantum operator or a list of operators.
+            observable: The quantum observable or a list of observables.
             parameter_values: Parameter values as keyword arguments.
 
         Returns:
@@ -1206,19 +1207,19 @@ class QiskitExecutor(ExecutorBase):
                 "or use a backend/session that supports estimation."
             )
         # Convert to OpTree format
-        circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
+        circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
         # Prepare separate parameter dictionaries
-        circuit_dict, operator_dict = self._prepare_parameter_dicts(
-            circuit, operator, **parameter_values
+        circuit_dict, observable_dict = self._prepare_parameter_dicts(
+            circuit, observable, **parameter_values
         )
 
         # Use OpTree evaluation with Estimator
         return OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
-            operator=operator_tree,
+            operator=observable_tree,
             dictionary_circuit=circuit_dict,
-            dictionary_operator=operator_dict,
+            dictionary_operator=observable_dict,
             estimator=self._estimator,
             dictionaries_combined=False,
             detect_duplicates=True,
@@ -1227,7 +1228,7 @@ class QiskitExecutor(ExecutorBase):
     def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative_params,
         **parameter_values,
     ) -> np.array | dict:
@@ -1236,7 +1237,7 @@ class QiskitExecutor(ExecutorBase):
 
         Args:
             circuit: The quantum circuit.
-            operator: The quantum operator.
+            observable: The quantum observable.
             derivative_params: Parameters to differentiate with respect to.
             parameter_values: Parameter values as keyword arguments.
 
@@ -1254,17 +1255,17 @@ class QiskitExecutor(ExecutorBase):
 
         # If no derivative parameters specified, return expectation value
         if len(derivative_params) == 0:
-            return self._expectation_value(circuit, operator, **parameter_values)
+            return self._expectation_value(circuit, observable, **parameter_values)
 
         # Convert to OpTree format
-        circuit_tree, operator_tree = self._convert_to_optree(circuit, operator)
+        circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
         # Prepare separate parameter dictionaries
-        circuit_dict, operator_dict = self._prepare_parameter_dicts(
-            circuit, operator, **parameter_values
+        circuit_dict, observable_dict = self._prepare_parameter_dicts(
+            circuit, observable, **parameter_values
         )
 
-        # Build separate parameter sets for circuit and operator so we can
+        # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
         if isinstance(circuit, list):
             circuit_param_set = set(circuit[0]._qiskit_circuit.parameters)
@@ -1272,29 +1273,29 @@ class QiskitExecutor(ExecutorBase):
             circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
             circuit_param_set = set(circ.parameters)
 
-        if operator is not None:
-            if isinstance(operator, list):
-                operator_param_set: set = set()
-                for op in operator:
-                    op_obj = op._qiskit_operator if hasattr(op, "_qiskit_operator") else op
-                    operator_param_set |= set(op_obj.parameters)
+        if observable is not None:
+            if isinstance(observable, list):
+                observable_param_set: set = set()
+                for obs in observable:
+                    obs_obj = obs._qiskit_operator if hasattr(obs, "_qiskit_operator") else obs
+                    observable_param_set |= set(obs_obj.parameters)
             else:
-                op_obj = (
-                    operator._qiskit_operator
-                    if hasattr(operator, "_qiskit_operator")
-                    else operator
+                obs_obj = (
+                    observable._qiskit_operator
+                    if hasattr(observable, "_qiskit_operator")
+                    else observable
                 )
-                operator_param_set = set(op_obj.parameters)
+                observable_param_set = set(obs_obj.parameters)
         else:
-            operator_param_set = set()
+            observable_param_set = set()
 
-        all_params = circuit_param_set | operator_param_set
+        all_params = circuit_param_set | observable_param_set
 
         def _param_name(p) -> str:
             return p.vector.name if hasattr(p, "vector") else p.name
 
         def _derivative_for_single_param(p) -> float:
-            """∂E/∂p = circuit contribution + operator contribution (product rule)."""
+            """∂E/∂p = circuit contribution + observable contribution (product rule)."""
             total = 0.0
 
             # Circuit contribution: ⟨∂ψ/∂p|H|ψ⟩  (parameter shift on circuit)
@@ -1302,21 +1303,21 @@ class QiskitExecutor(ExecutorBase):
                 circ_deriv = OpTreeDerivative.differentiate(circuit_tree, [p])
                 total += OpTreeEvaluate.evaluate_with_estimator(
                     circuit=circ_deriv,
-                    operator=operator_tree,
+                    operator=observable_tree,
                     dictionary_circuit=circuit_dict,
-                    dictionary_operator=operator_dict,
+                    dictionary_operator=observable_dict,
                     estimator=self._estimator,
                     detect_duplicates=True,
                 )
 
-            # Operator contribution: ⟨ψ|∂H/∂p|ψ⟩
-            if p in operator_param_set:
-                op_deriv = OpTreeDerivative.differentiate(operator_tree, [p])
+            # Observable contribution: ⟨ψ|∂H/∂p|ψ⟩
+            if p in observable_param_set:
+                op_deriv = OpTreeDerivative.differentiate(observable_tree, [p])
                 total += OpTreeEvaluate.evaluate_with_estimator(
                     circuit=circuit_tree,
                     operator=op_deriv,
                     dictionary_circuit=circuit_dict,
-                    dictionary_operator=operator_dict,
+                    dictionary_operator=observable_dict,
                     estimator=self._estimator,
                     detect_duplicates=True,
                 )
@@ -1365,7 +1366,9 @@ class QiskitExecutor(ExecutorBase):
         circuit_tree, _ = self._convert_to_optree(circuit, operator=None)
 
         # Prepare parameter dictionary (only for circuits)
-        circuit_dict, _ = self._prepare_parameter_dicts(circuit, operator=None, **parameter_values)
+        circuit_dict, _ = self._prepare_parameter_dicts(
+            circuit, observable=None, **parameter_values
+        )
 
         # Extract circuits from OpTree
         if isinstance(circuit_tree, OpTreeCircuit):
@@ -1422,7 +1425,9 @@ class QiskitExecutor(ExecutorBase):
             ]
 
         # Prepare parameter dictionary
-        circuit_dict, _ = self._prepare_parameter_dicts(circuit, operator=None, **parameter_values)
+        circuit_dict, _ = self._prepare_parameter_dicts(
+            circuit, observable=None, **parameter_values
+        )
 
         statevectors = []
         for circ in raw_circuits:
@@ -1452,17 +1457,17 @@ class QiskitExecutor(ExecutorBase):
             return QiskitCircuit._from_qiskit(isa_circuit)
         return qc
 
-    def _transpile_observable(self, operator: QuantumOperatorBase) -> QiskitObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:
             operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
         Returns:
-            QiskitObservable: The corresponding QiskitObservable.
+            QiskitOperator: The corresponding QiskitOperator.
         """
-        if isinstance(operator, self._native_observable_class):
+        if isinstance(operator, self._native_operator_class):
             return operator
-        return self._native_observable_class.from_quantum_operator(operator)
+        return self._native_operator_class.from_quantum_operator(operator)
 
     @classmethod
     def get_accepted_backend_types(cls) -> list[type]:

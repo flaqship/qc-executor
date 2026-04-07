@@ -1,4 +1,4 @@
-"""Pauli propagation native observable datatype."""
+"""Pauli propagation native operator datatype."""
 
 from __future__ import annotations
 
@@ -17,14 +17,14 @@ if TYPE_CHECKING:
     from .symmetry import SymmetryStrategy
 
 
-class PauliPropagationObservable(QuantumOperatorBase):
-    """Backend-native observable representation for Pauli propagation."""
+class PauliPropagationOperator(QuantumOperatorBase):
+    """Backend-native operator representation for Pauli propagation."""
 
     @overload
     @classmethod
     def from_quantum_operator(
         cls, operator: QuantumOperatorBase
-    ) -> "PauliPropagationObservable": ...
+    ) -> "PauliPropagationOperator": ...
 
     @overload
     @classmethod
@@ -32,15 +32,15 @@ class PauliPropagationObservable(QuantumOperatorBase):
         cls,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy,
-    ) -> "PauliPropagationObservable": ...
+    ) -> "PauliPropagationOperator": ...
 
     @classmethod
     def from_quantum_operator(
         cls,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> "PauliPropagationObservable":  # type: ignore[override]
-        """Create a PauliPropagationObservable from a generic operator."""
+    ) -> "PauliPropagationOperator":  # type: ignore[override]
+        """Create a PauliPropagationOperator from a generic operator."""
         if isinstance(operator, cls):
             result = operator.copy()
             if symmetry_strategy is not None:
@@ -53,7 +53,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
             return cls(paulis=paulis, coeffs=coeffs, symmetry_strategy=symmetry_strategy)
         except (AttributeError, TypeError) as exc:
             raise TypeError(
-                "PauliPropagationObservable.from_quantum_operator expects a generic "
+                "PauliPropagationOperator.from_quantum_operator expects a generic "
                 f"QuantumOperator or {cls.__name__}, got {type(operator).__name__}"
             ) from exc
 
@@ -156,20 +156,20 @@ class PauliPropagationObservable(QuantumOperatorBase):
     def num_parameters(self) -> int:
         return len(self._parameters)
 
-    def copy(self) -> "PauliPropagationObservable":
-        result = PauliPropagationObservable(pauli_sum=self._pauli_sum.copy())
+    def copy(self) -> "PauliPropagationOperator":
+        result = PauliPropagationOperator(pauli_sum=self._pauli_sum.copy())
         result._parametric_coeffs = dict(self._parametric_coeffs)
         result._parameters = dict(self._parameters)
         return result
 
-    def assign_parameters(self, parameters: Dict[str, float]) -> "PauliPropagationObservable":
+    def assign_parameters(self, parameters: Dict[str, float]) -> "PauliPropagationOperator":
         """Bind symbolic parameters to concrete values.
 
         Args:
             parameters: Dict mapping parameter names to float values
 
         Returns:
-            New observable with parameters substituted
+            New operator with parameters substituted
         """
         result = self.copy()
 
@@ -212,7 +212,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
 
         return result
 
-    def adjoint(self) -> "PauliPropagationObservable":
+    def adjoint(self) -> "PauliPropagationOperator":
         result = self.copy()
         conjugated = PauliSum(self._num_qubits, symmetry=result._pauli_sum.symmetry)
         for term, coeff in result._pauli_sum:
@@ -220,7 +220,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
         result._pauli_sum = conjugated
         return result
 
-    def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationObservable":
+    def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationOperator":
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
         term_mapping: Dict[int, int] = {}
 
@@ -234,7 +234,7 @@ class PauliPropagationObservable(QuantumOperatorBase):
             term_mapping[term] = remapped_term
             remapped.add_term(remapped_term, coeff)
 
-        result = PauliPropagationObservable(pauli_sum=remapped)
+        result = PauliPropagationOperator(pauli_sum=remapped)
         result._parametric_coeffs = {
             term_mapping[old_term]: expr
             for old_term, expr in self._parametric_coeffs.items()
@@ -243,11 +243,11 @@ class PauliPropagationObservable(QuantumOperatorBase):
         result._parameters = dict(self._parameters)
         return result
 
-    def compose(self, other: "QuantumOperatorBase") -> "PauliPropagationObservable":
-        if not isinstance(other, PauliPropagationObservable):
-            raise TypeError("compose currently supports PauliPropagationObservable only.")
+    def compose(self, other: "QuantumOperatorBase") -> "PauliPropagationOperator":
+        if not isinstance(other, PauliPropagationOperator):
+            raise TypeError("compose currently supports PauliPropagationOperator only.")
         if self.num_qubits != other.num_qubits:
-            raise ValueError("Cannot compose observables with different qubit counts.")
+            raise ValueError("Cannot compose operators with different qubit counts.")
 
         composed_symmetry = self._compose_symmetry_with(other)
         composed_sum = PauliSum(self.num_qubits, symmetry=composed_symmetry)
@@ -258,37 +258,37 @@ class PauliPropagationObservable(QuantumOperatorBase):
                 result_term, phase = pauli_multiply(left_term, right_term, self.num_qubits)
                 composed_sum.add_term(result_term, left_coeff * right_coeff * phase)
 
-        return PauliPropagationObservable(pauli_sum=composed_sum)
+        return PauliPropagationOperator(pauli_sum=composed_sum)
 
-    def append(self, pauli: str, coeff=None) -> "PauliPropagationObservable":
+    def append(self, pauli: str, coeff=None) -> "PauliPropagationOperator":
         result = self.copy()
         result._pauli_sum.add_term(pauli, 1.0 if coeff is None else coeff)
         return result
 
-    def simplify(self) -> "PauliPropagationObservable":
+    def simplify(self) -> "PauliPropagationOperator":
         # Terms are combined on insertion in PauliSum; copy is already simplified.
         return self.copy()
 
-    def transpose(self) -> "PauliPropagationObservable":
+    def transpose(self) -> "PauliPropagationOperator":
         transposed = PauliSum(self.num_qubits, symmetry=self._pauli_sum.symmetry)
         for term, coeff in self._pauli_sum:
             pauli = term_to_string(term, self.num_qubits)
             y_count = pauli.count("Y")
             phase = -1 if y_count % 2 else 1
             transposed.add_term(term, coeff * phase)
-        return PauliPropagationObservable(pauli_sum=transposed)
+        return PauliPropagationOperator(pauli_sum=transposed)
 
-    def conjugate(self) -> "PauliPropagationObservable":
+    def conjugate(self) -> "PauliPropagationOperator":
         conjugated = PauliSum(self.num_qubits, symmetry=self._pauli_sum.symmetry)
         for term, coeff in self._pauli_sum:
             conjugated.add_term(term, np.conjugate(coeff))
-        return PauliPropagationObservable(pauli_sum=conjugated)
+        return PauliPropagationOperator(pauli_sum=conjugated)
 
-    def group_commuting(self) -> List["PauliPropagationObservable"]:
+    def group_commuting(self) -> List["PauliPropagationOperator"]:
         # Minimal implementation for interface parity.
         return [self.copy()]
 
-    def _compose_symmetry_with(self, other: "PauliPropagationObservable"):
+    def _compose_symmetry_with(self, other: "PauliPropagationOperator"):
         self_symmetry = self.symmetry
         other_symmetry = other.symmetry
 
@@ -340,12 +340,14 @@ class PauliPropagationObservable(QuantumOperatorBase):
 
     def __eq__(self, other):
         return (
-            isinstance(other, PauliPropagationObservable)
+            isinstance(other, PauliPropagationOperator)
             and self._canonical_signature() == other._canonical_signature()
         )
 
     def __str__(self):
-        return f"PauliPropagationObservable(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
+        return (
+            f"PauliPropagationOperator(num_qubits={self.num_qubits}, terms={len(self._pauli_sum)})"
+        )
 
     def __repr__(self):
         return self.__str__()

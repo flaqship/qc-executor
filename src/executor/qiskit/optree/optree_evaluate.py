@@ -772,27 +772,27 @@ def _evaluate_expectation_from_sampler(
     offset: int = 0,
 ):
     """
-    Function for evaluating the expectation value of an operator from the results of a sampler.
+    Function for evaluating the expectation value of an observable from the results of a sampler.
 
-    operator_measurement_list connects the measured circuits with the operators.
+    operator_measurement_list connects the measured circuits with the observables.
     If operator_measurement_list is two level nested (e.g. [[0,1],[2]]), this means that
-    the outer list represents the circuits, and the inner list represents the operators.
+    the outer list represents the circuits, and the inner list represents the observables.
 
     As an alternative the depth of operator_measurement_list can be 3, where the outer list
     represents the circuits, the middle list represents different measurements of the same circuit,
-    and the inner list represents the operators that are computed. In this case, the results have
-    to be sorted in the same way as the operators occur in the observable list.
+    and the inner list represents the observables that are computed. In this case, the results have
+    to be sorted in the same way as the observables occur in the observable list.
 
     Args:
         observable (SparsePauliOp): The observable to be evaluated.
         results (BaseSamplerResult): The results of the sampler primitive.
         operator_measurement_list (List[List[int]] | None): The index list that is used to
                                                                   connect the measured circuit
-                                                                  with the inputted operator list.
+                                                                  with the inputted observable list.
         offset (int): The offset that is added to the index of the circuits in the sampler results.
 
     Returns:
-        The expectation value of the operator as a numpy array.
+        The expectation value of the observable as a numpy array.
     """
 
     # Get depth of a nested list

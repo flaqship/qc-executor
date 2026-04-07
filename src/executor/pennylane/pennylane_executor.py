@@ -16,7 +16,7 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
-from .pennylane_observable import PennyLaneObservable
+from .pennylane_operator import PennyLaneOperator
 
 
 class PennyLaneExecutor(ExecutorBase):
@@ -55,7 +55,7 @@ class PennyLaneExecutor(ExecutorBase):
     """
 
     _native_circuit_class = PennyLaneCircuit
-    _native_observable_class = PennyLaneObservable
+    _native_operator_class = PennyLaneOperator
 
     @overload
     def __init__(
@@ -257,39 +257,39 @@ class PennyLaneExecutor(ExecutorBase):
         if not isinstance(operator, List):
             operators = [operator]
             multiple_operators = False
-        qulacs_observables = []
+        pennylane_operators = []
 
-        for op in operators:
-            if isinstance(op, self._native_observable_class):
-                qulacs_observables.append(op)
+        for operator in operators:
+            if isinstance(operator, self._native_operator_class):
+                pennylane_operators.append(operator)
                 continue
-            if op in self._operator_cache:
-                self._logger.debug("Operator cache hit for %s", op)
-                qulacs_observables.append(self._operator_cache[op])
+            if operator in self._operator_cache:
+                self._logger.debug("Operator cache hit for %s", operator)
+                pennylane_operators.append(self._operator_cache[operator])
             else:
-                self._logger.debug("Operator cache miss – converting operator %s", op)
-                qulacs_observable = PennyLaneObservable(op)
-                self._operator_cache[op] = qulacs_observable
-                qulacs_observables.append(qulacs_observable)
+                self._logger.debug("Operator cache miss – converting operator %s", operator)
+                pennylane_operator = PennyLaneOperator(operator)
+                self._operator_cache[operator] = pennylane_operator
+                pennylane_operators.append(pennylane_operator)
 
-        return qulacs_observables, multiple_operators
+        return pennylane_operators, multiple_operators
 
     def _expectation_value(
-        self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
+        self, circuit: QuantumCircuitBase, observable: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
-        Calculate the expectation value of the operator with respect to the circuit.
+        Calculate the expectation value of the observable with respect to the circuit.
 
         Args:
             circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
+            observable (QuantumOperatorBase): The quantum observable.
 
         Returns:
             float: The expectation value.
         """
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(operator)
+        pennylane_observables, multiple_observables = self._preprocess_operators(observable)
         self._validate_device_wires(circuit.num_qubits)
 
         values = []
@@ -316,39 +316,37 @@ class PennyLaneExecutor(ExecutorBase):
 
             circuit_parameter_tuples = product(*circuit_parameters)
 
-            for pennylane_observable in pennylane_observables:
+            for observable in pennylane_observables:
                 observable_values = []
                 observable_parameters = []
                 multiple_observable_parameters = []
                 observable_parameters_dimension = []
-                for param in pennylane_observable.parameter_names:
+                for param in observable.parameter_names:
                     if param not in parameter_values:
                         raise ValueError(
                             f"Parameter '{param}' not found in provided parameter values."
                         )
 
                     param_values, multiple_params = adjust_features(
-                        parameter_values[param], pennylane_observable.parameter_dimensions[param]
+                        parameter_values[param], observable.parameter_dimensions[param]
                     )
                     observable_parameters.append(param_values)
                     multiple_observable_parameters.append(multiple_params)
-                    observable_parameters_dimension.append(
-                        pennylane_observable.parameter_dimensions[param]
-                    )
+                    observable_parameters_dimension.append(observable.parameter_dimensions[param])
 
                 observable_parameter_tuples = product(*observable_parameters)
 
                 @qml.qnode(self._device)
                 def circuit_func(*args):
                     pennylane_circuit.build_pennylane_circuit()(*args)
-                    return pennylane_observable.build_pennylane_observable()(
+                    return observable.build_pennylane_observable()(
                         *args[len(pennylane_circuit.parameter_names) :]
                     )
 
                 for cp in circuit_parameter_tuples:
                     cp_values = []
-                    for op in observable_parameter_tuples:
-                        cp_values.append(circuit_func(*cp, *op))
+                    for operator in observable_parameter_tuples:
+                        cp_values.append(circuit_func(*cp, *operator))
 
                     observable_values.append(cp_values)
                 circuit_values.append(observable_values)
@@ -366,10 +364,10 @@ class PennyLaneExecutor(ExecutorBase):
 
         if not multiple_circuits:
             values = values[0]
-            if not multiple_operators:
+            if not multiple_observables:
                 values = values[0]
         else:
-            if not multiple_operators:
+            if not multiple_observables:
                 values = values.reshape(-1)
 
         return values
@@ -377,7 +375,7 @@ class PennyLaneExecutor(ExecutorBase):
     def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase,
-        operator: QuantumOperatorBase,
+        observable: QuantumOperatorBase,
         *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
     ) -> np.array | dict:
@@ -386,7 +384,7 @@ class PennyLaneExecutor(ExecutorBase):
 
         Args:
             circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
+            observable (QuantumOperatorBase): The quantum observable.
             values: Values for which the derivatives are calculated. Can be strings (e.g.
                 "expectation_value" or the name of parameters), or
                 ParameterVectors, ParameterVectorElements. Tuples are used for higher
@@ -403,8 +401,8 @@ class PennyLaneExecutor(ExecutorBase):
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?]", "", s)
 
-        pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
-        pennylane_observables, multiple_operators = self._preprocess_operators(operator)
+        pennylane_circuits, _ = self._preprocess_circuits(circuit)
+        pennylane_observables, _ = self._preprocess_operators(observable)
 
         # TODO: multiple circuits and operators not implemented yet
         pennylane_circuit = pennylane_circuits[0]
@@ -682,11 +680,11 @@ class PennyLaneExecutor(ExecutorBase):
             return circuit
         return self._native_circuit_class.from_quantum_circuit(circuit)
 
-    def _transpile_observable(self, operator: QuantumOperatorBase) -> PennyLaneObservable:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> PennyLaneOperator:
         """Transpile a generic QuantumOperator to a PennyLane QuantumOperator."""
-        if isinstance(operator, self._native_observable_class):
+        if isinstance(operator, self._native_operator_class):
             return operator
-        return self._native_observable_class.from_quantum_operator(operator)
+        return self._native_operator_class.from_quantum_operator(operator)
 
     @classmethod
     def get_accepted_backend_types(cls) -> List[type]:

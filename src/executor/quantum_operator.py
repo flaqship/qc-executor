@@ -179,7 +179,10 @@ class QuantumOperator(QuantumOperatorBase):
         """
         commuting_op = self._qiskit_operator.group_commuting()
 
-        return [self.__class__(paulis=op.paulis, coeffs=op.coeffs) for op in commuting_op]
+        return [
+            self.__class__(paulis=operator.paulis, coeffs=operator.coeffs)
+            for operator in commuting_op
+        ]
 
     @property
     def is_unitary(self) -> bool:

@@ -6,24 +6,24 @@ from typing import List
 import numpy as np
 
 
-class QiskitObservable:
+class QiskitOperator:
     """
-    Wrapper for Qiskit observables (SparsePauliOp) used by QiskitExecutor.
+    Wrapper for Qiskit operators (SparsePauliOp) used by QiskitExecutor.
     Handles parameter management for parametrized operators.
     """
 
-    def __init__(self, observable):
+    def __init__(self, operator):
         """
-        Initialize QiskitObservable wrapper.
+        Initialize QiskitOperator wrapper.
 
         Args:
-            observable: QuantumOperator object (from executor.quantum_operator)
+            operator: QuantumOperator object (from executor.quantum_operator)
         """
         # Extract the internal qiskit operator
-        if hasattr(observable, "_qiskit_operator"):
-            self._qiskit_operator = observable._qiskit_operator
+        if hasattr(operator, "_qiskit_operator"):
+            self._qiskit_operator = operator._qiskit_operator
         else:
-            self._qiskit_operator = observable
+            self._qiskit_operator = operator
 
         self._num_qubits = self._qiskit_operator.num_qubits
 
@@ -38,7 +38,7 @@ class QiskitObservable:
 
     @classmethod
     def from_quantum_operator(cls, operator):
-        """Create a native Qiskit observable wrapper from a generic operator."""
+        """Create a native Qiskit operator wrapper from a generic operator."""
         return cls(operator)
 
     @property
@@ -106,13 +106,11 @@ class QiskitObservable:
             return self._qiskit_operator
 
     def copy(self):
-        """Return a copy of the observable wrapper."""
-        return QiskitObservable(self._qiskit_operator.copy())
+        """Return a copy of the operator wrapper."""
+        return QiskitOperator(self._qiskit_operator.copy())
 
     def __str__(self):
         return str(self._qiskit_operator)
 
     def __repr__(self):
-        return (
-            f"QiskitObservable({self.num_qubits} qubits, {len(self._free_parameters)} parameters)"
-        )
+        return f"QiskitOperator({self.num_qubits} qubits, {len(self._free_parameters)} parameters)"

@@ -48,7 +48,7 @@ class TestOpTreeEvaluation:
         return OpTreeList([circuit1, circuit2]), [dictionary1, dictionary2]
 
     @pytest.fixture(scope="module")
-    def _create_operator_z(self) -> Tuple[OpTreeSum, List[dict]]:
+    def _create_observable_z(self) -> Tuple[OpTreeSum, List[dict]]:
         """Creates the Z-based operators used in the tests"""
         x = ParameterVector("x", 2)
         observable1 = SparsePauliOp(["IZ", "ZI"], [x[0], x[1]])
@@ -59,7 +59,7 @@ class TestOpTreeEvaluation:
         return observable, [dictionary1, dictionary2]
 
     @pytest.fixture(scope="module")
-    def _create_operator_xy(self) -> Tuple[OpTreeSum, dict]:
+    def _create_observable_xy(self) -> Tuple[OpTreeSum, dict]:
         """Creates the XY-based operators used in the tests"""
         x = ParameterVector("x", 2)
         observable1 = SparsePauliOp(["XY", "YX"], [x[0], x[1]])
@@ -68,12 +68,12 @@ class TestOpTreeEvaluation:
         dictionary = {x[0]: 1.0, x[1]: 0.5}
         return observable, dictionary
 
-    def test_estimator_z(self, _create_random_circuits, _create_operator_z):
+    def test_estimator_z(self, _create_random_circuits, _create_observable_z):
         """Tests the estimator with Z basis operators
 
         Args:
             _create_random_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.
-            _create_operator_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
+            _create_observable_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
         """
 
         if QISKIT_SMALLER_2_0:
@@ -90,28 +90,28 @@ class TestOpTreeEvaluation:
         # Check functionality of estimator evaluation
         val = OpTree.evaluate.evaluate_with_estimator(
             _create_random_circuits,
-            _create_operator_z[0],
+            _create_observable_z[0],
             {},
-            _create_operator_z[1][0],
+            _create_observable_z[1][0],
             estimator=estimator,
         )
         assert np.allclose(val, reference_values)
 
         # Check functionality of estimator tree evaluation
         expectation_tree = OpTree.gen_expectation_tree(
-            _create_random_circuits, _create_operator_z[0]
+            _create_random_circuits, _create_observable_z[0]
         )
         val = OpTree.evaluate.evaluate_tree_with_estimator(
-            expectation_tree, _create_operator_z[1][0], estimator=estimator
+            expectation_tree, _create_observable_z[1][0], estimator=estimator
         )
         assert np.allclose(val, reference_values)
 
-    def test_sampler_z(self, _create_random_circuits, _create_operator_z):
+    def test_sampler_z(self, _create_random_circuits, _create_observable_z):
         """Tests the sampler with Z basis operators
 
         Args:
             _create_random_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.
-            _create_operator_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
+            _create_observable_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
         """
 
         if QISKIT_SMALLER_2_0:
@@ -128,26 +128,30 @@ class TestOpTreeEvaluation:
 
         # Check functionality of sampler evaluation
         val = OpTree.evaluate.evaluate_with_sampler(
-            _create_random_circuits, _create_operator_z[0], {}, _create_operator_z[1][0], sampler
+            _create_random_circuits,
+            _create_observable_z[0],
+            {},
+            _create_observable_z[1][0],
+            sampler,
         )
         assert np.allclose(val, reference_values)
 
         # Check functionality of sampler tree evaluation
         expectation_tree = OpTree.gen_expectation_tree(
-            _create_random_circuits, _create_operator_z[0]
+            _create_random_circuits, _create_observable_z[0]
         )
         val = OpTree.evaluate.evaluate_tree_with_sampler(
-            expectation_tree, _create_operator_z[1][0], sampler
+            expectation_tree, _create_observable_z[1][0], sampler
         )
         assert np.allclose(val, reference_values)
 
-    def test_estimator_xy(self, _create_random_circuits, _create_operator_xy):
+    def test_estimator_xy(self, _create_random_circuits, _create_observable_xy):
         """
         Tests the estimator with XY/YX basis operators
 
         Args:
             _create_random_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.
-            _create_operator_xy (Tuple[OpTreeSum, dict]): The operators and dictionary.
+            _create_observable_xy (Tuple[OpTreeSum, dict]): The operators and dictionary.
         """
 
         if QISKIT_SMALLER_2_0:
@@ -164,28 +168,28 @@ class TestOpTreeEvaluation:
         # Check functionality of estimator evaluation
         val = OpTree.evaluate.evaluate_with_estimator(
             _create_random_circuits,
-            _create_operator_xy[0],
+            _create_observable_xy[0],
             {},
-            _create_operator_xy[1],
+            _create_observable_xy[1],
             estimator,
         )
         assert np.allclose(val, reference_values)
 
         # Check functionality of estimator tree evaluation
         expectation_tree = OpTree.gen_expectation_tree(
-            _create_random_circuits, _create_operator_xy[0]
+            _create_random_circuits, _create_observable_xy[0]
         )
         val = OpTree.evaluate.evaluate_tree_with_estimator(
-            expectation_tree, _create_operator_xy[1], estimator
+            expectation_tree, _create_observable_xy[1], estimator
         )
         assert np.allclose(val, reference_values)
 
-    def test_sampler_xy(self, _create_random_circuits, _create_operator_xy):
+    def test_sampler_xy(self, _create_random_circuits, _create_observable_xy):
         """Tests the estimator with Z basis operators
 
         Args:
             _create_random_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.
-            _create_operator_xy (Tuple[OpTreeSum, dict]): The operators and dictionary.
+            _create_observable_xy (Tuple[OpTreeSum, dict]): The operators and dictionary.
         """
 
         if QISKIT_SMALLER_2_0:
@@ -204,38 +208,38 @@ class TestOpTreeEvaluation:
         with pytest.raises(ValueError):
             OpTree.evaluate.evaluate_with_sampler(
                 _create_random_circuits,
-                _create_operator_xy[0],
+                _create_observable_xy[0],
                 {},
-                _create_operator_xy[1],
+                _create_observable_xy[1],
                 sampler,
             )
-        op_in_z_base = OpTree.evaluate.transform_to_zbasis(_create_operator_xy[0])
+        op_in_z_base = OpTree.evaluate.transform_to_zbasis(_create_observable_xy[0])
         val = OpTree.evaluate.evaluate_with_sampler(
-            _create_random_circuits, op_in_z_base, {}, _create_operator_xy[1], sampler
+            _create_random_circuits, op_in_z_base, {}, _create_observable_xy[1], sampler
         )
         assert np.allclose(val, reference_values)
 
         # Check functionality of tree evaluation
         expectation_tree = OpTree.gen_expectation_tree(
-            _create_random_circuits, _create_operator_xy[0]
+            _create_random_circuits, _create_observable_xy[0]
         )
         with pytest.raises(ValueError):
             OpTree.evaluate.evaluate_tree_with_sampler(
-                expectation_tree, _create_operator_xy[1], sampler
+                expectation_tree, _create_observable_xy[1], sampler
             )
         expectation_tree_in_z_base = OpTree.evaluate.transform_to_zbasis(expectation_tree)
         val = OpTree.evaluate.evaluate_tree_with_sampler(
-            expectation_tree_in_z_base, _create_operator_xy[1], sampler
+            expectation_tree_in_z_base, _create_observable_xy[1], sampler
         )
         assert np.allclose(val, reference_values)
 
-    def test_estimator_multi_dict(self, _create_param_circuits, _create_operator_z):
+    def test_estimator_multi_dict(self, _create_param_circuits, _create_observable_z):
         """
         Checks the functionality of the estimator with multiple dictionaries.
 
         Args:
             _create_param_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.
-            _create_operator_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
+            _create_observable_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
         """
 
         if QISKIT_SMALLER_2_0:
@@ -255,9 +259,9 @@ class TestOpTreeEvaluation:
         )
         val = OpTree.evaluate.evaluate_with_estimator(
             _create_param_circuits[0],
-            _create_operator_z[0],
+            _create_observable_z[0],
             _create_param_circuits[1],
-            _create_operator_z[1],
+            _create_observable_z[1],
             estimator,
         )
         assert np.allclose(val, reference_values)
@@ -265,21 +269,21 @@ class TestOpTreeEvaluation:
         reference_values = np.array([[2.83285403, 2.83285403], [0.93594971, 0.93594971]])
         val = OpTree.evaluate.evaluate_with_estimator(
             _create_param_circuits[0],
-            _create_operator_z[0],
+            _create_observable_z[0],
             _create_param_circuits[1],
-            _create_operator_z[1],
+            _create_observable_z[1],
             estimator,
             dictionaries_combined=True,
         )
         assert np.allclose(val, reference_values)
 
-    def test_sampler_multi_dict(self, _create_param_circuits, _create_operator_z):
+    def test_sampler_multi_dict(self, _create_param_circuits, _create_observable_z):
         """
         Checks the functionality of the sampler with multiple dictionaries.
 
         Args:
             _create_param_circuits (Tuple[OpTreeList, List[dict]]): The circuits and dictionaries.
-            _create_operator_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
+            _create_observable_z (Tuple[OpTreeSum, List[dict]]): The operators and dictionaries.
 
         """
 
@@ -306,18 +310,18 @@ class TestOpTreeEvaluation:
 
         val = OpTree.evaluate.evaluate_with_sampler(
             _create_param_circuits[0],
-            _create_operator_z[0],
+            _create_observable_z[0],
             _create_param_circuits[1],
-            _create_operator_z[1],
+            _create_observable_z[1],
             sampler,
         )
         assert np.allclose(val, reference_values)
 
         val = OpTree.evaluate.evaluate_with_sampler(
             _create_param_circuits[0],
-            _create_operator_z[0],
+            _create_observable_z[0],
             _create_param_circuits[1],
-            _create_operator_z[1],
+            _create_observable_z[1],
             sampler,
             dictionaries_combined=True,
         )

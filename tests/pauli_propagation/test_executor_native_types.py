@@ -7,7 +7,7 @@ from executor.parameters import Parameters
 from executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
-    PauliPropagationObservable,
+    PauliPropagationOperator,
 )
 from executor.pauli_propagation.symmetry import PermutationSymmetry
 
@@ -16,7 +16,7 @@ class TestPauliPropagationExecutorNativeTypes:
     def test_expectation_value_single(self):
         circuit = PauliPropagationCircuit(1)
         circuit.h(0)
-        observable = PauliPropagationObservable(["X"], [1.0])
+        observable = PauliPropagationOperator(["X"], [1.0])
 
         executor = PauliPropagationExecutor()
         value = executor.expectation_value(circuit, observable)
@@ -27,7 +27,7 @@ class TestPauliPropagationExecutorNativeTypes:
         circuit_0 = PauliPropagationCircuit(1)
         circuit_1 = PauliPropagationCircuit(1)
         circuit_1.x(0)
-        observable = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         executor = PauliPropagationExecutor()
         values = executor.expectation_value([circuit_0, circuit_1], observable)
@@ -40,7 +40,7 @@ class TestPauliPropagationExecutorNativeTypes:
         params = Parameters("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, params[0])
-        observable = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         executor = PauliPropagationExecutor()
         value_0 = executor.expectation_value(circuit, observable, **{"theta[0]": 0.0})
@@ -70,14 +70,14 @@ class TestPauliPropagationExecutorNativeTypes:
 
     def test_reject_non_native_types(self):
         executor = PauliPropagationExecutor()
-        observable = PauliPropagationObservable(["Z"], [1.0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
 
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
             executor.expectation_value("not a circuit", observable)
 
     def test_executor_uses_observable_symmetry_when_present(self, monkeypatch):
         circuit = PauliPropagationCircuit(1)
-        observable = PauliPropagationObservable(
+        observable = PauliPropagationOperator(
             ["I"], [1.0], symmetry_strategy=PermutationSymmetry()
         )
         executor = PauliPropagationExecutor()
@@ -99,7 +99,7 @@ class TestPauliPropagationExecutorNativeTypes:
 
     def test_executor_falls_back_to_executor_symmetry(self, monkeypatch):
         circuit = PauliPropagationCircuit(1)
-        observable = PauliPropagationObservable(["I"], [1.0])
+        observable = PauliPropagationOperator(["I"], [1.0])
         executor = PauliPropagationExecutor(symmetry_strategy=PermutationSymmetry())
 
         captured = {}

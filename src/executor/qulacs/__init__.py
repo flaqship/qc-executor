@@ -6,14 +6,14 @@ try:
 
     from .qulacs_circuit import QulacsCircuit
     from .qulacs_executor import QulacsExecutor
-    from .qulacs_observable import QulacsObservable
+    from .qulacs_operator import QulacsOperator
 
     Executor.register("qulacs")(QulacsExecutor)
 
     __all__ = [
         "QulacsCircuit",
         "QulacsExecutor",
-        "QulacsObservable",
+        "QulacsOperator",
     ]
 
 except ImportError as e:

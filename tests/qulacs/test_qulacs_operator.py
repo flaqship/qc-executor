@@ -1,9 +1,9 @@
 import pytest
 
 from executor import QuantumOperator
-from executor.qulacs import QulacsObservable
+from executor.qulacs import QulacsOperator
 
 
-class TestQulacsObservable:
+class TestQulacsOperator:
     def test_placeholder(self):
         pass

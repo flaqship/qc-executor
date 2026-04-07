@@ -6,14 +6,14 @@ try:
 
     from .pennylane_circuit import PennyLaneCircuit
     from .pennylane_executor import PennyLaneExecutor
-    from .pennylane_observable import PennyLaneObservable
+    from .pennylane_operator import PennyLaneOperator
 
     Executor.register("pennylane")(PennyLaneExecutor)
 
     __all__ = [
         "PennyLaneCircuit",
         "PennyLaneExecutor",
-        "PennyLaneObservable",
+        "PennyLaneOperator",
     ]
 
 except ImportError as e:

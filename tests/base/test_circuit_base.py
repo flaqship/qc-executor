@@ -1,5 +1,5 @@
-from qiskit.circuit import ParameterVector
 import pytest
+from qiskit.circuit import ParameterVector
 
 from executor.base.circuit_base import QuantumCircuitBase
 

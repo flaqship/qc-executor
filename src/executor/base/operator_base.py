@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List
 
-import numpy as np
 from qiskit.circuit import Parameter, ParameterExpression
 
 
@@ -69,7 +68,7 @@ class QuantumOperatorBase(ABC):
         Returns:
             Number of parameters.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     @abstractmethod
     def adjoint(self) -> "QuantumOperatorBase":

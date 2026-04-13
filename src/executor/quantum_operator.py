@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import List
 
-import numpy as np
 from qiskit.circuit import Parameter, ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
 
 from .base import QuantumOperatorBase
@@ -61,7 +58,7 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             List of parameters.
         """
-        raise self._qiskit_operator.parameters
+        return self._qiskit_operator.parameters
 
     @property
     def num_parameters(self) -> int:

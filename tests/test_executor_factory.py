@@ -182,6 +182,199 @@ class TestExecutorFactory:
             if "mock_kwargs" in Executor._registry:
                 del Executor._registry["mock_kwargs"]
 
+    def test_create_triggers_plugin_discovery_when_needed(self, monkeypatch):
+        original_discovered = Executor._plugins_discovered
+
+        called = {"discover": False}
+
+        def fake_discover(cls):
+            called["discover"] = True
+            cls._plugins_discovered = True
+
+        monkeypatch.setattr(Executor, "_discover_plugins", classmethod(fake_discover))
+
+        try:
+            Executor._plugins_discovered = False
+
+            with pytest.raises(ValueError, match="Backend 'still_missing' not found"):
+                Executor.create("still_missing")
+
+            assert called["discover"] is True
+        finally:
+            Executor._plugins_discovered = original_discovered
+
+    def test_create_unknown_alias_uses_resolved_backend_extra_hint(self, monkeypatch):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        try:
+            Executor._registry = {}
+            Executor._backend_alias_map = {"statevector": "qiskit"}
+            Executor._alias_registry_size = 0
+            Executor._plugins_discovered = True
+
+            monkeypatch.setattr(
+                Executor, "_rebuild_backend_alias_map", classmethod(lambda cls: None)
+            )
+
+            with pytest.raises(ValueError) as exc_info:
+                Executor.create("statevector")
+
+            assert "pip install executor[qiskit-full]" in str(exc_info.value)
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_create_non_string_skips_backend_with_failing_type_query(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        class Marker:
+            pass
+
+        class FailingTypesExecutor(MockExecutor):
+            @classmethod
+            def get_accepted_backend_types(cls) -> list[type]:
+                raise RuntimeError("boom")
+
+        class MatchingTypesExecutor(MockExecutor):
+            def __init__(self, backend=None, **kwargs):
+                super().__init__(**kwargs)
+                self.backend = backend
+
+            @classmethod
+            def get_accepted_backend_types(cls) -> list[type]:
+                return [Marker]
+
+        try:
+            Executor._registry = {
+                "failing": FailingTypesExecutor,
+                "matching": MatchingTypesExecutor,
+            }
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = len(Executor._registry)
+            Executor._plugins_discovered = True
+
+            marker = Marker()
+            executor = Executor.create(marker)
+
+            assert isinstance(executor, MatchingTypesExecutor)
+            assert executor.backend is marker
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_create_non_string_reports_accepted_types_summary(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        class IntOnlyExecutor(MockExecutor):
+            @classmethod
+            def get_accepted_backend_types(cls) -> list[type]:
+                return [int]
+
+        class EmptyTypesExecutor(MockExecutor):
+            @classmethod
+            def get_accepted_backend_types(cls) -> list[type]:
+                return []
+
+        try:
+            Executor._registry = {
+                "int_only": IntOnlyExecutor,
+                "empty": EmptyTypesExecutor,
+            }
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = len(Executor._registry)
+            Executor._plugins_discovered = True
+
+            with pytest.raises(ValueError) as exc_info:
+                Executor.create(object())
+
+            error_msg = str(exc_info.value)
+            assert "No registered executor accepts an object of type" in error_msg
+            assert "Accepted types per backend: {'int_only': ['int']}" in error_msg
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_discover_plugins_fallback_uses_select(self, monkeypatch):
+        import importlib.metadata as importlib_metadata
+
+        class FakeEntryPoint:
+            name = "ok"
+
+            def load(self):
+                return None
+
+        class FakeSelection:
+            def select(self, group):
+                assert group == "executor.backends"
+                return [FakeEntryPoint()]
+
+        def fake_entry_points(*args, **kwargs):
+            if "group" in kwargs:
+                raise TypeError("old API")
+            return FakeSelection()
+
+        monkeypatch.setattr(importlib_metadata, "entry_points", fake_entry_points)
+
+        Executor._plugins_discovered = False
+        Executor._discover_plugins()
+        assert Executor._plugins_discovered is True
+
+    def test_discover_plugins_fallback_uses_dict_get(self, monkeypatch):
+        import importlib.metadata as importlib_metadata
+
+        class FakeEntryPoint:
+            name = "ok-dict"
+
+            def load(self):
+                return None
+
+        def fake_entry_points(*args, **kwargs):
+            if "group" in kwargs:
+                raise TypeError("old API")
+            return {"executor.backends": [FakeEntryPoint()]}
+
+        monkeypatch.setattr(importlib_metadata, "entry_points", fake_entry_points)
+
+        Executor._plugins_discovered = False
+        Executor._discover_plugins()
+        assert Executor._plugins_discovered is True
+
+    def test_discover_plugins_logs_warning_when_plugin_load_fails(self, monkeypatch, caplog):
+        import importlib.metadata as importlib_metadata
+
+        class FailingEntryPoint:
+            name = "broken-plugin"
+
+            def load(self):
+                raise RuntimeError("load failed")
+
+        def fake_entry_points(*args, **kwargs):
+            assert kwargs.get("group") == "executor.backends"
+            return [FailingEntryPoint()]
+
+        monkeypatch.setattr(importlib_metadata, "entry_points", fake_entry_points)
+
+        Executor._plugins_discovered = False
+        with caplog.at_level("WARNING"):
+            Executor._discover_plugins()
+
+        assert "Failed to load plugin 'broken-plugin'" in caplog.text
+
 
 class TestExecutorIntegration:
     """Integration tests with actual backends."""
@@ -357,6 +550,132 @@ class TestExecutorAliasRegistration:
             Executor._backend_alias_map = original_alias_map
             Executor._alias_registry_size = original_alias_registry_size
             Executor._plugins_discovered = original_discovered
+
+    def test_create_alias_rebuilds_when_alias_points_to_missing_backend(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        class ReindexedAliasExecutor(MockExecutor):
+            def __init__(self, backend=None, **kwargs):
+                super().__init__(**kwargs)
+                self.backend = backend
+
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["stale.alias"]
+
+        try:
+            Executor._registry = {"real_backend": ReindexedAliasExecutor}
+            Executor._backend_alias_map = {"stale.alias": "missing_backend"}
+            Executor._alias_registry_size = 1
+            Executor._plugins_discovered = True
+
+            executor = Executor.create("stale.alias")
+
+            assert isinstance(executor, ReindexedAliasExecutor)
+            assert executor.backend == "stale.alias"
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_create_alias_with_explicit_backend_kwarg_raises(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+        original_discovered = Executor._plugins_discovered
+
+        class AliasConflictExecutor(MockExecutor):
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["conflict.alias"]
+
+        try:
+            Executor._registry = {}
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = 0
+            Executor._plugins_discovered = True
+
+            Executor.register("alias_conflict")(AliasConflictExecutor)
+
+            with pytest.raises(ValueError, match="Conflicting 'backend' argument"):
+                Executor.create("conflict.alias", backend="duplicate")
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+            Executor._plugins_discovered = original_discovered
+
+    def test_index_backend_aliases_ignores_empty_aliases(self):
+        original_alias_map = Executor._backend_alias_map.copy()
+
+        class EmptyAliasExecutor(MockExecutor):
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["", "   ", "valid.alias"]
+
+        try:
+            Executor._backend_alias_map = {}
+            Executor._index_backend_aliases("empty_alias", EmptyAliasExecutor)
+
+            assert Executor._backend_alias_map == {"valid.alias": "empty_alias"}
+        finally:
+            Executor._backend_alias_map = original_alias_map
+
+    def test_rebuild_backend_alias_map_ignores_empty_aliases(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+
+        class RebuildEmptyAliasExecutor(MockExecutor):
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["", "  ", "rebuilt.alias"]
+
+        try:
+            Executor._registry = {"rebuilt": RebuildEmptyAliasExecutor}
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = 0
+
+            Executor._rebuild_backend_alias_map()
+            assert Executor._backend_alias_map == {"rebuilt.alias": "rebuilt"}
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
+
+    def test_rebuild_backend_alias_map_duplicate_alias_raises(self):
+        original_registry = Executor._registry.copy()
+        original_alias_map = Executor._backend_alias_map.copy()
+        original_alias_registry_size = Executor._alias_registry_size
+
+        class RebuildDupA(MockExecutor):
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["dup.rebuild"]
+
+        class RebuildDupB(MockExecutor):
+            @classmethod
+            def get_accepted_backend_aliases(cls) -> list[str]:
+                return ["dup.rebuild"]
+
+        try:
+            Executor._registry = {
+                "rebuild_a": RebuildDupA,
+                "rebuild_b": RebuildDupB,
+            }
+            Executor._backend_alias_map = {}
+            Executor._alias_registry_size = 0
+
+            with pytest.raises(ValueError, match="Duplicate backend alias 'dup.rebuild'"):
+                Executor._rebuild_backend_alias_map()
+        finally:
+            Executor._registry = original_registry
+            Executor._backend_alias_map = original_alias_map
+            Executor._alias_registry_size = original_alias_registry_size
 
     def test_create_uses_alias_routing(self):
         original_registry = Executor._registry.copy()

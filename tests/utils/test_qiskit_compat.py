@@ -1,5 +1,5 @@
-import importlib
 import builtins
+import importlib
 import sys
 from types import ModuleType
 

@@ -5,6 +5,8 @@ import pytest
 
 from executor.pauli_propagation.utils.pauli_algebra import (
     commutes,
+    contains_x_or_y,
+    count_xy,
     count_weight,
     get_pauli,
     get_uint_type,
@@ -112,6 +114,10 @@ class TestBitOperations:
 
         with pytest.raises(ValueError, match="Invalid qubit index"):
             set_pauli(0, -1, 1, 4)
+
+    def test_invalid_pauli_integer(self):
+        with pytest.raises(ValueError, match="Invalid Pauli integer"):
+            set_pauli(0, 0, 4, 1)
 
 
 class TestStringConversion:
@@ -460,3 +466,15 @@ class TestPauliToMatrix:
             matrix = pauli_to_matrix(term, 1)
             # Check P† = P (Hermitian)
             assert np.allclose(matrix, matrix.conj().T)
+
+
+class TestXYHelpers:
+    """Test X/Y detection and counting helpers."""
+
+    def test_contains_x_or_y(self):
+        assert contains_x_or_y(string_to_term("IZZI", 4), 4) is False
+        assert contains_x_or_y(string_to_term("IZYI", 4), 4) is True
+
+    def test_count_xy(self):
+        assert count_xy(string_to_term("IZZI", 4), 4) == 0
+        assert count_xy(string_to_term("XYZI", 4), 4) == 2

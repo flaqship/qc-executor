@@ -358,7 +358,9 @@ class TestImportAndAvailabilityPaths:
         with pytest.raises(ImportError, match="Qiskit is required for circuit conversion"):
             cache.get_hash(object())
 
-    def test_extract_parameter_returns_none_when_qiskit_unavailable(self, qiskit_converter, monkeypatch):
+    def test_extract_parameter_returns_none_when_qiskit_unavailable(
+        self, qiskit_converter, monkeypatch
+    ):
         """Test parameter extraction fallback when qiskit is unavailable."""
         monkeypatch.setattr(qiskit_converter, "QISKIT_AVAILABLE", False)
 

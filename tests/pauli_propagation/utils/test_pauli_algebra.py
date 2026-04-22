@@ -6,8 +6,8 @@ import pytest
 from executor.pauli_propagation.utils.pauli_algebra import (
     commutes,
     contains_x_or_y,
-    count_xy,
     count_weight,
+    count_xy,
     get_pauli,
     get_uint_type,
     int_to_symbol,

@@ -14,6 +14,7 @@ from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
 from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
+from ..utils.qiskit_hash_functions import _circuit_key
 
 
 class QulacsCircuit:
@@ -73,20 +74,10 @@ class QulacsCircuit:
         """Dictionary with the dimension of each circuit parameter"""
         return self._qulacs_gates_parameters
 
-    # @property
-    # def circuit_parameter_dimensions(self) -> dict:
-    #     """Dictionary with the dimension of each circuit parameter"""
-    #     return self._qulacs_gates_parameters_dimensions
-
     @property
     def circuit_arguments(self) -> list:
         """List of all circuit and observable parameters names"""
         return self._qulacs_gates_parameters
-
-    @property
-    def hash(self) -> str:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(self._qiskit_circuit)
 
     def get_qulacs_circuit(self) -> callable:
         """Builds and returns the Qulacs circuit as callable function"""
@@ -95,6 +86,9 @@ class QulacsCircuit:
 
     def __call__(self, *args, **kwargs):
         return self._qulacs_circuit(*args, **kwargs)
+
+    def __hash__(self):
+        return hash(_circuit_key(self._qiskit_circuit))
 
     def _add_parameter_expression(
         self, angle: ParameterVectorElement | ParameterExpression | float

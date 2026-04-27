@@ -5,8 +5,7 @@ import pytest
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
-from executor.qulacs import QulacsCircuit, QulacsOperator
-from executor.qulacs import QulacsExecutor
+from executor.qulacs import QulacsCircuit, QulacsExecutor, QulacsOperator
 
 
 def _build_circuit(num_qubits, operations):

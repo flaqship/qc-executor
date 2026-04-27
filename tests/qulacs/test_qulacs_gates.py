@@ -1,32 +1,33 @@
 """Tests for Qulacs gate functions."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 from qulacs import ParametricQuantumCircuit
-from qulacs.gate import Identity, H, X, Y, Z, S, Sdag, T, Tdag, SWAP, CZ, U1, RX, RY, RZ
+from qulacs.gate import CZ, RX, RY, RZ, SWAP, U1, H, Identity, S, Sdag, T, Tdag, X, Y, Z
 
 from executor.qulacs.qulacs_gates import (
-    qulacs_gate_i,
+    qiskit_qulacs_gate_dict,
+    qiskit_qulacs_param_gate_dict,
+    qulacs_gate_cnot,
+    qulacs_gate_cz,
     qulacs_gate_h,
+    qulacs_gate_i,
+    qulacs_gate_rx,
+    qulacs_gate_ry,
+    qulacs_gate_rz,
+    qulacs_gate_s,
+    qulacs_gate_sdg,
+    qulacs_gate_swap,
+    qulacs_gate_t,
+    qulacs_gate_tdg,
+    qulacs_gate_U1,
     qulacs_gate_x,
     qulacs_gate_y,
     qulacs_gate_z,
-    qulacs_gate_s,
-    qulacs_gate_sdg,
-    qulacs_gate_t,
-    qulacs_gate_tdg,
-    qulacs_gate_swap,
-    qulacs_gate_cnot,
-    qulacs_gate_cz,
-    qulacs_gate_rx,
     qulacs_param_gate_rx,
-    qulacs_gate_ry,
     qulacs_param_gate_ry,
-    qulacs_gate_rz,
     qulacs_param_gate_rz,
-    qulacs_gate_U1,
-    qiskit_qulacs_gate_dict,
-    qiskit_qulacs_param_gate_dict,
 )
 
 

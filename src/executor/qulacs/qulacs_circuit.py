@@ -13,8 +13,8 @@ from sympy import lambdify
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
 from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
-from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
 from ..utils.qiskit_hash_functions import _circuit_key
+from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
 
 
 class QulacsCircuit:

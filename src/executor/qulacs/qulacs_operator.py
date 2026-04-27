@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Iterable, List
+from typing import List
 
 import numpy as np
-from qiskit.circuit import ParameterExpression, ParameterVector
+from qiskit.circuit import ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
-from qulacs import GeneralQuantumOperator, GradCalculator, Observable, PauliOperator
+from qulacs import GeneralQuantumOperator, PauliOperator
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
@@ -84,8 +84,6 @@ class QulacsOperator:
             Tuple with lists of Qulacs operator parameter functions, Qulacs Pauli words,
             Qulacs operator parameters and Qulacs operator parameter dimensions
         """
-        #        if observables == None:
-        #            return None, None, None
 
         self.multiple_operators = False
         if isinstance(operator, SparsePauliOp):
@@ -225,13 +223,6 @@ class QulacsOperator:
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
         gradient_param_dict = {p: i for i, p in enumerate(gradient_parameters)}
 
-        # cache_value = "no_gradient"
-        # if len(gradient_parameters)>0:
-        #     cache_value = tuple(gradient_parameters)
-
-        # if cache_value in self._outer_jacobi_obs_cache:
-        #     return self._outer_jacobi_obs_cache[cache_value]
-
         def outer_jacobian(*args):
 
             # Collects the args values connected to the operator parameters
@@ -259,8 +250,6 @@ class QulacsOperator:
                             )
                 outer_jacobians.append(outer_jacobian)
             return outer_jacobians
-
-        # self._outer_jacobi_obs_cache[cache_value] = outer_jacobian
 
         return outer_jacobian
 

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Type
+from importlib.metadata import entry_points
+from typing import Any, Callable, Type, cast
+
+from .base.executor_base import ExecutorBase
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +62,6 @@ class Executor:
         """
 
         def decorator(backend_class: Type["ExecutorBase"]) -> Type["ExecutorBase"]:
-            # Import here to avoid circular imports
-            from executor.base.executor_base import ExecutorBase
-
             if not issubclass(backend_class, ExecutorBase):
                 raise TypeError(
                     f"{backend_class.__name__} must inherit from ExecutorBase "
@@ -71,7 +71,7 @@ class Executor:
             cls._registry[name] = backend_class
             cls._index_backend_aliases(name, backend_class)
             cls._alias_registry_size = len(cls._registry)
-            logger.debug(f"Registered backend '{name}': {backend_class.__name__}")
+            logger.debug("Registered backend '%s': %s", name, backend_class.__name__)
             return backend_class
 
         return decorator
@@ -112,7 +112,7 @@ class Executor:
             # Exact backend names take precedence over aliases.
             if target in cls._registry:
                 backend_class = cls._registry[target]
-                logger.info(f"Creating {backend_class.__name__} with config: {kwargs}")
+                logger.info("Creating %s with config: %s", backend_class.__name__, kwargs)
                 return backend_class(**kwargs)
 
             alias_backend_name = cls._backend_alias_map.get(target_alias)
@@ -141,41 +141,13 @@ class Executor:
                     )
                     return backend_class(backend=target_alias, **kwargs)
 
-            # Check if backend is available
-            available = cls.available_backends()
-            available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
-            aliases = sorted(cls._backend_alias_map.keys())
-            aliases_str = ", ".join(f"'{a}'" for a in aliases) if aliases else "none"
-
-            # Determine a valid extra name, if any, for installation hints.
-            # Prefer the canonical backend name resolved from aliases; only fall back
-            # to the raw target if it is itself a known backend name.
-            resolved_backend_name = cls._backend_alias_map.get(target_alias)
-            backend_key_for_extra: str | None = None
-            if resolved_backend_name in cls._backend_extra_map:
-                backend_key_for_extra = resolved_backend_name
-            elif target in cls._backend_extra_map:
-                backend_key_for_extra = target
-
-            base_message = (
-                f"Backend '{target}' not found. "
-                f"Available backends: {available_str}. "
-                f"Known backend aliases: {aliases_str}."
-            )
-
-            if backend_key_for_extra is not None:
-                extra_name = cls._backend_extra_map[backend_key_for_extra]
-                install_hint = f" Install with: pip install executor[{extra_name}]"
-            else:
-                install_hint = ""
-
-            raise ValueError(base_message + install_hint)
+            raise cls._build_backend_not_found_error(target, target_alias)
 
         # Non-string path: auto-detect executor from accepted_types
         for name, executor_class in cls._registry.items():
             try:
                 accepted = executor_class.get_accepted_backend_types()
-            except Exception:
+            except (ImportError, NotImplementedError, AttributeError):
                 logger.debug(
                     "get_accepted_backend_types() failed for '%s'; skipping.", name, exc_info=True
                 )
@@ -213,30 +185,52 @@ class Executor:
         """
         cls._plugins_discovered = True
 
-        from importlib.metadata import entry_points
-
         # Get entry points for executor backends
         try:
-            # Python 3.12+ API: supports group keyword argument
+            # Python 3.10+ API: supports group keyword argument
             eps = entry_points(group="executor.backends")
         except TypeError:
-            # Python 3.10–3.11 API: entry_points() returns a Selection object
-            all_eps = entry_points()
-            # Selection.select() is available on these versions; fall back to
-            # dict-style access only if needed for very old backports.
-            select = getattr(all_eps, "select", None)
-            if callable(select):
-                eps = select(group="executor.backends")
+            # Python < 3.10: entry_points() returns a dict-like mapping
+            _all_eps = entry_points()
+            _select = getattr(_all_eps, "select", None)
+            if callable(_select):
+                eps = cast(list, _select(group="executor.backends"))
             else:
-                eps = all_eps.get("executor.backends", [])
+                eps = cast(list, getattr(_all_eps, "get", lambda *a: [])("executor.backends", []))
 
         # Load each entry point
         for ep in eps:
             try:
-                logger.debug(f"Loading plugin entry point: {ep.name}")
+                logger.debug("Loading plugin entry point: %s", ep.name)
                 ep.load()  # This triggers the @register decorator
-            except Exception as e:
-                logger.warning(f"Failed to load plugin '{ep.name}': {e}")
+            except (ImportError, AttributeError) as e:
+                logger.warning("Failed to load plugin '%s': %s", ep.name, e)
+
+    @classmethod
+    def _build_backend_not_found_error(cls, target: str, target_alias: str) -> ValueError:
+        """Build a helpful ValueError for an unrecognised backend name."""
+        available = cls.available_backends()
+        available_str = ", ".join(f"'{b}'" for b in available) if available else "none"
+        aliases = sorted(cls._backend_alias_map.keys())
+        aliases_str = ", ".join(f"'{a}'" for a in aliases) if aliases else "none"
+
+        resolved = cls._backend_alias_map.get(target_alias)
+        if resolved in cls._backend_extra_map:
+            backend_key = resolved
+        elif target in cls._backend_extra_map:
+            backend_key = target
+        else:
+            backend_key = None
+
+        message = (
+            f"Backend '{target}' not found. "
+            f"Available backends: {available_str}. "
+            f"Known backend aliases: {aliases_str}."
+        )
+        if backend_key is not None:
+            extra_name = cls._backend_extra_map[backend_key]
+            message += f" Install with: pip install executor[{extra_name}]"
+        return ValueError(message)
 
     @classmethod
     def available_backends(cls) -> list[str]:

@@ -57,6 +57,7 @@ class ExecutorBase(ABC):
 
     def __init__(
         self,
+        backend: Any = None,
         shots: int | None = None,
         seed: int | None = None,
         log_file: str | None = None,
@@ -65,6 +66,7 @@ class ExecutorBase(ABC):
         cache_dir: str = "cache",
         max_cache_size: int | None = None,
     ):
+        self._backend = backend
         self._shots = shots
         self._seed = seed
         self._log_file = log_file

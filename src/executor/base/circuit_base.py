@@ -83,9 +83,9 @@ class QuantumCircuitBase(ABC):
         """Add P gates"""
         raise NotImplementedError
 
-    def cp(self, qubits: int | List[int], angle: float):
+    def cp(self, control_qubit: int, target_qubit: int, angle: float):
         """Add CP gates"""
-        self.p(qubits, angle)
+        raise NotImplementedError
 
     @abstractmethod
     def x(self, qubits: int | List[int]):

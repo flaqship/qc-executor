@@ -1,10 +1,12 @@
+"""Base classes for quantum circuits across different quantum frameworks."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import List
 
 import numpy as np
-from qiskit.circuit import Parameter, ParameterExpression
+from qiskit.circuit import ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .operator_base import QuantumOperatorBase
@@ -214,6 +216,30 @@ class QuantumCircuitBase(ABC):
             elif pauli == "I":
                 pass  # Identity gate (I) can be skipped as it does nothing
 
+    def _apply_basis_change(
+        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
+    ) -> None:
+        """Apply basis change for non-trivial Paulis."""
+        for p, q in zip(paulis, qubits):
+            if p == "X":
+                self.h(working_qubits[q])
+            elif p == "Y":
+                self.sdag(working_qubits[q])
+                self.h(working_qubits[q])
+            elif p != "Z":
+                raise ValueError(f"Unknown Pauli operator: {p}")
+
+    def _undo_basis_change(
+        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
+    ) -> None:
+        """Undo basis change for non-trivial Paulis."""
+        for p, q in zip(paulis, qubits):
+            if p == "X":
+                self.h(working_qubits[q])
+            elif p == "Y":
+                self.h(working_qubits[q])
+                self.s(working_qubits[q])
+
     def pauli_evolution(
         self,
         operator: QuantumOperatorBase,
@@ -229,7 +255,7 @@ class QuantumCircuitBase(ABC):
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
-        pauli_str = operator.paulis[0].to_label()
+        pauli_str = operator.paulis[0]
         coeff = operator.coeffs
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
@@ -252,14 +278,7 @@ class QuantumCircuitBase(ABC):
             working_qubits = list(range(len(pauli_str)))
 
         # Apply basis change for non-trivial Paulis
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.sdag(working_qubits[q])
-                self.h(working_qubits[q])
-            elif p != "Z":
-                raise ValueError(f"Unknown Pauli operator: {p}")
+        self._apply_basis_change(paulis, qubits, working_qubits)
 
         # Apply controlled chain of CNOTs
         if qubits:
@@ -269,7 +288,7 @@ class QuantumCircuitBase(ABC):
                 control = target
 
             # Apply phase rotation on the last qubit
-            self.rz(working_qubits[qubits[-1]], 2 * coeff)
+            self.rz(working_qubits[qubits[-1]], 2 * float(np.real(coeff)))
 
             # Undo controlled CNOT chain
             control = qubits[-1]
@@ -278,12 +297,7 @@ class QuantumCircuitBase(ABC):
                 control = target
 
         # Undo basis change
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.h(working_qubits[q])
-                self.s(working_qubits[q])
+        self._undo_basis_change(paulis, qubits, working_qubits)
 
     def controlled_pauli_evolution(
         self,
@@ -302,7 +316,7 @@ class QuantumCircuitBase(ABC):
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
-        pauli_str = operator.paulis[0].to_label()
+        pauli_str = operator.paulis[0]
         coeff = operator.coeffs
 
         if len(coeff) != 1:
@@ -318,22 +332,15 @@ class QuantumCircuitBase(ABC):
         paulis = [p for p in pauli_str if p != "I"]
 
         if len(paulis) == 0:
-            self.rz(control_qubit, -coeff)
-            return None
+            self.rz(control_qubit, float(np.real(-coeff)))
+            return
 
         if working_qubits is None:
             working_qubits = list(range(len(pauli_str) + 1))
             working_qubits.remove(control_qubit)
 
         # Apply basis change for non-trivial Paulis
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.sdag(working_qubits[q])
-                self.h(working_qubits[q])
-            elif p != "Z":
-                raise ValueError(f"Unknown Pauli operator: {p}")
+        self._apply_basis_change(paulis, qubits, working_qubits)
 
         # Apply controlled chain of CNOTs
         if qubits:
@@ -343,7 +350,7 @@ class QuantumCircuitBase(ABC):
                 control = target
 
             # Apply phase rotation on the last qubit
-            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * coeff)
+            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
 
             # Undo controlled CNOT chain
             control = qubits[-1]
@@ -352,12 +359,7 @@ class QuantumCircuitBase(ABC):
                 control = target
 
         # Undo basis change
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.h(working_qubits[q])
-                self.s(working_qubits[q])
+        self._undo_basis_change(paulis, qubits, working_qubits)
 
     # def operator_evolution(
     #     self,

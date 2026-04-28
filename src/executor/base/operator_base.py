@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from qiskit.circuit import Parameter, ParameterExpression
@@ -16,10 +16,15 @@ class QuantumOperatorBase(ABC):
     """
 
     def __init__(
-        self, num_qubits: int = None, paulis: List[str] = None, coeffs: List[float] = None
+        self,
+        num_qubits: Optional[int] = None,
+        paulis: Optional[List[str]] = None,
+        coeffs: Optional[List[float]] = None,
     ):
         self._num_qubits = num_qubits
-
+        self._paulis = paulis or []
+        self._coeffs = coeffs or []
+        
     @classmethod
     @abstractmethod
     def from_quantum_operator(cls, operator: "QuantumOperatorBase") -> "QuantumOperatorBase":
@@ -82,7 +87,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def apply_layout(self, layout: dict) -> "QuantumOperatorBase":
+    def apply_layout(self, layout: List[int]) -> "QuantumOperatorBase":
         """
         Apply a layout to the operator.
 

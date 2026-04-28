@@ -1,11 +1,9 @@
+"""Concrete quantum operator implementation backed by a Qiskit SparsePauliOp."""
+
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import List
+from typing import Any, List, Optional, cast
 
-import numpy as np
-from qiskit.circuit import Parameter, ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
 
 from .base import QuantumOperatorBase
@@ -13,6 +11,7 @@ from .utils.qiskit_hash_functions import _observable_key
 
 
 class QuantumOperator(QuantumOperatorBase):
+    """Quantum operator backed by a Qiskit SparsePauliOp."""
 
     @classmethod
     def from_quantum_operator(cls, operator: QuantumOperatorBase) -> QuantumOperatorBase:
@@ -20,18 +19,31 @@ class QuantumOperator(QuantumOperatorBase):
         return operator
 
     def __init__(
-        self, paulis: List[str] = None, coeffs: List[float] = None, num_qubits: int = None
+        self,
+        paulis: Optional[List[str]] = None,
+        coeffs: Optional[List[float]] = None,
+        num_qubits: Optional[int] = None,
+        _native_operator: Optional[SparsePauliOp] = None,
     ):
-
-        if paulis is not None:
-            self._qiskit_operator = SparsePauliOp(paulis, coeffs=coeffs)
+        super().__init__(num_qubits=num_qubits, paulis=paulis, coeffs=coeffs)
+        if _native_operator is not None:
+            self._qiskit_operator: SparsePauliOp = _native_operator
+        elif paulis is not None:
+            self._qiskit_operator = SparsePauliOp(paulis, coeffs=cast(Any, coeffs))
         elif num_qubits is not None:
             self._qiskit_operator = SparsePauliOp.from_list([("I" * num_qubits, 0.0)])
+        else:
+            raise ValueError("Must provide paulis, num_qubits, or _native_operator")
+
+    @property
+    def qiskit_operator(self) -> SparsePauliOp:
+        """The underlying Qiskit SparsePauliOp."""
+        return self._qiskit_operator
 
     @property
     def num_qubits(self) -> int:
         """Return the number of qubits in the circuit."""
-        return self._qiskit_operator.num_qubits
+        return cast(int, self._qiskit_operator.num_qubits)
 
     @property
     def num_paulis(self) -> int:
@@ -41,12 +53,12 @@ class QuantumOperator(QuantumOperatorBase):
     @property
     def paulis(self) -> List[str]:
         """Return the list of Paulis."""
-        return self._qiskit_operator.paulis.to_labels()
+        return list(self._qiskit_operator.paulis.to_labels())
 
     @property
     def coeffs(self) -> List:
         """Return the list of coefficients."""
-        return self._qiskit_operator.coeffs.tolist()
+        return cast(Any, self._qiskit_operator.coeffs).tolist()
 
     @property
     def is_parametrized(self) -> bool:
@@ -54,14 +66,14 @@ class QuantumOperator(QuantumOperatorBase):
         return len(self.parameters) > 0
 
     @property
-    def parameters(self) -> List[Parameter | ParameterExpression]:
+    def parameters(self) -> list:
         """
         Return the parameters of the operator.
 
         Returns:
             List of parameters.
         """
-        raise self._qiskit_operator.parameters
+        return list(self._qiskit_operator.parameters)
 
     @property
     def num_parameters(self) -> int:
@@ -80,8 +92,7 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Copy of the operator.
         """
-        return_value = self.__class__()
-        return_value._qiskit_operator = self._qiskit_operator.copy()
+        return_value = self.__class__(_native_operator=self._qiskit_operator.copy())
         return return_value
 
     def adjoint(self) -> "QuantumOperatorBase":
@@ -91,11 +102,10 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Adjoint of the operator.
         """
-        return_value = self.copy()
-        return_value._qiskit_operator = self._qiskit_operator.adjoint()
+        return_value = self.__class__(_native_operator=self._qiskit_operator.adjoint())
         return return_value
 
-    def apply_layout(self, layout: dict) -> "QuantumOperatorBase":
+    def apply_layout(self, layout: List[int]) -> "QuantumOperatorBase":
         """
         Apply a layout to the operator.
 
@@ -105,8 +115,7 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Operator with applied layout.
         """
-        return_value = self.copy()
-        return_value._qiskit_operator = self._qiskit_operator.apply_layout(layout)
+        return_value = self.__class__(_native_operator=self._qiskit_operator.apply_layout(layout))
         return return_value
 
     def compose(self, other: "QuantumOperatorBase") -> "QuantumOperatorBase":
@@ -120,9 +129,12 @@ class QuantumOperator(QuantumOperatorBase):
             Composed operator.
         """
 
-        self._qiskit_operator = self._qiskit_operator.compose(other._qiskit_operator)
+        if not isinstance(other, QuantumOperator):
+            raise TypeError("Can only compose with a QuantumOperator instance")
+        self._qiskit_operator = self._qiskit_operator.compose(other.qiskit_operator)
+        return self
 
-    def append(self, pauli: str, coeff=None) -> None:
+    def append(self, pauli: str, coeff=None) -> "QuantumOperatorBase":
         """
         Append a Pauli operator with a coefficient to the operator.
 
@@ -136,6 +148,7 @@ class QuantumOperator(QuantumOperatorBase):
         self._qiskit_operator = SparsePauliOp.from_list(
             self._qiskit_operator.to_list() + [(pauli, coeff)]
         )
+        return self
 
     def simplify(self) -> "QuantumOperatorBase":
         """
@@ -144,8 +157,7 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Simplified operator.
         """
-        return_value = self.copy()
-        return_value._qiskit_operator = self._qiskit_operator.simplify()
+        return_value = self.__class__(_native_operator=self._qiskit_operator.simplify())
         return return_value
 
     def transpose(self) -> "QuantumOperatorBase":
@@ -155,8 +167,7 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Transpose of the operator.
         """
-        return_value = self.copy()
-        return_value._qiskit_operator = self._qiskit_operator.transpose()
+        return_value = self.__class__(_native_operator=self._qiskit_operator.transpose())
         return return_value
 
     def conjugate(self) -> "QuantumOperatorBase":
@@ -166,8 +177,7 @@ class QuantumOperator(QuantumOperatorBase):
         Returns:
             Conjugate of the operator.
         """
-        return_value = self.copy()
-        return_value._qiskit_operator = self._qiskit_operator.conjugate()
+        return_value = self.__class__(_native_operator=self._qiskit_operator.conjugate())
         return return_value
 
     def group_commuting(self) -> List["QuantumOperatorBase"]:
@@ -178,11 +188,7 @@ class QuantumOperator(QuantumOperatorBase):
             List of commuting operators.
         """
         commuting_op = self._qiskit_operator.group_commuting()
-
-        return [
-            self.__class__(paulis=operator.paulis, coeffs=operator.coeffs)
-            for operator in commuting_op
-        ]
+        return [self.__class__(_native_operator=operator) for operator in commuting_op]
 
     @property
     def is_unitary(self) -> bool:

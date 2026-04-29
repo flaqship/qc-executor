@@ -310,3 +310,46 @@ class Executor:
         """Rebuild alias map when registry changes outside of ``register``."""
         if len(cls._registry) != cls._alias_registry_size:
             cls._rebuild_backend_alias_map()
+
+    @classmethod
+    def switch_backend(
+        cls, executor: "ExecutorBase", backend: str | Any, **overrides
+    ) -> "ExecutorBase":
+        """Switch an executor to a different backend while preserving its configuration.
+
+        Creates a new executor instance with the specified backend, copying
+        the current configuration and applying any overrides.
+
+        Args:
+            executor (ExecutorBase): The existing executor whose configuration
+                should be copied.
+            backend: Name of the backend to switch to (e.g., ``"qiskit"``,
+                ``"pennylane"``, ``"qulacs"``).  May also be a Qiskit
+                ``Backend`` / ``BackendV2`` instance, in which case the
+                ``"qiskit"`` executor is used automatically.
+            **overrides: Configuration parameters to override (e.g., shots=2048)
+
+        Returns:
+            ExecutorBase: New executor instance with the specified backend
+
+        Example:
+            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
+            >>> pennylane_executor = Executor.switch_backend(executor, "pennylane")
+            >>> # pennylane_executor has shots=1024, seed=42
+            >>>
+            >>> # Override specific parameters
+            >>> qulacs_executor = Executor.switch_backend(executor, "qulacs", shots=2048)
+            >>> # qulacs_executor has shots=2048, seed=42
+            >>>
+            >>> # Switch to a real IBM Quantum backend
+            >>> from qiskit_ibm_runtime import QiskitRuntimeService
+            >>> service = QiskitRuntimeService()
+            >>> ibm_backend = service.least_busy(operational=True, simulator=False)
+            >>> ibm_executor = Executor.switch_backend(executor, ibm_backend)
+        """
+        config = executor.get_config()
+        config.update(overrides)
+        logger.info(
+            "Switching backend from %s to %s", type(executor).__name__, backend
+        )
+        return cls.create(backend, **config)

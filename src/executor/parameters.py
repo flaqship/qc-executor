@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TypeAlias
 from uuid import UUID, uuid4
 
 from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParameterVectorElement
@@ -9,7 +10,7 @@ from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParam
 
 #: Library-native parameter type. Alias for Qiskit's ``ParameterVectorElement``,
 #: decoupling user-facing code from the Qiskit class hierarchy.
-Parameter = QiskitParameterVectorElement
+Parameter: TypeAlias = QiskitParameterVectorElement
 
 
 class Parameters:

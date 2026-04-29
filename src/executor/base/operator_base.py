@@ -1,11 +1,11 @@
+"""Base classes for quantum operators across different quantum frameworks."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-import numpy as np
-from qiskit.circuit import Parameter, ParameterExpression
-
+from executor.parameters import Parameter
 
 class QuantumOperatorBase(ABC):
     """
@@ -24,7 +24,7 @@ class QuantumOperatorBase(ABC):
         self._num_qubits = num_qubits
         self._paulis = paulis or []
         self._coeffs = coeffs or []
-        
+
     @classmethod
     @abstractmethod
     def from_quantum_operator(cls, operator: "QuantumOperatorBase") -> "QuantumOperatorBase":
@@ -32,7 +32,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @property
-    def num_qubits(self) -> int:
+    def num_qubits(self) -> int | None:
         """Return the number of qubits in the circuit."""
         return self._num_qubits
 
@@ -57,7 +57,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @property
-    def parameters(self) -> List[Parameter | ParameterExpression]:
+    def parameters(self) -> List[Parameter]:
         """
         Return the parameters of the operator.
 
@@ -74,7 +74,7 @@ class QuantumOperatorBase(ABC):
         Returns:
             Number of parameters.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     @abstractmethod
     def adjoint(self) -> "QuantumOperatorBase":

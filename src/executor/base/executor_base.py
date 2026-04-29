@@ -158,6 +158,23 @@ class ExecutorBase(ABC):
             "max_cache_size": self._max_cache_size,
         }
 
+    def switch_backend(self, backend: Any, **overrides) -> "ExecutorBase":
+        """Switch to a different backend while preserving configuration.
+
+        Delegates to :meth:`Executor.switch_backend <executor.factory.Executor.switch_backend>`.
+
+        Args:
+            backend: Name of the backend (e.g., ``"qiskit"``, ``"pennylane"``)
+                or a backend instance for auto-detection.
+            **overrides: Configuration parameters to override (e.g., shots=2048)
+
+        Returns:
+            ExecutorBase: New executor instance with the specified backend
+        """
+        from executor.factory import Executor
+
+        return Executor.switch_backend(self, backend, **overrides)
+
     # ========================================================================
     # Internal Infrastructure
     # ========================================================================

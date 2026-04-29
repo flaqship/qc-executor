@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from executor.parameters import Parameter
 
+
 class QuantumOperatorBase(ABC):
     """
     Base class for quantum circuits for different quantum frameworks.

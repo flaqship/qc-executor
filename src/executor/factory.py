@@ -349,7 +349,5 @@ class Executor:
         """
         config = executor.get_config()
         config.update(overrides)
-        logger.info(
-            "Switching backend from %s to %s", type(executor).__name__, backend
-        )
+        logger.info("Switching backend from %s to %s", type(executor).__name__, backend)
         return cls.create(backend, **config)

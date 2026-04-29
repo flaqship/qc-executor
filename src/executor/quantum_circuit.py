@@ -219,9 +219,7 @@ class QuantumCircuit(QuantumCircuitBase):
                 self.h(working_qubits[q])
                 self.s(working_qubits[q])
 
-    def _apply_cnot_ladder(
-        self, qubits: List[int], working_qubits: List[int]
-    ) -> None:
+    def _apply_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
         """Apply the forward CNOT ladder for Pauli evolution."""
         if not qubits:
             return
@@ -230,9 +228,7 @@ class QuantumCircuit(QuantumCircuitBase):
             self.cx(working_qubits[control], working_qubits[target])
             control = target
 
-    def _undo_cnot_ladder(
-        self, qubits: List[int], working_qubits: List[int]
-    ) -> None:
+    def _undo_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
         """Undo the CNOT ladder after the phase rotation."""
         if not qubits:
             return

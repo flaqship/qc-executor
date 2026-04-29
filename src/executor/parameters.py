@@ -7,7 +7,6 @@ from uuid import UUID, uuid4
 
 from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParameterVectorElement
 
-
 #: Library-native parameter type. Alias for Qiskit's ``ParameterVectorElement``,
 #: decoupling user-facing code from the Qiskit class hierarchy.
 Parameter: TypeAlias = QiskitParameterVectorElement

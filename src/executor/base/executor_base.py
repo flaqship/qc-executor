@@ -1,7 +1,10 @@
+"""Base class for quantum circuit executors across different quantum frameworks."""
+
 from __future__ import annotations
 
 import logging
 import os
+import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Any, List, overload
@@ -56,6 +59,7 @@ class ExecutorBase(ABC):
 
     def __init__(
         self,
+        backend: Any = None,
         shots: int | None = None,
         seed: int | None = None,
         log_file: str | None = None,
@@ -64,6 +68,7 @@ class ExecutorBase(ABC):
         cache_dir: str = "cache",
         max_cache_size: int | None = None,
     ):
+        self._backend = backend
         self._shots = shots
         self._seed = seed
         self._log_file = log_file
@@ -153,49 +158,22 @@ class ExecutorBase(ABC):
             "max_cache_size": self._max_cache_size,
         }
 
-    def switch_backend(self, backend: str | Any, **overrides) -> "ExecutorBase":
+    def switch_backend(self, backend: Any, **overrides) -> "ExecutorBase":
         """Switch to a different backend while preserving configuration.
 
-        Creates a new executor instance with the specified backend, copying
-        the current configuration and applying any overrides.
+        Delegates to :meth:`Executor.switch_backend <executor.factory.Executor.switch_backend>`.
 
         Args:
-            backend: Name of the backend to switch to (e.g., ``"qiskit"``,
-                ``"pennylane"``, ``"qulacs"``).  May also be a Qiskit
-                ``Backend`` / ``BackendV2`` instance (e.g. obtained from
-                ``QiskitRuntimeService``), in which case the ``"qiskit"``
-                executor is used automatically and the object is forwarded
-                as ``backend=<instance>``.
+            backend: Name of the backend (e.g., ``"qiskit"``, ``"pennylane"``)
+                or a backend instance for auto-detection.
             **overrides: Configuration parameters to override (e.g., shots=2048)
 
         Returns:
             ExecutorBase: New executor instance with the specified backend
-
-        Example:
-            >>> executor = Executor.create("qiskit", shots=1024, seed=42)
-            >>> pennylane_executor = executor.switch_backend("pennylane")
-            >>> # pennylane_executor has shots=1024, seed=42
-            >>>
-            >>> # Override specific parameters
-            >>> qulacs_executor = executor.switch_backend("qulacs", shots=2048)
-            >>> # qulacs_executor has shots=2048, seed=42
-            >>>
-            >>> # Switch to a real IBM Quantum backend
-            >>> from qiskit_ibm_runtime import QiskitRuntimeService
-            >>> service = QiskitRuntimeService()
-            >>> ibm_backend = service.least_busy(operational=True, simulator=False)
-            >>> ibm_executor = executor.switch_backend(ibm_backend)
         """
-        # Lazy import to avoid circular dependencies
-        from executor.factory import Executor  # pylint: disable=cyclic-import
+        from executor.factory import Executor
 
-        # Get current config and apply overrides
-        config = self.get_config()
-        config.update(overrides)
-
-        # Create new executor with specified backend
-        self._logger.info("Switching backend from %s to %s", type(self).__name__, backend)
-        return Executor.create(backend, **config)
+        return Executor.switch_backend(self, backend, **overrides)
 
     # ========================================================================
     # Internal Infrastructure
@@ -220,15 +198,14 @@ class ExecutorBase(ABC):
                 # Include dtype, shape, and strides (memory layout) to avoid collisions
                 # between arrays that share the same raw bytes but differ structurally.
                 return (v.dtype.str, v.shape, v.strides, v.tobytes())
-            elif isinstance(v, (list, tuple)):
+            if isinstance(v, (list, tuple)):
                 return tuple(_to_hashable(i) for i in v)
-            else:
-                try:
-                    hash(v)
-                    return v
-                except TypeError:
-                    # Fall back to object identity for unhashable types
-                    return id(v)
+            try:
+                hash(v)
+                return v
+            except TypeError:
+                # Fall back to object identity for unhashable types
+                return id(v)
 
         return (
             (method_name,)
@@ -257,8 +234,6 @@ class ExecutorBase(ABC):
         Returns:
             Dictionary with normalized parameters using vector keys.
         """
-        import re
-
         normalized = {}
         indexed_params = {}  # Maps "x" -> ["x[0]", "x[1]", ...]
 
@@ -298,19 +273,23 @@ class ExecutorBase(ABC):
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameters,
-    ) -> float | np.array:
+    ) -> float | np.ndarray:
         """
         Calculate the expectation value of the observable with respect to the circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum observable or a list of observables.
-            parameters: Additional values for the free parameters of the circuit(s) and the observable(s) given as keyword arguments.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
+                or a list of circuits.
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
+                observable or a list of observables.
+            parameters: Additional values for the free parameters of the circuit(s) and
+                the observable(s) given as keyword arguments.
                 Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
-            float | np.array: The expectation value either as a single float or as a numpy array if multiple circuits/observables are provided.
+            float | np.array: The expectation value either as a single float or as a
+                numpy array if multiple circuits/observables are provided.
         """
         self._logger.info("Computing expectation value")
         parameters = self._normalize_parameter_values(**parameters)
@@ -330,7 +309,7 @@ class ExecutorBase(ABC):
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameters,
-    ) -> float | np.array:
+    ) -> float | np.ndarray:
         """Abstract implementation of expectation value computation."""
         raise NotImplementedError
 
@@ -340,22 +319,27 @@ class ExecutorBase(ABC):
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative,
         **parameters,
-    ) -> float | np.array | dict:
+    ) -> float | np.ndarray | dict:
         """
-        Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
+        Calculate the derivatives of the expectation value with respect to the
+        parameters of the circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum observable or a list of observables.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
+                or a list of circuits.
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
+                observable or a list of observables.
             derivative: The parameter(s) with respect to which the derivative is calculated.
-            parameters: Additional values for the free parameters of the circuit(s) and the observable(s) given as keyword arguments.
+            parameters: Additional values for the free parameters of the circuit(s) and
+                the observable(s) given as keyword arguments.
                 Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
             float | np.array | dict: The derivative of the expectation value:
                 - single float/array if one derivative parameter is requested
-                - dictionary mapping parameter names to gradient arrays if multiple parameters are requested
+                - dictionary mapping parameter names to gradient arrays if multiple
+                  parameters are requested
         """
         self._logger.info("Computing expectation value derivatives")
         parameters = self._normalize_parameter_values(**parameters)
@@ -380,7 +364,7 @@ class ExecutorBase(ABC):
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative,
         **parameters,
-    ) -> float | np.array | dict:
+    ) -> float | np.ndarray | dict:
         """Abstract implementation of expectation value derivatives computation."""
         raise NotImplementedError
 
@@ -391,13 +375,16 @@ class ExecutorBase(ABC):
         Computes samples of the quantumstate of the given circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
+                or a list of circuits.
+            parameters: Additional values for the free parameters of the circuit(s)
+                given as keyword arguments.
                 Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
-            dict | List[dict]: The sampled results either as a single dictionary or a list of dictionaries if multiple circuits are provided.
+            dict | List[dict]: The sampled results either as a single dictionary or a
+                list of dictionaries if multiple circuits are provided.
         """
         self._logger.info("Sampling circuit (shots=%s)", self._shots)
         parameters = self._normalize_parameter_values(**parameters)
@@ -426,8 +413,10 @@ class ExecutorBase(ABC):
         Computes the statevector of the quantum circuit.
 
         Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit or a list of circuits.
-            parameters: Additional values for the free parameters of the circuit(s) given as keyword arguments.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
+                or a list of circuits.
+            parameters: Additional values for the free parameters of the circuit(s)
+                given as keyword arguments.
                 Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
                 (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
@@ -569,7 +558,8 @@ class ExecutorBase(ABC):
         of the returned types, this executor will be selected automatically.
 
         Returns:
-            List[type]: List of accepted backend types (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
+            List[type]: List of accepted backend types
+                (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
         """
         raise NotImplementedError
 

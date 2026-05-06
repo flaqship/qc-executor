@@ -10,10 +10,33 @@ Supported Qiskit versions: >= 1.0  (including 2.x).
 
 from __future__ import annotations
 
+from typing import Any, Protocol
+
 from packaging import version
 from qiskit import __version__ as qiskit_version
-from qiskit.circuit import ParameterExpression
 from sympy import sympify as _sympify
+
+
+class _ParameterExpression(Protocol):
+    """Structural interface for ``qiskit.circuit.ParameterExpression``.
+
+    Defined as a Protocol to work around qiskit 2.x PyO3-backed stubs that
+    expose ``ParameterExpression`` as a variable assignment rather than a class,
+    which Pylance rejects as a valid type form.
+    """
+
+    @property
+    def parameters(self) -> frozenset:
+        """Free Parameter objects in the expression."""
+        raise NotImplementedError
+
+    def sympify(self) -> Any:
+        """Convert to a sympy expression."""
+        raise NotImplementedError
+
+    def __float__(self) -> float:
+        """Extract the numeric value of a constant expression."""
+        raise NotImplementedError
 
 # ── Qiskit version flags ──────────────────────────────────────────────────
 QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
@@ -23,14 +46,9 @@ QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 # These are only meaningful when qiskit-ibm-runtime is installed.
 # The flags are set to ``None`` when the package is not available and
 # should be treated as "feature not available".
-QISKIT_RUNTIME_AVAILABLE: bool = False
-QISKIT_RUNTIME_SMALLER_0_21: bool | None = None
-QISKIT_RUNTIME_SMALLER_0_23: bool | None = None
-QISKIT_RUNTIME_SMALLER_0_28: bool | None = None
-
 try:
     from qiskit_ibm_runtime import (
-        __version__ as _ibm_runtime_version,  # type: ignore[import-untyped]
+        __version__ as _ibm_runtime_version,
     )
 
     QISKIT_RUNTIME_AVAILABLE = True
@@ -38,24 +56,27 @@ try:
     QISKIT_RUNTIME_SMALLER_0_23 = version.parse(_ibm_runtime_version) < version.parse("0.23.0")
     QISKIT_RUNTIME_SMALLER_0_28 = version.parse(_ibm_runtime_version) < version.parse("0.28.0")
 except ImportError:
-    pass
+    QISKIT_RUNTIME_AVAILABLE = False
+    QISKIT_RUNTIME_SMALLER_0_21 = None
+    QISKIT_RUNTIME_SMALLER_0_23 = None
+    QISKIT_RUNTIME_SMALLER_0_28 = None
 
 
 # ── ParameterExpression helpers ────────────────────────────────────────────
 
 
-def _param_to_sympy(param: ParameterExpression):
+def _param_to_sympy(param: _ParameterExpression):
     """Convert a ``ParameterExpression`` to a *sympy* expression.
 
     * Qiskit >= 2.0 exposes :py:meth:`ParameterExpression.sympify`.
     * Qiskit < 2.0 stores the expression in the private ``_symbol_expr``.
     """
     if QISKIT_SMALLER_2_0:
-        return _sympify(param._symbol_expr)  # pylint: disable=protected-access
+        return _sympify(getattr(param, "_symbol_expr"))
     return param.sympify()
 
 
-def _param_is_constant(param: ParameterExpression) -> bool:
+def _param_is_constant(param: _ParameterExpression) -> bool:
     """Return ``True`` when *param* contains no free symbols.
 
     In Qiskit 1.x this was checked via ``param._symbol_expr is None``;
@@ -64,7 +85,7 @@ def _param_is_constant(param: ParameterExpression) -> bool:
     return len(param.parameters) == 0
 
 
-def _param_to_float(param: ParameterExpression) -> float:
+def _param_to_float(param: _ParameterExpression) -> float:
     """Extract the numeric value from a *constant* ``ParameterExpression``.
 
     Replaces the private ``param._coeff`` accessor.
@@ -72,7 +93,7 @@ def _param_to_float(param: ParameterExpression) -> float:
     return float(param)
 
 
-def _param_free_symbols(param: ParameterExpression):
+def _param_free_symbols(param: _ParameterExpression):
     """Return the free ``Parameter`` objects inside *param*.
 
     * Qiskit < 2.0 exposed ``param._parameter_symbols.keys()``.

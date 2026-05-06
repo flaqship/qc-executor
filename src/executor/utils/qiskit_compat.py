@@ -38,6 +38,7 @@ class _ParameterExpression(Protocol):
         """Extract the numeric value of a constant expression."""
         raise NotImplementedError
 
+
 # ── Qiskit version flags ──────────────────────────────────────────────────
 QISKIT_SMALLER_1_2 = version.parse(qiskit_version) < version.parse("1.2.0")
 QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")

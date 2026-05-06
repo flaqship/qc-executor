@@ -13,9 +13,7 @@ def _bits_key(bits: tuple, circuit: QuantumCircuit) -> tuple:
     return tuple(
         (
             circuit.find_bit(bit).index,
-            tuple(
-                (reg[0].size, reg[0].name, reg[1]) for reg in circuit.find_bit(bit).registers
-            ),
+            tuple((reg[0].size, reg[0].name, reg[1]) for reg in circuit.find_bit(bit).registers),
         )
         for bit in bits
     )

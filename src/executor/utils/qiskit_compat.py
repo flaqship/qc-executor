@@ -48,9 +48,7 @@ QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 # The flags are set to ``None`` when the package is not available and
 # should be treated as "feature not available".
 try:
-    from qiskit_ibm_runtime import (
-        __version__ as _ibm_runtime_version,
-    )
+    from qiskit_ibm_runtime import __version__ as _ibm_runtime_version
 
     QISKIT_RUNTIME_AVAILABLE = True
     QISKIT_RUNTIME_SMALLER_0_21 = version.parse(_ibm_runtime_version) < version.parse("0.21.0")

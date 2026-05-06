@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import numpy as np
-from typing import Union
+from typing import Union, List
 from collections import Counter
 
 from qiskit.circuit import ParameterVector
@@ -11,7 +13,7 @@ from qoqo import Circuit, operations as ops
 from qoqo_quest import Backend
 
 from .qoqo_circuit import QoqoCircuit
-from .qoqo_observable import QoqoObservable
+from .qoqo_operator import QoqoOperator
 from qollage import draw_circuit
 
 
@@ -25,6 +27,9 @@ class QoqoExecutor(ExecutorBase):
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str, optional): Directory for caching. Defaults to "cache".
     """
+
+    _native_circuit_class = QoqoCircuit
+    _native_operator_class = QoqoOperator
 
     def __init__(
         self,
@@ -62,7 +67,7 @@ class QoqoExecutor(ExecutorBase):
         """Return True if the execution access a remote backend."""
         return False
 
-    def expectation_value(
+    def _expectation_value(
         self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
     ) -> float:
         """
@@ -78,10 +83,13 @@ class QoqoExecutor(ExecutorBase):
         if circuit in self._circuit_cache:
             qoqo_circuit = self._circuit_cache[circuit]
         else:
-            qoqo_circuit = QoqoCircuit(circuit)
+            if isinstance(circuit, QoqoCircuit):
+                qoqo_circuit = circuit
+            else:
+                qoqo_circuit = QoqoCircuit(circuit)
             self._circuit_cache[circuit] = qoqo_circuit
 
-        qoqo_observable = QoqoObservable(operator)
+        qoqo_observable = QoqoOperator(operator)
         flat_circuit_parameters = {}
         for key, vals in parameter_values.items():
             is_list = isinstance(vals, list)
@@ -104,32 +112,37 @@ class QoqoExecutor(ExecutorBase):
 
         return expectations["expectation_value"] + id_shift
 
-    def expectation_value_derivatives(
+    def _expectation_value_derivatives(
         self,
-        circuit: QuantumCircuitBase,
-        operator: QuantumOperatorBase,
-        parameter,
-        *values: Union[
-            str,
-            ParameterVector,
-            ParameterVectorElement,
-            tuple,
-        ],
-    ) -> dict:
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
+        *derivative,
+        **parameters,
+    ) -> float | np.ndarray | dict:
         """
-        Calculate the derivatives of the expectation value with respect to the parameters of the circuit.
+        Calculate the derivatives of the expectation value with respect to the
+        parameters of the circuit.
 
         Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
-            operator (QuantumOperatorBase): The quantum operator.
-            args: Additional arguments for the derivative calculation.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
+                or a list of circuits.
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
+                observable or a list of observables.
+            derivative: The parameter(s) with respect to which the derivative is calculated.
+            parameters: Additional values for the free parameters of the circuit(s) and
+                the observable(s) given as keyword arguments.
+                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
+                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
 
         Returns:
-            List[float]: The derivatives of the expectation value.
+            float | np.array | dict: The derivative of the expectation value:
+                - single float/array if one derivative parameter is requested
+                - dictionary mapping parameter names to gradient arrays if multiple
+                  parameters are requested
         """
         raise NotImplementedError
 
-    def sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
+    def _sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
         """
         Sample the circuit.
 
@@ -156,7 +169,7 @@ class QoqoExecutor(ExecutorBase):
         counts = dict(Counter(samples))
         return counts
 
-    def statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
+    def _statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
         """
         Get the statevector of the circuit.
 
@@ -181,3 +194,41 @@ class QoqoExecutor(ExecutorBase):
         results = backend.run_circuit(running_circuit)
 
         return results[2].get("state_vector")[0]
+
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
+        """Abstract implementation of circuit transpilation."""
+        if isinstance(circuit, self._native_circuit_class):
+            return circuit
+        return self._native_circuit_class.from_quantum_circuit(circuit)
+
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+        """Abstract implementation of operator transpilation.
+
+        Subclasses override this to convert generic QuantumOperator to
+        backend-native types. For backends supporting symmetry (e.g.,
+        Pauli Propagation), the symmetry_strategy parameter allows
+        assigning a symmetry strategy to the operator.
+
+        Args:
+            operator (QuantumOperatorBase): The operator to transpile.
+
+        Returns:
+            QuantumOperatorBase: The transpiled operator in backend-native format.
+        """
+        if isinstance(operator, self._native_operator_class):
+            return operator
+        return self._native_operator_class.from_quantum_operator(operator)
+
+    @classmethod
+    def get_accepted_backend_types(cls) -> List[type]:
+        """Return a list of backend object types accepted by this executor.
+
+        This is used for auto-detection when a non-string backend is passed to
+        :meth:`Executor.create`.  If the backend object is an instance of any
+        of the returned types, this executor will be selected automatically.
+
+        Returns:
+            List[type]: List of accepted backend types
+                (e.g., Qiskit ``Backend`` / ``BackendV2`` classes)
+        """
+        raise NotImplementedError

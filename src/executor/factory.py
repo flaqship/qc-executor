@@ -33,6 +33,7 @@ class Executor:
         "pennylane": "pennylane",
         "qulacs": "qulacs",
         "pauli_propagation": "pauli_propagation",
+        "qoqo": "qoqo",
     }
 
     def __init__(self):

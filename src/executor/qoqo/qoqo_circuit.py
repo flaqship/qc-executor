@@ -1,6 +1,6 @@
 from qoqo import Circuit
 from qoqo_qasm import qasm_str_to_circuit
-from qiskit.qasm2 import dumps
+from qiskit.qasm2 import dumps, loads
 from qiskit.compiler import transpile
 
 from ..utils.decompose_to_std import decompose_to_std
@@ -9,6 +9,11 @@ from .qoqo_gate import qoqo_target
 
 
 class QoqoCircuit:
+
+    @classmethod
+    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "QoqoCircuit":
+        """Create a Qulacs native circuit from a generic circuit."""
+        return cls(circuit)
 
     def __init__(
         self,
@@ -52,6 +57,21 @@ class QoqoCircuit:
     def hash(self) -> str:
         """Hashable object of the circuit and observable for caching"""
         return hash(str(self._qiskit_circuit))
+
+    def circuit_metrics(self) -> dict:
+        """count number of gates in the circuit"""
+        if self._qoqo_circuit is None:
+            raise ValueError("Cannot calculate circuit metrics for unloaded circuit.")
+        return len(self._qoqo_circuit)
+
+    def from_qasm(self, qasm: str) -> None:
+        """Load the circuit from a qasm string"""
+        self._qoqo_circuit = qasm_str_to_circuit(qasm)
+        self._qiskit_circuit = loads(qasm)
+
+    def to_qasm(self) -> str:
+        """Convert the circuit to a qasm string"""
+        return dumps(self._qiskit_circuit)
 
     def get_qoqo_circuit(self) -> Circuit:
         """Builds and returns the qoqo circuit as callable function"""

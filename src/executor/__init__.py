@@ -35,6 +35,12 @@ except ImportError as e:
     logger.debug("Pauli propagation backend not available: %s", e)
     pauli_propagation = None
 
+try:
+    from . import qoqo
+except ImportError as e:
+    logger.debug("QOQO backend not available: %s", e)
+    qoqo = None
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -54,3 +60,5 @@ if qulacs is not None:
     __all__.append("qulacs")
 if pauli_propagation is not None:
     __all__.append("pauli_propagation")
+if qoqo is not None:
+    __all__.append("qoqo")

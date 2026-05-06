@@ -1,8 +1,11 @@
-import numpy as np
-from abc import ABC, abstractmethod
-from typing import List, Union
+"""Base classes for quantum operators across different quantum frameworks."""
 
-from qiskit.circuit import ParameterExpression, Parameter
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import List, Optional
+
+from executor.parameters import Parameter
 
 
 class QuantumOperatorBase(ABC):
@@ -14,12 +17,23 @@ class QuantumOperatorBase(ABC):
     """
 
     def __init__(
-        self, num_qubits: int = None, paulis: List[str] = None, coeffs: List[float] = None
+        self,
+        num_qubits: Optional[int] = None,
+        paulis: Optional[List[str]] = None,
+        coeffs: Optional[List[float]] = None,
     ):
         self._num_qubits = num_qubits
+        self._paulis = paulis or []
+        self._coeffs = coeffs or []
+
+    @classmethod
+    @abstractmethod
+    def from_quantum_operator(cls, operator: "QuantumOperatorBase") -> "QuantumOperatorBase":
+        """Create a backend-native operator from a generic quantum operator."""
+        raise NotImplementedError
 
     @property
-    def num_qubits(self) -> int:
+    def num_qubits(self) -> int | None:
         """Return the number of qubits in the circuit."""
         return self._num_qubits
 
@@ -44,7 +58,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @property
-    def parameters(self) -> List[Union[Parameter, ParameterExpression]]:
+    def parameters(self) -> List[Parameter]:
         """
         Return the parameters of the operator.
 
@@ -61,7 +75,7 @@ class QuantumOperatorBase(ABC):
         Returns:
             Number of parameters.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     @abstractmethod
     def adjoint(self) -> "QuantumOperatorBase":
@@ -74,7 +88,7 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def apply_layout(self, layout: dict) -> "QuantumOperatorBase":
+    def apply_layout(self, layout: List[int]) -> "QuantumOperatorBase":
         """
         Apply a layout to the operator.
 

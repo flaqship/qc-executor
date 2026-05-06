@@ -1,0 +1,54 @@
+name: Formatting check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  black:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install Black
+        run: uv tool install "black[jupyter]"
+
+      - name: Check src/
+        run: uvx black -l 99 src --check
+
+      - name: Check tests/
+        run: uvx black -l 99 tests --check
+
+      - name: Check examples/ (notebooks)
+        run: uvx black -l 99 --ipynb examples --check
+  isort:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install isort
+        run: uv tool install isort
+
+      - name: Check src/
+        run: uvx isort --check-only src
+
+      - name: Check tests/
+        run: uvx isort --check-only tests

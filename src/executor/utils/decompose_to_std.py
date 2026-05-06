@@ -1,3 +1,5 @@
+"""Utilities for decomposing Qiskit circuits into standard gate sets."""
+
 from __future__ import annotations
 
 from qiskit.circuit import QuantumCircuit

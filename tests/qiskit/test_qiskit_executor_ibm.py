@@ -5,13 +5,8 @@ They use FakeBackend instances so that no real IBM Quantum credentials are
 needed.
 """
 
-from random import seed
-
 import numpy as np
 import pytest
-
-# Skip the entire module if qiskit-ibm-runtime is not installed
-qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
 
 from executor import Executor, QuantumCircuit
 from executor.qiskit.qiskit_circuit import QiskitCircuit
@@ -27,6 +22,9 @@ from executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_SMALLER_0_23,
     QISKIT_RUNTIME_SMALLER_0_28,
 )
+
+# Skip the entire module if qiskit-ibm-runtime is not installed
+qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -106,6 +104,46 @@ class TestBackendDetection:
         assert remote is False
         assert ibm_quantum is False
         assert fake is True
+
+    def test_classify_backend_string_fallback_for_ibm_like_name(self):
+        class _UnknownBackend:
+            def __str__(self):
+                return "IBM Fake Backend"
+
+        remote, ibm_quantum, fake = _classify_backend(_UnknownBackend())
+
+        assert remote is False
+        assert ibm_quantum is False
+        assert fake is True
+
+    def test_resolve_backend_from_session_or_batch_via_backend_attr(self):
+        from executor.qiskit.qiskit_executor import _resolve_backend_from_session_or_batch
+
+        backend = _get_fake_backend()
+
+        class _SessionLike:
+            def __init__(self, backend):
+                self._backend = backend
+
+        assert _resolve_backend_from_session_or_batch(_SessionLike(backend)) is backend
+
+    def test_resolve_backend_from_session_or_batch_via_backend_name(self):
+        from executor.qiskit.qiskit_executor import _resolve_backend_from_session_or_batch
+
+        backend = _get_fake_backend()
+
+        class _Service:
+            def backend(self, name):
+                assert name == "fake_backend"
+                return backend
+
+        class _SessionLike:
+            def backend(self):
+                return "fake_backend"
+
+            service = _Service()
+
+        assert _resolve_backend_from_session_or_batch(_SessionLike()) is backend
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +330,73 @@ class TestExecutionFakeBackend:
         result = executor.sample(qc)
         assert isinstance(result, dict)
         assert len(result) >= 1
+
+
+class TestIBMInternalHelpers:
+    def test_ensure_session_active_recreates_expired_session(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._session = type("_Session", (), {"status": lambda self: "closed"})()
+        executor._create_session_called = False
+
+        def _fake_create_session():
+            executor._create_session_called = True
+
+        executor._create_session = _fake_create_session
+        executor._uses_managed_session = lambda: False
+
+        executor._ensure_session_active()
+
+        assert executor._create_session_called is True
+
+    def test_instantiate_runtime_primitive_v2_uses_expected_kwargs(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._session = type("_Session", (), {"status": lambda self: "open"})()
+        executor._backend = _get_fake_backend()
+        executor._execution_mode = "job"
+
+        class _DummyPrimitive:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        if QISKIT_RUNTIME_SMALLER_0_23:
+            primitive = executor._instantiate_runtime_primitive_v2(_DummyPrimitive, {"a": 1})
+            assert primitive.kwargs["session"] is executor._session
+        else:
+            primitive = executor._instantiate_runtime_primitive_v2(_DummyPrimitive, {"a": 1})
+            assert primitive.kwargs["mode"] is executor._session
+        assert primitive.kwargs["options"] == {"a": 1}
+
+    def test_instantiate_runtime_primitive_v1_uses_backend_and_options(self, monkeypatch):
+        from executor.qiskit import qiskit_executor as qiskit_executor_module
+
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = False
+        executor._session = None
+        executor._backend = _get_fake_backend()
+
+        class _DummyPrimitive:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class _DummyOptions:
+            def __init__(self):
+                self.resilience_level = None
+
+        monkeypatch.setattr(
+            qiskit_executor_module,
+            "_load_runtime_options_v1",
+            lambda: _DummyOptions,
+        )
+
+        primitive = executor._instantiate_runtime_primitive_v1(
+            _DummyPrimitive, {"resilience_level": 1}
+        )
+
+        assert primitive.kwargs["backend"] is executor._backend
+        assert primitive.kwargs["options"] is not None
+        assert primitive.kwargs["options"].resilience_level == 1
 
 
 # ---------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+"""Concrete quantum circuit implementation backed by a Qiskit circuit."""
+
 from __future__ import annotations
 
 from typing import List
@@ -19,14 +21,23 @@ class QuantumCircuit(QuantumCircuitBase):
         num_qubits (int): Number of qubits in the circuit
     """
 
-    def __init__(self, num_qubits: int):
+    def __init__(self, num_qubits: int, _native_circuit: QiskitQuantumCircuit | None = None):
         super().__init__(num_qubits)
-        self._qiskit_circuit = QiskitQuantumCircuit(self._num_qubits)
+        self._qiskit_circuit: QiskitQuantumCircuit = (
+            _native_circuit
+            if _native_circuit is not None
+            else QiskitQuantumCircuit(self._num_qubits)
+        )
 
     @classmethod
     def from_quantum_circuit(cls, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
         """Identity conversion for generic circuits."""
         return circuit
+
+    @property
+    def qiskit_circuit(self) -> QiskitQuantumCircuit:
+        """The underlying Qiskit circuit."""
+        return self._qiskit_circuit
 
     @property
     def num_qubits(self) -> int:
@@ -129,11 +140,11 @@ class QuantumCircuit(QuantumCircuitBase):
         self._qiskit_circuit.crx(angle, control_qubit, target_qubit)
 
     def cry(self, control_qubit: int, target_qubit: int, angle: float):
-        """Add CRX gates"""
+        """Add CRY gates"""
         self._qiskit_circuit.cry(angle, control_qubit, target_qubit)
 
     def crz(self, control_qubit: int, target_qubit: int, angle: float):
-        """Add CRX gates"""
+        """Add CRZ gates"""
         self._qiskit_circuit.crz(angle, control_qubit, target_qubit)
 
     def rxx(self, control_qubit: int, target_qubit: int, angle: float):
@@ -184,6 +195,48 @@ class QuantumCircuit(QuantumCircuitBase):
             elif pauli == "I":
                 pass  # Identity gate (I) can be skipped as it does nothing
 
+    def _apply_basis_change(
+        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
+    ) -> None:
+        """Apply pre-rotation basis change for Pauli evolution."""
+        for p, q in zip(paulis, qubits):
+            if p == "X":
+                self.h(working_qubits[q])
+            elif p == "Y":
+                self.sdag(working_qubits[q])
+                self.h(working_qubits[q])
+            elif p != "Z":
+                raise ValueError(f"Unknown Pauli operator: {p}")
+
+    def _undo_basis_change(
+        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
+    ) -> None:
+        """Undo the pre-rotation basis change after Pauli evolution."""
+        for p, q in zip(paulis, qubits):
+            if p == "X":
+                self.h(working_qubits[q])
+            elif p == "Y":
+                self.h(working_qubits[q])
+                self.s(working_qubits[q])
+
+    def _apply_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
+        """Apply the forward CNOT ladder for Pauli evolution."""
+        if not qubits:
+            return
+        control = qubits[0]
+        for target in qubits[1:]:
+            self.cx(working_qubits[control], working_qubits[target])
+            control = target
+
+    def _undo_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
+        """Undo the CNOT ladder after the phase rotation."""
+        if not qubits:
+            return
+        control = qubits[-1]
+        for target in reversed(qubits[:-1]):
+            self.cx(working_qubits[target], working_qubits[control])
+            control = target
+
     def pauli_evolution(
         self,
         operator: QuantumOperatorBase,
@@ -199,7 +252,7 @@ class QuantumCircuit(QuantumCircuitBase):
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
-        pauli_str = operator.paulis[0].to_label()
+        pauli_str = operator.paulis[0]
         coeff = operator.coeffs
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
@@ -221,39 +274,12 @@ class QuantumCircuit(QuantumCircuitBase):
         if working_qubits is None:
             working_qubits = list(range(len(pauli_str)))
 
-        # Apply basis change for non-trivial Paulis
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.sdag(working_qubits[q])
-                self.h(working_qubits[q])
-            elif p != "Z":
-                raise ValueError(f"Unknown Pauli operator: {p}")
-
-        # Apply controlled chain of CNOTs
+        self._apply_basis_change(paulis, qubits, working_qubits)
         if qubits:
-            control = qubits[0]
-            for target in qubits[1:]:
-                self.cx(working_qubits[control], working_qubits[target])
-                control = target
-
-            # Apply phase rotation on the last qubit
-            self.rz(working_qubits[qubits[-1]], 2 * coeff)
-
-            # Undo controlled CNOT chain
-            control = qubits[-1]
-            for target in reversed(qubits[:-1]):
-                self.cx(working_qubits[target], working_qubits[control])
-                control = target
-
-        # Undo basis change
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.h(working_qubits[q])
-                self.s(working_qubits[q])
+            self._apply_cnot_ladder(qubits, working_qubits)
+            self.rz(working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
+            self._undo_cnot_ladder(qubits, working_qubits)
+        self._undo_basis_change(paulis, qubits, working_qubits)
 
     def controlled_pauli_evolution(
         self,
@@ -272,7 +298,7 @@ class QuantumCircuit(QuantumCircuitBase):
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
-        pauli_str = operator.paulis[0].to_label()
+        pauli_str = operator.paulis[0]
         coeff = operator.coeffs
 
         if len(coeff) != 1:
@@ -288,53 +314,26 @@ class QuantumCircuit(QuantumCircuitBase):
         paulis = [p for p in pauli_str if p != "I"]
 
         if len(paulis) == 0:
-            self.rz(control_qubit, -coeff)
-            return None
+            self.rz(control_qubit, float(np.real(-coeff)))
+            return
 
         if working_qubits is None:
             working_qubits = list(range(len(pauli_str) + 1))
             working_qubits.remove(control_qubit)
 
-        # Apply basis change for non-trivial Paulis
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.sdag(working_qubits[q])
-                self.h(working_qubits[q])
-            elif p != "Z":
-                raise ValueError(f"Unknown Pauli operator: {p}")
-
-        # Apply controlled chain of CNOTs
+        self._apply_basis_change(paulis, qubits, working_qubits)
         if qubits:
-            control = qubits[0]
-            for target in qubits[1:]:
-                self.cx(working_qubits[control], working_qubits[target])
-                control = target
+            self._apply_cnot_ladder(qubits, working_qubits)
+            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
+            self._undo_cnot_ladder(qubits, working_qubits)
+        self._undo_basis_change(paulis, qubits, working_qubits)
 
-            # Apply phase rotation on the last qubit
-            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * coeff)
-
-            # Undo controlled CNOT chain
-            control = qubits[-1]
-            for target in reversed(qubits[:-1]):
-                self.cx(working_qubits[target], working_qubits[control])
-                control = target
-
-        # Undo basis change
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.h(working_qubits[q])
-                self.s(working_qubits[q])
-
-    def compose(self, qc: "QuantumCircuit", qubits: List[int]) -> "QuantumCircuit":
+    def compose(self, qc: QuantumCircuitBase, qubits: List[int]) -> "QuantumCircuit":
         """Compose two quantum circuits."""
         if isinstance(qc, QuantumCircuit):
-            self._qiskit_circuit = self._qiskit_circuit.compose(qc._qiskit_circuit, qubits)
-        else:
-            raise ValueError("The circuit to compose must be a QuantumCircuit object")
+            self._qiskit_circuit.compose(qc.qiskit_circuit, qubits, inplace=True)
+            return self
+        raise ValueError("The circuit to compose must be a QuantumCircuit object")
 
     def assign_parameters(self, parameters: dict):
         """Change parameters in the circuit.
@@ -342,20 +341,15 @@ class QuantumCircuit(QuantumCircuitBase):
         Args:
             parameters (np.array): parameters to assign to the circuit
         """
-        self._qiskit_circuit = self._qiskit_circuit.assign_parameters(parameters)
+        self._qiskit_circuit.assign_parameters(parameters, inplace=True)
 
-    def invert(self) -> "QuantumCircuitBase":
+    def invert(self) -> "QuantumCircuit":
         """Invert the circuit."""
-        """Invert the circuit."""
-        return_class = self.copy()
-        return_class._quantum_circuit_qiskit = return_class._quantum_circuit_qiskit.inverse()
-        return return_class
+        return self.__class__(self._num_qubits, self._qiskit_circuit.inverse())
 
-    def copy(self) -> "QuantumCircuitBase":
+    def copy(self) -> "QuantumCircuit":
         """Return a copy of the circuit."""
-        return_class = self.__class__(self._num_qubits)
-        return_class._qiskit_circuit = self._qiskit_circuit.copy()
-        return return_class
+        return self.__class__(self._num_qubits, self._qiskit_circuit.copy())
 
     def circuit_metrics(self) -> dict:
         """count number of gates in the circuit"""

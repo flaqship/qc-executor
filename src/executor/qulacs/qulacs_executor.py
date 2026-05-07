@@ -313,7 +313,8 @@ class QulacsExecutor(ExecutorBase):
             """
             qulacs_circuit = circuit.get_circuit_func(parameters)(*arguments_circuit)
             outer_jacobian = circuit.get_gradient_outer_jacobian(parameters)(*arguments_circuit)
-            qulacs_observable = observable.get_operator_func()(*arguments_observable[0])
+            observable_args = arguments_observable[0] if len(arguments_observable) > 0 else []
+            qulacs_observable = observable.get_operator_func()(*observable_args)
 
             if isinstance(parameters, ParameterVectorElement):
                 parameters = [parameters]

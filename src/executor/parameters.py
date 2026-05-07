@@ -1,19 +1,22 @@
+"""Parameter and ParameterVector types for parameterised quantum circuits."""
+
 from __future__ import annotations
 
+from typing import TypeAlias
 from uuid import UUID, uuid4
 
-from qiskit.circuit import ParameterExpression as QiskitParameterExpression
-from qiskit.circuit import ParameterVector as QiskitParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParameterVectorElement
 
-# TODO: copied form Qiskit, adjust to don't break copyright problems
-
-
-class Parameter(QiskitParameterVectorElement):
-    pass
+#: Library-native parameter type. Alias for Qiskit's ``ParameterVectorElement``,
+#: decoupling user-facing code from the Qiskit class hierarchy.
+Parameter: TypeAlias = QiskitParameterVectorElement
 
 
 class Parameters:
+    """An ordered, resizable vector of :class:`Parameter` instances.
+
+    Behaves like a sequence: supports indexing, iteration, and ``len()``.
+    """
 
     def __init__(self, name, length=0):
         self._name = name

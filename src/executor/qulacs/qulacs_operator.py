@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import List
 
 import numpy as np
-from qiskit.circuit import ParameterExpression
+import sympy as sp
+from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
 from qulacs import GeneralQuantumOperator, PauliOperator
@@ -162,7 +163,12 @@ class QulacsOperator:
                         self._free_parameters.add(param_element)
                         used_parameters_obs_element.append(param_element)
                         # Use direct symbolic derivative for coefficient gradients.
-                        param_grad = c.gradient(param_element)
+                        try:
+                            param_grad = c.gradient(param_element)
+                        except Exception:  # pragma: no cover - qiskit/symengine runtime dependent
+                            c_sym = _param_to_sympy(c)
+                            p_sym = _param_to_sympy(param_element)
+                            param_grad = c_sym.diff(p_sym)
                         if isinstance(param_grad, complex):
                             if param_grad.imag == 0:
                                 param_grad = param_grad.real
@@ -170,6 +176,10 @@ class QulacsOperator:
                             # create a call by value labmda function
                             func_grad_list_element.append(
                                 lambda *arg, param_grad=param_grad: param_grad
+                            )
+                        elif isinstance(param_grad, sp.Basic):
+                            func_grad_list_element.append(
+                                lambdify(self._symbol_tuple_obs, param_grad)
                             )
                         else:
                             func_grad_list_element.append(

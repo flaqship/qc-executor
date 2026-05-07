@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit
@@ -246,6 +247,35 @@ class TestQiskitCircuit:
 
         qiskit_circ = QiskitCircuit(qc)
         assert "x" in qiskit_circ.parameter_names
+
+    def test_from_quantum_circuit_with_raw_qiskit_circuit(self):
+        """Test from_quantum_circuit with a native Qiskit circuit."""
+        theta = ParameterVector("theta", 2)
+        raw_qc = QiskitQuantumCircuit(1)
+        raw_qc.rx(theta[0], 0)
+        raw_qc.rz(theta[1], 0)
+
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(raw_qc)
+
+        assert qiskit_circ.qiskit_circuit is raw_qc
+        assert qiskit_circ.num_qubits == 1
+        assert qiskit_circ.parameter_names == ["theta"]
+        assert qiskit_circ.parameter_dimensions["theta"] == 2
+
+    def test_copy_str_and_repr(self):
+        """Test copy, string conversion and repr output."""
+        x = ParameterVector("x", 1)
+        qc = QuantumCircuit(1)
+        qc.rx(0, x[0])
+
+        qiskit_circ = QiskitCircuit(qc)
+        copied = qiskit_circ.copy()
+
+        assert copied is not qiskit_circ
+        assert copied.qiskit_circuit is not qiskit_circ.qiskit_circuit
+        assert str(copied) == str(qiskit_circ)
+        assert "QiskitCircuit(" in repr(qiskit_circ)
+        assert "1 qubits" in repr(qiskit_circ)
 
     def test_num_qubits_property(self):
         """Test that num_qubits property returns correct value."""

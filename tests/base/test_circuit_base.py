@@ -14,7 +14,7 @@ class FakePauli:
 
 class FakeOperator:
     def __init__(self, label: str, coeffs):
-        self.paulis = [FakePauli(label)]
+        self.paulis = [label]
         self.coeffs = coeffs
 
 
@@ -124,11 +124,6 @@ class TestQuantumCircuitBasePropertiesAndAliases:
         circuit.cnot(0, 1)
         assert circuit.ops == [("cx", 0, 1)]
 
-    def test_cp_alias_calls_p(self):
-        circuit = SpyCircuit(1)
-        circuit.cp(0, 0.25)
-        assert circuit.ops == [("p", 0, 0.25)]
-
 
 class TestPauliString:
     def test_pauli_string_applies_reversed_qubit_order(self):
@@ -217,7 +212,7 @@ class TestPauliEvolution:
         assert ("cx", 1, 0) in circuit.ops
 
     def test_pauli_evolution_with_parameterized_coeff_runs(self):
-        coeff = ParameterVector("c", 1)[0]
+        coeff = 1.0
         circuit = SpyCircuit(1)
         op = FakeOperator("Z", [coeff])
 

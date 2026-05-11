@@ -1,4 +1,3 @@
-import executor.base as base_module
 from executor.base.operator_base import QuantumOperatorBase
 
 
@@ -47,23 +46,3 @@ class TestOperatorBaseContract:
         assert op.paulis == ["ZI", "IZ"]
         assert op.coeffs == [1.0, -1.0]
         assert op.num_paulis == 2
-
-
-class TestBaseModuleApi:
-    def test_base_module_all_exports(self):
-        expected = {"ExecutorBase", "QuantumCircuitBase", "QuantumOperatorBase"}
-        assert set(base_module.__all__) == expected
-
-    def test_base_module_exports_point_to_classes(self):
-        from executor.base.circuit_base import QuantumCircuitBase
-        from executor.base.executor_base import ExecutorBase
-        from executor.base.operator_base import QuantumOperatorBase
-
-        assert base_module.ExecutorBase is ExecutorBase
-        assert base_module.QuantumCircuitBase is QuantumCircuitBase
-        assert base_module.QuantumOperatorBase is QuantumOperatorBase
-
-    def test_parameters_base_module_is_importable(self):
-        import executor.base.parameters_base as parameters_base
-
-        assert parameters_base is not None

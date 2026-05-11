@@ -101,6 +101,13 @@ class TestExecutorBaseInternals:
         assert key_b[1] == id(obj_b)
         assert key_a != key_b
 
+    def test_get_accepted_backend_aliases_default_empty(self):
+        assert DummyExecutor.get_accepted_backend_aliases() == []
+
+    def test_make_cache_size_validation(self):
+        with pytest.raises(ValueError, match="max_size must be None or a positive integer"):
+            DummyExecutor(caching=True, max_cache_size=0)
+
 
 class TestExecutorBaseCachingAndDelegation:
     def test_expectation_value_uses_cache(self):
@@ -303,10 +310,3 @@ class TestExecutorBaseLoggingAndValidation:
             for handler in inst._logger.handlers[:]:
                 handler.close()
                 inst._logger.removeHandler(handler)
-
-    def test_get_accepted_backend_aliases_default_empty(self):
-        assert DummyExecutor.get_accepted_backend_aliases() == []
-
-    def test_make_cache_size_validation(self):
-        with pytest.raises(ValueError, match="max_size must be None or a positive integer"):
-            DummyExecutor(caching=True, max_cache_size=0)

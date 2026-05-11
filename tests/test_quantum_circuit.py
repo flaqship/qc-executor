@@ -1,7 +1,8 @@
 """Tests for `executor.quantum_circuit`."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from qiskit.circuit import ParameterVector
 
 import executor.quantum_circuit as quantum_circuit_module

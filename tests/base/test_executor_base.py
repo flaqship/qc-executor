@@ -56,21 +56,25 @@ class DummyExecutor(ExecutorBase):
 
 
 class TestExecutorBaseInternals:
+    def test_normalize_parameter_values_indexed_to_vector_raises(self):
+        with pytest.raises(ValueError, match="Incomplete indexed parameters for 'x'"):
+            ExecutorBase._normalize_parameter_values(
+                **{"x[0]": 0.1, "x[2]": 0.3, "y": [1.0], "z": 7}
+            )
+
     def test_normalize_parameter_values_indexed_to_vector(self):
         normalized = ExecutorBase._normalize_parameter_values(
-            **{"x[0]": 0.1, "x[2]": 0.3, "y": [1.0], "z": 7}
+            **{"x[0]": 0.1, "x[1]": 0.2, "x[2]": 0.3, "y": [1.0], "z": 7}
         )
 
-        assert normalized["x"] == [0.1, None, 0.3]
+        assert list(normalized.keys()) == ["y", "z", "x"]
+        assert normalized["x"] == [0.1, 0.2, 0.3]
         assert normalized["y"] == [1.0]
         assert normalized["z"] == 7
 
-    def test_normalize_parameter_values_indexed_precedence(self):
-        normalized = ExecutorBase._normalize_parameter_values(
-            **{"x": [9.9], "x[0]": 1.0, "x[1]": 2.0}
-        )
-
-        assert normalized["x"] == [1.0, 2.0]
+    def test_normalize_parameter_values_mixed_forms_raise(self):
+        with pytest.raises(ValueError, match="Cannot mix vector and indexed parameter forms"):
+            ExecutorBase._normalize_parameter_values(**{"x": [9.9], "x[0]": 1.0, "x[1]": 2.0})
 
     def test_make_result_key_independent_of_kwarg_order(self):
         key1 = ExecutorBase._make_result_key("m", 1, 2, a=3, b=4)

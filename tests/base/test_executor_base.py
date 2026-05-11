@@ -97,6 +97,8 @@ class TestExecutorBaseInternals:
         key_a = ExecutorBase._make_result_key("m", obj_a)
         key_b = ExecutorBase._make_result_key("m", obj_b)
 
+        assert key_a[1] == id(obj_a)
+        assert key_b[1] == id(obj_b)
         assert key_a != key_b
 
 

@@ -140,30 +140,48 @@ class TestExecutorBaseCachingAndDelegation:
     def test_bounded_cache_evicts_oldest_entry(self):
         ex = DummyExecutor(caching=True, max_cache_size=2)
 
-        ex.expectation_value("c1", "o")
-        ex.expectation_value("c2", "o")
-        ex.expectation_value("c1", "o")
-
-        assert ex.calls["expectation"] == 2
-
-        ex.expectation_value("c3", "o")
-        assert ex.calls["expectation"] == 3
-
-        ex.expectation_value("c2", "o")
-        assert ex.calls["expectation"] == 3
-
-        ex.expectation_value("c1", "o")
-
-        assert ex.calls["expectation"] == 4
-
+        # Prepare expected cache keys
         key_c1 = ExecutorBase._make_result_key("expectation_value", "c1", "o")
         key_c2 = ExecutorBase._make_result_key("expectation_value", "c2", "o")
         key_c3 = ExecutorBase._make_result_key("expectation_value", "c3", "o")
 
+        # 1) Insert c1
+        ex.expectation_value("c1", "o")
+        assert ex.calls["expectation"] == 1
         assert ex._result_cache is not None
-        assert len(ex._result_cache) == 2
+        assert len(ex._result_cache) == 1
         assert key_c1 in ex._result_cache
-        assert key_c3 in ex._result_cache
+
+        # 2) Insert c2
+        ex.expectation_value("c2", "o")
+        assert ex.calls["expectation"] == 2
+        assert len(ex._result_cache) == 2
+        assert key_c1 in ex._result_cache and key_c2 in ex._result_cache
+
+        # 3) Hit c1 (should be cached; no new backend call)
+        ex.expectation_value("c1", "o")
+        assert ex.calls["expectation"] == 2
+        assert len(ex._result_cache) == 2
+        assert key_c1 in ex._result_cache and key_c2 in ex._result_cache
+
+        # 4) Insert c3 -- should evict the oldest (c1)
+        ex.expectation_value("c3", "o")
+        assert ex.calls["expectation"] == 3
+        assert len(ex._result_cache) == 2
+        assert key_c2 in ex._result_cache and key_c3 in ex._result_cache
+        assert key_c1 not in ex._result_cache
+
+        # 5) Hit c2 (cached)
+        ex.expectation_value("c2", "o")
+        assert ex.calls["expectation"] == 3
+        assert len(ex._result_cache) == 2
+        assert key_c2 in ex._result_cache and key_c3 in ex._result_cache
+
+        # 6) Re-insert c1 -- should evict the oldest (c2)
+        ex.expectation_value("c1", "o")
+        assert ex.calls["expectation"] == 4
+        assert len(ex._result_cache) == 2
+        assert key_c1 in ex._result_cache and key_c3 in ex._result_cache
         assert key_c2 not in ex._result_cache
 
     def test_transpile_circuit_list_caches_per_item(self):

@@ -132,6 +132,8 @@ class TestExecutorBaseCachingAndDelegation:
         r3 = ex.sample("c0")
 
         assert r1 == r2
+        # Ensure that changing `shots` alters the sample results
+        assert r1 != r3
         assert r3["shots"] == 200
         assert ex.calls["sample"] == 2
 

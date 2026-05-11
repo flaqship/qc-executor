@@ -106,7 +106,7 @@ class TestExecutorBaseCachingAndDelegation:
     def test_expectation_value_uses_cache(self):
         ex = DummyExecutor(caching=True)
 
-        first = ex.expectation_value("c0", "o0", **{"x[0]": 0.1, "x[1]": 0.2})
+        first = ex.expectation_value("c0", "o0", x=[0.1, 0.2])
         second = ex.expectation_value("c0", "o0", x=[0.1, 0.2])
 
         assert first == second
@@ -115,7 +115,7 @@ class TestExecutorBaseCachingAndDelegation:
     def test_expectation_value_derivatives_uses_cache_and_derivative_key(self):
         ex = DummyExecutor(caching=True)
 
-        r1 = ex.expectation_value_derivatives("c0", "o0", "theta", **{"x[0]": 1.0})
+        r1 = ex.expectation_value_derivatives("c0", "o0", "theta", x=[1.0])
         r2 = ex.expectation_value_derivatives("c0", "o0", "theta", x=[1.0])
         r3 = ex.expectation_value_derivatives("c0", "o0", "phi", x=[1.0])
 

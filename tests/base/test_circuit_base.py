@@ -135,8 +135,6 @@ class TestPauliString:
     def test_pauli_string_length_mismatch_raises(self):
         circuit = SpyCircuit(2)
 
-        import pytest
-
         with pytest.raises(ValueError, match="Pauli string length"):
             circuit.pauli_string("X")
 
@@ -171,8 +169,6 @@ class TestPauliEvolution:
         ]
 
     def test_pauli_evolution_complex_coeff_raises(self):
-        import pytest
-
         circuit = SpyCircuit(1)
         op = FakeOperator("Z", [1 + 1j])
 

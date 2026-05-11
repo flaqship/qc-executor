@@ -188,11 +188,14 @@ class TestExecutorBaseCachingAndDelegation:
         ex = DummyExecutor(caching=True)
 
         out = ex.transpile_circuit(["a", "b", "a"])
-        out_again = ex.transpile_circuit(["a", "b", "a"])
-        out_with_new = ex.transpile_circuit(["a", "c", "a"])
-
         assert out == ["tc:a", "tc:b", "tc:a"]
+        assert ex.calls["transpile_circuit"] == 2
+
+        out_again = ex.transpile_circuit(["a", "b", "a"])
         assert out_again == ["tc:a", "tc:b", "tc:a"]
+        assert ex.calls["transpile_circuit"] == 2
+
+        out_with_new = ex.transpile_circuit(["a", "c", "a"])
         assert out_with_new == ["tc:a", "tc:c", "tc:a"]
         assert ex.calls["transpile_circuit"] == 3
 
@@ -200,11 +203,14 @@ class TestExecutorBaseCachingAndDelegation:
         ex = DummyExecutor(caching=True)
 
         out = ex.transpile_operator(["x", "y", "x"])
-        out_again = ex.transpile_operator(["x", "y", "x"])
-        out_with_new = ex.transpile_operator(["x", "z", "x"])
-
         assert out == ["to:x", "to:y", "to:x"]
+        assert ex.calls["transpile_operator"] == 2
+
+        out_again = ex.transpile_operator(["x", "y", "x"])
         assert out_again == ["to:x", "to:y", "to:x"]
+        assert ex.calls["transpile_operator"] == 2
+
+        out_with_new = ex.transpile_operator(["x", "z", "x"])
         assert out_with_new == ["to:x", "to:z", "to:x"]
         assert ex.calls["transpile_operator"] == 3
 
@@ -212,11 +218,14 @@ class TestExecutorBaseCachingAndDelegation:
         ex = DummyExecutor(caching=True)
 
         out = ex.transpile_circuit("a")
-        out_again = ex.transpile_circuit("a")
-        out_new = ex.transpile_circuit("b")
-
         assert out == "tc:a"
+        assert ex.calls["transpile_circuit"] == 1
+
+        out_again = ex.transpile_circuit("a")
         assert out_again == "tc:a"
+        assert ex.calls["transpile_circuit"] == 1
+
+        out_new = ex.transpile_circuit("b")
         assert out_new == "tc:b"
         assert ex.calls["transpile_circuit"] == 2
 
@@ -224,11 +233,14 @@ class TestExecutorBaseCachingAndDelegation:
         ex = DummyExecutor(caching=True)
 
         out = ex.transpile_operator("x")
-        out_again = ex.transpile_operator("x")
-        out_new = ex.transpile_operator("y")
-
         assert out == "to:x"
+        assert ex.calls["transpile_operator"] == 1
+
+        out_again = ex.transpile_operator("x")
         assert out_again == "to:x"
+        assert ex.calls["transpile_operator"] == 1
+
+        out_new = ex.transpile_operator("y")
         assert out_new == "to:y"
         assert ex.calls["transpile_operator"] == 2
 
@@ -236,9 +248,10 @@ class TestExecutorBaseCachingAndDelegation:
         ex = DummyExecutor(caching=False)
 
         first = ex.transpile_operator("x")
-        second = ex.transpile_operator("x")
-
         assert first == "to:x"
+        assert ex.calls["transpile_operator"] == 1
+
+        second = ex.transpile_operator("x")
         assert second == "to:x"
         assert ex.calls["transpile_operator"] == 2
 

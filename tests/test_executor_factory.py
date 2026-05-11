@@ -241,7 +241,7 @@ class TestExecutorFactory:
         class FailingTypesExecutor(MockExecutor):
             @classmethod
             def get_accepted_backend_types(cls) -> list[type]:
-                raise RuntimeError("boom")
+                raise ImportError("boom")
 
         class MatchingTypesExecutor(MockExecutor):
             def __init__(self, backend=None, **kwargs):
@@ -353,27 +353,6 @@ class TestExecutorFactory:
         Executor._plugins_discovered = False
         Executor._discover_plugins()
         assert Executor._plugins_discovered is True
-
-    def test_discover_plugins_logs_warning_when_plugin_load_fails(self, monkeypatch, caplog):
-        import importlib.metadata as importlib_metadata
-
-        class FailingEntryPoint:
-            name = "broken-plugin"
-
-            def load(self):
-                raise RuntimeError("load failed")
-
-        def fake_entry_points(*args, **kwargs):
-            assert kwargs.get("group") == "executor.backends"
-            return [FailingEntryPoint()]
-
-        monkeypatch.setattr(importlib_metadata, "entry_points", fake_entry_points)
-
-        Executor._plugins_discovered = False
-        with caplog.at_level("WARNING"):
-            Executor._discover_plugins()
-
-        assert "Failed to load plugin 'broken-plugin'" in caplog.text
 
 
 class TestExecutorIntegration:

@@ -76,15 +76,12 @@ class TestQulacsCircuitProperties:
 
 
 class TestQulacsCircuitParameterExpressions:
-    def setup_method(self):
-        self.circuit = QulacsCircuit(QuantumCircuit(1))
 
     @pytest.mark.parametrize("angle,expected", [(1.5, -1.5), (2, -2)])
     def test_add_parameter_expression_numeric_values(self, angle, expected):
         """Test parameter expression handling for numeric inputs."""
-        func, func_grad, used_parameters, parameterized = self.circuit._add_parameter_expression(
-            angle
-        )
+        circuit = QulacsCircuit(QuantumCircuit(1))
+        func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(angle)
 
         assert func == expected
         assert func_grad is None
@@ -96,10 +93,10 @@ class TestQulacsCircuitParameterExpressions:
         parameter = ParameterVector("x", 1)[0]
         base_circuit = QuantumCircuit(1)
         base_circuit.rx(0, parameter)
-        self.circuit = QulacsCircuit(base_circuit)
+        circuit = QulacsCircuit(base_circuit)
         monkeypatch.setattr(ParameterVectorElement, "__neg__", lambda self: self)
 
-        func, func_grad, used_parameters, parameterized = self.circuit._add_parameter_expression(
+        func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
             parameter
         )
 
@@ -115,10 +112,10 @@ class TestQulacsCircuitParameterExpressions:
         base_circuit = QuantumCircuit(2)
         base_circuit.rx(0, x[0])
         base_circuit.ry(1, x[1])
-        self.circuit = QulacsCircuit(base_circuit)
+        circuit = QulacsCircuit(base_circuit)
         expression = 2.0 * x[0] + x[1] * x[0]
 
-        func, func_grad, used_parameters, parameterized = self.circuit._add_parameter_expression(
+        func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
             expression
         )
 
@@ -139,9 +136,9 @@ class TestQulacsCircuitParameterExpressions:
         x = ParameterVector("x", 1)
         base_circuit = QuantumCircuit(1)
         base_circuit.rx(0, x[0])
-        self.circuit = QulacsCircuit(base_circuit)
+        circuit = QulacsCircuit(base_circuit)
 
-        func, func_grad, used_parameters, parameterized = self.circuit._add_parameter_expression(
+        func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
             2.0 * x[0]
         )
 
@@ -152,8 +149,9 @@ class TestQulacsCircuitParameterExpressions:
 
     def test_add_parameter_expression_invalid_type(self):
         """Test that unsupported angle types raise a TypeError."""
+        circuit = QulacsCircuit(QuantumCircuit(1))
         with pytest.raises(TypeError):
-            self.circuit._add_parameter_expression(object())
+            circuit._add_parameter_expression(object())
 
 
 class TestQulacsCircuitGateBuilders:

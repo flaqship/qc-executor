@@ -23,24 +23,24 @@ class TestUintType:
     """Test uint type selection."""
 
     def test_small_systems(self):
-        assert get_uint_type(1) == np.uint8
-        assert get_uint_type(4) == np.uint8
+        assert get_uint_type(1) is np.uint8
+        assert get_uint_type(4) is np.uint8
 
     def test_medium_systems(self):
-        assert get_uint_type(5) == np.uint16
-        assert get_uint_type(8) == np.uint16
+        assert get_uint_type(5) is np.uint16
+        assert get_uint_type(8) is np.uint16
 
     def test_large_systems(self):
-        assert get_uint_type(9) == np.uint32
-        assert get_uint_type(16) == np.uint32
+        assert get_uint_type(9) is np.uint32
+        assert get_uint_type(16) is np.uint32
 
     def test_very_large_systems(self):
-        assert get_uint_type(17) == np.uint64
-        assert get_uint_type(32) == np.uint64
+        assert get_uint_type(17) is np.uint64
+        assert get_uint_type(32) is np.uint64
 
     def test_large_qubit_fallback(self):
-        assert get_uint_type(33) == int
-        assert get_uint_type(100) == int
+        assert get_uint_type(33) is int
+        assert get_uint_type(100) is int
 
 
 class TestSymbolConversion:

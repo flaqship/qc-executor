@@ -5,7 +5,7 @@ import pytest
 
 # Try to import Qiskit
 try:
-    from qiskit import QuantumCircuit, QuantumRegister
+    from qiskit import QuantumCircuit
     from qiskit.circuit import Parameter
 
     QISKIT_AVAILABLE = True
@@ -31,7 +31,6 @@ class TestConvertSingleGate:
 
     def test_convert_rx_gate(self, qiskit_converter):
         """Test RX gate conversion."""
-        from qiskit.circuit.library import RXGate
 
         qc = QuantumCircuit(1)
         qc.rx(np.pi / 2, 0)

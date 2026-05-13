@@ -1,12 +1,16 @@
+"""Circuit module for converting Qiskit circuits to PennyLane native circuits."""
+
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable, Optional, cast
 
 import pennylane as qml
 import pennylane.numpy as pnp
 from qiskit import transpile
 from qiskit.circuit import Clbit, ParameterExpression
+from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 from sympy import lambdify
+from sympy.printing.numpy import NumPyPrinter as _NumPyPrinter
 
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
@@ -26,10 +30,8 @@ def _get_sympy_interface():
     """
     # SymPy printer for pennylane numpy implementation has to be set manually,
     # otherwise math functions are used in lambdify instead of pennylane.numpy functions
-    from sympy.printing.numpy import NumPyPrinter as Printer
-
     user_functions = {}
-    printer = Printer(
+    printer = _NumPyPrinter(
         {
             "fully_qualified_modules": False,
             "inline": True,
@@ -94,6 +96,7 @@ def _get_sympy_interface():
 
 
 class PennyLaneCircuit:
+    """PennyLane circuit representation converted from a generic QuantumCircuit."""
 
     @classmethod
     def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "PennyLaneCircuit":
@@ -121,6 +124,7 @@ class PennyLaneCircuit:
         self._pennylane_conditions = []
         self._pennylane_gates_parameters = []
         self._pennylane_gates_parameters_dimensions = {}
+        self._pennylane_circuit = None
 
         # Build circuit instructions for the pennylane circuit from the qiskit circuit
         self._build_circuit_instructions(self._qiskit_circuit)
@@ -133,7 +137,7 @@ class PennyLaneCircuit:
         return self._num_qubits
 
     @property
-    def pennylane_circuit(self) -> Callable:
+    def pennylane_circuit(self) -> Optional[Callable]:
         """PennyLane circuit that can be called with parameters"""
         return self._pennylane_circuit
 
@@ -154,13 +158,48 @@ class PennyLaneCircuit:
 
     def get_pennylane_circuit(self) -> Callable:
         """Builds and returns the PennyLane circuit as callable function"""
-        self._pennylane_circuit = self.build_pennylane_circuit()
-        return self._pennylane_circuit
+        circuit = self.build_pennylane_circuit()
+        self._pennylane_circuit = circuit
+        return circuit
 
     def __call__(self, *args, **kwargs):
+        if self._pennylane_circuit is None:
+            raise RuntimeError("Call get_pennylane_circuit() before invoking the circuit.")
         return self._pennylane_circuit(*args, **kwargs)
 
-    def _build_circuit_instructions(self, circuit: QuantumCircuit) -> None:
+    def _get_gate_condition(self, circuit: QiskitQuantumCircuit, gate_operation: Any):
+        """Get the classical condition for a gate, or None if unconditional."""
+        if (
+            not hasattr(gate_operation.operation, "condition")
+            or gate_operation.operation.condition is None
+        ):
+            return None
+        classical_bits = gate_operation.operation.condition[0]
+        val = gate_operation.operation.condition[1]
+        if isinstance(classical_bits, Clbit):
+            bit_indices = circuit.find_bit(classical_bits).index
+        else:
+            bit_indices = [circuit.find_bit(b).index for b in classical_bits]
+        return (bit_indices, val)
+
+    def _get_gate_param_tuple(self, gate_operation, symbol_tuple, printer, modules):
+        """Build the parameter function tuple for a gate, or None if no parameters."""
+        if len(gate_operation.operation.params) < 1:
+            return None
+        param_tuple = ()
+        for param in gate_operation.operation.params:
+            if isinstance(param, ParameterExpression):
+                if _param_is_constant(param):
+                    param = _param_to_float(param)
+                else:
+                    symbol_expr = _param_to_sympy(param)
+                    f = lambdify(symbol_tuple, symbol_expr, modules=modules, printer=printer)
+                    param_tuple += (f,)
+            else:
+                param_tuple += (param,)
+        return param_tuple
+
+    def _build_circuit_instructions(self, circuit: QiskitQuantumCircuit) -> None:
         """
         Function to build the instructions for the PennyLane circuit from the Qiskit circuit.
 
@@ -182,7 +221,7 @@ class PennyLaneCircuit:
         self._pennylane_gates_parameters = []
         self._pennylane_gates_parameters_dimensions = {}
 
-        symbol_tuple = tuple([_param_to_sympy(p) for p in circuit.parameters])
+        symbol_tuple = tuple(_param_to_sympy(p) for p in circuit.parameters)
 
         for param in circuit.parameters:
             if param.vector.name not in self._pennylane_gates_parameters:
@@ -194,44 +233,10 @@ class PennyLaneCircuit:
         printer, modules = _get_sympy_interface()
 
         for gate_operation in circuit.data:
-
-            # catch conditions of the gate
-            # only c_if is supported, the other cases have been caught before
-            if (
-                not hasattr(gate_operation.operation, "condition")
-                or gate_operation.operation.condition is None
-            ):
-                # No condition (usually the case)
-                self._pennylane_conditions.append(None)
-            else:
-                classical_bits = gate_operation.operation.condition[0]
-                val = gate_operation.operation.condition[1]
-                if isinstance(classical_bits, Clbit):
-                    i = circuit.find_bit(classical_bits).index
-                else:
-                    i = [circuit.find_bit(b).index for b in classical_bits]
-                # add indices of classical bits containing measured values
-                # and value of the conditions (measurement equal to val)
-                self._pennylane_conditions.append((i, val))
-
-            param_tuple = None
-            if len(gate_operation.operation.params) >= 1:
-                param_tuple = ()
-                for param in gate_operation.operation.params:
-                    if isinstance(param, ParameterExpression):
-                        if _param_is_constant(param):
-                            param = _param_to_float(param)
-                        else:
-                            symbol_expr = _param_to_sympy(param)
-                            f = lambdify(
-                                symbol_tuple, symbol_expr, modules=modules, printer=printer
-                            )
-
-                            param_tuple += (f,)
-                    else:
-                        param_tuple += (param,)
-
-            self._pennylane_gates_param_function.append(param_tuple)
+            self._pennylane_conditions.append(self._get_gate_condition(circuit, gate_operation))
+            self._pennylane_gates_param_function.append(
+                self._get_gate_param_tuple(gate_operation, symbol_tuple, printer, modules)
+            )
 
             if gate_operation.operation.name == "measure":
                 # Capture special case of measurement, that is stored in classical bits
@@ -250,9 +255,9 @@ class PennyLaneCircuit:
                 # All other gates
                 if gate_operation.operation.name not in qiskit_pennylane_gate_dict:
                     raise NotImplementedError(
-                        f"Gate {gate_operation.operation.name} is unfortunatly not supported in sQUlearn's PennyLane backend."
+                        f"Gate {gate_operation.operation.name} is unfortunatly not supported "
+                        "in sQUlearn's PennyLane backend."
                     )
-
                 self._pennylane_gates.append(
                     qiskit_pennylane_gate_dict[gate_operation.operation.name]
                 )
@@ -261,6 +266,30 @@ class PennyLaneCircuit:
                     for i in range(gate_operation.operation.num_qubits)
                 ]
                 self._pennylane_gates_wires.append(wires)
+
+    def _apply_conditional_gate(
+        self, circuit_gate, evaluated_param, condition, measurements, wires
+    ):
+        """Apply a gate that has a classical condition."""
+        condition_idx, condition_target = condition
+        if isinstance(condition_idx, list):
+            val = sum(2**j * measurements[condition_idx[j]] for j in range(len(condition_idx)))
+        else:
+            val = measurements[condition_idx]
+
+        if isinstance(val, int):
+            if val == condition_target:
+                if evaluated_param is not None:
+                    circuit_gate(*evaluated_param, wires=wires)
+                else:
+                    circuit_gate(wires=wires)
+        else:
+            # Cast to Callable so the type checker knows it accepts abitrary arguments
+            cond_fn = cast(Callable[..., Any], qml.cond(val == condition_target, circuit_gate))
+            if evaluated_param is not None:
+                cond_fn(*evaluated_param, wires=wires)
+            else:
+                cond_fn(wires=wires)
 
     def build_pennylane_circuit(self):
         """
@@ -277,7 +306,7 @@ class PennyLaneCircuit:
         def pennylane_circuit(*args):
             """PennyLane circuit that can be called with parameters"""
 
-            measurements = [0] * self._num_clbits
+            measurements: list = [0] * self._num_clbits
 
             # Collects the args values connected to the circuit parameters
             circ_param_list = sum(
@@ -295,55 +324,24 @@ class PennyLaneCircuit:
                             measurements[circuit_gate[1][j]] = qml.measure(wire)
                 else:
                     # Evaluate the (non-linear) parameter expression of the gate
-                    if self._pennylane_gates_param_function[i] != None:
+                    evaluated_param = None
+                    if self._pennylane_gates_param_function[i] is not None:
                         evaluated_param = tuple(
-                            [
-                                func(*circ_param_list) if callable(func) else func
-                                for func in self._pennylane_gates_param_function[i]
-                            ]
+                            func(*circ_param_list) if callable(func) else func
+                            for func in self._pennylane_gates_param_function[i]
                         )
-                    else:
-                        evaluated_param = None
+
+                    wires = self._pennylane_gates_wires[i]
+                    condition = self._pennylane_conditions[i]
 
                     # Treat c_if conditions of the gate (if present)
-                    if self._pennylane_conditions[i] != None:
-                        # Calculate the value of the classical bit(s) involved in the condition
-                        if isinstance(self._pennylane_conditions[i][0], list):
-                            # conditions involving multiple classical bits -> convert to integer
-                            val = 0
-                            for j in range(len(self._pennylane_conditions[i][0])):
-                                val += 2**j * measurements[self._pennylane_conditions[i][0][j]]
-                        else:
-                            val = measurements[self._pennylane_conditions[i][0]]
-
-                        if evaluated_param is not None:
-                            # The case that the gate has parameters
-                            if isinstance(val, int):
-                                # Conditional values are already integers
-                                if val == self._pennylane_conditions[i][1]:
-                                    circuit_gate(
-                                        *evaluated_param, wires=self._pennylane_gates_wires[i]
-                                    )
-                            else:
-                                # Otherwise, pennylane condition
-                                qml.cond(val == self._pennylane_conditions[i][1], circuit_gate)(
-                                    *evaluated_param, wires=self._pennylane_gates_wires[i]
-                                )
-                        else:
-                            # The case that the gate has no parameters
-                            if isinstance(val, int):
-                                # Conditional values are already integers
-                                if val == self._pennylane_conditions[i][1]:
-                                    circuit_gate(wires=self._pennylane_gates_wires[i])
-                            else:
-                                # Otherwise, pennylane condition
-                                qml.cond(val == self._pennylane_conditions[i][1], circuit_gate)(
-                                    wires=self._pennylane_gates_wires[i]
-                                )
+                    if condition is not None:
+                        self._apply_conditional_gate(
+                            circuit_gate, evaluated_param, condition, measurements, wires
+                        )
+                    elif evaluated_param is not None:
+                        circuit_gate(*evaluated_param, wires=wires)
                     else:
-                        if evaluated_param is not None:
-                            circuit_gate(*evaluated_param, wires=self._pennylane_gates_wires[i])
-                        else:
-                            circuit_gate(wires=self._pennylane_gates_wires[i])
+                        circuit_gate(wires=wires)
 
         return pennylane_circuit

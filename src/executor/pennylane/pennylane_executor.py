@@ -67,7 +67,7 @@ class PennyLaneExecutor(ExecutorBase):
     _native_operator_class = PennyLaneOperator
 
     @overload
-    def __init__(
+    def __init__(  # pylint: disable=keyword-arg-before-vararg
         self,
         backend: str = ...,
         *args,
@@ -95,7 +95,7 @@ class PennyLaneExecutor(ExecutorBase):
         max_cache_size: int | None = ...,
     ) -> None: ...
 
-    def __init__(
+    def __init__(  # pylint: disable=keyword-arg-before-vararg
         self,
         backend: str | Device = "default.qubit",
         *args,

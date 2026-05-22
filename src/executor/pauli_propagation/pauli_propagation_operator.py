@@ -90,20 +90,27 @@ class PauliPropagationOperator(QuantumOperatorBase):
                     raise ValueError("Length of coeffs must match length of paulis.")
 
                 for pauli, coeff in zip(paulis, coeff_values):
+                    # Normalize coefficients to sympy for robust symbolic handling
+                    # across sympy, symengine and Qiskit parameter expression types.
+                    if hasattr(coeff, "sympify"):
+                        coeff_expr = sp.sympify(coeff.sympify())
+                    else:
+                        coeff_expr = sp.sympify(coeff)
+
                     # Check if coefficient is symbolic
-                    if isinstance(coeff, sp.Expr) and not coeff.is_number:
+                    if isinstance(coeff_expr, sp.Expr) and len(coeff_expr.free_symbols) > 0:
                         from .utils.pauli_algebra import string_to_term
 
                         term = string_to_term(pauli, self._num_qubits)
-                        self._parametric_coeffs[term] = coeff
+                        self._parametric_coeffs[term] = coeff_expr
                         # Track parameters
-                        for symbol in coeff.free_symbols:
+                        for symbol in coeff_expr.free_symbols:
                             self._parameters[symbol.name] = symbol
                         # Add with coefficient 1.0 as placeholder
                         self._pauli_sum.add_term(pauli, 1.0)
                     else:
                         # Numeric coefficient
-                        self._pauli_sum.add_term(pauli, complex(coeff))
+                        self._pauli_sum.add_term(pauli, complex(coeff_expr))
         elif num_qubits is not None:
             self._num_qubits = num_qubits
             self._pauli_sum = PauliSum(num_qubits, symmetry=symmetry_strategy)

@@ -98,6 +98,13 @@ line_length = 99
 [tool.pylint]
 max-line-length = 99
 
+[tool.pylint.design]
+max-attributes = 10
+max-args = 10
+max-positional-arguments = 10
+max-locals = 20
+max-public-methods = 50
+
 [tool.pylint.main]
 extension-pkg-allow-list = [
     "numpy",

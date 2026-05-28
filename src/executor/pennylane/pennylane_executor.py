@@ -111,8 +111,7 @@ class PennyLaneExecutor(ExecutorBase):
 
         if "device" in kwargs:
             raise TypeError(
-                "'device' is not a supported argument. "
-                "Use 'backend' for backend specification."
+                "'device' is not a supported argument. Use 'backend' for backend specification."
             )
 
         super().__init__(
@@ -284,9 +283,7 @@ class PennyLaneExecutor(ExecutorBase):
         circuit_parameters = []
         for param in pennylane_circuit.parameter_names:
             if param not in parameter_values:
-                raise ValueError(
-                    f"Parameter '{param}' not found in provided parameter values."
-                )
+                raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
             param_values, _ = adjust_features(
                 parameter_values[param], pennylane_circuit.parameter_dimensions[param]
             )
@@ -317,9 +314,7 @@ class PennyLaneExecutor(ExecutorBase):
                 *args, _circ=pennylane_circuit, _obs=pennylane_obs
             ):
                 _circ.build_pennylane_circuit()(*args)
-                return _obs.build_pennylane_observable()(
-                    *args[len(_circ.parameter_names) :]
-                )
+                return _obs.build_pennylane_observable()(*args[len(_circ.parameter_names) :])
 
             observable_values = []
             for cp in circuit_parameter_tuples:
@@ -437,8 +432,7 @@ class PennyLaneExecutor(ExecutorBase):
 
             if todo_parameter_name not in argnum_dict:
                 raise ValueError(
-                    f"Parameter '{todo_parameter_name}' not found "
-                    "in the circuit or observable."
+                    f"Parameter '{todo_parameter_name}' not found in the circuit or observable."
                 )
 
             arg_index = argnum_dict[todo_parameter_name]
@@ -680,9 +674,7 @@ class PennyLaneExecutor(ExecutorBase):
             return circuit
         return cast(
             QuantumCircuitBase,
-            self._native_circuit_class.from_quantum_circuit(
-                cast(QuantumCircuit, circuit)
-            ),
+            self._native_circuit_class.from_quantum_circuit(cast(QuantumCircuit, circuit)),
         )
 
     def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:

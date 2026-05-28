@@ -220,10 +220,7 @@ class PennyLaneOperator:
         for op in operator:
             coeffs = op.coeffs if op.coeffs is not None else []
             self._pennylane_operator_param_functions.append(
-                [
-                    _resolve_coefficient(coeff, symbol_tuple, printer, modules)
-                    for coeff in coeffs
-                ]
+                [_resolve_coefficient(coeff, symbol_tuple, printer, modules) for coeff in coeffs]
             )
 
         # Convert Pauli strings into PennyLane Pauli words
@@ -273,9 +270,7 @@ class PennyLaneOperator:
                         if len(self._pennylane_words[i]) == 0:
                             expval_list.append(0.0)
                         else:
-                            expval_list.append(
-                                qml.expval(qml.sum(*self._pennylane_words[i]))
-                            )
+                            expval_list.append(qml.expval(qml.sum(*self._pennylane_words[i])))
                 return pnp.stack(tuple(expval_list))
             if len(obs_param_list) > 0:
                 coeff_list = [

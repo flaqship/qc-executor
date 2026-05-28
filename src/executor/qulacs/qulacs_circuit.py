@@ -108,7 +108,9 @@ class QulacsCircuit:
             self._qulacs_circuit = self.get_circuit_func()
         return self._qulacs_circuit(*args, **kwargs)
 
-    def _add_parameter_expression(self, angle: float | ParameterVectorElement | ParameterExpression) -> Any:
+    def _add_parameter_expression(
+        self, angle: float | ParameterVectorElement | ParameterExpression
+    ) -> Any:
         """
         Adds a parameter expression to the circuit and do the pre-processing.
 

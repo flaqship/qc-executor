@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from executor.pauli_propagation.utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 from executor.pauli_propagation.utils.pauli_types import PauliSum
 from executor.pauli_propagation.utils.propagation import (
     PropagationCache,
@@ -110,6 +110,23 @@ class TestPropagatePauliRotation:
 
         with pytest.raises(ValueError, match="requires parameter"):
             propagate_single_gate(rx, observable, param_value=None)
+
+    def test_unknown_gate_type_raises(self):
+        """Unknown gate types are rejected."""
+
+        class DummyGate(Gate):
+            def commutes_with(self, pauli_term: int) -> bool:
+                return True
+
+            def is_parametric(self) -> bool:
+                return False
+
+        dummy = DummyGate(0, nqubits=1)
+        observable = PauliSum(1)
+        observable.add_term("Z", 1.0)
+
+        with pytest.raises(TypeError, match="Unknown gate type"):
+            propagate_single_gate(dummy, observable)
 
 
 class TestPropagateClifford:
@@ -243,6 +260,61 @@ class TestPropagate:
         assert len(result) == 1
         assert np.isclose(result.get_coeff("X"), 1.0)
 
+    def test_propagate_with_barriers_uses_layer_splitting(self):
+        """Barriers split layers and still preserve expected propagation."""
+        h1 = CliffordGate("H", 0, nqubits=1)
+        h2 = CliffordGate("H", 0, nqubits=1)
+        observable = PauliSum(1)
+        observable.add_term("X", 1.0)
+
+        result = propagate([h1, LayerBarrier(), h2], observable)
+
+        # H twice gives identity action, independent of barrier split.
+        assert len(result) == 1
+        assert np.isclose(result.get_coeff("X"), 1.0)
+
+    def test_param_resolution_fallback_param_name_after_expr_error(self):
+        """If symbolic eval fails, resolver falls back to param_name."""
+
+        class DummySymbol:
+            def __init__(self, name: str):
+                self.name = name
+
+            def __hash__(self):
+                return hash(self.name)
+
+            def __eq__(self, other):
+                return isinstance(other, DummySymbol) and self.name == other.name
+
+        class FailingExpr:
+            free_symbols = {DummySymbol("bad")}
+
+            def subs(self, _):
+                raise ValueError("cannot evaluate")
+
+        rx = PauliRotation(["X"], 0, nqubits=1, param_name="phi")
+        rx.param_expr = FailingExpr()
+
+        observable = PauliSum(1)
+        observable.add_term("Z", 1.0)
+
+        result = propagate([rx], observable, parameters={"bad": 1.0, "phi": np.pi / 2})
+
+        # Fallback to phi=pi/2 yields Z -> Y.
+        assert np.isclose(result.get_coeff("Z"), 0.0, atol=1e-10)
+        assert np.isclose(result.get_coeff("Y"), 1.0, atol=1e-10)
+
+    def test_param_resolution_fallback_generic_theta(self):
+        """Generic 'theta' parameter is used when no named parameter is set."""
+        rx = PauliRotation(["X"], 0, nqubits=1)
+        observable = PauliSum(1)
+        observable.add_term("Z", 1.0)
+
+        result = propagate([rx], observable, parameters={"theta": np.pi / 2})
+
+        assert np.isclose(result.get_coeff("Z"), 0.0, atol=1e-10)
+        assert np.isclose(result.get_coeff("Y"), 1.0, atol=1e-10)
+
 
 class TestBatchPropagate:
     """Tests for batch_propagate: must match N individual propagate() calls."""
@@ -325,3 +397,22 @@ class TestBatchPropagate:
         assert len(batch[0]) == len(single)
         for term, coeff in single:
             assert np.isclose(batch[0].get_coeff(term), coeff)
+
+    def test_batch_propagate_with_truncation(self):
+        """batch_propagate applies truncation branch when configured."""
+        rx = PauliRotation(["X"], 0, nqubits=1, param_name="theta")
+
+        obs = PauliSum(1)
+        obs.add_term("Z", 1.0)
+
+        result = batch_propagate(
+            [rx],
+            [obs],
+            parameters={"theta": np.pi / 3},
+            truncate_threshold=0.8,
+        )[0]
+
+        # cos(pi/3)=0.5 is truncated, sin(pi/3)=sqrt(3)/2 remains.
+        assert len(result) == 1
+        assert np.isclose(result.get_coeff("Z"), 0.0)
+        assert np.isclose(result.get_coeff("Y"), np.sin(np.pi / 3))

@@ -670,7 +670,7 @@ class TestOpTreeEvaluation:
         assert mock_eval.call_args.args[1] == []
 
 
-class TestOpTreeEvaluateHelpersEdgeCases:
+class TestOpTreeEvaluateHelpers:
     """Test class for edge cases in OpTree evaluation helper functions"""
 
     class TestCheckTreeForMatrixCompatibility:

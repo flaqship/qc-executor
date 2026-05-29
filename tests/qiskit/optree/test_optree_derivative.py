@@ -6,6 +6,19 @@ from qiskit.circuit import ParameterVector, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
 from executor.qiskit.optree import OpTree
+from executor.qiskit.optree.optree import (
+    OpTreeList,
+    OpTreeNodeBase,
+    OpTreeOperator,
+    OpTreeSum,
+    OpTreeValue,
+)
+from executor.qiskit.optree.optree_derivative import (
+    _circuit_parameter_shift,
+    _differentiate_copy,
+    _differentiate_inplace,
+    _operator_differentiation,
+)
 
 QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 
@@ -211,3 +224,233 @@ class TestOpTreeDerivative:
         # This should not raise an error
         qc_linear_d = OpTree.derivative.differentiate(qc_linear, p[0])
         assert qc_linear_d is not None
+
+
+class TestOpTreeDerivativeHelpers:
+
+    class TestCircuitParameterShift:
+        """Test class for the circuit parameter shift helper function"""
+
+        def test_param_in_instruction_empty_params(self):
+            """Test with instruction having no parameters"""
+
+            # Create a mock instruction with empty params
+            p = ParameterVector("p", 1)
+
+            # Access the nested function through closure inspection
+            # We'll test by creating a simple circuit and inspecting behavior
+            qc = QuantumCircuit(1)
+            qc.h(0)  # H gate has no params
+
+            # Circuit with no parameters should return 0.0
+            result = _circuit_parameter_shift(qc, p[0])
+            assert isinstance(result, OpTreeValue)
+            assert result.value == 0.0
+
+        def test_param_in_instruction_parameter_expression_match(self):
+            """Test with instruction having matching ParameterExpression"""
+
+            p = ParameterVector("p", 1)
+
+            # Circuit with parameterized rotation
+            qc = QuantumCircuit(1)
+            qc.rx(p[0], 0)
+
+            # Should return non-zero OpTreeSum since parameter is in circuit
+            result = _circuit_parameter_shift(qc, p[0])
+            assert isinstance(result, OpTreeSum)
+            assert len(result.children) > 0
+
+        def test_circuit_parameter_shift_return_zero_for_optree_value(self):
+            """Test that _circuit_parameter_shift returns 0.0 for an OpTreeValue"""
+
+            p = ParameterVector("p", 1)
+
+            # Create an OpTreeValue and test that the function returns 0.0
+            optree_value = OpTreeValue(5.0)
+            result = _circuit_parameter_shift(optree_value, p[0])
+            assert isinstance(result, OpTreeValue)
+            assert result.value == 0.0
+
+        def test_circuit_parameter_shift_raises_for_non_circuit_input(self):
+            """Test that _circuit_parameter_shift raises an error for non-circuit input"""
+
+            p = ParameterVector("p", 1)
+
+            # Create a non-circuit input (e.g., a string) and test that it raises an error
+            with pytest.raises(
+                ValueError, match="element must be a CircuitTreeLeaf or a QuantumCircuit"
+            ):
+                _circuit_parameter_shift("not a circuit", p[0])
+
+    class TestOperatorDifferentiation:
+        """Test class for operator differentiation helper function"""
+
+        def test_operator_differentiation_returns_zero_for_optree_value(self):
+            """Test that operator differentiation returns 0.0 for an OpTreeValue"""
+
+            p = ParameterVector("p", 1)
+
+            # Create an OpTreeValue and test that the function returns 0.0
+            optree_value = OpTreeValue(5.0)
+            result = _operator_differentiation(optree_value, p[0])
+            assert isinstance(result, OpTreeValue)
+            assert result.value == 0.0
+
+        def test_operator_differentiation_returns_optree_operator_for_optree_opertor_input(self):
+            """Test that operator differentiation returns an OpTreeOperator for an OpTreeOperator input"""
+
+            p = ParameterVector("p", 1)
+
+            optree_operator = OpTreeOperator(SparsePauliOp(["I"], [p[0]]))
+            result = _operator_differentiation(optree_operator, p[0])
+            assert isinstance(result, OpTreeOperator)
+            assert result.operator == SparsePauliOp(["I"], [1.0])
+
+    class TestDifferentiateInplace:
+        """Test class for in-place differentiation"""
+
+        def test_differentiate_inplace_modifies_optree_recursive(self):
+            """Test that in-place differentiation modifies the original OpTree"""
+
+            p = ParameterVector("p", 1)
+
+            # Create a simple OpTree with a parameterized operator
+            optree = OpTreeList([OpTreeList([OpTreeOperator(SparsePauliOp(["I"], [p[0]]))])])
+
+            # Differentiate in-place
+            _differentiate_inplace(optree, p[0])
+
+            # Check that the original optree has been modified to contain the derivative
+            assert isinstance(optree, OpTreeList)
+            assert len(optree.children) == 1
+            assert isinstance(optree.children[0].children[0], OpTreeOperator)
+            assert optree.children[0].children[0].operator == SparsePauliOp(["I"], [1.0])
+
+        def test_differentiate_inplace_optree_value(self):
+            """Test that in-place differentiation modifies the original OpTreeValue"""
+
+            p = ParameterVector("p", 1)
+
+            # Create a simple OpTree with a parameterized operator
+            optree = OpTreeList([OpTreeValue(1)])
+
+            # Differentiate in-place
+            _differentiate_inplace(optree, p[0])
+
+            # Check that the original optree has been modified to contain the derivative
+            assert isinstance(optree, OpTreeList)
+            assert len(optree.children) == 1
+            assert isinstance(optree.children[0], OpTreeValue)
+            assert optree.children[0].value == 0.0
+
+        def test_differentiate_inplace_parameter_expression_factor(self):
+            """Test that in-place differentiation modifies the original OpTreeSum when the factor is a ParameterExpression"""
+            p = ParameterVector("p", 1)
+
+            tree = OpTreeSum([OpTreeValue(2.0)], [p[0]])
+
+            _differentiate_inplace(tree, p[0])
+
+            assert tree.factor[0] == 1.0
+            assert isinstance(tree.children[0], OpTreeSum)
+
+            inner = tree.children[0]
+            assert inner.factor[0] == 1.0
+            assert inner.factor[1] == p[0]
+
+        def test_differentiate_inplace_parameter_expression_grad_fac(self):
+            """Test that in-place differentiation modifies the original OpTreeSum when the grad_fac is a ParameterExpression"""
+            p = ParameterVector("p", 2)
+
+            tree = OpTreeSum([OpTreeValue(2.0)], [p[0] * p[1]])
+
+            _differentiate_inplace(tree, p[0])
+
+            assert tree.factor[0] == 1.0
+            assert isinstance(tree.children[0], OpTreeSum)
+
+            inner = tree.children[0]
+            assert inner.factor[0] == p[1]
+            assert inner.factor[1] == p[0] * p[1]
+
+        def test_differentiate_inplace_raises_for_non_sum_or_list(self):
+            """Test that in-place differentiation raises an error for non-sum or non-list input"""
+
+            p = ParameterVector("p", 1)
+
+            # Create a non-sum/list input (e.g., an OpTreeOperator) and test that it raises an error
+            with pytest.raises(
+                ValueError, match="tree_node must be a OpTreeNodeSum or a OpTreeNodeList"
+            ):
+                _differentiate_inplace(OpTreeOperator(SparsePauliOp(["I"], [p[0]])), p[0])
+
+    class TestDifferentiateCopy:
+        def test_factor_is_parameter_expression_and_grad_is_zero(self):
+            p = ParameterVector("p", 2)
+
+            tree = OpTreeSum([OpTreeValue(2.0)], [p[1]])
+            result = _differentiate_copy(tree, p[0])
+
+            assert isinstance(result, OpTreeSum)
+            assert result.factor[0] == p[1]
+            assert isinstance(result.children[0], OpTreeValue)
+            assert result.children[0].value == 0.0
+
+        def test_factor_is_parameter_expression_and_grad_is_nonzero_float(self):
+            p = ParameterVector("p", 2)
+
+            tree = OpTreeSum([OpTreeValue(2.0)], [p[0] + p[1]])
+            result = _differentiate_copy(tree, p[0])
+
+            assert isinstance(result, OpTreeSum)
+            assert result.factor[0] == 1.0
+            assert isinstance(result.children[0], OpTreeSum)
+            assert result.children[0].factor[0] == 1.0
+            assert result.children[0].factor[1] == p[0] + p[1]
+
+        def test_factor_is_parameter_expression_and_grad_is_parameter_expression(self):
+            p = ParameterVector("p", 2)
+
+            tree = OpTreeSum([OpTreeValue(2.0)], [p[0] * p[1]])
+            result = _differentiate_copy(tree, p[0])
+
+            assert isinstance(result, OpTreeSum)
+            assert result.factor[0] == 1.0
+            assert isinstance(result.children[0], OpTreeSum)
+            assert result.children[0].factor[0] == p[1]
+            assert result.children[0].factor[1] == p[0] * p[1]
+
+        def test_factor_is_not_parameter_expression(self):
+            p = ParameterVector("p", 1)
+
+            tree = OpTreeList([OpTreeValue(2.0)], [2.5])
+            result = _differentiate_copy(tree, p[0])
+
+            assert isinstance(result, OpTreeList)
+            assert result.factor[0] == 2.5
+            assert isinstance(result.children[0], OpTreeValue)
+            assert result.children[0].value == 0.0
+
+        def test_differentiate_copy_raises_for_non_sum_or_list(self):
+            """Test that copy differentiation raises an error for non-sum or non-list input"""
+
+            class OpTreeNodeContainer(OpTreeNodeBase):
+                def __init__(self, children):
+                    super().__init__(children)
+
+            p = ParameterVector("p", 1)
+
+            # Create a non-sum/list input and test that it raises an error
+            with pytest.raises(
+                ValueError, match="element must be a CircuitTreeSum or a CircuitTreeList"
+            ):
+                _differentiate_copy(OpTreeNodeContainer(SparsePauliOp(["I"], [p[0]])), p[0])
+
+        def test_differentiate_copy_raises_for_unsupported_element_type(self):
+            """Test that copy differentiation correctly handles nested sums"""
+
+            p = ParameterVector("p", 1)
+
+            with pytest.raises(ValueError, match="Unsupported element type"):
+                _differentiate_copy("unsupported", p[0])

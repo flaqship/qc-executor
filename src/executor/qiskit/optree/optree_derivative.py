@@ -230,7 +230,6 @@ def _differentiate_inplace(
 
     """
     if isinstance(tree_node, OpTreeNodeBase):
-        remove_list = []
         for i, child in enumerate(tree_node.children):
             if isinstance(tree_node.factor[i], ParameterExpression):
                 grad_fac = tree_node.factor[i].gradient(parameter)
@@ -271,9 +270,6 @@ def _differentiate_inplace(
                 # if grad_fac is still a parameter
                 tree_node.children[i] = OpTreeSum([child, grad], [grad_fac, tree_node.factor[i]])
                 tree_node.factor[i] = 1.0
-
-        if len(remove_list) > 0:
-            tree_node.remove(remove_list)
     else:
         raise ValueError("tree_node must be a OpTreeNodeSum or a OpTreeNodeList")
 

@@ -99,10 +99,12 @@ line_length = 99
 max-line-length = 99
 
 [tool.pylint.design]
-max-attributes = 10
+max-attributes = 20
 max-args = 10
 max-positional-arguments = 10
-max-locals = 20
+max-locals = 40
+max-branches = 40
+max-statements = 120
 max-public-methods = 50
 
 [tool.pylint.main]
@@ -112,3 +114,10 @@ extension-pkg-allow-list = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]

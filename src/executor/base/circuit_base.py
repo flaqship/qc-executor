@@ -263,7 +263,7 @@ class QuantumCircuitBase(ABC):
 
         if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
             coeff = np.real_if_close(coeff)
-            if isinstance(coeff, complex):
+            if np.iscomplexobj(coeff):
                 raise ValueError("Complex coefficients are not supported")
         else:
             # the 1j fixes a bug in qiskit
@@ -325,7 +325,7 @@ class QuantumCircuitBase(ABC):
 
         if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
             coeff = np.real_if_close(coeff)
-            if isinstance(coeff, complex):
+            if np.iscomplexobj(coeff):
                 raise ValueError("Complex coefficients are not supported")
 
         qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]

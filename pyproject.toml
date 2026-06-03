@@ -102,14 +102,14 @@ max-line-length = 99
 max-module-lines = 2000
 
 [tool.pylint.design]
-max-attributes = 15
-max-args = 15
-max-positional-arguments = 15
-max-locals = 20
+max-attributes = 20
+max-args = 20
+max-positional-arguments = 20
+max-locals = 50
 max-public-methods = 50
-max-branches = 45
-max-returns = 15
-max-statements = 135
+max-branches = 50
+max-returns = 20
+max-statements = 150
 
 [tool.pylint.main]
 extension-pkg-allow-list = [

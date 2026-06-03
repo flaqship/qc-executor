@@ -207,7 +207,7 @@ def _check_runtime_available():
         )
 
 
-# pylint: disable=import-outside-toplevel,import-error,redefined-outer-name,reimported
+# pylint: disable=import-outside-toplevel,import-error,no-name-in-module,redefined-outer-name,reimported
 
 
 def _load_runtime_primitives_v1():
@@ -290,7 +290,7 @@ def _is_session_or_batch_instance(obj) -> bool:
     return False
 
 
-# pylint: enable=import-outside-toplevel,import-error,redefined-outer-name,reimported
+# pylint: enable=import-outside-toplevel,import-error,no-name-in-module,redefined-outer-name,reimported
 
 
 def _resolve_backend_from_session_or_batch(session_or_batch):

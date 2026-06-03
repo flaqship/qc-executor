@@ -1,10 +1,11 @@
+"""Evaluation utilities for OpTree structures (sampler/estimator execution and assembly)."""
+
 from __future__ import annotations
 
-import time
 from typing import List, Tuple
 
 import numpy as np
-from qiskit.circuit import Clbit, ParameterExpression, QuantumCircuit
+from qiskit.circuit import Clbit, QuantumCircuit
 from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
 
 # pylint: disable=cyclic-import
@@ -22,6 +23,7 @@ from .optree import (
     OpTreeOperator,
     OpTreeSum,
     OpTreeValue,
+    bind_node_factors,
 )
 
 # Qiskit primitive imports are split across three version brackets:
@@ -38,10 +40,10 @@ from .optree import (
 # BitArray and BaseSamplerV2: introduced in Qiskit 1.2
 if QISKIT_SMALLER_1_2:
 
-    class BitArray:
+    class BitArray:  # pylint: disable=too-few-public-methods
         """Dummy BitArray for Qiskit < 1.2."""
 
-    class BaseSamplerV2:
+    class BaseSamplerV2:  # pylint: disable=too-few-public-methods
         """Dummy BaseSamplerV2 for Qiskit < 1.2."""
 
 else:
@@ -51,26 +53,28 @@ else:
 # for ALL Qiskit 1.x versions because it is not re-exported from the
 # top-level qiskit.primitives package until 2.0.
 if QISKIT_SMALLER_2_0:
+    # pylint: disable=import-error,no-name-in-module
     from qiskit.primitives import BaseEstimatorV1, BaseEstimatorV2, BaseSamplerV1
     from qiskit.primitives.backend_estimator import _pauli_expval_with_variance
     from qiskit.primitives.base import SamplerResult
+
+    # pylint: enable=import-error,no-name-in-module
 else:
     # In Qiskit >= 2.0, BaseEstimatorV2 is a proper top-level export;
     # V1 primitives and SamplerResult no longer exist.
     from qiskit.primitives import BaseEstimatorV2
 
-    class SamplerResult:
+    class SamplerResult:  # pylint: disable=too-few-public-methods
         """Dummy SamplerResult for Qiskit >= 2.0."""
 
-    class BaseSamplerV1:
+    class BaseSamplerV1:  # pylint: disable=too-few-public-methods
         """Dummy BaseSamplerV1 for Qiskit >= 2.0."""
 
-    class BaseEstimatorV1:
+    class BaseEstimatorV1:  # pylint: disable=too-few-public-methods
         """Dummy BaseEstimatorV1 for Qiskit >= 2.0."""
 
-    def _pauli_expval_with_variance(counts, paulis):
+    def _pauli_expval_with_variance(counts, paulis):  # pylint: disable=unused-argument
         """Dummy function for Qiskit >= 2.0."""
-        pass
 
 
 def _check_tree_for_matrix_compatibility(element: OpTreeNodeBase | OpTreeLeafBase):
@@ -101,15 +105,14 @@ def _check_tree_for_matrix_compatibility(element: OpTreeNodeBase | OpTreeLeafBas
             if not all(dim == dim_list[0] for dim in dim_list):
                 raise ValueError("All leafs must have the same dimension")
             return len(dim_list)
-        elif isinstance(element, OpTreeSum):
+        if isinstance(element, OpTreeSum):
             dim_list = [_get_dimensions(child) for child in element.children]
             if not all(dim == dim_list[0] for dim in dim_list):
                 raise ValueError("All leafs must have the same dimension")
             return dim_list[0]
-        elif isinstance(element, OpTreeLeafBase):
+        if isinstance(element, OpTreeLeafBase):
             return 1
-        else:
-            raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
     try:
         _get_dimensions(element)
@@ -191,19 +194,17 @@ def _evaluate_index_tree(
             if isinstance(element, OpTreeSum):
                 # OpTreeNodeSum -> sum over the array
                 return np.sum(temp, axis=0)
-            elif isinstance(element, OpTreeList):
+            if isinstance(element, OpTreeList):
                 # OpTreeNodeList -> return just the array
                 return temp
-            else:
-                raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
-        elif isinstance(element, OpTreeContainer):
+            raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
+        if isinstance(element, OpTreeContainer):
             # Return value from the result array
             return result_array[element.item]
-        elif isinstance(element, OpTreeValue):
+        if isinstance(element, OpTreeValue):
             # Return the value
             return element.value
-        else:
-            raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
     if datatype == "auto":
         if _check_tree_for_matrix_compatibility(element):
@@ -246,7 +247,7 @@ def _build_circuit_list(
         OpTree structure.
 
     """
-    from .optree import OpTree
+    from .optree import OpTree  # pylint: disable=import-outside-toplevel
 
     circuit_list = []
     if detect_circuit_duplicates:
@@ -272,53 +273,45 @@ def _build_circuit_list(
             # Recursive copy of the OpTreeNode structure and binding of the parameters
             # in the OpTree structure.
             child_list_indexed = [_build_lists_and_index_tree(c) for c in optree_element.children]
-            factor_list_bound = []
-            for fac in optree_element.factor:
-                if isinstance(fac, ParameterExpression):
-                    factor_list_bound.append(
-                        float(fac.bind(dictionary, allow_unknown_parameters=True))
-                    )
-                else:
-                    factor_list_bound.append(fac)
+            factor_list_bound = bind_node_factors(optree_element.factor, dictionary)
 
             # Recursive rebuild of the OpTree structure
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(child_list_indexed, factor_list_bound, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
-            else:
-                raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
+            raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
 
-        else:
-            # Reached a CircuitTreeLeaf
-            # Get the circuit, and check for duplicates if necessary.
-            if isinstance(optree_element, QuantumCircuit):
-                circuit = optree_element
-                if detect_circuit_duplicates:
-                    circuit_hash = OpTree.hash_circuit(circuit)
-            elif isinstance(optree_element, OpTreeCircuit):
-                circuit = optree_element.circuit
-                if detect_circuit_duplicates:
-                    circuit_hash = optree_element.hashvalue
-            elif isinstance(optree_element, OpTreeValue):
-                return optree_element  # Add nothing to the lists
-            else:
-                raise ValueError("element must be a CircuitTreeLeaf or a QuantumCircuit")
-
-            # In case of duplicate detection, check if the circuit is already in the
-            # circuit list and return the index of the circuit if it is already present
+        # Reached a CircuitTreeLeaf
+        # Get the circuit, and check for duplicates if necessary.
+        circuit_hash = None
+        if isinstance(optree_element, QuantumCircuit):
+            circuit = optree_element
             if detect_circuit_duplicates:
-                if circuit_hash in circuit_hash_dict:
-                    return OpTreeContainer(circuit_hash_dict[circuit_hash])
-                circuit_hash_dict[circuit_hash] = circuit_counter
+                circuit_hash = OpTree.hash_circuit(circuit)
+        elif isinstance(optree_element, OpTreeCircuit):
+            circuit = optree_element.circuit
+            if detect_circuit_duplicates:
+                circuit_hash = optree_element.hashvalue
+        elif isinstance(optree_element, OpTreeValue):
+            return optree_element  # Add nothing to the lists
+        else:
+            raise ValueError("element must be a CircuitTreeLeaf or a QuantumCircuit")
 
-            # Otherwise append the circuit to the circuit list, copy the paramerters into vector
-            # form and append them to the parameter list, increase the counter and return the index
-            # in the OpTreeLeafContainer
-            circuit_list.append(circuit)
-            parameter_list.append(np.array([dictionary[p] for p in circuit.parameters]))
-            circuit_counter += 1
-            return OpTreeContainer(circuit_counter - 1)
+        # In case of duplicate detection, check if the circuit is already in the
+        # circuit list and return the index of the circuit if it is already present
+        if detect_circuit_duplicates:
+            if circuit_hash in circuit_hash_dict:
+                return OpTreeContainer(circuit_hash_dict[circuit_hash])
+            circuit_hash_dict[circuit_hash] = circuit_counter
+
+        # Otherwise append the circuit to the circuit list, copy the paramerters into vector
+        # form and append them to the parameter list, increase the counter and return the index
+        # in the OpTreeLeafContainer
+        circuit_list.append(circuit)
+        parameter_list.append(np.array([dictionary[p] for p in circuit.parameters]))
+        circuit_counter += 1
+        return OpTreeContainer(circuit_counter - 1)
 
     index_tree = _build_lists_and_index_tree(optree_element)
 
@@ -351,7 +344,9 @@ def _build_operator_list(
     to the operator list.
 
     Args:
-        optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue | OpTreeLeafMeasuredOperator | SparsePauliOp): The Operator in OpTree format to be converted.
+        optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue |
+            OpTreeLeafMeasuredOperator | SparsePauliOp): The Operator in OpTree format to be
+            converted.
         dictionary (dict): The dictionary that contains the values for the parameters in the
                            operator and the OpTree structure.
         detect_operator_duplicates (bool): If True, the removes duplicate operators from the
@@ -361,7 +356,7 @@ def _build_operator_list(
         A tuple containing the operator list and the indexed copy of the OpTree structure.
     """
 
-    from .optree import OpTree
+    from .optree import OpTree  # pylint: disable=import-outside-toplevel
 
     operator_list = []
     if detect_operator_duplicates:
@@ -385,61 +380,53 @@ def _build_operator_list(
             # Recursive copy of the OpTreeNode structure and binding of the parameters
             # in the OpTree structure.
             child_list_indexed = [_build_lists_and_index_tree(c) for c in optree_element.children]
-            factor_list_bound = []
-            for fac in optree_element.factor:
-                if isinstance(fac, ParameterExpression):
-                    factor_list_bound.append(
-                        float(fac.bind(dictionary, allow_unknown_parameters=True))
-                    )
-                else:
-                    factor_list_bound.append(fac)
+            factor_list_bound = bind_node_factors(optree_element.factor, dictionary)
             # Recursive rebuild of the OpTree structure
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(child_list_indexed, factor_list_bound, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
-            else:
-                raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
-        elif isinstance(optree_element, OpTreeValue):
+            raise ValueError("element must be a OpTreeNodeSum or a OpTreeNodeList")
+        if isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
-        else:
-            # Reached a Operator
 
-            if isinstance(optree_element, SparsePauliOp):
-                operator = optree_element
-                if detect_operator_duplicates:
-                    operator_hash = OpTree.hash_operator(operator)
-            elif isinstance(
-                optree_element,
-                (OpTreeOperator, OpTreeExpectationValue, OpTreeMeasuredOperator),
-            ):
-                operator = optree_element.operator
-                if detect_operator_duplicates:
-                    operator_hash = optree_element.hashvalue
-            else:
-                raise ValueError("element must be a OpTreeLeafOperator or a SparsePauliOp")
-
-            # Assign parameters
-            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
-            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
-            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
-            operator = ensure_complex_coeffs(
-                operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
-            )
-
-            if len(operator.parameters) != 0:
-                raise ValueError("Not all parameters are assigned in the operator!")
-
-            # Check if the operator is already part of the evaluation list
-            # If that is the case, return the index of the operator
+        # Reached a Operator
+        operator_hash = None
+        if isinstance(optree_element, SparsePauliOp):
+            operator = optree_element
             if detect_operator_duplicates:
-                if operator_hash in operator_dict:
-                    return OpTreeContainer(operator_dict[operator_hash])
-                operator_dict[operator_hash] = operator_counter
+                operator_hash = OpTree.hash_operator(operator)
+        elif isinstance(
+            optree_element,
+            (OpTreeOperator, OpTreeExpectationValue, OpTreeMeasuredOperator),
+        ):
+            operator = optree_element.operator
+            if detect_operator_duplicates:
+                operator_hash = optree_element.hashvalue
+        else:
+            raise ValueError("element must be a OpTreeLeafOperator or a SparsePauliOp")
 
-            operator_list.append(operator)
-            operator_counter += 1
-            return OpTreeContainer(operator_counter - 1)
+        # Assign parameters
+        # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
+        # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
+        # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+        operator = ensure_complex_coeffs(
+            operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
+        )
+
+        if len(operator.parameters) != 0:
+            raise ValueError("Not all parameters are assigned in the operator!")
+
+        # Check if the operator is already part of the evaluation list
+        # If that is the case, return the index of the operator
+        if detect_operator_duplicates:
+            if operator_hash in operator_dict:
+                return OpTreeContainer(operator_dict[operator_hash])
+            operator_dict[operator_hash] = operator_counter
+
+        operator_list.append(operator)
+        operator_counter += 1
+        return OpTreeContainer(operator_counter - 1)
 
     index_tree = _build_lists_and_index_tree(optree_element)
 
@@ -465,7 +452,8 @@ def _build_measurement_list(
     to the measurement list.
 
     Args:
-        optree_element (OpTreeNodeBase | OpTreeLeafMeasuredOperator | OpTreeLeafOperator | SparsePauliOp): The Operator in OpTree format to be converted.
+        optree_element (OpTreeNodeBase | OpTreeLeafMeasuredOperator | OpTreeLeafOperator |
+            SparsePauliOp): The Operator in OpTree format to be converted.
         detect_measurement_duplicates (bool): If True, the removes duplicate measurements from the
                                                 measurement list.
         detect_operator_duplicates (bool): If True, the removes duplicate operators from the
@@ -484,7 +472,7 @@ def _build_measurement_list(
     operator_counter = 0
     operator_measurement_list = []
 
-    from .optree import OpTree
+    from .optree import OpTree  # pylint: disable=import-outside-toplevel
 
     def build_list(
         optree_element: OpTreeNodeBase | OpTreeOperator | SparsePauliOp | OpTreeValue,
@@ -511,7 +499,7 @@ def _build_measurement_list(
             # Measurement operator detected, check for duplicates of the operator if necessary
             if detect_operator_duplicates:
                 if optree_element.hashvalue in operator_hash_dict:
-                    return None
+                    return
                 operator_hash_dict[optree_element.hashvalue] = operator_counter
 
             circuit = optree_element.circuit
@@ -526,7 +514,7 @@ def _build_measurement_list(
                         operator_counter
                     )
                     operator_counter += 1
-                    return None
+                    return
                 measurement_hash_dict[measurement_hash] = measurement_counter
 
             # Add everything to the list
@@ -534,10 +522,10 @@ def _build_measurement_list(
             operator_measurement_list.append([operator_counter])
             measurement_counter += 1
             operator_counter += 1
-            return None
+            return
 
         elif isinstance(optree_element, OpTreeValue):
-            return None
+            return
 
         elif isinstance(optree_element, (SparsePauliOp, OpTreeOperator)):
             # Measure free Operator detected, check for duplicates of the operator if necessary
@@ -548,7 +536,7 @@ def _build_measurement_list(
                 else:
                     hashvalue = optree_element.hashvalue
                 if hashvalue in operator_hash_dict:
-                    return None
+                    return
                 operator_hash_dict[hashvalue] = operator_counter
 
             # check for duplicates of the measurement circuit if necessary
@@ -559,7 +547,7 @@ def _build_measurement_list(
                         operator_counter
                     )
                     operator_counter += 1
-                    return None
+                    return
                 measurement_hash_dict[measurement_hash] = measurement_counter
 
             # Add everything to the list
@@ -567,7 +555,7 @@ def _build_measurement_list(
             operator_measurement_list.append([operator_counter])
             measurement_counter += 1
             operator_counter += 1
-            return None
+            return
 
         else:
             raise ValueError("Wrong OpTree type detected!")
@@ -651,27 +639,19 @@ def _build_expectation_list(
         if isinstance(optree_element, OpTreeNodeBase):
             # Index circuits and bind parameters in the OpTreeNode structure
             child_list_indexed = [build_lists_and_index_tree(c) for c in optree_element.children]
-            factor_list_bound = []
-            for fac in optree_element.factor:
-                if isinstance(fac, ParameterExpression):
-                    factor_list_bound.append(
-                        float(fac.bind(dictionary, allow_unknown_parameters=True))
-                    )
-                else:
-                    factor_list_bound.append(fac)
+            factor_list_bound = bind_node_factors(optree_element.factor, dictionary)
 
             # Recursive rebuild of the OpTree structure
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(child_list_indexed, factor_list_bound, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(child_list_indexed, factor_list_bound, optree_element.operation)
-            else:
-                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-        elif isinstance(optree_element, OpTreeValue):
+        if isinstance(optree_element, OpTreeValue):
             return optree_element  # Add nothing to the lists
 
-        elif isinstance(optree_element, OpTreeExpectationValue):
+        if isinstance(optree_element, OpTreeExpectationValue):
             # Reached a Expecation Value Leaf
 
             operator = optree_element.operator
@@ -687,6 +667,7 @@ def _build_expectation_list(
             # If circuits are grouped, check if the same circuit is already in the list
             circuit_already_in_list = False
             if group_circuits:
+                # pylint: disable-next=protected-access
                 hashvalue_circuit = optree_element._circuit.hashvalue
                 if hashvalue_circuit in circuit_dict:
                     index = circuit_dict[hashvalue_circuit]
@@ -701,9 +682,10 @@ def _build_expectation_list(
                 circuit_eval_counter += 1
 
             # Assign parameters to operator
-            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j cancelling
-            # out), so that ensure_complex_coeffs() does not encounter spurious imaginary parts that
-            # would cause Qiskit 2.1.x to reject the observable as non-Hermitian.
+            # .simplify() merges terms with identical Pauli strings (e.g. +0.5j and -0.5j
+            # cancelling out), so that ensure_complex_coeffs() does not encounter spurious
+            # imaginary parts that would cause Qiskit 2.1.x to reject the observable as
+            # non-Hermitian.
             operator = ensure_complex_coeffs(
                 operator.assign_parameters([dictionary[p] for p in operator.parameters]).simplify()
             )
@@ -715,8 +697,7 @@ def _build_expectation_list(
             expectation_counter += 1
             return OpTreeContainer(expectation_counter - 1)
 
-        else:
-            raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
     index_tree = build_lists_and_index_tree(optree_element)
 
@@ -747,22 +728,19 @@ def _add_offset_to_tree(
         # Rebuild the tree with the new children and factors (copy part)
         if isinstance(optree_element, OpTreeSum):
             return OpTreeSum(children_list, optree_element.factor, optree_element.operation)
-        elif isinstance(optree_element, OpTreeList):
+        if isinstance(optree_element, OpTreeList):
             return OpTreeList(children_list, optree_element.factor, optree_element.operation)
-        else:
-            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+        raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-    elif isinstance(optree_element, OpTreeContainer):
+    if isinstance(optree_element, OpTreeContainer):
         # Change the item value
         if isinstance(optree_element.item, int):
             return OpTreeContainer(optree_element.item + offset)
-        else:
-            raise ValueError("Offset can only be added to integer leafs")
-    elif isinstance(optree_element, OpTreeValue):
+        raise ValueError("Offset can only be added to integer leafs")
+    if isinstance(optree_element, OpTreeValue):
         # Return the value
         return optree_element
-    else:
-        raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
+    raise ValueError("element must be a OpTreeNode or a OpTreeLeafContainer")
 
 
 def _evaluate_expectation_from_sampler(
@@ -787,8 +765,7 @@ def _evaluate_expectation_from_sampler(
         observable (SparsePauliOp): The observable to be evaluated.
         results (BaseSamplerResult): The results of the sampler primitive.
         operator_measurement_list (List[List[int]] | None): The index list that is used to
-                                                                  connect the measured circuit
-                                                                  with the inputted observable list.
+            connect the measured circuit with the inputted observable list.
         offset (int): The offset that is added to the index of the circuits in the sampler results.
 
     Returns:
@@ -796,7 +773,8 @@ def _evaluate_expectation_from_sampler(
     """
 
     # Get depth of a nested list
-    depth = lambda L: isinstance(L, list) and max(map(depth, L)) + 1
+    def depth(nested_list):
+        return isinstance(nested_list, list) and max(map(depth, nested_list)) + 1
 
     # Create a list of PauliList objects from the observable
     op_pauli_list = [PauliList(obs.paulis) for obs in operator]
@@ -844,11 +822,9 @@ def _evaluate_expectation_from_sampler(
                 try:
                     ev = results[icirc + offset].expectation_values(operator[iop])
                     exp_val[i] = np.real_if_close(ev, 1e-10)
-                except ValueError as e:
-                    if str(e) == "Empty observable was detected.":
-                        pass
-                    else:
-                        raise e
+                except ValueError as exc:
+                    if str(exc) != "Empty observable was detected.":
+                        raise
                 i += 1
     else:
         exp_val = np.array(
@@ -876,9 +852,8 @@ def _evaluate_expectation_from_sampler(
             index_list.append(list(np.argsort(flatted_resort_list_circ) + ioff))
             ioff += len(flatted_resort_list_circ)
         return np.take(exp_val, index_list)
-    else:
-        # two nested lists -> No need to resort
-        return exp_val
+    # two nested lists -> No need to resort
+    return exp_val
 
 
 def _transform_operator_to_zbasis(
@@ -902,10 +877,13 @@ def _transform_operator_to_zbasis(
     """
 
     if QISKIT_SMALLER_1_2:
+        # pylint: disable=import-outside-toplevel,import-error,no-name-in-module
         from qiskit.primitives import BackendEstimator
 
+        # pylint: disable-next=protected-access
         measurement_circuit = BackendEstimator._measurement_circuit
     else:
+        # pylint: disable-next=import-outside-toplevel,import-error,no-name-in-module
         from qiskit.primitives.backend_estimator_v2 import (
             _measurement_circuit as measurement_circuit,
         )
@@ -939,9 +917,7 @@ def _transform_operator_to_zbasis(
                 [False for i in range(len(op.paulis.z[0, indices]))]
                 for j in range(len(op.paulis.z[:, indices]))
             ]
-            paulis = PauliList.from_symplectic(
-                z_list, x_list, op.paulis.phase
-            )  # TODO: Check Phase
+            paulis = PauliList.from_symplectic(z_list, x_list, op.paulis.phase)
 
             # Build the expectation value leaf with the adjusted measurements
             children_list.append(
@@ -984,73 +960,74 @@ def _measure_all_unmeasured(circ_in, final_measurements: bool = False):
         for i in reorder_list:
             if i[1] == n:
                 return i[0]
+        return None
 
     if circ_in.num_clbits == 0:
         return circ_in.measure_all(inplace=False)
+    qubits = list(range(circ_in.num_qubits))
+    circ_in = decompose_to_std(circ_in)
+    for instruction, qargs, cargs in circ_in.data:
+        if instruction.name == "measure":
+            for qubit in qargs:
+                if circ_in.find_bit(qubit)[0] in qubits:
+                    qubits.remove(circ_in.find_bit(qubit)[0])
+                else:
+                    raise ValueError(
+                        "There are multiple measurements on the same qubit."
+                        "Please remove measurements accordingly. Note that this can happen,"
+                        " if one defines an observable with X,Y Pauli measurements on a qubit,"
+                        " which is already measured in an in-circuit measurement."
+                    )
+
+    circ = circ_in.copy()
+    if not final_measurements:
+        # Add measurements to all non measured qubits if not measured
+        from qiskit.circuit import ClassicalRegister  # pylint: disable=import-outside-toplevel
+
+        new_creg = ClassicalRegister(len(qubits), "meas")
+        circ.add_register(new_creg)
+        circ.measure(qubits, new_creg)
+        if len(qubits) == circ_in.num_qubits:
+            return circ
+
+    new_ordering = []
+    for instruction, qargs, cargs in circ.data:
+        if instruction.name == "measure":
+            for n, qarg in enumerate(qargs):
+                new_ordering.append([circ.find_bit(qarg)[0], circ.find_bit(cargs[n])[0]])
+
+    circ_new = QuantumCircuit(circ.num_qubits)
+    if not final_measurements:
+        # pylint: disable-next=import-outside-toplevel
+        from qiskit.circuit import ClassicalRegister
+
+        new_creg = ClassicalRegister(circ.num_qubits, "meas")
     else:
-        qubits = [i for i in range(circ_in.num_qubits)]
-        circ_in = decompose_to_std(circ_in)
-        for instruction, qargs, cargs in circ_in.data:
-            if instruction.name == "measure":
-                for qubit in qargs:
-                    if circ_in.find_bit(qubit)[0] in qubits:
-                        qubits.remove(circ_in.find_bit(qubit)[0])
-                    else:
-                        raise ValueError(
-                            "There are multiple measurements on the same qubit."
-                            "Please remove measurements accordingly. Note that this can happen,"
-                            " if one defines an observable with X,Y Pauli measurements on a qubit,"
-                            " which is already measured in an in-circuit measurement."
-                        )
+        # pylint: disable-next=import-outside-toplevel
+        from qiskit.circuit import ClassicalRegister
 
-        circ = circ_in.copy()
-        if not final_measurements:
-            # Add measurements to all non measured qubits if not measured
-            from qiskit.circuit import ClassicalRegister
-
-            new_creg = ClassicalRegister(len(qubits), "meas")
-            circ.add_register(new_creg)
-            if not final_measurements:
-                circ.measure(qubits, new_creg)
-                if len(qubits) == circ_in.num_qubits:
-                    return circ
-
-        new_ordering = []
-        for instruction, qargs, cargs in circ.data:
-            if instruction.name == "measure":
-                for n in range(len(qargs)):
-                    new_ordering.append([circ.find_bit(qargs[n])[0], circ.find_bit(cargs[n])[0]])
-
-        circ_new = QuantumCircuit(circ.num_qubits)
-        if not final_measurements:
-            from qiskit.circuit import ClassicalRegister
-
-            new_creg = ClassicalRegister(circ.num_qubits, "meas")
+        new_creg = ClassicalRegister(circ_in.num_clbits, "meas")
+    circ_new.add_register(new_creg)
+    for instruction, qargs, cargs in circ.data:
+        if (
+            instruction.name == "measure" and not final_measurements
+        ):  # to adjust the clbits of measurements
+            clbits = [circ.find_bit(i)[0] for i in qargs]
         else:
-            from qiskit.circuit import ClassicalRegister
-
-            new_creg = ClassicalRegister(circ_in.num_clbits, "meas")
-        circ_new.add_register(new_creg)
-        for instruction, qargs, cargs in circ.data:
-            if (
-                instruction.name == "measure" and not final_measurements
-            ):  # to adjust the clbits of measurements
-                clbits = [circ.find_bit(i)[0] for i in qargs]
-            else:
-                clbits = [circ.find_bit(i)[0] for i in cargs]
-            operation = instruction.copy()
-            if (
-                hasattr(instruction, "condition") and instruction.condition
-            ):  # to adjust the clbits of c_if
-                operation.condition = (
-                    Clbit(
-                        circ_new.cregs[0],
-                        change_order(circ.find_bit(instruction.condition[0])[0], new_ordering),
-                    ),
-                    instruction.condition[1],
-                )
-            circ_new.append(operation, [circ.find_bit(i)[0] for i in qargs], clbits)
-        return circ_new
+            clbits = [circ.find_bit(i)[0] for i in cargs]
+        operation = instruction.copy()
+        if (
+            hasattr(instruction, "condition") and instruction.condition
+        ):  # to adjust the clbits of c_if
+            operation.condition = (
+                Clbit(
+                    circ_new.cregs[0],
+                    change_order(circ.find_bit(instruction.condition[0])[0], new_ordering),
+                ),
+                instruction.condition[1],
+            )
+        circ_new.append(operation, [circ.find_bit(i)[0] for i in qargs], clbits)
+    return circ_new
 
 
 class OpTreeEvaluate:
@@ -1071,18 +1048,20 @@ class OpTreeEvaluate:
 
         Inputted are a circuit and operator in OpTree format, and a dictionaries that contain the
         values for the parameters in the circuit and operator.
-        Dictionary can be a list of dictionaries, in which case the function evaluates the expectation
-        value for all combinations of the dictionaries, or if ``dictionaries_combined==True``, the
-        function evaluates the expectation value for the same index of the dictionaries.
+        Dictionary can be a list of dictionaries, in which case the function evaluates the
+        expectation value for all combinations of the dictionaries, or if
+        ``dictionaries_combined==True``, the function evaluates the expectation value for the same
+        index of the dictionaries.
 
-        The function also checks if the same circuit or operator occurs multiple times, and only adds
-        it once to the evaluation list. This can be turned off with the ``detect_duplicates`` flag.
+        The function also checks if the same circuit or operator occurs multiple times, and only
+        adds it once to the evaluation list. This can be turned off with the ``detect_duplicates``
+        flag.
 
         Args:
             circuit (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The circuit or
                 OpTree with circuits to be evaluated.
-            operator (OpTreeNodeBase | OpTreeLeafOperator | SparsePauliOp | OpTreeLeafMeasuredOperator):
-                The operator or OpTree in the expectation values.
+            operator (OpTreeNodeBase | OpTreeLeafOperator | SparsePauliOp |
+                OpTreeLeafMeasuredOperator): The operator or OpTree in the expectation values.
             dictionary_circuit (dict | List[dict]): The dictionary or list of dictionaries that
                 contain the values for the parameters in the circuit (or the circuit OpTree).
             dictionary_operator (dict | List[dict]): The dictionary or list of dictionaries
@@ -1092,8 +1071,8 @@ class OpTreeEvaluate:
                 for the evaluation.
             dictionaries_combined (bool): If True, the function evaluates the expectation value for
                 the same index of the dictionaries (both have to be Lists). Defaults to False.
-            detect_duplicates (bool): If True, the removes duplicate circuits and operators from the
-                evaluation list. Defaults to True.
+            detect_duplicates (bool): If True, the removes duplicate circuits and operators from
+                the evaluation list. Defaults to True.
 
         Returns:
             The expectation value of the expectation values as a numpy array.
@@ -1103,10 +1082,8 @@ class OpTreeEvaluate:
             """Helper function for finding the maximum value of a nested list"""
             if isinstance(l, int):
                 return l
-            else:
-                return np.max([_max_from_nested_list(ll) for ll in l])
+            return np.max([_max_from_nested_list(ll) for ll in l])
 
-        start = time.time()
         # Preprocess the circuit dictionary
         multiple_circuit_dict = True
         if not isinstance(dictionary_circuit, list):
@@ -1179,7 +1156,6 @@ class OpTreeEvaluate:
         # print("Pre-processing: ", time.time() - start)
 
         # Run the sampler primtive
-        start = time.time()
         # print("Number of circuits for sampler: ", len(total_circuit_list))
 
         if len(total_circuit_list) > 0:
@@ -1195,7 +1171,6 @@ class OpTreeEvaluate:
         # print("Sampler run time: ", time.time() - start)
 
         # Compute the expectation value from the sampler results
-        start = time.time()
         final_result = []
 
         for i, dictionary_operator_ in enumerate(dictionary_operator):
@@ -1220,9 +1195,8 @@ class OpTreeEvaluate:
                 # If no circuits are present, return evaluated operator with no circuits
                 if len(operator_list) == 0:
                     return np.array([])
-                else:
-                    expec2 = _evaluate_index_tree(operator_tree, [])
-                    final_result.append(_evaluate_index_tree(circ_tree, [expec2]))
+                expec2 = _evaluate_index_tree(operator_tree, [])
+                final_result.append(_evaluate_index_tree(circ_tree, [expec2]))
             else:
                 if _max_from_nested_list(operator_measurement_list) != len(operator_list) - 1:
                     raise ValueError("Operator measurement list does not match operator list!")
@@ -1248,13 +1222,12 @@ class OpTreeEvaluate:
             return np.swapaxes(np.array(final_result), 0, 1)
         if multiple_operator_dict and multiple_circuit_dict and dictionaries_combined:
             return np.array(final_result)
-        elif multiple_operator_dict and not multiple_circuit_dict:
+        if multiple_operator_dict and not multiple_circuit_dict:
             return np.array(final_result)
-        else:
-            return_val = np.array(final_result[0])
-            if len(return_val.shape) == 0:
-                return float(return_val)
-            return return_val
+        return_val = np.array(final_result[0])
+        if len(return_val.shape) == 0:
+            return float(return_val)
+        return return_val
 
     @staticmethod
     def evaluate_with_estimator(
@@ -1306,7 +1279,7 @@ class OpTreeEvaluate:
             operator_tree: OpTreeNodeBase | OpTreeContainer,
             offset: int,
         ):
-            """Helper function for merging the operator tree and the circuit tree into a single tree.
+            """Helper function for merging the operator tree and circuit tree into a single tree.
 
             Args:
                 circuit_tree (OpTreeNodeBase | OpTreeLeafContainer): The indexed circuit tree.
@@ -1325,16 +1298,14 @@ class OpTreeEvaluate:
                 # Rebuild the tree with the new children and factors (copy part)
                 if isinstance(circuit_tree, OpTreeSum):
                     return OpTreeSum(children_list, circuit_tree.factor, circuit_tree.operation)
-                elif isinstance(circuit_tree, OpTreeList):
+                if isinstance(circuit_tree, OpTreeList):
                     return OpTreeList(children_list, circuit_tree.factor, circuit_tree.operation)
-                else:
-                    raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-            elif isinstance(circuit_tree, OpTreeContainer):
+            if isinstance(circuit_tree, OpTreeContainer):
                 k = circuit_tree.item
                 return _add_offset_to_tree(operator_tree, k * offset)
-
-        start = time.time()
+            return None
 
         multiple_circuit_dict = True
         if not isinstance(dictionary_circuit, list):
@@ -1404,7 +1375,6 @@ class OpTreeEvaluate:
         # print("Pre-processing: ", time.time() - start)
 
         # Evaluation via the estimator
-        start = time.time()
         # print("Number of circuits for estimator: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             return _evaluate_index_tree(evaluation_tree, [])
@@ -1424,7 +1394,6 @@ class OpTreeEvaluate:
         # print("Estimator run time: ", time.time() - start)
 
         # Assembly the final values from the evaluation tree
-        start = time.time()
         final_results = _evaluate_index_tree(evaluation_tree, estimator_result)
         # print("Post-processing: ", time.time() - start)
 
@@ -1460,8 +1429,6 @@ class OpTreeEvaluate:
         Returns:
             The expectation value of the expectation OpTree as a numpy array.
         """
-
-        start = time.time()
 
         # Preprocess the dictionary
         multiple_dict = True
@@ -1502,7 +1469,6 @@ class OpTreeEvaluate:
         # print("Pre-processing: ", time.time() - start)
 
         # Evaluation via the estimator
-        start = time.time()
         # print("Number of circuits for estimator: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             return _evaluate_index_tree(evaluation_tree, [])
@@ -1521,7 +1487,6 @@ class OpTreeEvaluate:
         # print("Run time of estimator: ", time.time() - start)
 
         # Final assembly of the results
-        start = time.time()
         final_result = _evaluate_index_tree(evaluation_tree, estimator_result)
         # print("Post-processing: ", time.time() - start)
         return final_result
@@ -1571,7 +1536,6 @@ class OpTreeEvaluate:
         total_circuit_operator_list = []
         total_tree_list = []
         for dict_ in dictionary:
-            start = time.time()
             # convert tree to lists
             (
                 circuit_list,
@@ -1604,7 +1568,6 @@ class OpTreeEvaluate:
             evaluation_tree = total_tree_list[0]
 
         # Evaluation via the sampler
-        start = time.time()
         # print("Number of circuits for sampler: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             _evaluate_index_tree(evaluation_tree, [])
@@ -1619,7 +1582,6 @@ class OpTreeEvaluate:
         # print("Sampler run time: ", time.time() - start)
 
         # Computation of the expectation values from the sampler results
-        start = time.time()
         expec = _evaluate_expectation_from_sampler(
             total_operator_list,
             sampler_result,
@@ -1644,10 +1606,10 @@ class OpTreeEvaluate:
         The function transforms the operators to the Z basis by adding measurement circuits.
 
         Args:
-            optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue | SparsePauliOp):
-                The OpTree structure to be transformed.
-            abelian_grouping (bool, optional): If True, the operator is grouped into commuting terms.
-                Defaults to True.
+            optree_element (OpTreeNodeBase | OpTreeLeafOperator | OpTreeLeafExpectationValue |
+                SparsePauliOp): The OpTree structure to be transformed.
+            abelian_grouping (bool, optional): If True, the operator is grouped into commuting
+                terms. Defaults to True.
 
         Returns:
             The transformed OpTree structure.
@@ -1660,18 +1622,16 @@ class OpTreeEvaluate:
             ]
             if isinstance(optree_element, OpTreeSum):
                 return OpTreeSum(children_list, optree_element.factor, optree_element.operation)
-            elif isinstance(optree_element, OpTreeList):
+            if isinstance(optree_element, OpTreeList):
                 return OpTreeList(children_list, optree_element.factor, optree_element.operation)
-            else:
-                raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
-        elif isinstance(optree_element, OpTreeOperator):
+            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+        if isinstance(optree_element, OpTreeOperator):
             return _transform_operator_to_zbasis(optree_element.operator, abelian_grouping)
-        elif isinstance(optree_element, SparsePauliOp):
+        if isinstance(optree_element, SparsePauliOp):
             return _transform_operator_to_zbasis(optree_element, abelian_grouping)
-        elif isinstance(optree_element, OpTreeExpectationValue):
+        if isinstance(optree_element, OpTreeExpectationValue):
             operator_in_zbasis = _transform_operator_to_zbasis(optree_element.operator)
-            from .optree import OpTree
+            from .optree import OpTree  # pylint: disable=import-outside-toplevel
 
             return OpTree.gen_expectation_tree(optree_element.circuit, operator_in_zbasis)
-        else:
-            raise ValueError("Wrong type of Optree Element:", type(optree_element))
+        raise ValueError("Wrong type of Optree Element:", type(optree_element))

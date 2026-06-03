@@ -1,7 +1,5 @@
 """Qiskit backend executor supporting local simulation and IBM Quantum hardware."""
 
-# pylint: disable=too-many-lines
-
 from __future__ import annotations
 
 import logging
@@ -42,47 +40,42 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Version-gated Qiskit primitive imports (local simulators + base classes)
 # ---------------------------------------------------------------------------
+# pylint: disable=import-error,no-name-in-module,ungrouped-imports,too-few-public-methods
 
 if QISKIT_SMALLER_1_2:
-    from qiskit.circuit import (
-        ParameterExpression as ParameterVectorElement,  # pylint: disable=ungrouped-imports
-    )
-    from qiskit.primitives import (  # pylint: disable=no-name-in-module  # type: ignore[attr-defined]
+    from qiskit.circuit import ParameterExpression as ParameterVectorElement
+    from qiskit.primitives import (
         BackendEstimator,
         BackendSampler,
     )
-    from qiskit.primitives import (
-        BaseEstimator as BaseEstimatorV1,  # pylint: disable=no-name-in-module  # type: ignore[attr-defined]
-    )
-    from qiskit.primitives import (
-        BaseSampler as BaseSamplerV1,  # pylint: disable=no-name-in-module  # type: ignore[attr-defined]
-    )
+    from qiskit.primitives import BaseEstimator as BaseEstimatorV1
+    from qiskit.primitives import BaseSampler as BaseSamplerV1
 
-    class BaseEstimatorV2:  # pylint: disable=too-few-public-methods
+    class BaseEstimatorV2:
         """Dummy BaseEstimatorV2 for Qiskit < 1.0 compat."""
 
-    class BaseSamplerV2:  # pylint: disable=too-few-public-methods
+    class BaseSamplerV2:
         """Dummy BaseSamplerV2 for Qiskit < 1.0 compat."""
 
 elif QISKIT_SMALLER_2_0:
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
     from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
     from qiskit.primitives import BackendSamplerV2 as BackendSampler
-    from qiskit.primitives import BaseEstimatorV2  # type: ignore[assignment]
-    from qiskit.primitives import BaseSamplerV2  # type: ignore[assignment]
     from qiskit.primitives import (
         BaseEstimatorV1,
+        BaseEstimatorV2,
         BaseSamplerV1,
+        BaseSamplerV2,
     )
 else:
     from qiskit.circuit import ParameterVectorElement
     from qiskit.primitives import BackendEstimatorV2 as BackendEstimator
     from qiskit.primitives import BackendSamplerV2 as BackendSampler
-    from qiskit.primitives import BaseEstimatorV2  # type: ignore[assignment]
-    from qiskit.primitives import BaseSamplerV2  # type: ignore[assignment]
     from qiskit.primitives import (
         BaseEstimatorV1,
+        BaseEstimatorV2,
         BaseSamplerV1,
+        BaseSamplerV2,
     )
 
 
@@ -90,63 +83,51 @@ else:
 # Defined as dummies when qiskit-ibm-runtime is not installed.
 if QISKIT_RUNTIME_AVAILABLE:
     if QISKIT_RUNTIME_SMALLER_0_21:
-        from qiskit_ibm_runtime import (
-            Estimator as RuntimeEstimatorV1,  # pylint: disable=import-error
-        )
-        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1  # pylint: disable=import-error
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV1
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1
 
-        class RuntimeEstimatorV2:  # pylint: disable=too-few-public-methods  # type: ignore[no-redef]
+        class RuntimeEstimatorV2:
             """Dummy RuntimeEstimatorV2 for runtime < 0.21."""
 
-        class RuntimeSamplerV2:  # pylint: disable=too-few-public-methods  # type: ignore[no-redef]
+        class RuntimeSamplerV2:
             """Dummy RuntimeSamplerV2 for runtime < 0.21."""
 
     elif QISKIT_RUNTIME_SMALLER_0_28:
-        from qiskit_ibm_runtime import (
-            EstimatorV1 as RuntimeEstimatorV1,  # pylint: disable=import-error
-        )
-        from qiskit_ibm_runtime import (
-            EstimatorV2 as RuntimeEstimatorV2,  # pylint: disable=import-error
-        )
-        from qiskit_ibm_runtime import (
-            SamplerV1 as RuntimeSamplerV1,  # pylint: disable=import-error
-        )
-        from qiskit_ibm_runtime import (
-            SamplerV2 as RuntimeSamplerV2,  # pylint: disable=import-error
-        )
+        from qiskit_ibm_runtime import EstimatorV1 as RuntimeEstimatorV1
+        from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import SamplerV1 as RuntimeSamplerV1
+        from qiskit_ibm_runtime import SamplerV2 as RuntimeSamplerV2
     else:
-        from qiskit_ibm_runtime import (
-            Estimator as RuntimeEstimatorV2,  # pylint: disable=import-error
-        )
-        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2  # pylint: disable=import-error
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2
 
-        class RuntimeEstimatorV1:  # pylint: disable=too-few-public-methods  # type: ignore[no-redef]
+        class RuntimeEstimatorV1:
             """Dummy RuntimeEstimatorV1 for runtime >= 0.28."""
 
-        class RuntimeSamplerV1:  # pylint: disable=too-few-public-methods  # type: ignore[no-redef]
+        class RuntimeSamplerV1:
             """Dummy RuntimeSamplerV1 for runtime >= 0.28."""
 
 else:
 
-    class RuntimeEstimatorV1:  # pylint: disable=too-few-public-methods
+    class RuntimeEstimatorV1:
         """Dummy RuntimeEstimatorV1 — qiskit-ibm-runtime not installed."""
 
-    class RuntimeEstimatorV2:  # pylint: disable=too-few-public-methods
+    class RuntimeEstimatorV2:
         """Dummy RuntimeEstimatorV2 — qiskit-ibm-runtime not installed."""
 
-    class RuntimeSamplerV1:  # pylint: disable=too-few-public-methods
+    class RuntimeSamplerV1:
         """Dummy RuntimeSamplerV1 — qiskit-ibm-runtime not installed."""
 
-    class RuntimeSamplerV2:  # pylint: disable=too-few-public-methods
+    class RuntimeSamplerV2:
         """Dummy RuntimeSamplerV2 — qiskit-ibm-runtime not installed."""
 
 
 # Session and Batch: real imports when runtime is available, dummies otherwise.
 if QISKIT_RUNTIME_AVAILABLE:
-    from qiskit_ibm_runtime import Batch, Session  # pylint: disable=import-error
+    from qiskit_ibm_runtime import Batch, Session
 else:
 
-    class Session:  # pylint: disable=too-few-public-methods
+    class Session:
         """Dummy Session — qiskit-ibm-runtime not installed."""
 
         def close(self) -> None:
@@ -155,11 +136,14 @@ else:
         def status(self) -> str:
             """No-op stub."""
 
-    class Batch:  # pylint: disable=too-few-public-methods
+    class Batch:
         """Dummy Batch — qiskit-ibm-runtime not installed."""
 
         def close(self) -> None:
             """No-op stub."""
+
+
+# pylint: enable=import-error,no-name-in-module,ungrouped-imports,too-few-public-methods
 
 
 def _reverse_qubit_ordering(statevector: np.ndarray) -> np.ndarray:
@@ -223,15 +207,14 @@ def _check_runtime_available():
         )
 
 
+# pylint: disable=import-outside-toplevel,import-error,redefined-outer-name,reimported
+
+
 def _load_runtime_primitives_v1():
     """Return ``(RuntimeEstimatorV1, RuntimeSamplerV1)`` for *qiskit-ibm-runtime < 0.21*."""
     _check_runtime_available()
-    from qiskit_ibm_runtime import (
-        Estimator as RuntimeEstimatorV1,  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-    )
-    from qiskit_ibm_runtime import (
-        Sampler as RuntimeSamplerV1,  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-    )
+    from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV1
+    from qiskit_ibm_runtime import Sampler as RuntimeSamplerV1
 
     return RuntimeEstimatorV1, RuntimeSamplerV1
 
@@ -244,28 +227,18 @@ def _load_runtime_primitives_v2():
     """
     _check_runtime_available()
     if QISKIT_RUNTIME_SMALLER_0_28:
-        from qiskit_ibm_runtime import (
-            EstimatorV2 as RuntimeEstimatorV2,  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-        )
-        from qiskit_ibm_runtime import (
-            SamplerV2 as RuntimeSamplerV2,  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-        )
+        from qiskit_ibm_runtime import EstimatorV2 as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import SamplerV2 as RuntimeSamplerV2
     else:
-        from qiskit_ibm_runtime import (
-            Estimator as RuntimeEstimatorV2,  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-        )
-        from qiskit_ibm_runtime import (
-            Sampler as RuntimeSamplerV2,  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-        )
+        from qiskit_ibm_runtime import Estimator as RuntimeEstimatorV2
+        from qiskit_ibm_runtime import Sampler as RuntimeSamplerV2
     return RuntimeEstimatorV2, RuntimeSamplerV2
 
 
 def _load_runtime_options_v1():
     """Return the ``Options`` class for V1 runtime primitives (< 0.21)."""
     _check_runtime_available()
-    from qiskit_ibm_runtime.options import (  # pylint: disable=import-outside-toplevel,import-error
-        Options,
-    )
+    from qiskit_ibm_runtime.options import Options
 
     return Options
 
@@ -273,9 +246,7 @@ def _load_runtime_options_v1():
 def _load_runtime_session():
     """Return the ``Session`` class from *qiskit-ibm-runtime*."""
     _check_runtime_available()
-    from qiskit_ibm_runtime import (  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-        Session,
-    )
+    from qiskit_ibm_runtime import Session
 
     return Session
 
@@ -283,9 +254,7 @@ def _load_runtime_session():
 def _load_runtime_batch():
     """Return the ``Batch`` class from *qiskit-ibm-runtime*."""
     _check_runtime_available()
-    from qiskit_ibm_runtime import (  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-        Batch,
-    )
+    from qiskit_ibm_runtime import Batch
 
     return Batch
 
@@ -293,9 +262,7 @@ def _load_runtime_batch():
 def _is_backend_instance(obj) -> bool:
     """Return *True* if *obj* is a Qiskit ``Backend`` (V1 or V2) instance."""
     try:
-        from qiskit.providers import (  # pylint: disable=import-outside-toplevel,redefined-outer-name,reimported
-            Backend,
-        )
+        from qiskit.providers import Backend
 
         return isinstance(obj, Backend)
     except ImportError:
@@ -307,24 +274,23 @@ def _is_session_or_batch_instance(obj) -> bool:
     if not QISKIT_RUNTIME_AVAILABLE:
         return False
     try:
-        from qiskit_ibm_runtime import (  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-            Session,
-        )
+        from qiskit_ibm_runtime import Session
 
         if isinstance(obj, Session):
             return True
     except ImportError:
         pass
     try:
-        from qiskit_ibm_runtime import (  # pylint: disable=import-outside-toplevel,import-error,redefined-outer-name
-            Batch,
-        )
+        from qiskit_ibm_runtime import Batch
 
         if isinstance(obj, Batch):
             return True
     except ImportError:
         pass
     return False
+
+
+# pylint: enable=import-outside-toplevel,import-error,redefined-outer-name,reimported
 
 
 def _resolve_backend_from_session_or_batch(session_or_batch):
@@ -360,7 +326,7 @@ def _resolve_backend_from_session_or_batch(session_or_batch):
     return None
 
 
-def _is_primitive_instance(obj) -> Tuple[bool, bool]:  # pylint: disable=too-many-return-statements
+def _is_primitive_instance(obj) -> Tuple[bool, bool]:
     """Detect whether *obj* is a Qiskit primitive."""
     # Qiskit base classes (covers BackendEstimator/Sampler and StatevectorEstimator/Sampler)
     if isinstance(obj, (BaseSamplerV1, BaseSamplerV2)):
@@ -441,7 +407,7 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
     return (False, False, False)
 
 
-class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attributes
+class QiskitExecutor(ExecutorBase):
     """Class for executing Qiskit circuits.
 
     Supports local simulation (``"statevector"``, ``"aer"``) **and** execution
@@ -491,7 +457,7 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
     _native_circuit_class = QiskitCircuit
     _native_operator_class = QiskitOperator
 
-    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches,too-many-statements
+    def __init__(
         self,
         backend: (
             str
@@ -586,10 +552,10 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
                 self._session = self._session or getattr(backend, "_session", None)
             elif hasattr(backend, "backend"):
                 # BackendEstimatorV2 / BackendSamplerV2 expose .backend as a property
-                self._backend = self._backend or backend.backend  # type: ignore[union-attr]
+                self._backend = self._backend or backend.backend
             elif hasattr(backend, "_backend"):
                 # BackendEstimatorV1 / BackendSamplerV1 use ._backend
-                self._backend = self._backend or backend._backend  # type: ignore[union-attr]
+                self._backend = self._backend or backend._backend
 
             if self._backend is not None:
                 self._remote_backend, self._ibm_quantum_backend, _ = _classify_backend(
@@ -707,10 +673,8 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
                 self._runtime_primitives_version = "v1" if QISKIT_RUNTIME_SMALLER_0_21 else "v2"
                 if self._runtime_primitives_version == "v1" and not self._ibm_quantum_backend:
                     # V1 runtime requires IBM account even for fakes — use local fallback
-                    self._estimator = BackendEstimator(  # type: ignore[arg-type]
-                        backend=self._backend
-                    )
-                    self._sampler = BackendSampler(backend=self._backend)  # type: ignore[arg-type]
+                    self._estimator = BackendEstimator(backend=self._backend)
+                    self._sampler = BackendSampler(backend=self._backend)
                     self._sampler_uses_v1_api = QISKIT_SMALLER_1_2
                 else:
                     _check_runtime_available()
@@ -925,7 +889,7 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         """Create a V1 runtime primitive (``qiskit-ibm-runtime < 0.21``)."""
         if options:
             runtime_options_v1_cls = _load_runtime_options_v1()
-            opts = runtime_options_v1_cls()
+            opts = runtime_options_v1_cls()  # pylint: disable=not-callable
             for key, val in options.items():
                 try:
                     setattr(opts, key, val)
@@ -1050,7 +1014,7 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
             )
             return observable
 
-    def _convert_to_optree(  # pylint: disable=too-many-branches
+    def _convert_to_optree(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         operator: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
@@ -1071,9 +1035,9 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         uses_ibm_backend = self._isa_transpile
 
         def _to_qiskit(c):
-            return (
-                c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c
-            )  # pylint: disable=protected-access
+            if hasattr(c, "_qiskit_circuit"):
+                return c._qiskit_circuit  # pylint: disable=protected-access
+            return c
 
         if isinstance(circuit, List):
             raw_circuits = [_to_qiskit(c) for c in circuit]
@@ -1094,9 +1058,9 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
             return circuit_tree, None
 
         def _to_operator(o):
-            return (
-                o._qiskit_operator if hasattr(o, "_qiskit_operator") else o
-            )  # pylint: disable=protected-access
+            if hasattr(o, "_qiskit_operator"):
+                return o._qiskit_operator  # pylint: disable=protected-access
+            return o
 
         if isinstance(operator, List):
             ops = [_to_operator(o) for o in operator]
@@ -1289,7 +1253,7 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
             detect_duplicates=True,
         )
 
-    def _expectation_value_derivatives(  # pylint: disable=too-many-branches
+    def _expectation_value_derivatives(
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
@@ -1333,21 +1297,23 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         # apply the product rule correctly.
         if isinstance(circuit, list):
             circuit_param_set = set(
-                circuit[0]._qiskit_circuit.parameters
-            )  # pylint: disable=protected-access
+                circuit[0]._qiskit_circuit.parameters  # pylint: disable=protected-access
+            )
         else:
-            circ = (
-                circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-            )  # pylint: disable=protected-access
+            if hasattr(circuit, "_qiskit_circuit"):
+                circ = circuit._qiskit_circuit  # pylint: disable=protected-access
+            else:
+                circ = circuit
             circuit_param_set = set(circ.parameters)
 
         if observable is not None:
             if isinstance(observable, list):
                 observable_param_set: set = set()
                 for obs in observable:
-                    obs_obj = (
-                        obs._qiskit_operator if hasattr(obs, "_qiskit_operator") else obs
-                    )  # pylint: disable=protected-access
+                    if hasattr(obs, "_qiskit_operator"):
+                        obs_obj = obs._qiskit_operator  # pylint: disable=protected-access
+                    else:
+                        obs_obj = obs
                     observable_param_set |= set(obs_obj.parameters)
             else:
                 obs_obj = (
@@ -1468,8 +1434,10 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         raw_circuits_for_nq = circuit if is_list_input else [circuit]
         n_qubits_list = [
             (
-                c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c
-            ).num_qubits  # pylint: disable=protected-access
+                c._qiskit_circuit  # pylint: disable=protected-access
+                if hasattr(c, "_qiskit_circuit")
+                else c
+            ).num_qubits
             for c in raw_circuits_for_nq
         ]
         counts_list = self._extract_counts(result, n_qubits_list[0])
@@ -1490,15 +1458,19 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         if isinstance(circuit, list):
             raw_circuits = [
                 (
-                    c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c
-                )  # pylint: disable=protected-access
+                    c._qiskit_circuit  # pylint: disable=protected-access
+                    if hasattr(c, "_qiskit_circuit")
+                    else c
+                )
                 for c in circuit
             ]
         else:
             raw_circuits = [
                 (
-                    circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-                )  # pylint: disable=protected-access
+                    circuit._qiskit_circuit  # pylint: disable=protected-access
+                    if hasattr(circuit, "_qiskit_circuit")
+                    else circuit
+                )
             ]
 
         # Prepare parameter dictionary
@@ -1515,9 +1487,7 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         statevectors = np.array(statevectors)
         return statevectors[0] if len(raw_circuits) == 1 else statevectors
 
-    def _transpile_circuit(  # type: ignore[override]
-        self, circuit: QuantumCircuitBase
-    ) -> QiskitCircuit:
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
 
         For remote IBM backends the circuit is additionally transpiled through
@@ -1532,15 +1502,13 @@ class QiskitExecutor(ExecutorBase):  # pylint: disable=too-many-instance-attribu
         """
         qc = QiskitCircuit(circuit)
         isa_circuit = self._isa_transpile_qiskit_circuit(
-            qc._qiskit_circuit
-        )  # pylint: disable=protected-access
+            qc._qiskit_circuit  # pylint: disable=protected-access
+        )
         if isa_circuit is not qc._qiskit_circuit:  # pylint: disable=protected-access
             return QiskitCircuit._from_qiskit(isa_circuit)  # pylint: disable=protected-access
         return qc
 
-    def _transpile_operator(  # type: ignore[override]
-        self, operator: QuantumOperatorBase
-    ) -> QiskitOperator:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:

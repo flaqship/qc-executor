@@ -8,11 +8,40 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   pylint:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - name: executor-root
+            path: src/executor/*.py
+          - name: docs
+            path: docs/
+          - name: executor-utils
+            path: src/executor/utils/
+          - name: executor-base
+            path: src/executor/base/
+          - name: executor-qulacs
+            path: src/executor/qulacs/
+          - name: executor-pauli-propagation
+            path: src/executor/pauli_propagation/*.py
+          - name: executor-pauli-propagation-utils
+            path: src/executor/pauli_propagation/utils/
+          - name: executor-qiskit
+            path: src/executor/qiskit/*.py
+          - name: executor-qiskit-optree
+            path: src/executor/qiskit/optree/
+          - name: executor-pennylane
+            path: src/executor/pennylane/
+          - name: tests
+            path: tests/
+
+    name: pylint (${{ matrix.module.name }})
 
     steps:
       - uses: actions/checkout@v4
@@ -26,4 +55,4 @@ jobs:
         run: uv sync --all-extras --group dev
 
       - name: Run Pylint
-        run: uv run pylint src/executor
+        run: uv run pylint ${{ matrix.module.path }}

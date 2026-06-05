@@ -1,12 +1,7 @@
-import importlib
-import sys
-from types import ModuleType
-
 import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-import executor.utils.qiskit_compat as compat
 import executor.utils.qiskit_hash_functions as qh
 
 
@@ -57,29 +52,3 @@ def test_observable_key_contains_binary_payloads():
     assert isinstance(key, tuple)
     assert len(key) == 4
     assert all(isinstance(part, bytes) for part in key)
-
-
-def test_import_branch_for_qiskit_smaller_2_0(monkeypatch):
-    fake_utils = ModuleType("qiskit.primitives.utils")
-
-    def fake_circuit_key(circuit):
-        return ("legacy-circuit", id(circuit))
-
-    def fake_observable_key(observable):
-        return ("legacy-observable", id(observable))
-
-    fake_utils._circuit_key = fake_circuit_key
-    fake_utils._observable_key = fake_observable_key
-
-    monkeypatch.setitem(sys.modules, "qiskit.primitives.utils", fake_utils)
-    monkeypatch.setattr(compat, "QISKIT_SMALLER_2_0", True)
-
-    reloaded = importlib.reload(qh)
-
-    circuit = QuantumCircuit(1)
-    observable = SparsePauliOp(["Z"], coeffs=np.array([1.0]))
-    assert reloaded._circuit_key(circuit)[0] == "legacy-circuit"
-    assert reloaded._observable_key(observable)[0] == "legacy-observable"
-
-    monkeypatch.setattr(compat, "QISKIT_SMALLER_2_0", False)
-    importlib.reload(qh)

@@ -1,6 +1,6 @@
 """Tests for `executor.quantum_circuit`."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from qiskit.circuit import ParameterVector
@@ -231,64 +231,47 @@ class TestQuantumCircuitControlledPauliEvolution:
 
 class TestQuantumCircuitOperations:
 
-    def test_gate_methods_delegate_to_qiskit(self):
-        circuit = QuantumCircuit(3)
+    GATE_CASES = [
+        ("h", (0,), "h", (0,)),
+        ("s", (0,), "s", (0,)),
+        ("sdag", (0,), "sdg", (0,)),
+        ("t", (1,), "t", (1,)),
+        ("tdag", (1,), "tdg", (1,)),
+        ("p", (2, 0.1), "p", (0.1, 2)),  # Qiskit: p(θ, qubit)
+        ("cp", (0, 1, 0.2), "cp", (0.2, 0, 1)),  # Qiskit: cp(θ, c, t)
+        ("x", (0,), "x", (0,)),
+        ("y", (1,), "y", (1,)),
+        ("z", (2,), "z", (2,)),
+        ("rx", (0, 0.3), "rx", (0.3, 0)),  # Qiskit: rx(θ, qubit)
+        ("ry", (1, 0.4), "ry", (0.4, 1)),
+        ("rz", (2, 0.5), "rz", (0.5, 2)),
+        ("cx", (0, 1), "cx", (0, 1)),
+        ("cy", (1, 2), "cy", (1, 2)),
+        ("cz", (0, 2), "cz", (0, 2)),
+        ("cnot", (1, 2), "cx", (1, 2)),
+        ("ecr", (0, 1), "ecr", (0, 1)),
+        ("crx", (0, 1, 0.6), "crx", (0.6, 0, 1)),  # Qiskit: crx(θ, c, t)
+        ("cry", (1, 2, 0.7), "cry", (0.7, 1, 2)),
+        ("crz", (0, 2, 0.8), "crz", (0.8, 0, 2)),
+        ("rxx", (0, 1, 0.9), "rxx", (0.9, 0, 1)),  # Qiskit: rxx(θ, q0, q1)
+        ("ryy", (1, 2, 1.0), "ryy", (1.0, 1, 2)),
+        ("rzz", (0, 2, 1.1), "rzz", (1.1, 0, 2)),
+        ("rzx", (0, 1, 1.2), "rzx", (1.2, 0, 1)),
+        ("swap", (0, 2), "swap", (0, 2)),
+        ("barrier", ([0, 1, 2],), "barrier", ([0, 1, 2],)),
+    ]
 
-        circuit.h(0)
-        circuit.s(0)
-        circuit.sdag(0)
-        circuit.t(1)
-        circuit.tdag(1)
-        circuit.p(2, 0.1)
-        circuit.cp(0, 1, 0.2)
-        circuit.x(0)
-        circuit.y(1)
-        circuit.z(2)
-        circuit.rx(0, 0.3)
-        circuit.ry(1, 0.4)
-        circuit.rz(2, 0.5)
-        circuit.cx(0, 1)
-        circuit.cy(1, 2)
-        circuit.cz(0, 2)
-        circuit.cnot(1, 2)
-        circuit.ecr(0, 1)
-        circuit.crx(0, 1, 0.6)
-        circuit.cry(1, 2, 0.7)
-        circuit.crz(0, 2, 0.8)
-        circuit.rxx(0, 1, 0.9)
-        circuit.ryy(1, 2, 1.0)
-        circuit.rzz(0, 2, 1.1)
-        circuit.rzx(0, 1, 1.2)
-        circuit.swap(0, 2)
-        circuit.barrier([0, 1, 2])
+    @pytest.mark.parametrize(
+        "method, args, expected_gate, expected_args", GATE_CASES, ids=[c[0] for c in GATE_CASES]
+    )
+    def test_gate_delegates_to_qiskit(self, method, args, expected_gate, expected_args):
+        mock_qiskit = MagicMock()
 
-        counts = circuit._qiskit_circuit.count_ops()
-        assert counts.get("h", 0) == 1
-        assert counts.get("s", 0) == 1
-        assert counts.get("sdg", 0) == 1
-        assert counts.get("t", 0) == 1
-        assert counts.get("tdg", 0) == 1
-        assert counts.get("p", 0) == 1
-        assert counts.get("cp", 0) == 1
-        assert counts.get("x", 0) == 1
-        assert counts.get("y", 0) == 1
-        assert counts.get("z", 0) == 1
-        assert counts.get("rx", 0) == 1
-        assert counts.get("ry", 0) == 1
-        assert counts.get("rz", 0) == 1
-        assert counts.get("cx", 0) == 2
-        assert counts.get("cy", 0) == 1
-        assert counts.get("cz", 0) == 1
-        assert counts.get("ecr", 0) == 1
-        assert counts.get("crx", 0) == 1
-        assert counts.get("cry", 0) == 1
-        assert counts.get("crz", 0) == 1
-        assert counts.get("rxx", 0) == 1
-        assert counts.get("ryy", 0) == 1
-        assert counts.get("rzz", 0) == 1
-        assert counts.get("rzx", 0) == 1
-        assert counts.get("swap", 0) == 1
-        assert counts.get("barrier", 0) == 1
+        with patch("executor.quantum_circuit.QiskitQuantumCircuit", return_value=mock_qiskit):
+            circuit = QuantumCircuit(3)
+            getattr(circuit, method)(*args)
+
+        getattr(mock_qiskit, expected_gate).assert_called_once_with(*expected_args)
 
     def test_copy_creates_independent_circuit(self):
         circuit = QuantumCircuit(2)

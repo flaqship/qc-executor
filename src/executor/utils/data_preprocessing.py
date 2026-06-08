@@ -1,3 +1,5 @@
+"""Utility functions for preprocessing quantum circuit inputs and operators."""
+
 from __future__ import annotations
 
 from typing import Tuple
@@ -56,38 +58,30 @@ def _adjust_input(
         Adjusted input array and a boolean flag for multiple inputs.
     """
     multiple_inputs = False
-    error = False
     shape = np.shape(x)
 
     if shape == () and x_length == 1:
         # Single floating point number
         xx = np.array([[x]])
     elif sum(shape) == 0 and x_length > 0:
-        # Empty array although x_length not zero
-        error = True
+        raise ValueError("Wrong format of an input variable.")
     elif len(shape) == 1:
+        arr = np.asarray(x)
         if x_length == 1:
-            xx = np.array([np.array([xx]) for xx in x])
-            if allow_single_array:
-                multiple_inputs = shape[0] != 1
-            else:
-                multiple_inputs = True
-        else:
+            xx = np.array([np.array([xi]) for xi in arr])
+            multiple_inputs = shape[0] != 1 if allow_single_array else True
+        elif len(arr) == x_length:
             # We have a single multi dimensional x (e.g. parameter vector)
-            if len(x) == x_length:
-                xx = np.array([x])
-            else:
-                error = True
+            xx = np.array([arr])
+        else:
+            raise ValueError("Wrong format of an input variable.")
     elif len(shape) == 2:
         if shape[1] == x_length:
             xx = x
             multiple_inputs = True
         else:
-            error = True
+            raise ValueError("Wrong format of an input variable.")
     else:
-        error = True
-
-    if error:
         raise ValueError("Wrong format of an input variable.")
 
     return convert_to_float64(xx), multiple_inputs
@@ -130,30 +124,24 @@ def to_tuple(x: int | str | float | np.ndarray | list | tuple, flatten: bool = T
         def recursive_flatten(container):
             for i in container:
                 if isinstance(i, (list, tuple, np.ndarray)):
-                    for j in recursive_flatten(i):
-                        yield j
+                    yield from recursive_flatten(i)
                 else:
                     yield i
 
         if isinstance(x, (float, int, str)):
             return tuple([x])
-        elif len(np.shape(x)) == 1:
+        if len(np.shape(x)) == 1:
             return tuple(list(x))
-        else:
-            return tuple(recursive_flatten(x))
+        return tuple(recursive_flatten(x))
 
-    else:
+    def array_to_nested_tuple(arr):
+        if isinstance(arr, (list, tuple, np.ndarray)):
+            return tuple(array_to_nested_tuple(subarr) for subarr in arr)
+        return arr
 
-        def array_to_nested_tuple(arr):
-            if isinstance(arr, (list, tuple, np.ndarray)):
-                return tuple(array_to_nested_tuple(subarr) for subarr in arr)
-            else:
-                return arr
-
-        if isinstance(x, (list, tuple, np.ndarray)):
-            return array_to_nested_tuple(x)
-        else:
-            return tuple([x])
+    if isinstance(x, (list, tuple, np.ndarray)):
+        return array_to_nested_tuple(x)
+    return tuple([x])
 
 
 def ensure_complex_coeffs(operator):

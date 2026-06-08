@@ -228,6 +228,8 @@ class ExecutorBase(ABC):
             Input: x[0]=0.1, x[1]=0.2, x[2]=0.3, p=[1.0]
             Output: x=[0.1, 0.2, 0.3], p=[1.0]
 
+            Mixing x=[...] with x[0]=... is not allowed.
+
         Args:
             **parameters: Parameter keyword arguments as passed to public methods.
 
@@ -236,6 +238,7 @@ class ExecutorBase(ABC):
         """
         normalized = {}
         indexed_params = {}  # Maps "x" -> ["x[0]", "x[1]", ...]
+        vector_params = set()
 
         for key, value in parameters.items():
             # Check for indexed key pattern: "x[i]" or "p[i]"
@@ -247,19 +250,25 @@ class ExecutorBase(ABC):
                     indexed_params[param_name] = {}
                 indexed_params[param_name][index] = value
             else:
-                # Non-indexed key; keep as-is
-                if (
-                    key not in indexed_params
-                ):  # Don't overwrite vector key if indexed version exists
-                    normalized[key] = value
+                vector_params.add(key)
+                normalized[key] = value
+
+        conflicting_params = sorted(vector_params.intersection(indexed_params))
+        if conflicting_params:
+            raise ValueError(
+                "Cannot mix vector and indexed parameter forms for: "
+                f"{', '.join(conflicting_params)}"
+            )
 
         # Convert collected indexed params to vector form
         for param_name, index_dict in indexed_params.items():
-            if param_name in normalized:
-                # Both indexed and vector forms provided; indexed takes precedence
-                pass
             max_index = max(index_dict.keys())
             vector_form = [index_dict.get(i) for i in range(max_index + 1)]
+            if any(value is None for value in vector_form):
+                raise ValueError(
+                    f"Incomplete indexed parameters for '{param_name}': "
+                    "missing indices would produce None values in the vector form."
+                )
             normalized[param_name] = vector_form
 
         return normalized

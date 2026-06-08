@@ -1,11 +1,14 @@
 """Tests for Qiskit circuit conversion."""
 
+import builtins
+import importlib
+
 import numpy as np
 import pytest
 
 # Try to import Qiskit
 try:
-    from qiskit import QuantumCircuit, QuantumRegister
+    from qiskit import QuantumCircuit
     from qiskit.circuit import Parameter
 
     QISKIT_AVAILABLE = True
@@ -31,8 +34,6 @@ class TestConvertSingleGate:
 
     def test_convert_rx_gate(self, qiskit_converter):
         """Test RX gate conversion."""
-        from qiskit.circuit.library import RXGate
-
         qc = QuantumCircuit(1)
         qc.rx(np.pi / 2, 0)
 
@@ -124,6 +125,25 @@ class TestConvertSingleGate:
         assert gates[0].symbols == ["X", "X"]
         assert gates[0].qubits == [0, 1]
 
+    def test_convert_rzz_gate(self, qiskit_converter):
+        """Test RZZ gate conversion."""
+        qc = QuantumCircuit(2)
+        qc.rzz(0.5, 0, 1)
+
+        gates = qiskit_converter.convert_circuit(qc, use_cache=False)
+        assert len(gates) == 1
+        assert isinstance(gates[0], PauliRotation)
+        assert gates[0].symbols == ["Z", "Z"]
+        assert gates[0].qubits == [0, 1]
+
+    def test_identity_gate_skipped(self, qiskit_converter):
+        """Test that identity gate is skipped."""
+        qc = QuantumCircuit(1)
+        qc.id(0)
+
+        gates = qiskit_converter.convert_circuit(qc, use_cache=False)
+        assert gates == []
+
     def test_barrier_skipped(self, qiskit_converter):
         """Test that barriers are converted to LayerBarrier markers."""
         from executor.pauli_propagation.utils.gates import LayerBarrier
@@ -189,6 +209,16 @@ class TestParametricCircuits:
 
         with pytest.raises(ValueError, match="Missing parameter"):
             qiskit_converter.bind_parameters(gates, {})
+
+    def test_extract_parameter_constant_expression(self, qiskit_converter):
+        """Test extracting a constant ParameterExpression."""
+        from qiskit.circuit import ParameterExpression
+
+        constant_expr = ParameterExpression({}, "0.25")
+
+        param_expr, param_value = qiskit_converter._extract_parameter(constant_expr)
+        assert param_expr is None
+        assert param_value == pytest.approx(0.25)
 
 
 class TestCircuitConversion:
@@ -282,7 +312,109 @@ class TestUnsupportedGates:
 
     def test_unsupported_gate_error(self, qiskit_converter):
         """Test error on unsupported gate."""
+        from qiskit.circuit import Gate as QiskitGate
+
         qc = QuantumCircuit(1)
-        # Try to add an unsupported gate (if we can construct one)
-        # For now, skip this test as all common gates are supported
-        pytest.skip("No unsupported gates to test with")
+        qc.append(QiskitGate("my_unsupported_gate", 1, []), [0])
+
+        with pytest.raises(ValueError, match="Unsupported gate"):
+            qiskit_converter.convert_circuit(qc, use_cache=False)
+
+
+class TestImportAndAvailabilityPaths:
+    """Test import and availability error paths."""
+
+    def test_import_sets_qiskit_unavailable_on_import_error(self):
+        """Test module sets availability flag to False when qiskit import fails."""
+        from executor.pauli_propagation.utils import qiskit_converter as converter_module
+
+        original_import = builtins.__import__
+
+        def mocked_import(name, globals_=None, locals_=None, fromlist=(), level=0):
+            if name == "qiskit.circuit":
+                raise ImportError("mocked qiskit import error")
+            return original_import(name, globals_, locals_, fromlist, level)
+
+        builtins.__import__ = mocked_import
+        try:
+            reloaded = importlib.reload(converter_module)
+            assert reloaded.QISKIT_AVAILABLE is False
+        finally:
+            builtins.__import__ = original_import
+            importlib.reload(converter_module)
+
+    def test_convert_circuit_raises_when_qiskit_unavailable(self, qiskit_converter, monkeypatch):
+        """Test convert_circuit raises if qiskit is unavailable."""
+        monkeypatch.setattr(qiskit_converter, "QISKIT_AVAILABLE", False)
+
+        with pytest.raises(ImportError, match="Qiskit is required for circuit conversion"):
+            qiskit_converter.convert_circuit(object())
+
+    def test_get_hash_raises_when_qiskit_unavailable(self, qiskit_converter, monkeypatch):
+        """Test cache hash computation raises if qiskit is unavailable."""
+        monkeypatch.setattr(qiskit_converter, "QISKIT_AVAILABLE", False)
+
+        cache = qiskit_converter.CircuitConversionCache()
+        with pytest.raises(ImportError, match="Qiskit is required for circuit conversion"):
+            cache.get_hash(object())
+
+    def test_extract_parameter_returns_none_when_qiskit_unavailable(
+        self, qiskit_converter, monkeypatch
+    ):
+        """Test parameter extraction fallback when qiskit is unavailable."""
+        monkeypatch.setattr(qiskit_converter, "QISKIT_AVAILABLE", False)
+
+        param_expr, param_value = qiskit_converter._extract_parameter(0.5)
+        assert param_expr is None
+        assert param_value is None
+
+
+class TestBindParametersEdgeCases:
+    """Test bind_parameters edge cases and validation paths."""
+
+    def test_bind_parameters_expands_list_values(self, qiskit_converter):
+        """Test list/tuple values are expanded to indexed parameter keys."""
+        result = qiskit_converter.bind_parameters([], {"theta": [0.1, 0.2], "phi": (0.3,)})
+
+        assert result["theta[0]"] == pytest.approx(0.1)
+        assert result["theta[1]"] == pytest.approx(0.2)
+        assert result["phi[0]"] == pytest.approx(0.3)
+
+    def test_bind_parameters_raises_for_invalid_list_item_type(self, qiskit_converter):
+        """Test invalid list item type raises TypeError."""
+        with pytest.raises(TypeError, match="invalid type"):
+            qiskit_converter.bind_parameters([], {"theta": [0.1, "bad"]})
+
+    def test_bind_parameters_raises_for_invalid_parameter_value_type(self, qiskit_converter):
+        """Test invalid top-level parameter value type raises TypeError."""
+        with pytest.raises(TypeError, match="invalid value type"):
+            qiskit_converter.bind_parameters([], {"theta": {"not": "numeric"}})
+
+    def test_bind_parameters_skips_layer_barrier(self, qiskit_converter):
+        """Test LayerBarrier objects are skipped during parameter collection."""
+        from executor.pauli_propagation.utils.gates import LayerBarrier
+
+        result = qiskit_converter.bind_parameters([LayerBarrier()], {})
+        assert result == {}
+
+    def test_bind_parameters_raises_for_unexpected_object(self, qiskit_converter):
+        """Test unexpected objects in gates list raise TypeError."""
+        with pytest.raises(TypeError, match="Unexpected object in gates list"):
+            qiskit_converter.bind_parameters([object()], {})
+
+    def test_bind_parameters_uses_gate_param_value_when_missing(self, qiskit_converter):
+        """Test missing parameter name gets filled from gate.param_value."""
+        gate = PauliRotation(["X"], 0, 1, param_name="theta", param_value=0.7)
+        gate.param_expr = None
+
+        result = qiskit_converter.bind_parameters([gate], {})
+        assert result["theta"] == pytest.approx(0.7)
+
+    def test_bind_parameters_marks_missing_param_name_without_value(self, qiskit_converter):
+        """Test missing named parameter without value raises ValueError."""
+        gate = PauliRotation(["X"], 0, 1, param_name="theta")
+        gate.param_expr = None
+        gate.param_value = None
+
+        with pytest.raises(ValueError, match="Missing parameter values"):
+            qiskit_converter.bind_parameters([gate], {})

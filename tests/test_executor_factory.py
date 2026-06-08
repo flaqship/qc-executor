@@ -310,7 +310,7 @@ class TestExecutorFactory:
             Executor._plugins_discovered = original_discovered
 
     def test_discover_plugins_fallback_uses_select(self, monkeypatch):
-        import importlib.metadata as importlib_metadata
+        select_called = {"value": False}
 
         class FakeEntryPoint:
             name = "ok"
@@ -320,6 +320,7 @@ class TestExecutorFactory:
 
         class FakeSelection:
             def select(self, group):
+                select_called["value"] = True
                 assert group == "executor.backends"
                 return [FakeEntryPoint()]
 
@@ -328,14 +329,15 @@ class TestExecutorFactory:
                 raise TypeError("old API")
             return FakeSelection()
 
-        monkeypatch.setattr(importlib_metadata, "entry_points", fake_entry_points)
+        monkeypatch.setattr("executor.factory.entry_points", fake_entry_points)
 
         Executor._plugins_discovered = False
         Executor._discover_plugins()
         assert Executor._plugins_discovered is True
+        assert select_called["value"] is True
 
     def test_discover_plugins_fallback_uses_dict_get(self, monkeypatch):
-        import importlib.metadata as importlib_metadata
+        get_called = {"value": False}
 
         class FakeEntryPoint:
             name = "ok-dict"
@@ -343,16 +345,22 @@ class TestExecutorFactory:
             def load(self):
                 return None
 
+        class FakeEntryPointsDict(dict):
+            def get(self, key, default=None):
+                get_called["value"] = True
+                return super().get(key, default)
+
         def fake_entry_points(*args, **kwargs):
             if "group" in kwargs:
                 raise TypeError("old API")
-            return {"executor.backends": [FakeEntryPoint()]}
+            return FakeEntryPointsDict({"executor.backends": [FakeEntryPoint()]})
 
-        monkeypatch.setattr(importlib_metadata, "entry_points", fake_entry_points)
+        monkeypatch.setattr("executor.factory.entry_points", fake_entry_points)
 
         Executor._plugins_discovered = False
         Executor._discover_plugins()
         assert Executor._plugins_discovered is True
+        assert get_called["value"] is True
 
 
 class TestExecutorIntegration:

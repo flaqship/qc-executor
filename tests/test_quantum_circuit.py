@@ -8,6 +8,7 @@ from qiskit.circuit import ParameterVector
 import executor.quantum_circuit as quantum_circuit_module
 from executor import QuantumCircuit
 from executor.parameters import Parameters
+from tests.test_utils import SpyCircuit
 
 
 def create_mock_operator(paulis, coeffs):
@@ -16,53 +17,6 @@ def create_mock_operator(paulis, coeffs):
     operator.paulis = paulis
     operator.coeffs = coeffs
     return operator
-
-
-class RecordingQuantumCircuit(QuantumCircuit):
-    """Quantum circuit that records gate calls for behavioural tests."""
-
-    def __init__(self, num_qubits: int):
-        super().__init__(num_qubits)
-        self.calls = []
-
-    def _record(self, name: str, *args):
-        self.calls.append((name, *args))
-
-    def h(self, qubits):
-        self._record("h", qubits)
-        super().h(qubits)
-
-    def s(self, qubits):
-        self._record("s", qubits)
-        super().s(qubits)
-
-    def sdag(self, qubits):
-        self._record("sdag", qubits)
-        super().sdag(qubits)
-
-    def x(self, qubits):
-        self._record("x", qubits)
-        super().x(qubits)
-
-    def y(self, qubits):
-        self._record("y", qubits)
-        super().y(qubits)
-
-    def z(self, qubits):
-        self._record("z", qubits)
-        super().z(qubits)
-
-    def cx(self, control_qubit: int, target_qubit: int):
-        self._record("cx", control_qubit, target_qubit)
-        super().cx(control_qubit, target_qubit)
-
-    def rz(self, qubits, angle):
-        self._record("rz", qubits, angle)
-        super().rz(qubits, angle)
-
-    def crz(self, control_qubit: int, target_qubit: int, angle: float):
-        self._record("crz", control_qubit, target_qubit, angle)
-        super().crz(control_qubit, target_qubit, angle)
 
 
 class TestQuantumCircuitBasics:
@@ -91,28 +45,28 @@ class TestQuantumCircuitBasics:
         assert circuit.num_parameters == 0
 
     def test_cnot_is_alias_for_cx(self):
-        circuit = RecordingQuantumCircuit(2)
+        circuit = SpyCircuit(2)
 
         circuit.cnot(0, 1)
 
-        assert circuit.calls == [("cx", 0, 1)]
+        assert circuit.ops == [("cx", 0, 1)]
 
 
 class TestQuantumCircuitPauliString:
 
     def test_pauli_string_applies_reverse_qubit_order(self):
-        circuit = RecordingQuantumCircuit(3)
+        circuit = SpyCircuit(3)
 
         circuit.pauli_string("XYZ")
 
-        assert circuit.calls == [("z", 0), ("y", 1), ("x", 2)]
+        assert circuit.ops == [("z", 0), ("y", 1), ("x", 2)]
 
     def test_pauli_string_skips_identity_paulis(self):
-        circuit = RecordingQuantumCircuit(3)
+        circuit = SpyCircuit(3)
 
         circuit.pauli_string("III")
 
-        assert circuit.calls == []
+        assert circuit.ops == []
 
     def test_pauli_string_validates_length(self):
         circuit = QuantumCircuit(2)
@@ -124,20 +78,20 @@ class TestQuantumCircuitPauliString:
 class TestQuantumCircuitPauliEvolution:
 
     def test_pauli_evolution_single_x_pauli(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X"], coeffs=[1.0])
 
         circuit.pauli_evolution(operator, 0.5)
 
-        assert circuit.calls == [("h", 0), ("rz", 0, 1.0), ("h", 0)]
+        assert circuit.ops == [("h", 0), ("rz", 0, 1.0), ("h", 0)]
 
     def test_pauli_evolution_with_y_basis_change(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["Y"], coeffs=[1.0])
 
         circuit.pauli_evolution(operator, 0.5)
 
-        assert circuit.calls == [
+        assert circuit.ops == [
             ("sdag", 0),
             ("h", 0),
             ("rz", 0, 1.0),
@@ -146,12 +100,12 @@ class TestQuantumCircuitPauliEvolution:
         ]
 
     def test_pauli_evolution_with_multi_qubit_chain(self):
-        circuit = RecordingQuantumCircuit(3)
+        circuit = SpyCircuit(3)
         operator = create_mock_operator(paulis=["XX"], coeffs=[1.0])
 
         circuit.pauli_evolution(operator, 0.5)
 
-        assert circuit.calls == [
+        assert circuit.ops == [
             ("h", 1),
             ("h", 0),
             ("cx", 1, 0),
@@ -163,7 +117,7 @@ class TestQuantumCircuitPauliEvolution:
 
     def test_pauli_evolution_with_symbolic_coefficient(self):
         theta = ParameterVector("theta", 1)
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["Z"], coeffs=[theta[0]])
 
         # Symbolic coefficients currently cause TypeError when converted to float
@@ -171,14 +125,14 @@ class TestQuantumCircuitPauliEvolution:
             circuit.pauli_evolution(operator, 0.5)
 
     def test_pauli_evolution_rejects_multi_term_operator(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X", "Z"], coeffs=[1.0, 0.5])
 
         with pytest.raises(ValueError, match="single Pauli strings"):
             circuit.pauli_evolution(operator, 0.5)
 
     def test_pauli_evolution_rejects_complex_coefficients(self, monkeypatch):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X"], coeffs=[1 + 1j])
 
         monkeypatch.setattr(quantum_circuit_module.np, "real_if_close", lambda value: value)
@@ -187,7 +141,7 @@ class TestQuantumCircuitPauliEvolution:
             circuit.pauli_evolution(operator, 0.5)
 
     def test_pauli_evolution_rejects_unknown_pauli(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["A"], coeffs=[1.0])
 
         with pytest.raises(ValueError, match="Unknown Pauli operator: A"):
@@ -197,28 +151,28 @@ class TestQuantumCircuitPauliEvolution:
 class TestQuantumCircuitControlledPauliEvolution:
 
     def test_controlled_pauli_evolution_identity_pauli(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["I"], coeffs=[1.0])
 
         circuit.controlled_pauli_evolution(operator, 0.25, control_qubit=0)
 
-        assert circuit.calls == [("rz", 0, -0.25)]
+        assert circuit.ops == [("rz", 0, -0.25)]
 
     def test_controlled_pauli_evolution_with_basis_change(self):
-        circuit = RecordingQuantumCircuit(2)
+        circuit = SpyCircuit(2)
         operator = create_mock_operator(paulis=["X"], coeffs=[1.0])
 
         circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
 
-        assert circuit.calls == [("h", 0), ("crz", 1, 0, 1.0), ("h", 0)]
+        assert circuit.ops == [("h", 0), ("crz", 1, 0, 1.0), ("h", 0)]
 
     def test_controlled_pauli_evolution_with_y_basis_change(self):
-        circuit = RecordingQuantumCircuit(2)
+        circuit = SpyCircuit(2)
         operator = create_mock_operator(paulis=["Y"], coeffs=[1.0])
 
         circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
 
-        assert circuit.calls == [
+        assert circuit.ops == [
             ("sdag", 0),
             ("h", 0),
             ("crz", 1, 0, 1.0),
@@ -227,12 +181,12 @@ class TestQuantumCircuitControlledPauliEvolution:
         ]
 
     def test_controlled_pauli_evolution_with_multi_qubit_chain(self):
-        circuit = RecordingQuantumCircuit(3)
+        circuit = SpyCircuit(3)
         operator = create_mock_operator(paulis=["XX"], coeffs=[1.0])
 
         circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=2)
 
-        assert circuit.calls == [
+        assert circuit.ops == [
             ("h", 1),
             ("h", 0),
             ("cx", 1, 0),
@@ -244,7 +198,7 @@ class TestQuantumCircuitControlledPauliEvolution:
 
     def test_controlled_pauli_evolution_with_symbolic_coefficient(self):
         theta = ParameterVector("theta", 1)
-        circuit = RecordingQuantumCircuit(2)
+        circuit = SpyCircuit(2)
         operator = create_mock_operator(paulis=["Z"], coeffs=[theta[0]])
 
         # Symbolic coefficients currently cause TypeError when converted to float
@@ -252,7 +206,7 @@ class TestQuantumCircuitControlledPauliEvolution:
             circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
 
     def test_controlled_pauli_evolution_rejects_complex_coefficients(self, monkeypatch):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X"], coeffs=[1 + 1j])
 
         monkeypatch.setattr(quantum_circuit_module.np, "real_if_close", lambda value: value)
@@ -261,14 +215,14 @@ class TestQuantumCircuitControlledPauliEvolution:
             circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=0)
 
     def test_controlled_pauli_evolution_rejects_multi_term_operator(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X", "Z"], coeffs=[1.0, 0.5])
 
         with pytest.raises(ValueError, match="single Pauli strings"):
             circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=0)
 
     def test_controlled_pauli_evolution_rejects_unknown_pauli(self):
-        circuit = RecordingQuantumCircuit(1)
+        circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["A"], coeffs=[1.0])
 
         with pytest.raises(ValueError, match="Unknown Pauli operator: A"):

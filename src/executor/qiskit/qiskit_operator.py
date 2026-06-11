@@ -1,9 +1,11 @@
+"""Qiskit operator wrapper for use with QiskitExecutor."""
+
 from __future__ import annotations
 
 from collections import OrderedDict
 from typing import List
 
-import numpy as np
+from executor.qiskit._param_binding import build_params_dict
 
 
 class QiskitOperator:
@@ -81,29 +83,12 @@ class QiskitOperator:
         Returns:
             Bound Qiskit SparsePauliOp
         """
-        # Convert parameter_values dict (with vector names) to Qiskit format
-        params_dict = {}
-
-        for param_name, values in parameter_values.items():
-            # Ensure values is a list
-            if not isinstance(values, (list, np.ndarray)):
-                values = [values]
-
-            # Match parameters from operator with provided values
-            matching_params = [p for p in self._free_parameters if p.vector.name == param_name]
-
-            # Sort by index to ensure correct ordering
-            matching_params = sorted(matching_params, key=lambda x: x.index)
-
-            for i, param in enumerate(matching_params):
-                if i < len(values):
-                    params_dict[param] = values[i]
+        params_dict = build_params_dict(self._free_parameters, parameter_values)
 
         # Bind parameters to operator
         if params_dict:
             return self._qiskit_operator.assign_parameters(params_dict)
-        else:
-            return self._qiskit_operator
+        return self._qiskit_operator
 
     def copy(self):
         """Return a copy of the operator wrapper."""

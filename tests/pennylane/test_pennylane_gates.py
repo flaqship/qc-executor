@@ -16,15 +16,15 @@ import pennylane as qml
 import pytest
 
 from executor.pennylane.pennylane_gates import (
-    RXX,
-    RYY,
-    RZX,
-    RZZ,
     cs,
     csx,
     pennylane_target,
     qiskit_pennylane_gate_dict,
     reset,
+    rxx,
+    ryy,
+    rzx,
+    rzz,
     sdg,
     tdg,
 )
@@ -39,7 +39,7 @@ class TestPennyLaneGates:
         """Test RXX gate (two-qubit XX rotation)."""
         theta = 0.5
         wires = [0, 1]
-        gate = RXX(theta, wires)
+        gate = rxx(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "XX", wires=wires)
@@ -49,7 +49,7 @@ class TestPennyLaneGates:
         """Test RYY gate (two-qubit YY rotation)."""
         theta = 0.7
         wires = [0, 1]
-        gate = RYY(theta, wires)
+        gate = ryy(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "YY", wires=wires)
@@ -59,7 +59,7 @@ class TestPennyLaneGates:
         """Test RZZ gate (two-qubit ZZ rotation)."""
         theta = np.pi / 4
         wires = [0, 1]
-        gate = RZZ(theta, wires)
+        gate = rzz(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "ZZ", wires=wires)
@@ -69,7 +69,7 @@ class TestPennyLaneGates:
         """Test RZX gate (two-qubit ZX rotation)."""
         theta = np.pi / 2
         wires = [1, 2]
-        gate = RZX(theta, wires)
+        gate = rzx(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "ZX", wires=wires)
@@ -79,7 +79,7 @@ class TestPennyLaneGates:
     def test_rxx_gate_various_angles(self, theta):
         """Test RXX gate with various rotation angles."""
         wires = [0, 1]
-        gate = RXX(theta, wires)
+        gate = rxx(theta, wires)
         assert gate is not None
 
     # Adjoint (Dagger) Gates

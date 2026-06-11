@@ -1,25 +1,27 @@
+"""Custom PennyLane gate definitions and Qiskit-to-PennyLane gate mapping."""
+
 from __future__ import annotations
 
 import pennylane as qml
 from qiskit.transpiler import Target
 
 
-def RXX(theta, wires):
+def rxx(theta, wires):
     """RXX gate."""
     return qml.PauliRot(theta, "XX", wires=wires)
 
 
-def RYY(theta, wires):
+def ryy(theta, wires):
     """RYY gate."""
     return qml.PauliRot(theta, "YY", wires=wires)
 
 
-def RZZ(theta, wires):
+def rzz(theta, wires):
     """RZZ gate."""
     return qml.PauliRot(theta, "ZZ", wires=wires)
 
 
-def RZX(theta, wires):
+def rzx(theta, wires):
     """RZX gate."""
     return qml.PauliRot(theta, "ZX", wires=wires)
 
@@ -80,11 +82,11 @@ qiskit_pennylane_gate_dict = {
     "crx": qml.CRX,
     "cry": qml.CRY,
     "crz": qml.CRZ,
-    "rxx": RXX,
-    "ryy": RYY,
-    "rzz": RZZ,
-    "rzx": RZX,
-    # TODO: maybe has to be done via custom target
+    "rxx": rxx,
+    "ryy": ryy,
+    "rzz": rzz,
+    "rzx": rzx,
+    # TODO: may need to be done via custom target
     # "barrier": qml.Barrier,
     "u": qml.U3,
     "measure": qml.measure,
@@ -95,4 +97,4 @@ qiskit_pennylane_gate_dict = {
     "csx": csx,
 }
 
-pennylane_target = Target.from_configuration(qiskit_pennylane_gate_dict.keys())
+pennylane_target = Target.from_configuration(list(qiskit_pennylane_gate_dict.keys()))

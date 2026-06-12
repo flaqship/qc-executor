@@ -227,7 +227,7 @@ class TestOpTreeLeafs:
     def test_container_eq_returns_none_for_other_types(self):
         """Directly call `__eq__` to exercise the non-instance path (returns None)."""
         container = OpTreeContainer({"a": 1})
-        assert container.__eq__(123) is None
+        assert container.__eq__(123) is False
 
     def test_op_tree_operator_equality_true_for_same_hash(self):
         """Ensure `OpTreeOperator.__eq__` returns True for identical operators."""

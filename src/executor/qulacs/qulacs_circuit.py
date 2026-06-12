@@ -1,13 +1,16 @@
+"""Qulacs circuit wrapper for converting Qiskit circuits to Qulacs-compatible circuits."""
+
 from __future__ import annotations
 
-from typing import Iterable, List
+from typing import Any, Callable, Iterable, List, Optional
 
 import numpy as np
+from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit import transpile
 from qiskit.circuit import ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
-from qulacs import ParametricQuantumCircuit
-from qulacs import QuantumCircuit as QulacsQuantumCircuit
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 from sympy import lambdify
 
 from ..quantum_circuit import QuantumCircuit
@@ -18,6 +21,7 @@ from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict
 
 
 class QulacsCircuit:
+    """Wrapper class that converts a generic QuantumCircuit into a Qulacs-compatible circuit."""
 
     @classmethod
     def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "QulacsCircuit":
@@ -53,6 +57,7 @@ class QulacsCircuit:
 
         self._circuit_func_cache = {}
         self._outer_jacobi_circuit_cache = {}
+        self._qulacs_circuit = None
 
     @property
     def num_qubits(self) -> int:
@@ -60,14 +65,14 @@ class QulacsCircuit:
         return self._num_qubits
 
     @property
-    def qulacs_circuit(self) -> callable:
+    def qulacs_circuit(self) -> Optional[Callable]:
         """Qulacs circuit that can be called with parameters"""
         return self._qulacs_circuit
 
     @property
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
-        return self._qulacs_gates_parameters.keys()
+        return list(self._qulacs_gates_parameters.keys())
 
     @property
     def parameter_dimensions(self) -> dict:
@@ -75,24 +80,36 @@ class QulacsCircuit:
         return self._qulacs_gates_parameters
 
     @property
-    def circuit_arguments(self) -> list:
-        """List of all circuit and observable parameters names"""
+    def circuit_arguments(self) -> dict:
+        """Dictionary of all circuit and observable parameters names"""
         return self._qulacs_gates_parameters
 
-    def get_qulacs_circuit(self) -> callable:
+    @property
+    def hash(self) -> int:
+        """Hashable object of the circuit and observable for caching"""
+        return hash(self._qiskit_circuit)
+
+    @property
+    def free_parameters(self) -> set:
+        """Return the set of free (non-bound) parameters in the circuit."""
+        return self._free_parameters
+
+    def get_qulacs_circuit(self) -> Callable:
         """Builds and returns the Qulacs circuit as callable function"""
-        self._qulacs_circuit = self.build_qulacs_circuit()
+        self._qulacs_circuit = self.get_circuit_func()
         return self._qulacs_circuit
 
     def __call__(self, *args, **kwargs):
+        if self._qulacs_circuit is None:
+            self._qulacs_circuit = self.get_circuit_func()
         return self._qulacs_circuit(*args, **kwargs)
 
     def __hash__(self):
         return hash(_circuit_key(self._qiskit_circuit))
 
     def _add_parameter_expression(
-        self, angle: ParameterVectorElement | ParameterExpression | float
-    ):
+        self, angle: float | ParameterVectorElement | ParameterExpression
+    ) -> Any:
         """
         Adds a parameter expression to the circuit and do the pre-processing.
 
@@ -189,7 +206,7 @@ class QulacsCircuit:
 
         for control, target in zip(qubit1, qubit2):
             if control >= self.num_qubits or target >= self.num_qubits:
-                raise ValueError(f"Qubit index is out of range")
+                raise ValueError("Qubit index is out of range")
             self._operation_list.append(gate_name)
             self._qubit_list.append([control, target])
             self._func_list.append(None)
@@ -202,7 +219,7 @@ class QulacsCircuit:
         self,
         gate_name: str,
         qubits: int | Iterable[int],
-        angle: ParameterVectorElement | ParameterExpression | float,
+        angle: float | ParameterVectorElement | ParameterExpression,
     ):
         """
         Adds a single qubit parameterized gate to the circuit.
@@ -239,7 +256,7 @@ class QulacsCircuit:
         gate_name: str,
         qubit1: int | Iterable[int],
         qubit2: int | Iterable[int],
-        angle: ParameterVectorElement | ParameterExpression | float,
+        angle: float | ParameterVectorElement | ParameterExpression,
     ):
         """
         Adds a single qubit parameterized gate to the circuit.
@@ -258,7 +275,7 @@ class QulacsCircuit:
 
         for control, target in zip(qubit1, qubit2):
             if control >= self.num_qubits or target >= self.num_qubits:
-                raise ValueError(f"Qubit index is out of range")
+                raise ValueError("Qubit index is out of range")
             if parameterized:
                 self._operation_list.append(gate_name)
             else:
@@ -273,7 +290,7 @@ class QulacsCircuit:
 
         self._rebuild_circuit_func = True
 
-    def _build_circuit_instructions(self, circuit: QuantumCircuit) -> tuple:
+    def _build_circuit_instructions(self, circuit: QiskitQuantumCircuit) -> None:
         """
         Function to build the instructions for the Qulacs circuit from the Qiskit circuit.
 
@@ -281,11 +298,7 @@ class QulacsCircuit:
         gates and functions.
 
         Args:
-            circuit (QuantumCircuit): Qiskit circuit to convert to Qulacs
-
-        Returns:
-            Tuple with lists of Qulacs gates, Qulacs gate parameter functions,
-            Qulacs gate wires, Qulacs gate parameters and Qulacs gate parameter dimensions
+            circuit (QiskitQuantumCircuit): Qiskit circuit to convert to Qulacs
         """
 
         self._operation_list = []
@@ -304,7 +317,7 @@ class QulacsCircuit:
             else:
                 self._qulacs_gates_parameters[name] += 1
 
-        self._symbol_tuple_circuit = tuple([_param_to_sympy(p) for p in circuit.parameters])
+        self._symbol_tuple_circuit = tuple(_param_to_sympy(p) for p in circuit.parameters)
 
         for gate_operation in circuit.data:
 
@@ -324,7 +337,8 @@ class QulacsCircuit:
                 and gate_operation.operation.name not in qiskit_qulacs_param_gate_dict
             ):
                 raise NotImplementedError(
-                    f"Gate {gate_operation.operation.name} is unfortunatly not supported in sQUlearn's Qulacs backend."
+                    f"Gate {gate_operation.operation.name} is unfortunatly not supported "
+                    "in sQUlearn's Qulacs backend."
                 )
 
             paramterized_gate = len(gate_operation.operation.params) >= 1
@@ -398,6 +412,7 @@ class QulacsCircuit:
                 else:
                     value = self._func_list[i](*circ_param_list)
                     if parameterized_operations[i]:
+                        assert isinstance(circuit, ParametricQuantumCircuit)
                         qiskit_qulacs_param_gate_dict[qulacs_operation](
                             circuit, value, *self._qubit_list[i]
                         )
@@ -423,7 +438,8 @@ class QulacsCircuit:
         parameter expression.
 
         Args:
-            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None): Parameters to calculate the gradient for
+            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None):
+                Parameters to calculate the gradient for
         """
 
         if isinstance(gradient_parameters, ParameterVectorElement):

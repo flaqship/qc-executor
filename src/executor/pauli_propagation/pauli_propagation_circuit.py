@@ -12,6 +12,36 @@ from executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _p
 from .utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 
 
+def _qubit_arg(qubits: List[int]) -> int | List[int]:
+    """Return the single qubit index or the full list, matching gate constructors."""
+    return qubits if len(qubits) > 1 else qubits[0]
+
+
+def _clone_gate(gate: Gate | LayerBarrier, num_qubits: int) -> Gate | LayerBarrier | None:
+    """Create a fresh copy of a gate instruction (None for unknown gate types)."""
+    if isinstance(gate, LayerBarrier):
+        return LayerBarrier()
+    if isinstance(gate, PauliRotation):
+        return PauliRotation(
+            list(gate.symbols),
+            _qubit_arg(gate.qubits),
+            num_qubits,
+            param_expr=gate.param_expr,
+            param_value=gate.param_value,
+        )
+    if isinstance(gate, CliffordGate):
+        return CliffordGate(gate.gate_type, _qubit_arg(gate.qubits), num_qubits)
+    return None
+
+
+def _record_symbols(param_expression: sp.Expr | None, parameters: Dict[str, sp.Symbol]) -> None:
+    """Record all free symbols of an expression in a name -> symbol mapping."""
+    if param_expression is None:
+        return
+    for symbol in param_expression.free_symbols:
+        parameters.setdefault(symbol.name, symbol)
+
+
 class PauliPropagationCircuit(QuantumCircuitBase):
     """Backend-native circuit representation for Pauli propagation.
 
@@ -19,10 +49,19 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     used by the propagation engine and does not depend on Qiskit objects.
     """
 
-    def __init__(self, num_qubits: int):
+    def __init__(
+        self,
+        num_qubits: int,
+        *,
+        gates: Sequence[Gate | LayerBarrier] | None = None,
+        parameter_symbols: Dict[str, sp.Symbol] | None = None,
+    ):
         super().__init__(num_qubits)
-        self._gates: List[Gate | LayerBarrier] = []
-        self._parameters: Dict[str, sp.Symbol] = {}  # Maps parameter names to sympy symbols
+        self._gates: List[Gate | LayerBarrier] = list(gates) if gates is not None else []
+        # Maps parameter names to sympy symbols
+        self._parameters: Dict[str, sp.Symbol] = (
+            dict(parameter_symbols) if parameter_symbols is not None else {}
+        )
 
     @classmethod
     def from_quantum_circuit(cls, circuit: QuantumCircuitBase) -> "PauliPropagationCircuit":
@@ -30,7 +69,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         if isinstance(circuit, cls):
             return circuit
 
-        if not hasattr(circuit, "_qiskit_circuit"):
+        if not hasattr(circuit, "qiskit_circuit"):
             raise TypeError(
                 "PauliPropagationCircuit.from_quantum_circuit expects a generic QuantumCircuit "
                 f"or {cls.__name__}, got {type(circuit).__name__}"
@@ -39,16 +78,17 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         # pylint: disable-next=import-outside-toplevel
         from .utils.qiskit_converter import convert_circuit
 
-        pp_circuit = cls(circuit.num_qubits)
-        pp_circuit._gates = convert_circuit(
-            circuit._qiskit_circuit, use_cache=True  # pylint: disable=protected-access
-        )
+        # The wrapped Qiskit circuit is exposed via the public qiskit_circuit
+        # property (hasattr-checked above); getattr keeps the duck typing
+        # opaque to static type checkers.
+        gates = convert_circuit(getattr(circuit, "qiskit_circuit"), use_cache=True)
 
-        for gate in pp_circuit._gates:
+        parameters: Dict[str, sp.Symbol] = {}
+        for gate in gates:
             if isinstance(gate, PauliRotation):
-                pp_circuit._record_parameter(gate.param_expr)
+                _record_symbols(gate.param_expr, parameters)
 
-        return pp_circuit
+        return cls(circuit.num_qubits, gates=gates, parameter_symbols=parameters)
 
     @property
     def gates(self) -> List[Gate | LayerBarrier]:
@@ -59,6 +99,11 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def parameters(self) -> List[str]:
         """Return parameter names used by the circuit."""
         return list(self._parameters.keys())
+
+    @property
+    def parameter_symbols(self) -> Dict[str, sp.Symbol]:
+        """Return a copy of the parameter-name to sympy-symbol mapping."""
+        return dict(self._parameters)
 
     @property
     def num_parameters(self) -> int:
@@ -73,12 +118,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
 
     def _record_parameter(self, param_expression: sp.Expr | None) -> None:
         """Record sympy symbols from a parameter expression."""
-        if param_expression is None:
-            return
-        # Extract all free symbols from the expression
-        for symbol in param_expression.free_symbols:
-            if symbol.name not in self._parameters:
-                self._parameters[symbol.name] = symbol
+        _record_symbols(param_expression, self._parameters)
 
     @staticmethod
     def _extract_parameter(parameter: Any) -> tuple[sp.Expr | None, float | None]:
@@ -267,37 +307,39 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         if len(qubits) != qc.num_qubits:
             raise ValueError("Length of qubits mapping must match composed circuit qubit count.")
 
-        # pylint: disable=protected-access
-        mapped = self.copy()
+        merged_gates = [
+            cloned
+            for cloned in (_clone_gate(gate, self.num_qubits) for gate in self._gates)
+            if cloned is not None
+        ]
+        merged_parameters = dict(self._parameters)
         qubit_map = dict(enumerate(qubits))
 
         for gate in qc.gates:
             if isinstance(gate, LayerBarrier):
-                mapped._gates.append(LayerBarrier())
+                merged_gates.append(LayerBarrier())
                 continue
 
             remapped_qubits = [qubit_map[q] for q in gate.qubits]
             if isinstance(gate, PauliRotation):
-                mapped._record_parameter(gate.param_expr)
-                mapped._gates.append(
+                _record_symbols(gate.param_expr, merged_parameters)
+                merged_gates.append(
                     PauliRotation(
                         list(gate.symbols),
-                        remapped_qubits if len(remapped_qubits) > 1 else remapped_qubits[0],
-                        mapped.num_qubits,
+                        _qubit_arg(remapped_qubits),
+                        self.num_qubits,
                         param_expr=gate.param_expr,
                         param_value=gate.param_value,
                     )
                 )
             elif isinstance(gate, CliffordGate):
-                mapped._gates.append(
-                    CliffordGate(
-                        gate.gate_type,
-                        remapped_qubits if len(remapped_qubits) > 1 else remapped_qubits[0],
-                        mapped.num_qubits,
-                    )
+                merged_gates.append(
+                    CliffordGate(gate.gate_type, _qubit_arg(remapped_qubits), self.num_qubits)
                 )
 
-        return mapped
+        return PauliPropagationCircuit(
+            self.num_qubits, gates=merged_gates, parameter_symbols=merged_parameters
+        )
 
     def assign_parameters(self, parameters: Dict[str, float]) -> "PauliPropagationCircuit":
         """Bind symbolic parameters to concrete values.
@@ -308,17 +350,15 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         Returns:
             New circuit with parameters substituted
         """
-        # pylint: disable=protected-access
-        assigned = self.copy()
         new_gates: List[Gate | LayerBarrier] = []
 
         # Build substitution dict for sympy
         subs_dict = {}
         for param_name, param_value in parameters.items():
-            if param_name in assigned._parameters:
-                subs_dict[assigned._parameters[param_name]] = param_value
+            if param_name in self._parameters:
+                subs_dict[self._parameters[param_name]] = param_value
 
-        for gate in assigned._gates:
+        for gate in self._gates:
             if isinstance(gate, PauliRotation) and gate.param_expr is not None:
                 # Substitute parameters in the expression
                 substituted_expr = gate.param_expr.subs(subs_dict)
@@ -328,8 +368,8 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                     new_gates.append(
                         PauliRotation(
                             list(gate.symbols),
-                            gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
-                            assigned.num_qubits,
+                            _qubit_arg(gate.qubits),
+                            self.num_qubits,
                             param_expr=None,
                             param_value=float(substituted_expr),
                         )
@@ -339,41 +379,39 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                     new_gates.append(
                         PauliRotation(
                             list(gate.symbols),
-                            gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
-                            assigned.num_qubits,
+                            _qubit_arg(gate.qubits),
+                            self.num_qubits,
                             param_expr=substituted_expr,
                             param_value=None,
                         )
                     )
             else:
-                new_gates.append(gate)
-
-        assigned._gates = new_gates
+                cloned = _clone_gate(gate, self.num_qubits)
+                if cloned is not None:
+                    new_gates.append(cloned)
 
         # Update parameter tracking - remove fully bound parameters
-        remaining_params = {}
-        for param_name, param_symbol in assigned._parameters.items():
-            if param_name not in parameters:
-                remaining_params[param_name] = param_symbol
-        assigned._parameters = remaining_params
+        remaining_params = {
+            name: symbol for name, symbol in self._parameters.items() if name not in parameters
+        }
 
-        return assigned
+        return PauliPropagationCircuit(
+            self.num_qubits, gates=new_gates, parameter_symbols=remaining_params
+        )
 
     def invert(self) -> "PauliPropagationCircuit":
-        # pylint: disable=protected-access
-        inverse = PauliPropagationCircuit(self.num_qubits)
-        inverse._parameters = dict(self._parameters)
+        inverted_gates: List[Gate | LayerBarrier] = []
 
         for gate in reversed(self._gates):
             if isinstance(gate, LayerBarrier):
-                inverse._gates.append(LayerBarrier())
+                inverted_gates.append(LayerBarrier())
             elif isinstance(gate, PauliRotation):
                 if gate.param_expr is not None:
                     # Negate the symbolic expression
-                    inverse._gates.append(
+                    inverted_gates.append(
                         PauliRotation(
                             list(gate.symbols),
-                            gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
+                            _qubit_arg(gate.qubits),
                             self.num_qubits,
                             param_expr=-gate.param_expr,
                             param_value=None,
@@ -381,55 +419,45 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                     )
                 else:
                     # Negate the concrete value
-                    inverse._gates.append(
+                    inverted_gates.append(
                         PauliRotation(
                             list(gate.symbols),
-                            gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
+                            _qubit_arg(gate.qubits),
                             self.num_qubits,
                             param_expr=None,
                             param_value=-float(gate.param_value),
                         )
                     )
             elif isinstance(gate, CliffordGate):
-                inverse._gates.append(
-                    CliffordGate(
-                        gate.gate_type,
-                        gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
-                        self.num_qubits,
-                    )
+                inverted_gates.append(
+                    CliffordGate(gate.gate_type, _qubit_arg(gate.qubits), self.num_qubits)
                 )
 
-        return inverse
+        return PauliPropagationCircuit(
+            self.num_qubits, gates=inverted_gates, parameter_symbols=self._parameters
+        )
 
     def copy(self) -> "PauliPropagationCircuit":
-        # pylint: disable=protected-access
-        copied = PauliPropagationCircuit(self.num_qubits)
-        copied._parameters = dict(self._parameters)
-        copied._gates = []
+        copied_gates = [
+            cloned
+            for cloned in (_clone_gate(gate, self.num_qubits) for gate in self._gates)
+            if cloned is not None
+        ]
+        return PauliPropagationCircuit(
+            self.num_qubits, gates=copied_gates, parameter_symbols=self._parameters
+        )
 
-        for gate in self._gates:
-            if isinstance(gate, LayerBarrier):
-                copied._gates.append(LayerBarrier())
-            elif isinstance(gate, PauliRotation):
-                copied._gates.append(
-                    PauliRotation(
-                        list(gate.symbols),
-                        gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
-                        copied.num_qubits,
-                        param_expr=gate.param_expr,
-                        param_value=gate.param_value,
-                    )
-                )
-            elif isinstance(gate, CliffordGate):
-                copied._gates.append(
-                    CliffordGate(
-                        gate.gate_type,
-                        gate.qubits if len(gate.qubits) > 1 else gate.qubits[0],
-                        copied.num_qubits,
-                    )
-                )
+    def replace_gate(self, index: int, gate: Gate | LayerBarrier) -> "PauliPropagationCircuit":
+        """Return a new circuit with the gate at ``index`` replaced.
 
-        return copied
+        Unreplaced gate objects are shared with this circuit; gates are
+        immutable after construction, so this is safe.
+        """
+        new_gates = list(self._gates)
+        new_gates[index] = gate
+        return PauliPropagationCircuit(
+            self.num_qubits, gates=new_gates, parameter_symbols=self._parameters
+        )
 
     def circuit_metrics(self) -> dict:
         gate_count = sum(1 for gate in self._gates if isinstance(gate, Gate))

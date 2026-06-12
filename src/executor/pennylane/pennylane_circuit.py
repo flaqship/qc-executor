@@ -32,7 +32,7 @@ class PennyLaneCircuit:
 
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_circuit = transpile(
-            decompose_to_std(circuit._qiskit_circuit),
+            decompose_to_std(circuit.qiskit_circuit),
             target=pennylane_target,
             optimization_level=0,
         )

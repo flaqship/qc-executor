@@ -362,7 +362,6 @@ class PauliPropagationExecutor(ExecutorBase):
             If multiple params requested: dict mapping param names to gradient arrays
         """
         # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
-        # pylint: disable=protected-access
         # Convert derivative params to string names (base parameter names without indices)
         param_names = []
         for p in derivative_params:
@@ -408,6 +407,11 @@ class PauliPropagationExecutor(ExecutorBase):
         circuit_params = set(native_circuit.parameters)
         uses_indexed_names = observable_params | circuit_params
         bound_circuit = native_circuit.assign_parameters(normalized_parameter_values)
+
+        # Hoisted copies of the parameter mappings (the properties return copies)
+        observable_symbols = native_observable.parameter_symbols
+        observable_parametric_coeffs = native_observable.parametric_coeffs
+        circuit_symbols = native_circuit.parameter_symbols
 
         # Compute gradients for each derivative parameter
         result_dict = {}
@@ -480,26 +484,22 @@ class PauliPropagationExecutor(ExecutorBase):
                     # Compute analytical derivative for observable coefficients
                     # Use the actual symbol from the observable's parameter dict
                     param_symbol = None
-                    if effective_param_name in native_observable._parameters:
-                        param_symbol = native_observable._parameters[effective_param_name]
-                    elif param_name in native_observable._parameters:
-                        param_symbol = native_observable._parameters[param_name]
-                    elif base_name in native_observable._parameters:
-                        param_symbol = native_observable._parameters[base_name]
+                    if effective_param_name in observable_symbols:
+                        param_symbol = observable_symbols[effective_param_name]
+                    elif param_name in observable_symbols:
+                        param_symbol = observable_symbols[param_name]
+                    elif base_name in observable_symbols:
+                        param_symbol = observable_symbols[base_name]
                     else:
                         # Try to find a matching symbol by name
-                        for sym_name, sym in native_observable._parameters.items():
+                        for sym_name, sym in observable_symbols.items():
                             if sym_name in (effective_param_name, param_name):
                                 param_symbol = sym
                                 break
 
-                    if (
-                        param_symbol is not None
-                        and hasattr(native_observable, "_parametric_coeffs")
-                        and native_observable._parametric_coeffs
-                    ):
+                    if param_symbol is not None and observable_parametric_coeffs:
                         # Observable has parametric coefficients - iterate through them
-                        for term, coeff_expr in native_observable._parametric_coeffs.items():
+                        for term, coeff_expr in observable_parametric_coeffs.items():
                             # Check if parameter appears in this coefficient
                             if param_symbol in coeff_expr.free_symbols:
                                 # Compute derivative: dcoeff/dparam
@@ -526,9 +526,9 @@ class PauliPropagationExecutor(ExecutorBase):
 
                 # === CIRCUIT CONTRIBUTION ===
                 if in_circuit:
-                    effective_symbol = native_circuit._parameters.get(effective_param_name)
+                    effective_symbol = circuit_symbols.get(effective_param_name)
                     if effective_symbol is None and effective_param_name == base_name:
-                        effective_symbol = native_circuit._parameters.get(base_name)
+                        effective_symbol = circuit_symbols.get(base_name)
 
                     if effective_symbol is not None:
                         for gate_index, (source_gate, bound_gate) in enumerate(
@@ -552,30 +552,33 @@ class PauliPropagationExecutor(ExecutorBase):
                                 bound_gate, normalized_parameter_values
                             )
 
-                            shifted_plus_circuit = bound_circuit.copy()
-                            shifted_minus_circuit = bound_circuit.copy()
-
-                            shifted_plus_circuit._gates[gate_index] = PauliRotation(
-                                list(bound_gate.symbols),
-                                (
-                                    bound_gate.qubits
-                                    if len(bound_gate.qubits) > 1
-                                    else bound_gate.qubits[0]
+                            shifted_plus_circuit = bound_circuit.replace_gate(
+                                gate_index,
+                                PauliRotation(
+                                    list(bound_gate.symbols),
+                                    (
+                                        bound_gate.qubits
+                                        if len(bound_gate.qubits) > 1
+                                        else bound_gate.qubits[0]
+                                    ),
+                                    bound_circuit.num_qubits,
+                                    param_expr=None,
+                                    param_value=current_angle + np.pi / 2,
                                 ),
-                                shifted_plus_circuit.num_qubits,
-                                param_expr=None,
-                                param_value=current_angle + np.pi / 2,
                             )
-                            shifted_minus_circuit._gates[gate_index] = PauliRotation(
-                                list(bound_gate.symbols),
-                                (
-                                    bound_gate.qubits
-                                    if len(bound_gate.qubits) > 1
-                                    else bound_gate.qubits[0]
+                            shifted_minus_circuit = bound_circuit.replace_gate(
+                                gate_index,
+                                PauliRotation(
+                                    list(bound_gate.symbols),
+                                    (
+                                        bound_gate.qubits
+                                        if len(bound_gate.qubits) > 1
+                                        else bound_gate.qubits[0]
+                                    ),
+                                    bound_circuit.num_qubits,
+                                    param_expr=None,
+                                    param_value=current_angle - np.pi / 2,
                                 ),
-                                shifted_minus_circuit.num_qubits,
-                                param_expr=None,
-                                param_value=current_angle - np.pi / 2,
                             )
 
                             exp_plus = self.expectation_value(

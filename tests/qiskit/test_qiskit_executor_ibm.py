@@ -237,7 +237,7 @@ class TestTranspilationFakeBackend:
 
 
 # ---------------------------------------------------------------------------
-# QiskitCircuit._from_qiskit
+# QiskitCircuit.from_qiskit
 # ---------------------------------------------------------------------------
 
 
@@ -248,7 +248,7 @@ class TestQiskitCircuitFromQiskit:
         qc = QiskitQC(2)
         qc.h(0)
         qc.cx(0, 1)
-        wrapper = QiskitCircuit._from_qiskit(qc)
+        wrapper = QiskitCircuit.from_qiskit(qc)
         assert isinstance(wrapper, QiskitCircuit)
         assert wrapper.num_qubits == 2
 
@@ -260,7 +260,7 @@ class TestQiskitCircuitFromQiskit:
         qc = QiskitQC(1)
         qc.rx(p[0], 0)
         qc.ry(p[1], 0)
-        wrapper = QiskitCircuit._from_qiskit(qc)
+        wrapper = QiskitCircuit.from_qiskit(qc)
         assert len(wrapper.free_parameters) == 2
         assert "p" in wrapper.parameter_names
 

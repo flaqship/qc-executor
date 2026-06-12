@@ -32,11 +32,11 @@ class QulacsOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = cast(Any, operator)._qiskit_operator
+            self._qiskit_operator = cast(Any, operator).qiskit_operator
             self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(operator, list):
             if all(isinstance(obs, QuantumOperatorBase) for obs in operator):
-                self._qiskit_operator = [cast(Any, obs)._qiskit_operator for obs in operator]
+                self._qiskit_operator = [cast(Any, obs).qiskit_operator for obs in operator]
             else:
                 raise ValueError("Unsupported operator type")
             self._num_qubits = self._qiskit_operator[0].num_qubits

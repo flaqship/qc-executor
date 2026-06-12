@@ -1,3 +1,5 @@
+"""Qiskit backend executor supporting local simulation and IBM Quantum hardware."""
+
 from __future__ import annotations
 
 import logging
@@ -38,11 +40,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Version-gated Qiskit primitive imports (local simulators + base classes)
 # ---------------------------------------------------------------------------
+# pylint: disable=import-error,no-name-in-module,ungrouped-imports,too-few-public-methods
 
 if QISKIT_SMALLER_1_2:
     from qiskit.circuit import ParameterExpression as ParameterVectorElement
-    from qiskit.primitives import BackendEstimator as BackendEstimator
-    from qiskit.primitives import BackendSampler as BackendSampler
+    from qiskit.primitives import (
+        BackendEstimator,
+        BackendSampler,
+    )
     from qiskit.primitives import BaseEstimator as BaseEstimatorV1
     from qiskit.primitives import BaseSampler as BaseSamplerV1
 
@@ -125,8 +130,20 @@ else:
     class Session:
         """Dummy Session — qiskit-ibm-runtime not installed."""
 
+        def close(self) -> None:
+            """No-op stub."""
+
+        def status(self) -> str:
+            """No-op stub."""
+
     class Batch:
         """Dummy Batch — qiskit-ibm-runtime not installed."""
+
+        def close(self) -> None:
+            """No-op stub."""
+
+
+# pylint: enable=import-error,no-name-in-module,ungrouped-imports,too-few-public-methods
 
 
 def _reverse_qubit_ordering(statevector: np.ndarray) -> np.ndarray:
@@ -171,7 +188,7 @@ def _convert_counts_endianness(counts: dict) -> dict:
 
 def _load_aer_simulator():
     try:
-        from qiskit_aer import AerSimulator
+        from qiskit_aer import AerSimulator  # pylint: disable=import-outside-toplevel
     except ImportError as e:
         raise ImportError(
             "qiskit-aer is required for 'backend=\"aer\"' and for shot-based "
@@ -188,6 +205,9 @@ def _check_runtime_available():
             "qiskit-ibm-runtime is required for IBM backend support. "
             "Install with: pip install executor[qiskit-full]"
         )
+
+
+# pylint: disable=import-outside-toplevel,import-error,no-name-in-module,redefined-outer-name,reimported
 
 
 def _load_runtime_primitives_v1():
@@ -270,6 +290,9 @@ def _is_session_or_batch_instance(obj) -> bool:
     return False
 
 
+# pylint: enable=import-outside-toplevel,import-error,no-name-in-module,redefined-outer-name,reimported
+
+
 def _resolve_backend_from_session_or_batch(session_or_batch):
     """Best-effort backend extraction from runtime Session/Batch.
 
@@ -284,7 +307,7 @@ def _resolve_backend_from_session_or_batch(session_or_batch):
     if hasattr(session_or_batch, "backend") and callable(getattr(session_or_batch, "backend")):
         try:
             backend_value = session_or_batch.backend()
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             backend_value = None
 
     if _is_backend_instance(backend_value):
@@ -297,7 +320,7 @@ def _resolve_backend_from_session_or_batch(session_or_batch):
                 resolved = service.backend(backend_value)
                 if _is_backend_instance(resolved):
                     return resolved
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 return None
 
     return None
@@ -339,7 +362,9 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
     """
     # 1. Real IBM hardware
     try:
-        from qiskit_ibm_runtime import IBMBackend
+        from qiskit_ibm_runtime import (  # pylint: disable=import-outside-toplevel,import-error
+            IBMBackend,
+        )
 
         if isinstance(backend, IBMBackend):
             return (True, True, False)
@@ -348,7 +373,9 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
 
     # 2. IBM fake backend
     try:
-        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+        from qiskit_ibm_runtime.fake_provider.fake_backend import (  # pylint: disable=import-outside-toplevel,import-error
+            FakeBackendV2,
+        )
 
         if isinstance(backend, FakeBackendV2):
             return (False, False, True)
@@ -357,7 +384,9 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
 
     # 3. Generic local fake backend
     try:
-        from qiskit.providers.fake_provider import GenericBackendV2
+        from qiskit.providers.fake_provider import (  # pylint: disable=import-outside-toplevel
+            GenericBackendV2,
+        )
 
         if isinstance(backend, GenericBackendV2):
             return (False, False, False)
@@ -567,7 +596,8 @@ class QiskitExecutor(ExecutorBase):
             self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
 
         # ── 2. Injected Session / Batch ────────────────────────────────────
-        # Ownership is intentionally transferred to the executor: close_session() will close even externally created objects.
+        # Ownership is intentionally transferred to the executor: close_session()
+        # will close even externally created objects.
         elif _is_session_or_batch_instance(backend):
             _check_runtime_available()
             self._session = backend
@@ -576,7 +606,7 @@ class QiskitExecutor(ExecutorBase):
             if self._backend is None:
                 self._backend = None
                 logger.warning(
-                    "Could not retrieve backend from %s; " "ISA transpilation will be skipped.",
+                    "Could not retrieve backend from %s; ISA transpilation will be skipped.",
                     type(backend).__name__,
                 )
             if self._backend is not None:
@@ -606,13 +636,13 @@ class QiskitExecutor(ExecutorBase):
                     self._backend = None
                 else:
                     # Shot-based statevector via Aer
-                    AerSimulator = _load_aer_simulator()
-                    self._backend = AerSimulator(method="statevector")
+                    aer_simulator_cls = _load_aer_simulator()
+                    self._backend = aer_simulator_cls(method="statevector")
                     self._estimator = BackendEstimator(backend=self._backend)
                     self._sampler = BackendSampler(backend=self._backend)
             elif backend == "aer":
-                AerSimulator = _load_aer_simulator()
-                self._backend = AerSimulator()
+                aer_simulator_cls = _load_aer_simulator()
+                self._backend = aer_simulator_cls()
                 self._estimator = BackendEstimator(backend=self._backend)
                 self._sampler = BackendSampler(backend=self._backend)
             else:
@@ -735,12 +765,12 @@ class QiskitExecutor(ExecutorBase):
             raise RuntimeError("Cannot create a runtime session without a backend.")
 
         if self._execution_mode == "batch":
-            Batch = _load_runtime_batch()
-            self._session = Batch(backend=self._backend)
+            batch_cls = _load_runtime_batch()
+            self._session = batch_cls(backend=self._backend)
             logger.debug("Created new runtime Batch for %s.", self._backend)
         else:
-            Session = _load_runtime_session()
-            self._session = Session(backend=self._backend)
+            session_cls = _load_runtime_session()
+            self._session = session_cls(backend=self._backend)
             logger.debug("Created new runtime Session for %s.", self._backend)
 
         if not self._inside_context_manager:
@@ -763,7 +793,7 @@ class QiskitExecutor(ExecutorBase):
         try:
             self._session.close()
             logger.info("Closed IBM Runtime %s.", type(self._session).__name__)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.debug(
                 "%s.close() raised; ignoring.",
                 type(self._session).__name__,
@@ -796,7 +826,7 @@ class QiskitExecutor(ExecutorBase):
         if session is not None:
             try:
                 session.close()
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 pass
 
     # ------------------------------------------------------------------
@@ -828,7 +858,7 @@ class QiskitExecutor(ExecutorBase):
                     status,
                 )
                 self._create_session()
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.debug(
                 "Could not check %s status; assuming still active.",
                 type(self._session).__name__,
@@ -841,9 +871,8 @@ class QiskitExecutor(ExecutorBase):
         if self._runtime_primitives_version == "v1":
             cls, _ = _load_runtime_primitives_v1()
             return self._instantiate_runtime_primitive_v1(cls, self._options)
-        else:
-            cls, _ = _load_runtime_primitives_v2()
-            return self._instantiate_runtime_primitive_v2(cls, self._options)
+        cls, _ = _load_runtime_primitives_v2()
+        return self._instantiate_runtime_primitive_v2(cls, self._options)
 
     def _create_runtime_sampler(self):
         """Instantiate the runtime Sampler for the current backend / session."""
@@ -851,17 +880,16 @@ class QiskitExecutor(ExecutorBase):
         if self._runtime_primitives_version == "v1":
             _, cls = _load_runtime_primitives_v1()
             return self._instantiate_runtime_primitive_v1(cls, self._options)
-        else:
-            _, cls = _load_runtime_primitives_v2()
-            return self._instantiate_runtime_primitive_v2(cls, self._options)
+        _, cls = _load_runtime_primitives_v2()
+        return self._instantiate_runtime_primitive_v2(cls, self._options)
 
     # -- V1 instantiation (qiskit-ibm-runtime < 0.21) ---------------------
 
     def _instantiate_runtime_primitive_v1(self, primitive_cls, options):
         """Create a V1 runtime primitive (``qiskit-ibm-runtime < 0.21``)."""
         if options:
-            RuntimeOptionsV1 = _load_runtime_options_v1()
-            opts = RuntimeOptionsV1()
+            runtime_options_v1_cls = _load_runtime_options_v1()
+            opts = runtime_options_v1_cls()  # pylint: disable=not-callable
             for key, val in options.items():
                 try:
                     setattr(opts, key, val)
@@ -877,12 +905,11 @@ class QiskitExecutor(ExecutorBase):
                 if opts is not None
                 else primitive_cls(session=self._session)
             )
-        else:
-            return (
-                primitive_cls(backend=self._backend, options=opts)
-                if opts is not None
-                else primitive_cls(backend=self._backend)
-            )
+        return (
+            primitive_cls(backend=self._backend, options=opts)
+            if opts is not None
+            else primitive_cls(backend=self._backend)
+        )
 
     # -- V2 instantiation (qiskit-ibm-runtime >= 0.21) --------------------
 
@@ -902,26 +929,23 @@ class QiskitExecutor(ExecutorBase):
                     if opts
                     else primitive_cls(session=self._session)
                 )
-            else:
-                return (
-                    primitive_cls(mode=self._session, options=opts)
-                    if opts
-                    else primitive_cls(mode=self._session)
-                )
-        else:
-            # Fake backend or real backend in job mode (no session)
-            if QISKIT_RUNTIME_SMALLER_0_23:
-                return (
-                    primitive_cls(backend=self._backend, options=opts)
-                    if opts
-                    else primitive_cls(backend=self._backend)
-                )
-            else:
-                return (
-                    primitive_cls(mode=self._backend, options=opts)
-                    if opts
-                    else primitive_cls(mode=self._backend)
-                )
+            return (
+                primitive_cls(mode=self._session, options=opts)
+                if opts
+                else primitive_cls(mode=self._session)
+            )
+        # Fake backend or real backend in job mode (no session)
+        if QISKIT_RUNTIME_SMALLER_0_23:
+            return (
+                primitive_cls(backend=self._backend, options=opts)
+                if opts
+                else primitive_cls(backend=self._backend)
+            )
+        return (
+            primitive_cls(mode=self._backend, options=opts)
+            if opts
+            else primitive_cls(mode=self._backend)
+        )
 
     def _refresh_primitives(self) -> None:
         """Re-create primitives after a session renewal."""
@@ -951,7 +975,7 @@ class QiskitExecutor(ExecutorBase):
             return circuit
 
         try:
-            from qiskit.transpiler.preset_passmanagers import (
+            from qiskit.transpiler.preset_passmanagers import (  # pylint: disable=import-outside-toplevel
                 generate_preset_pass_manager,
             )
 
@@ -961,7 +985,7 @@ class QiskitExecutor(ExecutorBase):
             )
             return pm.run(circuit)
         except ImportError:
-            from qiskit import transpile
+            from qiskit import transpile  # pylint: disable=import-outside-toplevel
 
             return transpile(circuit, backend=self._backend)
 
@@ -972,7 +996,7 @@ class QiskitExecutor(ExecutorBase):
         have changed. ``SparsePauliOp.apply_layout`` re-orders the observable
         to match the new mapping.
         """
-        from qiskit.quantum_info import SparsePauliOp
+        from qiskit.quantum_info import SparsePauliOp  # pylint: disable=import-outside-toplevel
 
         if not isinstance(observable, SparsePauliOp):
             return observable
@@ -1011,7 +1035,9 @@ class QiskitExecutor(ExecutorBase):
         uses_ibm_backend = self._isa_transpile
 
         def _to_qiskit(c):
-            return c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c
+            if hasattr(c, "_qiskit_circuit"):
+                return c._qiskit_circuit  # pylint: disable=protected-access
+            return c
 
         if isinstance(circuit, List):
             raw_circuits = [_to_qiskit(c) for c in circuit]
@@ -1032,7 +1058,9 @@ class QiskitExecutor(ExecutorBase):
             return circuit_tree, None
 
         def _to_operator(o):
-            return o._qiskit_operator if hasattr(o, "_qiskit_operator") else o
+            if hasattr(o, "_qiskit_operator"):
+                return o._qiskit_operator  # pylint: disable=protected-access
+            return o
 
         if isinstance(operator, List):
             ops = [_to_operator(o) for o in operator]
@@ -1077,9 +1105,9 @@ class QiskitExecutor(ExecutorBase):
         # helper to get the underlying qiskit objects
         def _unwrap(obj):
             if hasattr(obj, "_qiskit_circuit"):
-                return obj._qiskit_circuit
-            elif hasattr(obj, "_qiskit_operator"):
-                return obj._qiskit_operator
+                return obj._qiskit_circuit  # pylint: disable=protected-access
+            if hasattr(obj, "_qiskit_operator"):
+                return obj._qiskit_operator  # pylint: disable=protected-access
             return obj
 
         def _collect_objects(obj_or_list):
@@ -1107,14 +1135,14 @@ class QiskitExecutor(ExecutorBase):
                             # ParameterVector element – bind by index
                             try:
                                 val = arr[p.index]
-                            except (IndexError, TypeError):
+                            except (IndexError, TypeError) as exc:
                                 if arr.size == 1:
                                     val = arr.flat[0]
                                 else:
                                     raise ValueError(
                                         f"Provided values for parameter '{name}' have length "
                                         f"{arr.size} but parameter index {p.index} is requested."
-                                    )
+                                    ) from exc
                         else:
                             # Standalone Parameter – scalar expected; take first element
                             val = arr.flat[0] if arr.size == 1 else arr
@@ -1186,7 +1214,7 @@ class QiskitExecutor(ExecutorBase):
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
         **parameter_values,
-    ) -> float | np.array:
+    ) -> float | np.ndarray:
         """
         Calculate the expectation value using OpTree and Qiskit Estimator.
 
@@ -1231,7 +1259,7 @@ class QiskitExecutor(ExecutorBase):
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
         *derivative_params,
         **parameter_values,
-    ) -> np.array | dict:
+    ) -> np.ndarray | dict:
         """
         Calculate the derivatives using OpTree parameter shift.
 
@@ -1268,20 +1296,28 @@ class QiskitExecutor(ExecutorBase):
         # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
         if isinstance(circuit, list):
-            circuit_param_set = set(circuit[0]._qiskit_circuit.parameters)
+            circuit_param_set = set(
+                circuit[0]._qiskit_circuit.parameters  # pylint: disable=protected-access
+            )
         else:
-            circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
+            if hasattr(circuit, "_qiskit_circuit"):
+                circ = circuit._qiskit_circuit  # pylint: disable=protected-access
+            else:
+                circ = circuit
             circuit_param_set = set(circ.parameters)
 
         if observable is not None:
             if isinstance(observable, list):
                 observable_param_set: set = set()
                 for obs in observable:
-                    obs_obj = obs._qiskit_operator if hasattr(obs, "_qiskit_operator") else obs
+                    if hasattr(obs, "_qiskit_operator"):
+                        obs_obj = obs._qiskit_operator  # pylint: disable=protected-access
+                    else:
+                        obs_obj = obs
                     observable_param_set |= set(obs_obj.parameters)
             else:
                 obs_obj = (
-                    observable._qiskit_operator
+                    observable._qiskit_operator  # pylint: disable=protected-access
                     if hasattr(observable, "_qiskit_operator")
                     else observable
                 )
@@ -1397,7 +1433,11 @@ class QiskitExecutor(ExecutorBase):
         is_list_input = isinstance(circuit, list)
         raw_circuits_for_nq = circuit if is_list_input else [circuit]
         n_qubits_list = [
-            (c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c).num_qubits
+            (
+                c._qiskit_circuit  # pylint: disable=protected-access
+                if hasattr(c, "_qiskit_circuit")
+                else c
+            ).num_qubits
             for c in raw_circuits_for_nq
         ]
         counts_list = self._extract_counts(result, n_qubits_list[0])
@@ -1417,11 +1457,20 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree but without ISA transpilation — use the raw circuit
         if isinstance(circuit, list):
             raw_circuits = [
-                c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c for c in circuit
+                (
+                    c._qiskit_circuit  # pylint: disable=protected-access
+                    if hasattr(c, "_qiskit_circuit")
+                    else c
+                )
+                for c in circuit
             ]
         else:
             raw_circuits = [
-                circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
+                (
+                    circuit._qiskit_circuit  # pylint: disable=protected-access
+                    if hasattr(circuit, "_qiskit_circuit")
+                    else circuit
+                )
             ]
 
         # Prepare parameter dictionary
@@ -1452,9 +1501,11 @@ class QiskitExecutor(ExecutorBase):
             QiskitCircuit: The corresponding QiskitCircuit.
         """
         qc = QiskitCircuit(circuit)
-        isa_circuit = self._isa_transpile_qiskit_circuit(qc._qiskit_circuit)
-        if isa_circuit is not qc._qiskit_circuit:
-            return QiskitCircuit._from_qiskit(isa_circuit)
+        isa_circuit = self._isa_transpile_qiskit_circuit(
+            qc._qiskit_circuit  # pylint: disable=protected-access
+        )
+        if isa_circuit is not qc._qiskit_circuit:  # pylint: disable=protected-access
+            return QiskitCircuit._from_qiskit(isa_circuit)  # pylint: disable=protected-access
         return qc
 
     def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:

@@ -1,3 +1,5 @@
+"""Parameter-shift and analytic differentiation utilities for OpTree structures."""
+
 from __future__ import annotations
 
 import copy
@@ -41,8 +43,7 @@ def _circuit_parameter_shift(
             return False
         if not isinstance(instruction.params[0], ParameterExpression):
             return parameter == instruction.params[0]
-        else:
-            return parameter in instruction.params[0].parameters
+        return parameter in instruction.params[0].parameters
 
     if isinstance(element, OpTreeValue):
         return OpTreeValue(0.0)
@@ -114,8 +115,9 @@ def _circuit_parameter_shift(
                     raise ValueError(
                         f"Parameter shift rule cannot be applied to non-linear parameters. "
                         f"Parameter '{parameter}' appears in a non-linear function in gate "
-                        f"'{original_gate.name}' with parameter expression '{original_gate.params[0]}'. "
-                        f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work. "
+                        f"'{original_gate.name}' with parameter expression "
+                        f"'{original_gate.params[0]}'. The parameter must enter the gate "
+                        f"linearly (as a*p + b) for the parameter shift rule to work. "
                         f"Found polynomial degree {degree} > 1."
                     )
             except (sp.PolynomialError, sp.GeneratorsNeeded) as e:
@@ -123,9 +125,10 @@ def _circuit_parameter_shift(
                 raise ValueError(
                     f"Parameter shift rule cannot be applied to non-linear parameters. "
                     f"Parameter '{parameter}' appears in a non-polynomial function in gate "
-                    f"'{original_gate.name}' with parameter expression '{original_gate.params[0]}'. "
-                    f"The parameter must enter the gate linearly (as a*p + b) for the parameter shift rule to work."
-                )
+                    f"'{original_gate.name}' with parameter expression "
+                    f"'{original_gate.params[0]}'. The parameter must enter the gate linearly "
+                    f"(as a*p + b) for the parameter shift rule to work."
+                ) from e
 
         # Copy the circuit for the shifted ones
         pshift_circ = copy.deepcopy(circuit)
@@ -185,6 +188,8 @@ def _operator_differentiation(
     elif isinstance(element, SparsePauliOp):
         operator = element
         input_type = "sparse_pauli_op"
+    else:
+        raise ValueError("element must be a OpTreeOperator or a SparsePauliOp")
 
     # Return None when the parameter is part of the operator
     if parameter not in operator.parameters:
@@ -282,7 +287,8 @@ def _differentiate_copy(
     Create the derivative of a OpTree or circuit w.r.t. a single parameter, the input is untouched.
 
     Args:
-        element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The OpTree (or circuit) to be differentiated.
+        element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): The OpTree (or circuit)
+            to be differentiated.
         parameter (ParameterExpression): The parameter w.r.t. which the circuit is differentiated.
 
     Returns:
@@ -319,28 +325,26 @@ def _differentiate_copy(
         # Rebuild the tree with the new children and factors (copy part)
         if isinstance(element, OpTreeSum):
             return OpTreeSum(children_list, factor_list)
-        elif isinstance(element, OpTreeList):
+        if isinstance(element, OpTreeList):
             return OpTreeList(children_list, factor_list)
-        else:
-            raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
+        raise ValueError("element must be a CircuitTreeSum or a CircuitTreeList")
 
-    elif isinstance(element, (QuantumCircuit, OpTreeCircuit)):
+    if isinstance(element, (QuantumCircuit, OpTreeCircuit)):
         # Reached a circuit leaf -> grad by parameter shift function
         return _circuit_parameter_shift(element, parameter)
-    elif isinstance(element, (SparsePauliOp, OpTreeOperator)):
+    if isinstance(element, (SparsePauliOp, OpTreeOperator)):
         # Reached a operator leaf -> grad by parameter shift function
         return _operator_differentiation(element, parameter)
-    elif isinstance(element, OpTreeMeasuredOperator):
+    if isinstance(element, OpTreeMeasuredOperator):
         grad_op = _operator_differentiation(element.operator, parameter)
         if isinstance(grad_op, OpTreeValue):
             return grad_op
         return OpTreeMeasuredOperator(element.circuit, grad_op)
-    elif isinstance(element, OpTreeExpectationValue):
+    if isinstance(element, OpTreeExpectationValue):
         raise NotImplementedError("Expectation value differentiation not implemented yet")
-    elif isinstance(element, OpTreeValue):
+    if isinstance(element, OpTreeValue):
         return OpTreeValue(0.0)
-    else:
-        raise ValueError("Unsupported element type: " + str(type(element)))
+    raise ValueError("Unsupported element type: " + str(type(element)))
 
 
 class OpTreeDerivative:
@@ -368,9 +372,9 @@ class OpTreeDerivative:
 
     @staticmethod
     def transpile_to_supported_instructions(
-        circuit: QuantumCircuit, supported_gates: Set[str] = SUPPORTED_GATES
+        circuit: QuantumCircuit, supported_gates: Set[str] | None = None
     ) -> QuantumCircuit:
-        """Function for transpiling a circuit to a supported instruction set for gradient calculation.
+        """Transpile a circuit to a supported instruction set for gradient calculation.
 
         Args:
             circuit (QuantumCircuit): Circuit to transpile.
@@ -379,6 +383,8 @@ class OpTreeDerivative:
         Returns:
             Circuit which is transpiled to the supported instruction set.
         """
+        if supported_gates is None:
+            supported_gates = OpTreeDerivative.SUPPORTED_GATES
 
         unique_ops = set(circuit.count_ops())
         if not unique_ops.issubset(supported_gates):
@@ -396,14 +402,13 @@ class OpTreeDerivative:
         parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
     ) -> OpTreeNodeBase:
         """
-        Calculates the derivative of a OpTree (or circuit) w.r.t. to a parameter or a list of parameters.
+        Calculate the derivative of a OpTree (or circuit) w.r.t. one or more parameters.
 
         Args:
             element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
-                                                                                to be differentiated.
-            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector): Parameter(s) w.r.t.
-                                                                                                    the OpTree is
-                                                                                                    differentiated
+                to be differentiated.
+            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector):
+                Parameter(s) w.r.t. which the OpTree is differentiated.
 
         Returns:
             The derivative of the OpTree (or circuit) in OpTree form.
@@ -453,8 +458,7 @@ class OpTreeDerivative:
         # Return either in list form or as single OpTreeNode
         if is_list or len(derivative_list) == 0:
             return OpTreeList(derivative_list, fac_list)
-        else:
-            return derivative_list[0]
+        return derivative_list[0]
 
     @staticmethod
     def differentiate_v2(
@@ -462,17 +466,16 @@ class OpTreeDerivative:
         parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
     ) -> OpTreeNodeBase:
         """
-        Calculates the derivative of a OpTree (or circuit) w.r.t. to a parameter or a list of parameters.
+        Calculate the derivative of a OpTree (or circuit) w.r.t. one or more parameters.
 
-        Second implementation, in which the derivative is calculated during the recursive derivative
-        computation.
+        Second implementation, in which the derivative is calculated during the recursive
+        derivative computation.
 
         Args:
             element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
-                                                                                to be differentiated.
-            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector): Parameter(s) w.r.t.
-                                                                                                    the OpTree is
-                                                                                                    differentiated
+                to be differentiated.
+            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector):
+                Parameter(s) w.r.t. which the OpTree is differentiated.
 
         Returns:
             The derivative of the OpTree (or circuit) in OpTree form.
@@ -504,5 +507,4 @@ class OpTreeDerivative:
         # Adjust the output for single parameter input
         if is_list or len(derivative_list) == 0:
             return OpTreeList(derivative_list, fac_list)
-        else:
-            return derivative_list[0]
+        return derivative_list[0]

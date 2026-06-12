@@ -1,3 +1,5 @@
+"""OpTree submodule: data structures and utilities for circuit/operator trees."""
+
 from .optree import (  # pylint: disable=cyclic-import
     OpTree,
     OpTreeCircuit,

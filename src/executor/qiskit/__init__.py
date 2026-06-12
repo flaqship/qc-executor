@@ -1,3 +1,5 @@
+"""Qiskit backend for the executor framework."""
+
 # Register QiskitExecutor with the factory
 from executor.factory import Executor
 

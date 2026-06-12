@@ -1,16 +1,20 @@
+"""Qulacs executor implementation."""
+
 from __future__ import annotations
 
 import re
 from collections import Counter
 from itertools import product
-from typing import List, Tuple
+from typing import Any, List, Tuple, cast
 
 import numpy as np
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
-from qulacs import QuantumState
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs import QuantumState  # pylint: disable=no-name-in-module
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..quantum_circuit import QuantumCircuit
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_operator import QulacsOperator
@@ -93,9 +97,8 @@ class QulacsExecutor(ExecutorBase):
                 objects and a boolean indicating whether multiple circuits were provided.
         """
         multiple_circuits = True
-        circuits = circuit
-        if not isinstance(circuit, List):
-            circuits = [circuit]
+        circuits: List[QuantumCircuitBase] = circuit if isinstance(circuit, list) else [circuit]
+        if not isinstance(circuit, list):
             multiple_circuits = False
 
         qulacs_circuits = []
@@ -110,7 +113,7 @@ class QulacsExecutor(ExecutorBase):
                 qulacs_circuits.append(self._circuit_cache[circ])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
-                qulacs_circuit = QulacsCircuit(circ)
+                qulacs_circuit = QulacsCircuit(cast(QuantumCircuit, circ))
                 self._circuit_cache[circ] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
 
@@ -130,39 +133,44 @@ class QulacsExecutor(ExecutorBase):
                 objects and a boolean indicating whether multiple operators were provided.
         """
         multiple_operators = True
-        operators = operator
-        if not isinstance(operator, List):
-            operators = [operator]
+        operators: List[QuantumOperatorBase] = (
+            operator if isinstance(operator, list) else [operator]
+        )
+        if not isinstance(operator, list):
             multiple_operators = False
         qulacs_operators = []
 
-        for operator in operators:
-            if isinstance(operator, self._native_operator_class):
-                qulacs_operators.append(operator)
+        for op in operators:
+            if isinstance(op, self._native_operator_class):
+                qulacs_operators.append(op)
                 continue
-            if operator in self._operator_cache:
-                self._logger.debug("Operator cache hit for %s", operator)
-                qulacs_operators.append(self._operator_cache[operator])
+            if op in self._operator_cache:
+                self._logger.debug("Operator cache hit for %s", op)
+                qulacs_operators.append(self._operator_cache[op])
             else:
-                self._logger.debug("Operator cache miss – converting operator %s", operator)
-                qulacs_operator = QulacsOperator(operator)
-                self._operator_cache[operator] = qulacs_operator
+                self._logger.debug("Operator cache miss – converting operator %s", op)
+                qulacs_operator = QulacsOperator(op)
+                self._operator_cache[op] = qulacs_operator
                 qulacs_operators.append(qulacs_operator)
 
         return qulacs_operators, multiple_operators
 
     def _expectation_value(
-        self, circuit: QuantumCircuitBase, observable: QuantumOperatorBase, **parameter_values
-    ) -> float:
+        self,
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
+        **parameter_values,
+    ) -> float | np.ndarray:
         """
         Calculate the expectation value of the observable with respect to the circuit.
 
         Args:
-            circuit (QuantumCircuitBase): The quantum circuit.
-            observable (QuantumOperatorBase): The quantum observable.
+            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit(s).
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
+                observable(s).
 
         Returns:
-            float: The expectation value.
+            float | np.ndarray: The expectation value(s).
         """
 
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
@@ -170,7 +178,7 @@ class QulacsExecutor(ExecutorBase):
 
         values = []
 
-        # TODO: fix support for multiple circuits and observables
+        # TODO: support for multiple circuits and observables is not implemented yet
         # Currently only single set of circuit, observable, and parameters is fully supported!
 
         for qulacs_circuit in qulacs_circuits:
@@ -268,7 +276,7 @@ class QulacsExecutor(ExecutorBase):
         observable: QuantumOperatorBase,
         *values: str | ParameterVector | ParameterVectorElement | tuple,
         **parameter_values,
-    ) -> np.array | dict:
+    ) -> float | np.ndarray | dict:
         """
         Calculate the derivatives of the expectation value with respect to the parameters
 
@@ -313,7 +321,8 @@ class QulacsExecutor(ExecutorBase):
             """
             qulacs_circuit = circuit.get_circuit_func(parameters)(*arguments_circuit)
             outer_jacobian = circuit.get_gradient_outer_jacobian(parameters)(*arguments_circuit)
-            qulacs_observable = observable.get_operator_func()(*arguments_observable[0])
+            observable_args = arguments_observable[0] if len(arguments_observable) > 0 else []
+            qulacs_observable = observable.get_operator_func()(*observable_args)
 
             if isinstance(parameters, ParameterVectorElement):
                 parameters = [parameters]
@@ -322,9 +331,10 @@ class QulacsExecutor(ExecutorBase):
             is_parameterized = len(parameters)
 
             if is_parameterized:
+                param_circuit = cast(ParametricQuantumCircuit, qulacs_circuit)
                 param_values = np.array(
                     [
-                        outer_jacobian.T @ np.array(qulacs_circuit.backprop(o))
+                        outer_jacobian.T @ np.array(param_circuit.backprop(o))
                         for o in qulacs_observable
                     ]
                 )
@@ -356,7 +366,8 @@ class QulacsExecutor(ExecutorBase):
                 observable (QulacsOperator): Qulacs observable to evaluate
                 arguments_circuit: Arguments for the circuit
                 arguments_observable: Arguments for the observable
-                parameters (List[float]): List of observable parameters wrt. the gradient is computed
+                parameters (List[float]): List of observable parameters wrt.
+                    the gradient is computed
 
             Returns:
                 np.ndarray: Result of the evaluation
@@ -396,7 +407,7 @@ class QulacsExecutor(ExecutorBase):
         qulacs_circuits, _ = self._preprocess_circuits(circuit)
         qulacs_observables, _ = self._preprocess_operators(observable)
 
-        # TODO: multiple circuits and operators not implemented yet
+        # TODO: multiple circuits and operators are not implemented yet
         qulacs_circuit = qulacs_circuits[0]
         qulacs_observable = qulacs_observables[0]
 
@@ -436,13 +447,13 @@ class QulacsExecutor(ExecutorBase):
             values = ("expectation_value",)
 
         # Convert and sort the values
-        values = list(values)
-        indices = np.argsort([str(t) for t in values])
-        values = [values[i] for i in indices]
-        values = [to_tuple(v) for v in values]
+        value_list: list = list(values)
+        indices = np.argsort([str(t) for t in value_list])
+        value_list = [value_list[i] for i in indices]
+        value_list = [to_tuple(cast(Any, v)) for v in value_list]
 
         # Loop over all requested derivatives
-        for todo in values:
+        for todo in value_list:
 
             if len(todo) > 1:
                 raise ValueError(
@@ -452,7 +463,7 @@ class QulacsExecutor(ExecutorBase):
 
             # get the parameter objects for the requested circuit derivatives
             parameter_vector = []
-            for param in qulacs_circuit._free_parameters:
+            for param in qulacs_circuit.free_parameters:
                 if isinstance(todo[0], str):
                     if todo[0] == "" or todo[0] == "expectation_value":
                         pass
@@ -471,7 +482,7 @@ class QulacsExecutor(ExecutorBase):
 
             # get the parameter objects for the requested observable derivatives
             observable_vector = []
-            for param in qulacs_observable._free_parameters:
+            for param in qulacs_observable.free_parameters:
                 if isinstance(todo[0], str):
                     if todo[0] == "" or todo[0] == "expectation_value":
                         pass
@@ -539,7 +550,9 @@ class QulacsExecutor(ExecutorBase):
 
         return result_dict
 
-    def _sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
+    def _sample(
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
+    ) -> dict | List[dict]:
         """
         Sample the circuit.
 
@@ -556,6 +569,7 @@ class QulacsExecutor(ExecutorBase):
         probabilities = np.square(np.abs(statevector))
 
         # Generate bitstrings corresponding to each basis state
+        assert not isinstance(circuit, list), "_sample only supports a single circuit"
         num_qubits = circuit.num_qubits
         bitstrings = [format(i, f"0{num_qubits}b") for i in range(len(statevector))]
 
@@ -566,7 +580,9 @@ class QulacsExecutor(ExecutorBase):
         counts = dict(Counter(samples))
         return counts
 
-    def _statevector(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
+    def _statevector(
+        self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
+    ) -> np.ndarray:
         """
         Get the statevector of the circuit.
 
@@ -630,31 +646,36 @@ class QulacsExecutor(ExecutorBase):
 
         return state_vectors
 
-    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QulacsCircuit:
+    def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
         """Transpile a generic QuantumCircuit to a QulacsCircuit.
 
         Args:
             circuit (QuantumCircuitBase): The generic QuantumCircuit to transpile.
 
         Returns:
-            QulacsCircuit: The corresponding QulacsCircuit.
+            QuantumCircuitBase: The corresponding QulacsCircuit.
         """
         if isinstance(circuit, self._native_circuit_class):
             return circuit
-        return self._native_circuit_class.from_quantum_circuit(circuit)
+        return cast(
+            QuantumCircuitBase,
+            self._native_circuit_class.from_quantum_circuit(cast(QuantumCircuit, circuit)),
+        )
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QulacsOperator:
+    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """Transpile a generic QuantumOperator to a Qulacs QuantumOperator.
 
         Args:
             operator (QuantumOperatorBase): The generic QuantumOperator to transpile.
 
         Returns:
-            QulacsOperator: The corresponding QulacsOperator.
+            QuantumOperatorBase: The corresponding QulacsOperator.
         """
         if isinstance(operator, self._native_operator_class):
             return operator
-        return self._native_operator_class.from_quantum_operator(operator)
+        return cast(
+            QuantumOperatorBase, self._native_operator_class.from_quantum_operator(operator)
+        )
 
     @classmethod
     def get_accepted_backend_types(cls) -> List[type]:

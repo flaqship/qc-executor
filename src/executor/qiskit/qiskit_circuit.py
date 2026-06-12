@@ -1,9 +1,11 @@
+"""Qiskit circuit wrapper for parameter management and circuit caching."""
+
 from __future__ import annotations
 
 from collections import OrderedDict
 from typing import List
 
-import numpy as np
+from executor.qiskit._param_binding import build_params_dict
 
 
 class QiskitCircuit:
@@ -81,35 +83,12 @@ class QiskitCircuit:
         Returns:
             Bound Qiskit circuit
         """
-        # Convert parameter_values dict (with vector names) to Qiskit format
-        params_dict = {}
-
-        for param_name, values in parameter_values.items():
-            # Ensure values is a list
-            if not isinstance(values, (list, np.ndarray)):
-                values = [values]
-
-            # Match parameters from circuit with provided values.
-            # Guard against standalone Parameter objects (no .vector/.index).
-            def _param_name(p) -> str:
-                return p.vector.name if hasattr(p, "vector") else p.name
-
-            def _param_index(p) -> int:
-                return p.index if hasattr(p, "index") else 0
-
-            matching_params = [p for p in self._free_parameters if _param_name(p) == param_name]
-            # Sort by index to ensure correct ordering
-            matching_params = sorted(matching_params, key=_param_index)
-
-            for i, param in enumerate(matching_params):
-                if i < len(values):
-                    params_dict[param] = values[i]
+        params_dict = build_params_dict(self._free_parameters, parameter_values)
 
         # Bind parameters to circuit
         if params_dict:
             return self._qiskit_circuit.assign_parameters(params_dict)
-        else:
-            return self._qiskit_circuit
+        return self._qiskit_circuit
 
     @classmethod
     def _from_qiskit(cls, qiskit_circuit) -> "QiskitCircuit":

@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import numpy as np
 import pytest
 from qiskit.circuit import ParameterVector
@@ -66,13 +67,12 @@ class TestQulacsCircuitProperties:
         def expected():
             return "called"
 
-        qulacs_circuit.build_qulacs_circuit = lambda: expected
+        with patch.object(qulacs_circuit, "get_circuit_func", return_value=expected):
+            returned = qulacs_circuit.get_qulacs_circuit()
 
-        returned = qulacs_circuit.get_qulacs_circuit()
-
-        assert returned is expected
-        assert qulacs_circuit.qulacs_circuit is expected
-        assert qulacs_circuit() == "called"
+            assert returned is expected
+            assert qulacs_circuit.qulacs_circuit is expected
+            assert qulacs_circuit() == "called"
 
 
 class TestQulacsCircuitParameterExpressions:

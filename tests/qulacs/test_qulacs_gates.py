@@ -21,7 +21,7 @@ from executor.qulacs.qulacs_gates import (
     qulacs_gate_swap,
     qulacs_gate_t,
     qulacs_gate_tdg,
-    qulacs_gate_U1,
+    qulacs_gate_u1,
     qulacs_gate_x,
     qulacs_gate_y,
     qulacs_gate_z,
@@ -303,7 +303,7 @@ class TestSpecialGates:
         angle = 0.75
         qubit = 0
 
-        qulacs_gate_U1(mock_circuit, angle, qubit)
+        qulacs_gate_u1(mock_circuit, angle, qubit)
 
         mock_circuit.add_gate.assert_called_once()
         call_args = mock_circuit.add_gate.call_args[0][0]
@@ -314,14 +314,14 @@ class TestSpecialGates:
         angles = [0.0, 0.5, 1.57, 3.14, 6.28]
         for angle in angles:
             mock_circuit.reset_mock()
-            qulacs_gate_U1(mock_circuit, angle, 0)
+            qulacs_gate_u1(mock_circuit, angle, 0)
             assert mock_circuit.add_gate.called
 
     def test_u1_gate_with_various_qubits(self, mock_circuit):
         """Test U1 gate works with different qubit indices."""
         for qubit in [0, 1, 3, 5]:
             mock_circuit.reset_mock()
-            qulacs_gate_U1(mock_circuit, 1.0, qubit)
+            qulacs_gate_u1(mock_circuit, 1.0, qubit)
             assert mock_circuit.add_gate.called
 
 

@@ -36,10 +36,13 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 f"or {cls.__name__}, got {type(circuit).__name__}"
             )
 
+        # pylint: disable-next=import-outside-toplevel
         from .utils.qiskit_converter import convert_circuit
 
         pp_circuit = cls(circuit.num_qubits)
-        pp_circuit._gates = convert_circuit(circuit._qiskit_circuit, use_cache=True)
+        pp_circuit._gates = convert_circuit(
+            circuit._qiskit_circuit, use_cache=True  # pylint: disable=protected-access
+        )
 
         for gate in pp_circuit._gates:
             if isinstance(gate, PauliRotation):
@@ -92,16 +95,14 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         if hasattr(parameter, "parameters"):
             if _param_is_constant(parameter):
                 return None, _param_to_float(parameter)
-            else:
-                # Convert to sympy expression
-                return _param_to_sympy(parameter), None
+            # Convert to sympy expression
+            return _param_to_sympy(parameter), None
 
         # Handle direct sympy expressions
         if isinstance(parameter, sp.Expr):
             if parameter.is_number:
                 return None, float(parameter)
-            else:
-                return parameter, None
+            return parameter, None
 
         raise TypeError(f"Unsupported parameter type: {type(parameter)!r}")
 
@@ -266,8 +267,9 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         if len(qubits) != qc.num_qubits:
             raise ValueError("Length of qubits mapping must match composed circuit qubit count.")
 
+        # pylint: disable=protected-access
         mapped = self.copy()
-        qubit_map = {source: target for source, target in enumerate(qubits)}
+        qubit_map = dict(enumerate(qubits))
 
         for gate in qc.gates:
             if isinstance(gate, LayerBarrier):
@@ -306,6 +308,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         Returns:
             New circuit with parameters substituted
         """
+        # pylint: disable=protected-access
         assigned = self.copy()
         new_gates: List[Gate | LayerBarrier] = []
 
@@ -357,6 +360,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         return assigned
 
     def invert(self) -> "PauliPropagationCircuit":
+        # pylint: disable=protected-access
         inverse = PauliPropagationCircuit(self.num_qubits)
         inverse._parameters = dict(self._parameters)
 
@@ -398,6 +402,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         return inverse
 
     def copy(self) -> "PauliPropagationCircuit":
+        # pylint: disable=protected-access
         copied = PauliPropagationCircuit(self.num_qubits)
         copied._parameters = dict(self._parameters)
         copied._gates = []

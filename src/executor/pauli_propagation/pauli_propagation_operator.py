@@ -10,7 +10,13 @@ import sympy as sp
 from executor.base.operator_base import QuantumOperatorBase
 
 from .symmetry import CompositeSymmetry, NoSymmetry
-from .utils.pauli_algebra import get_pauli, set_pauli, term_to_string
+from .utils.pauli_algebra import (
+    get_pauli,
+    pauli_multiply,
+    set_pauli,
+    string_to_term,
+    term_to_string,
+)
 from .utils.pauli_types import PauliSum
 
 if TYPE_CHECKING:
@@ -28,7 +34,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @overload
     @classmethod
-    def from_quantum_operator(
+    def from_quantum_operator(  # pylint: disable=arguments-differ
         cls,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy,
@@ -99,8 +105,6 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
                     # Check if coefficient is symbolic
                     if isinstance(coeff_expr, sp.Expr) and len(coeff_expr.free_symbols) > 0:
-                        from .utils.pauli_algebra import string_to_term
-
                         term = string_to_term(pauli, self._num_qubits)
                         self._parametric_coeffs[term] = coeff_expr
                         # Track parameters
@@ -121,10 +125,12 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @property
     def pauli_sum(self) -> PauliSum:
+        """Return a copy of the underlying PauliSum."""
         return self._pauli_sum.copy()
 
     @property
     def symmetry(self):
+        """Return the symmetry strategy of the underlying PauliSum."""
         return self._pauli_sum.symmetry
 
     @symmetry.setter
@@ -133,6 +139,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @property
     def has_active_symmetry(self) -> bool:
+        """Return True if a non-trivial symmetry strategy is active."""
         return self._pauli_sum.has_active_symmetry
 
     @property
@@ -164,6 +171,8 @@ class PauliPropagationOperator(QuantumOperatorBase):
         return len(self._parameters)
 
     def copy(self) -> "PauliPropagationOperator":
+        """Return a deep copy of this operator."""
+        # pylint: disable=protected-access
         result = PauliPropagationOperator(pauli_sum=self._pauli_sum.copy())
         result._parametric_coeffs = dict(self._parametric_coeffs)
         result._parameters = dict(self._parameters)
@@ -178,6 +187,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         Returns:
             New operator with parameters substituted
         """
+        # pylint: disable=protected-access
         result = self.copy()
 
         # Build substitution dict for sympy
@@ -220,6 +230,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         return result
 
     def adjoint(self) -> "PauliPropagationOperator":
+        # pylint: disable=protected-access
         result = self.copy()
         conjugated = PauliSum(self._num_qubits, symmetry=result._pauli_sum.symmetry)
         for term, coeff in result._pauli_sum:
@@ -228,6 +239,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         return result
 
     def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationOperator":
+        # pylint: disable=protected-access
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
         term_mapping: Dict[int, int] = {}
 
@@ -259,9 +271,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
         composed_symmetry = self._compose_symmetry_with(other)
         composed_sum = PauliSum(self.num_qubits, symmetry=composed_symmetry)
         for left_term, left_coeff in self._pauli_sum:
-            for right_term, right_coeff in other._pauli_sum:
-                from .utils.pauli_algebra import pauli_multiply
-
+            for right_term, right_coeff in other._pauli_sum:  # pylint: disable=protected-access
                 result_term, phase = pauli_multiply(left_term, right_term, self.num_qubits)
                 composed_sum.add_term(result_term, left_coeff * right_coeff * phase)
 
@@ -269,7 +279,9 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     def append(self, pauli: str, coeff=None) -> "PauliPropagationOperator":
         result = self.copy()
-        result._pauli_sum.add_term(pauli, 1.0 if coeff is None else coeff)
+        result._pauli_sum.add_term(  # pylint: disable=protected-access
+            pauli, 1.0 if coeff is None else coeff
+        )
         return result
 
     def simplify(self) -> "PauliPropagationOperator":

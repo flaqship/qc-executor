@@ -147,7 +147,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
             ["X"], qubits[0], nqubits, param_expr=param_expr, param_value=param_value
         )
 
-    elif gate_name == "RY":
+    if gate_name == "RY":
         param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
@@ -155,7 +155,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
             ["Y"], qubits[0], nqubits, param_expr=param_expr, param_value=param_value
         )
 
-    elif gate_name == "RZ":
+    if gate_name == "RZ":
         param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
@@ -163,7 +163,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
             ["Z"], qubits[0], nqubits, param_expr=param_expr, param_value=param_value
         )
 
-    elif gate_name == "RXX":
+    if gate_name == "RXX":
         param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
@@ -171,7 +171,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
             ["X", "X"], qubits, nqubits, param_expr=param_expr, param_value=param_value
         )
 
-    elif gate_name == "RYY":
+    if gate_name == "RYY":
         param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
@@ -179,7 +179,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
             ["Y", "Y"], qubits, nqubits, param_expr=param_expr, param_value=param_value
         )
 
-    elif gate_name == "RZZ":
+    if gate_name == "RZZ":
         param_expr, param_value = (
             _extract_parameter(gate_op.params[0]) if gate_op.params else (None, None)
         )
@@ -188,28 +188,27 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
         )
 
     # Clifford gates (non-parametric)
-    elif gate_name in ["H", "S", "T", "X", "Y", "Z"]:
+    if gate_name in ["H", "S", "T", "X", "Y", "Z"]:
         return CliffordGate(gate_name, qubits[0], nqubits)
 
-    elif gate_name in ["CX", "CNOT"]:
+    if gate_name in ["CX", "CNOT"]:
         return CliffordGate("CNOT", qubits, nqubits)
 
-    elif gate_name == "CZ":
+    if gate_name == "CZ":
         return CliffordGate("CZ", qubits, nqubits)
 
-    elif gate_name == "SWAP":
+    if gate_name == "SWAP":
         return CliffordGate("SWAP", qubits, nqubits)
 
     # Identity gates are skipped
-    elif gate_name == "ID":
+    if gate_name == "ID":
         return None
 
     # Barriers mark layer boundaries
-    elif gate_name == "BARRIER":
+    if gate_name == "BARRIER":
         return LayerBarrier()
 
-    else:
-        raise ValueError(f"Unsupported gate: {gate_name}")
+    raise ValueError(f"Unsupported gate: {gate_name}")
 
 
 def _extract_parameter(param) -> tuple[sp.Expr | None, float | None]:
@@ -226,18 +225,19 @@ def _extract_parameter(param) -> tuple[sp.Expr | None, float | None]:
     if not QISKIT_AVAILABLE:
         return None, None
 
+    # Imported lazily because qiskit_compat requires Qiskit to be installed.
+    # pylint: disable-next=import-outside-toplevel
     from executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
 
     if isinstance(param, (Parameter, ParameterExpression)):
         if _param_is_constant(param):
             # Constant expression, return as float
             return None, _param_to_float(param)
-        else:
-            # Symbolic expression, convert to sympy
-            return _param_to_sympy(param), None
-    else:
-        # Concrete value (float)
-        return None, float(param)
+        # Symbolic expression, convert to sympy
+        return _param_to_sympy(param), None
+
+    # Concrete value (float)
+    return None, float(param)
 
 
 def bind_parameters(

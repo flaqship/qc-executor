@@ -1,7 +1,7 @@
 """
 Test suite for PennyLane circuit conversion.
 
-This module tests the PennyLaneCircuit class which converts Qiskit quantum circuits
+This module tests the PennyLaneCircuit class which converts abstract quantum circuits
 to PennyLane format, including:
 - Non-parametric gates (H, X, Y, Z, CNOT, etc.)
 - Parametric gates (RX, RY, RZ, etc.)
@@ -11,9 +11,8 @@ to PennyLane format, including:
 
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
 
-from executor import QuantumCircuit
+from executor.abstraction import AbstractQuantumCircuit, ParameterVector
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
@@ -25,7 +24,7 @@ class TestPennyLaneCircuit:
 
     def test_empty_circuit(self):
         """Test conversion of an empty circuit."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         plc = PennyLaneCircuit(qc)
 
         assert plc.num_qubits == 2
@@ -34,7 +33,7 @@ class TestPennyLaneCircuit:
 
     def test_single_hadamard_gate(self):
         """Test circuit with a single Hadamard gate."""
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.h(0)
 
         plc = PennyLaneCircuit(qc)
@@ -43,7 +42,7 @@ class TestPennyLaneCircuit:
 
     def test_bell_state_circuit(self):
         """Test Bell state preparation: H(0), CNOT(0,1)."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
 
@@ -54,7 +53,7 @@ class TestPennyLaneCircuit:
     @pytest.mark.parametrize("gate_name", ["x", "y", "z", "s", "t"])
     def test_single_qubit_gates(self, gate_name):
         """Test individual single-qubit Pauli and phase gates."""
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         getattr(qc, gate_name)(0)
 
         plc = PennyLaneCircuit(qc)
@@ -72,7 +71,7 @@ class TestPennyLaneCircuit:
     )
     def test_two_qubit_gates(self, gate_name, num_qubits):
         """Test two-qubit gates."""
-        qc = QuantumCircuit(num_qubits)
+        qc = AbstractQuantumCircuit(num_qubits)
         getattr(qc, gate_name)(0, 1)
 
         plc = PennyLaneCircuit(qc)
@@ -81,7 +80,7 @@ class TestPennyLaneCircuit:
 
     def test_multi_qubit_chain(self):
         """Test a chain of CNOT gates across multiple qubits."""
-        qc = QuantumCircuit(4)
+        qc = AbstractQuantumCircuit(4)
         qc.h(0)
         qc.cx(0, 1)
         qc.cx(1, 2)
@@ -104,7 +103,7 @@ class TestPennyLaneCircuit:
     )
     def test_single_qubit_rotation_gates_with_float(self, theta, gate_name):
         """Test single-qubit rotation gates with float angle."""
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         getattr(qc, gate_name)(0, theta)
 
         plc = PennyLaneCircuit(qc)
@@ -122,7 +121,7 @@ class TestPennyLaneCircuit:
     )
     def test_controlled_rotation_gates_with_float(self, theta, gate_name):
         """Test controlled rotation gates with float angle."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         getattr(qc, gate_name)(0, 1, theta)
 
         plc = PennyLaneCircuit(qc)
@@ -132,7 +131,7 @@ class TestPennyLaneCircuit:
     @pytest.mark.parametrize("theta", [np.pi / 4, np.pi / 2, np.pi, 0.25])
     def test_phase_gate_with_float(self, theta):
         """Test phase shift gate with float angle."""
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.p(0, theta)
 
         plc = PennyLaneCircuit(qc)
@@ -142,7 +141,7 @@ class TestPennyLaneCircuit:
     @pytest.mark.parametrize("theta", [np.pi / 4, np.pi / 2])
     def test_controlled_phase_gate_with_float(self, theta):
         """Test controlled phase shift gate with float angle."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.cp(0, 1, theta)
 
         plc = PennyLaneCircuit(qc)
@@ -154,7 +153,7 @@ class TestPennyLaneCircuit:
     def test_single_parameter(self):
         """Test circuit with a single parameter."""
         x = ParameterVector("x", 1)
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.rx(0, x[0])
 
         plc = PennyLaneCircuit(qc)
@@ -164,7 +163,7 @@ class TestPennyLaneCircuit:
     def test_multiple_parameters_same_vector(self):
         """Test circuit with multiple parameters from the same vector."""
         x = ParameterVector("x", 3)
-        qc = QuantumCircuit(3)
+        qc = AbstractQuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(2, x[2])
@@ -177,7 +176,7 @@ class TestPennyLaneCircuit:
         """Test circuit with multiple different parameter vectors."""
         x = ParameterVector("x", 2)
         y = ParameterVector("y", 1)
-        qc = QuantumCircuit(3)
+        qc = AbstractQuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(2, y[0])
@@ -191,7 +190,7 @@ class TestPennyLaneCircuit:
     def test_parametric_two_qubit_gates(self):
         """Test two-qubit gates with parameters."""
         theta = ParameterVector("theta", 3)
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.crx(0, 1, theta[0])
         qc.cry(0, 1, theta[1])
         qc.crz(0, 1, theta[2])
@@ -205,7 +204,7 @@ class TestPennyLaneCircuit:
     def test_parameter_arithmetic_multiplication(self):
         """Test parameter expression with multiplication: 2 * x[0]."""
         x = ParameterVector("x", 1)
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.rx(0, 2 * x[0])
 
         plc = PennyLaneCircuit(qc)
@@ -214,7 +213,7 @@ class TestPennyLaneCircuit:
     def test_parameter_arithmetic_addition(self):
         """Test parameter expression with addition: x[0] + 0.5."""
         x = ParameterVector("x", 1)
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.rx(0, x[0] + 0.5)
 
         plc = PennyLaneCircuit(qc)
@@ -223,7 +222,7 @@ class TestPennyLaneCircuit:
     def test_parameter_arithmetic_subtraction(self):
         """Test parameter expression with subtraction: x[0] - 0.2."""
         x = ParameterVector("x", 1)
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.rx(0, x[0] - 0.2)
 
         plc = PennyLaneCircuit(qc)
@@ -232,7 +231,7 @@ class TestPennyLaneCircuit:
     def test_parameter_arithmetic_division(self):
         """Test parameter expression with division: x[0] / 2."""
         x = ParameterVector("x", 1)
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.rx(0, x[0] / 2)
 
         plc = PennyLaneCircuit(qc)
@@ -242,7 +241,7 @@ class TestPennyLaneCircuit:
         """Test parameter expression multiplying two different vectors: x[0] * y[0]."""
         x = ParameterVector("x", 1)
         y = ParameterVector("y", 1)
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.crx(0, 1, x[0] * y[0])
 
@@ -253,7 +252,7 @@ class TestPennyLaneCircuit:
     def test_complex_parameter_expression(self):
         """Test complex parameter expression: 2 * x[0] - 1."""
         x = ParameterVector("x", 1)
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.rx(0, 2 * x[0] - 1)
 
         plc = PennyLaneCircuit(qc)
@@ -263,13 +262,13 @@ class TestPennyLaneCircuit:
 
     def test_num_qubits_property(self):
         """Test that num_qubits property returns correct value."""
-        qc = QuantumCircuit(5)
+        qc = AbstractQuantumCircuit(5)
         plc = PennyLaneCircuit(qc)
         assert plc.num_qubits == 5
 
     def test_parameter_names_property_empty(self):
         """Test parameter_names property for non-parametric circuit."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
@@ -281,7 +280,7 @@ class TestPennyLaneCircuit:
         """Test parameter_names property for parametric circuit."""
         x = ParameterVector("x", 2)
         y = ParameterVector("y", 1)
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(0, y[0])
@@ -293,7 +292,7 @@ class TestPennyLaneCircuit:
     def test_parameter_dimensions_property(self):
         """Test parameter_dimensions property."""
         x = ParameterVector("x", 3)
-        qc = QuantumCircuit(3)
+        qc = AbstractQuantumCircuit(3)
         qc.rx(0, x[0])
         qc.rx(1, x[1])
         qc.rx(2, x[2])
@@ -304,7 +303,7 @@ class TestPennyLaneCircuit:
 
     def test_hash_property(self):
         """Test that hash property returns a valid integer."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
@@ -314,7 +313,7 @@ class TestPennyLaneCircuit:
 
     def test_hash_consistency(self):
         """Test that hash remains consistent for the same circuit."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
@@ -325,7 +324,7 @@ class TestPennyLaneCircuit:
 
     def test_build_pennylane_circuit_method(self):
         """Test that build_pennylane_circuit() returns callable."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
@@ -335,7 +334,7 @@ class TestPennyLaneCircuit:
 
     def test_get_pennylane_circuit_method(self):
         """Test that get_pennylane_circuit() returns callable and sets property."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
@@ -346,7 +345,7 @@ class TestPennyLaneCircuit:
 
     def test_call_method(self):
         """Test that PennyLaneCircuit instance is callable after building."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
@@ -361,26 +360,26 @@ class TestTranspileCircuitPennyLane:
 
     def test_returns_pennylane_circuit(self):
         """Test that transpile_circuit returns a PennyLaneCircuit."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         result = self.executor.transpile_circuit(qc)
         assert isinstance(result, PennyLaneCircuit)
 
     def test_empty_circuit(self):
         """Test transpile_circuit with an empty circuit."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         result = self.executor.transpile_circuit(qc)
         assert result.num_qubits == 2
 
     def test_single_gate_circuit(self):
         """Test transpile_circuit with a single Hadamard gate."""
-        qc = QuantumCircuit(1)
+        qc = AbstractQuantumCircuit(1)
         qc.h(0)
         result = self.executor.transpile_circuit(qc)
         assert result.num_qubits == 1
 
     def test_bell_state_circuit(self):
         """Test transpile_circuit preserves Bell state circuit structure."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         result = self.executor.transpile_circuit(qc)
@@ -389,7 +388,7 @@ class TestTranspileCircuitPennyLane:
     def test_parameterized_circuit_preserves_parameters(self):
         """Test that transpile_circuit preserves circuit parameters."""
         x = ParameterVector("x", 2)
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         result = self.executor.transpile_circuit(qc)
@@ -398,7 +397,7 @@ class TestTranspileCircuitPennyLane:
 
     def test_circuit_is_callable(self):
         """Test that the resulting PennyLaneCircuit can build a callable circuit."""
-        qc = QuantumCircuit(2)
+        qc = AbstractQuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         result = self.executor.transpile_circuit(qc)

@@ -20,9 +20,10 @@ import pytest
 pytest.importorskip("pennylane")
 
 import pennylane as qml
-from qiskit.circuit import ParameterVector
+from qiskit.circuit import ParameterVector as QiskitParameterVector
 
-from executor import QuantumCircuit, QuantumOperator
+from executor import QuantumOperator
+from executor.abstraction import AbstractQuantumCircuit, ParameterVector
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
@@ -37,9 +38,9 @@ def _build_circuit(num_qubits, operations):
                           Example: [("h", [0]), ("cx", [0, 1])]
 
     Returns:
-        QuantumCircuit: The constructed quantum circuit
+        AbstractQuantumCircuit: The constructed quantum circuit
     """
-    qc = QuantumCircuit(num_qubits)
+    qc = AbstractQuantumCircuit(num_qubits)
     for gate_name, gate_args in operations:
         getattr(qc, gate_name)(*gate_args)
     return qc
@@ -149,7 +150,7 @@ class TestPennylaneExecutor:
 
     def test_expectation_value_with_observable_parameters(self):
         """Test expectation value with parametric observable."""
-        p_obs = ParameterVector("p_obs", 2)
+        p_obs = QiskitParameterVector("p_obs", 2)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         operator = QuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
 
@@ -161,7 +162,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_with_circuit_and_observable_parameters(self):
         """Test expectation value with both circuit and observable parameters."""
         x = ParameterVector("x", 1)
-        p_obs = ParameterVector("p_obs", 1)
+        p_obs = QiskitParameterVector("p_obs", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [p_obs[0]])
 

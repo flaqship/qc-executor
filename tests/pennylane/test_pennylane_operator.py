@@ -11,11 +11,13 @@ operators (SparsePauliOp) to PennyLane format, including:
 
 from typing import Callable
 from unittest.mock import MagicMock
+
 import numpy as np
-import pytest
 import pennylane as qml
+import pytest
 from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import SparsePauliOp
+
 from executor import QuantumOperator
 from executor.base.operator_base import QuantumOperatorBase
 from executor.pennylane.pennylane_operator import PennyLaneOperator

@@ -10,13 +10,14 @@ to PennyLane format, including:
 """
 
 from unittest.mock import MagicMock
+
 import numpy as np
-import pytest
 import pennylane as qml
+import pytest
 from qiskit.circuit import ParameterVector
+from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 
 from executor import QuantumCircuit
-from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from executor.pennylane.pennylane_executor import PennyLaneExecutor
 

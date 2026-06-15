@@ -10,6 +10,7 @@ using PennyLane backend, including:
 - Caching
 - Error handling
 """
+
 import warnings
 from unittest.mock import MagicMock, patch
 
@@ -50,7 +51,6 @@ def _build_circuit(num_qubits, operations):
 class TestPennylaneExecutorInitialization:
     """Test suite for PennyLane executor initialization."""
 
-
     def test_get_accepted_backend_aliases(self):
         aliases = PennyLaneExecutor.get_accepted_backend_aliases()
         assert "default.qubit" in aliases
@@ -77,6 +77,7 @@ class TestPennylaneExecutorInitialization:
         """Test executor initialization with all parameters."""
         executor = PennyLaneExecutor(shots=500, seed=123, log_file="test.log")
         assert executor.shots == 500
+
 
 class TestPennylaneExpectationValue:
     """Test suite for PennyLane executor expectation values."""
@@ -241,6 +242,7 @@ class TestPennylaneSampling:
         total_counts = sum(samples.values())
         assert total_counts == 1000
 
+
 class TestPennylaneStatevector:
     """Test suite for PennyLane executor statevector."""
 
@@ -321,6 +323,7 @@ class TestPennylaneStatevector:
         # Statevector should be normalized
         assert np.isclose(np.sum(np.abs(statevector) ** 2), 1.0, atol=1e-5)
 
+
 class TestPennylaneDerivatives:
     """Test suite for PennyLane executor derivatives."""
 
@@ -393,7 +396,7 @@ class TestPennylaneErrorHandling:
         x = ParameterVector("x", 1)
         y = ParameterVector("y", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [y[0]]) 
+        operator = QuantumOperator(["Z"], [y[0]])
 
         executor = PennyLaneExecutor()
 
@@ -436,7 +439,7 @@ class TestPennylaneErrorHandling:
         x = ParameterVector("x", 1)
         y = ParameterVector("y", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [y[0]]) 
+        operator = QuantumOperator(["Z"], [y[0]])
 
         executor = PennyLaneExecutor()
 
@@ -446,7 +449,6 @@ class TestPennylaneErrorHandling:
     def test_device_kwargs_raises(self):
         with pytest.raises(TypeError, match="'device' is not a supported argument"):
             PennyLaneExecutor(device="default.qubit")
-
 
 
 class TestPennylaneCaching:
@@ -480,6 +482,7 @@ class TestPennylaneCaching:
         assert len(cached_operators) == 1
         assert cached_operators[0] is executor._operator_cache[operator]
 
+
 class TestPennylaneProperties:
     """Test suite for PennyLane executor properties."""
 
@@ -499,6 +502,7 @@ class TestPennylaneProperties:
         """Test that remote property returns False."""
         executor = PennyLaneExecutor()
         assert executor.remote is False
+
 
 class TestPennylaneLogging:
     """Test suite for PennyLane executor logging."""
@@ -566,6 +570,7 @@ class TestPennylaneLogging:
 
         self._close_file_handlers(executor1)
 
+
 class TestPennylaneCacheSizeRestriction:
     """Test suite for PennyLane executor cache size restrictions."""
 
@@ -616,6 +621,7 @@ class TestPennylaneCacheSizeRestriction:
         assert executor._max_cache_size is None
         assert executor._circuit_cache.max_size is None
         assert executor._operator_cache.max_size is None
+
 
 class TestPennylaneResultCaching:
     """Test suite for PennyLane executor result caching."""
@@ -710,6 +716,7 @@ class TestPennylaneResultCaching:
         result = executor.transpile_circuit(qc)
         assert isinstance(result, PennyLaneCircuit)
         assert executor._result_cache is None
+
 
 class TestPennylaneDeviceConfiguration:
     """Test suite for PennyLane executor device configuration."""
@@ -956,13 +963,14 @@ class TestDeviceInit:
         assert not any(isinstance("default.qubit", t) for t in accepted)
         assert not any(isinstance(42, t) for t in accepted)
 
+
 class TestPennylaneExecutorHelpers:
     """Test suite for helper methods in PennyLaneExecutor."""
 
     def test_preprocess_operators_native_operator_is_passed_through(self):
         """Test that if a native PennyLane operator is passed to _preprocess_operators, it is returned as-is without modification."""
         exec = PennyLaneExecutor()
-        
+
         native_op = MagicMock(spec=exec._native_operator_class)
         native_op.__class__ = exec._native_operator_class
         result = exec._preprocess_operators(native_op)
@@ -981,7 +989,6 @@ class TestPennylaneExecutorHelpers:
         assert result is native_circuit
         mock_from.assert_not_called()
 
-
     def test_transpile_circuit_foreign_is_converted(self):
         """Non-native circuit is converted via from_quantum_circuit."""
         executor = PennyLaneExecutor()
@@ -997,7 +1004,6 @@ class TestPennylaneExecutorHelpers:
         mock_from.assert_called_once_with(foreign_circuit)
         assert result is converted
 
-
     def test_transpile_operator_native_is_returned_directly(self):
         """Native operator bypasses conversion."""
         executor = PennyLaneExecutor()
@@ -1010,7 +1016,6 @@ class TestPennylaneExecutorHelpers:
 
         assert result is native_op
         mock_from.assert_not_called()
-
 
     def test_transpile_operator_foreign_is_converted(self):
         """Non-native operator is converted via from_quantum_operator."""

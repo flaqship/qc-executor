@@ -21,7 +21,7 @@ from executor.qiskit.optree.optree import (
     OpTreeNodeBase,
     OpTreeOperator,
 )
-from executor.qiskit.qiskit_circuit import QiskitCircuit
+from executor.qiskit.qiskit_circuit import QiskitCircuit, to_qiskit_circuit
 from executor.qiskit.qiskit_operator import QiskitOperator
 from executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
@@ -1011,7 +1011,7 @@ class QiskitExecutor(ExecutorBase):
         uses_ibm_backend = self._isa_transpile
 
         def _to_qiskit(c):
-            return c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c
+            return to_qiskit_circuit(c)
 
         if isinstance(circuit, List):
             raw_circuits = [_to_qiskit(c) for c in circuit]
@@ -1080,6 +1080,8 @@ class QiskitExecutor(ExecutorBase):
                 return obj._qiskit_circuit
             elif hasattr(obj, "_qiskit_operator"):
                 return obj._qiskit_operator
+            elif hasattr(obj, "_gates"):
+                return to_qiskit_circuit(obj)
             return obj
 
         def _collect_objects(obj_or_list):
@@ -1268,9 +1270,9 @@ class QiskitExecutor(ExecutorBase):
         # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
         if isinstance(circuit, list):
-            circuit_param_set = set(circuit[0]._qiskit_circuit.parameters)
+            circuit_param_set = set(to_qiskit_circuit(circuit[0]).parameters)
         else:
-            circ = circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
+            circ = to_qiskit_circuit(circuit)
             circuit_param_set = set(circ.parameters)
 
         if observable is not None:
@@ -1397,7 +1399,7 @@ class QiskitExecutor(ExecutorBase):
         is_list_input = isinstance(circuit, list)
         raw_circuits_for_nq = circuit if is_list_input else [circuit]
         n_qubits_list = [
-            (c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c).num_qubits
+            to_qiskit_circuit(c).num_qubits
             for c in raw_circuits_for_nq
         ]
         counts_list = self._extract_counts(result, n_qubits_list[0])
@@ -1416,13 +1418,9 @@ class QiskitExecutor(ExecutorBase):
         """
         # Convert to OpTree but without ISA transpilation — use the raw circuit
         if isinstance(circuit, list):
-            raw_circuits = [
-                c._qiskit_circuit if hasattr(c, "_qiskit_circuit") else c for c in circuit
-            ]
+            raw_circuits = [to_qiskit_circuit(c) for c in circuit]
         else:
-            raw_circuits = [
-                circuit._qiskit_circuit if hasattr(circuit, "_qiskit_circuit") else circuit
-            ]
+            raw_circuits = [to_qiskit_circuit(circuit)]
 
         # Prepare parameter dictionary
         circuit_dict, _ = self._prepare_parameter_dicts(

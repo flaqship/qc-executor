@@ -4,6 +4,100 @@ from collections import OrderedDict
 from typing import List
 
 import numpy as np
+import sympy as sp
+from qiskit import QuantumCircuit as QiskitQuantumCircuit
+from qiskit.circuit import ParameterVector as QiskitParameterVector
+
+from ..abstraction.abstract_parameter import Parameter, free_parameters
+from ..abstraction.gates import Barrier, CliffordGate, RotationGate
+
+
+def _build_qiskit_parameter_map(circuit) -> dict:
+    """Map each native :class:`Parameter` to a Qiskit ParameterVector element.
+
+    Collects all parameters used across gates, groups them by vector name, and
+    builds one Qiskit ``ParameterVector`` per group sized to the highest index
+    seen. Returns a dict ``{native Parameter: qiskit element}``.
+    """
+    max_index: dict = {}
+    for gate in circuit._gates:
+        if isinstance(gate, RotationGate):
+            for param in free_parameters(gate.angle):
+                name = param.vector_name
+                max_index[name] = max(max_index.get(name, -1), param.index)
+
+    symbol_to_qiskit: dict = {}
+    for name, top in sorted(max_index.items()):
+        qiskit_vec = QiskitParameterVector(name, top + 1)
+        for i in range(top + 1):
+            symbol_to_qiskit[Parameter(name, i)] = qiskit_vec[i]
+    return symbol_to_qiskit
+
+
+def _angle_to_qiskit(angle, symbol_to_qiskit: dict):
+    """Convert one angle (numeric or symbolic) to a Qiskit-usable value."""
+    if not isinstance(angle, sp.Basic):
+        return angle  # plain float / int
+
+    symbols = free_parameters(angle)
+    if not symbols:
+        return float(angle)  # constant expression
+
+    # Replay the symbolic expression onto Qiskit parameter objects. Qiskit
+    # ParameterExpression supports +, -, *, /, ** so arithmetic angles work.
+    func = sp.lambdify(symbols, angle, modules="math")
+    qiskit_args = [symbol_to_qiskit[s] for s in symbols]
+    return func(*qiskit_args)
+
+
+def _abstract_to_qiskit(circuit) -> QiskitQuantumCircuit:
+    """Build a Qiskit ``QuantumCircuit`` from an ``AbstractQuantumCircuit``.
+
+    Gate names in the abstract circuit match the Qiskit method names, so each
+    typed gate maps directly onto the corresponding Qiskit instruction.
+    """
+    qc = QiskitQuantumCircuit(circuit.num_qubits)
+    symbol_to_qiskit = _build_qiskit_parameter_map(circuit)
+
+    for gate in circuit._gates:
+        if isinstance(gate, Barrier):
+            qc.barrier(list(gate.qubits))
+        elif isinstance(gate, CliffordGate):
+            getattr(qc, gate.name)(*gate.qubits)
+        elif isinstance(gate, RotationGate):
+            angle = _angle_to_qiskit(gate.angle, symbol_to_qiskit)
+            getattr(qc, gate.name)(angle, *gate.qubits)
+        else:  # pragma: no cover - defensive
+            raise NotImplementedError(f"Unknown gate type {type(gate).__name__}")
+    return qc
+
+
+def to_qiskit_circuit(circuit):
+    """Return the underlying Qiskit circuit for any supported circuit type.
+
+    * executor wrappers expose ``_qiskit_circuit`` and are returned directly;
+    * an ``AbstractQuantumCircuit`` exposes a typed ``_gates`` list and is
+      converted here (cached on the instance, keyed by content hash so repeated
+      access returns identical parameter objects);
+    * anything else is assumed to already be a raw Qiskit circuit.
+    """
+    qiskit_circuit = getattr(circuit, "_qiskit_circuit", None)
+    if qiskit_circuit is not None:
+        return qiskit_circuit
+
+    if hasattr(circuit, "_gates"):
+        key = hash(circuit)
+        cache = getattr(circuit, "_qiskit_conversion_cache", None)
+        if cache is None or cache[0] != key:
+            converted = _abstract_to_qiskit(circuit)
+            try:
+                circuit._qiskit_conversion_cache = (key, converted)
+            except (AttributeError, TypeError):  # pragma: no cover - defensive
+                pass
+            return converted
+        return cache[1]
+
+    return circuit
 
 
 class QiskitCircuit:
@@ -19,11 +113,8 @@ class QiskitCircuit:
         Args:
             circuit: QuantumCircuit object (from executor.quantum_circuit)
         """
-        # Extract the internal qiskit circuit
-        if hasattr(circuit, "_qiskit_circuit"):
-            self._qiskit_circuit = circuit._qiskit_circuit
-        else:
-            self._qiskit_circuit = circuit
+        # Extract / build the internal qiskit circuit (handles abstract circuits).
+        self._qiskit_circuit = to_qiskit_circuit(circuit)
 
         self._num_qubits = self._qiskit_circuit.num_qubits
 

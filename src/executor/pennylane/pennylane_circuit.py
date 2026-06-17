@@ -7,11 +7,8 @@ import sympy as sp
 from sympy import lambdify
 
 from ..abstraction.abstract_parameter import free_parameters
-from ..abstraction.abstract_quantum_circuit import (
-    AbstractQuantumCircuit,
-    Barrier,
-    RotationGate,
-)
+from ..abstraction.abstract_quantum_circuit import AbstractQuantumCircuit
+from ..abstraction.gates import Barrier, RotationGate
 from .pennylane_gates import qiskit_pennylane_gate_dict
 
 

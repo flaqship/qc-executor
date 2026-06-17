@@ -3,9 +3,8 @@
 Gates are stored as typed objects (:class:`CliffordGate`, :class:`RotationGate`,
 :class:`Barrier`) rather than inside a Qiskit circuit. Angles may be plain
 floats or symbolic :class:`~executor.abstraction.abstract_parameter.Parameter`
-expressions (SymPy). The circuit can be converted to a backend's native type via
-:meth:`to_qiskit`; the :attr:`_qiskit_circuit` property exposes that conversion
-so the circuit drops straight into the existing executors.
+expressions (SymPy). Each backend builds its native circuit directly from this
+gate list (see e.g. the PennyLane backend's ``PennyLaneCircuit``).
 """
 
 from __future__ import annotations
@@ -16,8 +15,6 @@ from dataclasses import dataclass
 from typing import List, Union
 
 import sympy as sp
-from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit import ParameterVector as QiskitParameterVector
 
 from ..base import QuantumCircuitBase
 from .abstract_parameter import Parameter, free_parameters
@@ -85,9 +82,9 @@ _CLIFFORD_INVERSE_MAP = {"s": "sdg", "sdg": "s", "t": "tdg", "tdg": "t"}
 class AbstractQuantumCircuit(QuantumCircuitBase):
     """Quantum circuit defined independently of any quantum framework.
 
-    Build a circuit with the usual gate methods, then convert it to the backend
-    of your choice (currently :meth:`to_qiskit`, which also feeds the existing
-    PennyLane / Qulacs / Pauli-propagation executors via :attr:`_qiskit_circuit`).
+    Build a circuit with the usual gate methods; each backend converts this
+    typed gate list into its native representation (see e.g. the PennyLane
+    backend's ``PennyLaneCircuit``).
 
     Args:
         num_qubits: Number of qubits in the circuit.
@@ -96,15 +93,10 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
     def __init__(self, num_qubits: int):
         super().__init__(num_qubits)
         self._gates: List[AbstractGate] = []
-        # Cached Qiskit conversion. Rebuilding on every access would create new
-        # ParameterVector objects (fresh UUIDs) each time, breaking parameter
-        # binding in the executors. Invalidated whenever the gate list changes.
-        self._qiskit_cache: QiskitQuantumCircuit | None = None
 
     def _add(self, gate: AbstractGate) -> None:
-        """Append a gate and invalidate the cached Qiskit conversion."""
+        """Append a gate to the circuit."""
         self._gates.append(gate)
-        self._qiskit_cache = None
 
     @classmethod
     def from_quantum_circuit(cls, circuit: QuantumCircuitBase) -> "AbstractQuantumCircuit":
@@ -114,81 +106,6 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
         raise TypeError(
             f"Cannot build an AbstractQuantumCircuit from {type(circuit).__name__}."
         )
-
-    # ------------------------------------------------------------------
-    # Conversion to Qiskit
-    # ------------------------------------------------------------------
-
-    def _build_qiskit_parameter_map(self) -> dict:
-        """Map each native :class:`Parameter` to a Qiskit ParameterVector element.
-
-        Collects all parameters used across gates, groups them by vector name,
-        and builds one Qiskit ``ParameterVector`` per group sized to the highest
-        index seen. Returns a dict ``{native Parameter: qiskit element}``.
-        """
-        # vector_name -> max index used
-        max_index: dict = {}
-        for gate in self._gates:
-            if isinstance(gate, RotationGate):
-                for param in free_parameters(gate.angle):
-                    name = param.vector_name
-                    max_index[name] = max(max_index.get(name, -1), param.index)
-
-        symbol_to_qiskit: dict = {}
-        for name, top in sorted(max_index.items()):
-            qiskit_vec = QiskitParameterVector(name, top + 1)
-            for i in range(top + 1):
-                symbol_to_qiskit[Parameter(name, i)] = qiskit_vec[i]
-        return symbol_to_qiskit
-
-    @staticmethod
-    def _angle_to_qiskit(angle: Angle, symbol_to_qiskit: dict):
-        """Convert one angle (numeric or symbolic) to a Qiskit-usable value."""
-        if not isinstance(angle, sp.Basic):
-            return angle  # plain float / int
-
-        symbols = free_parameters(angle)
-        if not symbols:
-            return float(angle)  # constant expression
-
-        # Replay the symbolic expression onto Qiskit parameter objects. Qiskit
-        # ParameterExpression supports +, -, *, /, ** so arithmetic angles work.
-        func = sp.lambdify(symbols, angle, modules="math")
-        qiskit_args = [symbol_to_qiskit[s] for s in symbols]
-        return func(*qiskit_args)
-
-    def to_qiskit(self) -> QiskitQuantumCircuit:
-        """Convert the gate list to a Qiskit ``QuantumCircuit``."""
-        qc = QiskitQuantumCircuit(self._num_qubits)
-        symbol_to_qiskit = self._build_qiskit_parameter_map()
-
-        for gate in self._gates:
-            if isinstance(gate, Barrier):
-                qc.barrier(list(gate.qubits))
-            elif isinstance(gate, CliffordGate):
-                getattr(qc, gate.name)(*gate.qubits)
-            elif isinstance(gate, RotationGate):
-                angle = self._angle_to_qiskit(gate.angle, symbol_to_qiskit)
-                getattr(qc, gate.name)(angle, *gate.qubits)
-            else:  # pragma: no cover - defensive
-                raise NotImplementedError(f"Unknown gate type {type(gate).__name__}")
-        return qc
-
-    @property
-    def _qiskit_circuit(self) -> QiskitQuantumCircuit:
-        """Cached Qiskit circuit (consumed by the existing executors).
-
-        Cached so repeated access returns the same parameter objects, keeping
-        parameter binding stable. The cache is cleared whenever gates change.
-        """
-        if self._qiskit_cache is None:
-            self._qiskit_cache = self.to_qiskit()
-        return self._qiskit_cache
-
-    @property
-    def qiskit_circuit(self) -> QiskitQuantumCircuit:
-        """Public alias for :attr:`_qiskit_circuit`."""
-        return self._qiskit_circuit
 
     # ------------------------------------------------------------------
     # Properties
@@ -331,7 +248,6 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
             if isinstance(gate, RotationGate) and isinstance(gate.angle, sp.Basic):
                 result = gate.angle.subs(parameters)
                 gate.angle = float(result) if result.is_number else result
-        self._qiskit_cache = None
 
     def compose(self, qc: QuantumCircuitBase, qubits: List[int]) -> "AbstractQuantumCircuit":
         """Append another abstract circuit's gates, remapping qubit indices."""
@@ -385,11 +301,6 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
             for g in self._gates
         ]
         return dict(Counter(names))
-
-    def to_qasm(self) -> str:
-        from qiskit.qasm3 import dumps
-
-        return dumps(self.to_qiskit())
 
     # ------------------------------------------------------------------
     # Dunder methods

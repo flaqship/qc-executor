@@ -347,14 +347,14 @@ class TestPennyLanePropertiesAndMethods:
         pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(pennylane_circuit)
 
-    def test_get_pennylane_circuit_method(self):
+    def test_get_pennylane_circuit_property(self):
         """Test that get_pennylane_circuit() returns callable and sets property."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
 
-        pennylane_circuit = plc.get_pennylane_circuit()
+        pennylane_circuit = plc.pennylane_circuit
         assert callable(pennylane_circuit)
         assert hasattr(plc, "_pennylane_circuit")
 
@@ -367,14 +367,6 @@ class TestPennyLanePropertiesAndMethods:
 
         plc._pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(plc)
-
-    def test_call_without_build_raises(self):
-        """Test that calling PennyLaneCircuit without building raises error."""
-        qc = QuantumCircuit(2)
-        pl_circuit = PennyLaneCircuit(qc)
-
-        with pytest.raises(RuntimeError, match="get_pennylane_circuit"):
-            pl_circuit([1.0, 2.0])
 
     def test_call_forwards_args_and_kwargs(self):
         """Test that calling PennyLaneCircuit forwards args and kwargs to the internal circuit."""

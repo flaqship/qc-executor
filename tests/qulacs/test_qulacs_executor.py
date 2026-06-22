@@ -126,8 +126,8 @@ class TestQulacsExecutorPreprocessingAndTranspile:
         generic = _build_circuit(1, [("h", [0])])
         native = QulacsCircuit(generic)
 
-        transpiled_generic = executor._transpile_circuit(generic)
-        transpiled_native = executor._transpile_circuit(native)
+        transpiled_generic = executor.transpile_circuit(generic)
+        transpiled_native = executor.transpile_circuit(native)
 
         assert isinstance(transpiled_generic, QulacsCircuit)
         assert transpiled_native is native
@@ -272,7 +272,10 @@ class TestQulacsExecutorDerivatives:
         grad_by_index = executor.expectation_value_derivatives(qc, op, "x[0]", x=[0.0], p=[1.0])
 
         assert isinstance(grad_by_vector, np.ndarray)
+        assert np.issubdtype(grad_by_vector.dtype, np.number)
+
         assert isinstance(grad_by_index, np.ndarray)
+        assert np.issubdtype(grad_by_index.dtype, np.number)
 
     def test_derivatives_observable_parameter_name_and_indexed_name(self):
         """Test observable derivative resolution for vector and indexed names."""
@@ -285,7 +288,10 @@ class TestQulacsExecutorDerivatives:
         grad_by_index = executor.expectation_value_derivatives(qc, op, "p[0]", p=[1.0])
 
         assert isinstance(grad_by_vector, np.ndarray)
+        assert np.issubdtype(grad_by_vector.dtype, np.number)
+
         assert isinstance(grad_by_index, np.ndarray)
+        assert np.issubdtype(grad_by_index.dtype, np.number)
 
     def test_derivatives_circuit_and_observable_parameter_mix_raises(self):
         """Test that mixed circuit+observable first-order request is rejected."""

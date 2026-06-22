@@ -14,10 +14,10 @@ from unittest.mock import MagicMock
 import numpy as np
 import pennylane as qml
 import pytest
-from qiskit.circuit import ParameterVector
 from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 
 from executor import QuantumCircuit
+from executor.parameters import Parameters
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
@@ -166,7 +166,7 @@ class TestPennyLaneCircuit:
 
     def test_single_parameter(self):
         """Test circuit with a single parameter."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0])
 
@@ -176,7 +176,7 @@ class TestPennyLaneCircuit:
 
     def test_multiple_parameters_same_vector(self):
         """Test circuit with multiple parameters from the same vector."""
-        x = ParameterVector("x", 3)
+        x = Parameters("x", 3)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
@@ -188,8 +188,8 @@ class TestPennyLaneCircuit:
 
     def test_multiple_parameter_vectors(self):
         """Test circuit with multiple different parameter vectors."""
-        x = ParameterVector("x", 2)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 2)
+        y = Parameters("y", 1)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
@@ -203,7 +203,7 @@ class TestPennyLaneCircuit:
 
     def test_parametric_two_qubit_gates(self):
         """Test two-qubit gates with parameters."""
-        theta = ParameterVector("theta", 3)
+        theta = Parameters("theta", 3)
         qc = QuantumCircuit(2)
         qc.crx(0, 1, theta[0])
         qc.cry(0, 1, theta[1])
@@ -217,7 +217,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_multiplication(self):
         """Test parameter expression with multiplication: 2 * x[0]."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0])
 
@@ -226,7 +226,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_addition(self):
         """Test parameter expression with addition: x[0] + 0.5."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] + 0.5)
 
@@ -235,7 +235,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_subtraction(self):
         """Test parameter expression with subtraction: x[0] - 0.2."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] - 0.2)
 
@@ -244,7 +244,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_division(self):
         """Test parameter expression with division: x[0] / 2."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] / 2)
 
@@ -253,8 +253,8 @@ class TestPennyLaneCircuit:
 
     def test_parameter_multiplication_between_vectors(self):
         """Test parameter expression multiplying two different vectors: x[0] * y[0]."""
-        x = ParameterVector("x", 1)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 1)
+        y = Parameters("y", 1)
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.crx(0, 1, x[0] * y[0])
@@ -265,7 +265,7 @@ class TestPennyLaneCircuit:
 
     def test_complex_parameter_expression(self):
         """Test complex parameter expression: 2 * x[0] - 1."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0] - 1)
 
@@ -293,8 +293,8 @@ class TestPennyLanePropertiesAndMethods:
 
     def test_parameter_names_property_with_params(self):
         """Test parameter_names property for parametric circuit."""
-        x = ParameterVector("x", 2)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 2)
+        y = Parameters("y", 1)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
@@ -306,7 +306,7 @@ class TestPennyLanePropertiesAndMethods:
 
     def test_parameter_dimensions_property(self):
         """Test parameter_dimensions property."""
-        x = ParameterVector("x", 3)
+        x = Parameters("x", 3)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.rx(1, x[1])
@@ -544,7 +544,7 @@ class TestTranspileCircuitPennyLane:
 
     def test_parameterized_circuit_preserves_parameters(self):
         """Test that transpile_circuit preserves circuit parameters."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])

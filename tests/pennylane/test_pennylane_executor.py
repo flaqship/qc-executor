@@ -23,9 +23,9 @@ from executor.base.operator_base import QuantumOperatorBase
 pytest.importorskip("pennylane")
 
 import pennylane as qml
-from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
+from executor.parameters import Parameters
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from executor.pennylane.pennylane_executor import PennyLaneExecutor
 
@@ -128,7 +128,7 @@ class TestPennylaneExpectationValue:
 
     def test_expectation_value_with_circuit_parameter(self):
         """Test expectation value with parametric circuit (RX gate)."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
@@ -140,7 +140,7 @@ class TestPennylaneExpectationValue:
 
     def test_expectation_value_with_multiple_circuit_parameters(self):
         """Test expectation value with multiple circuit parameters."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
         operator = QuantumOperator(["ZZ"], [1.0])
 
@@ -152,7 +152,7 @@ class TestPennylaneExpectationValue:
 
     def test_expectation_value_with_observable_parameters(self):
         """Test expectation value with parametric observable."""
-        p_obs = ParameterVector("p_obs", 2)
+        p_obs = Parameters("p_obs", 2)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         operator = QuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
 
@@ -163,8 +163,8 @@ class TestPennylaneExpectationValue:
 
     def test_expectation_value_with_circuit_and_observable_parameters(self):
         """Test expectation value with both circuit and observable parameters."""
-        x = ParameterVector("x", 1)
-        p_obs = ParameterVector("p_obs", 1)
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [p_obs[0]])
 
@@ -215,7 +215,7 @@ class TestPennylaneSampling:
 
     def test_sample_with_parameter(self):
         """Test sampling with parametric circuit."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(2, [("rx", [0, x[0]])])
 
         executor = PennyLaneExecutor(shots=1000, seed=42)
@@ -299,7 +299,7 @@ class TestPennylaneStatevector:
 
     def test_statevector_with_parameter(self):
         """Test statevector with parametric circuit."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
         executor = PennyLaneExecutor()
@@ -312,7 +312,7 @@ class TestPennylaneStatevector:
 
     def test_statevector_with_multiple_parameters(self):
         """Test statevector with multiple parameters."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
 
         executor = PennyLaneExecutor()
@@ -329,7 +329,7 @@ class TestPennylaneDerivatives:
 
     def test_expectation_value_derivatives_single_parameter(self):
         """Test derivative with respect to a single parameter."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
@@ -340,7 +340,7 @@ class TestPennylaneDerivatives:
 
     def test_expectation_value_derivatives_indexed_parameter(self):
         """Test derivative with respect to indexed parameter (e.g., x[0])."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
         operator = QuantumOperator(["ZI"], [1.0])
 
@@ -351,7 +351,7 @@ class TestPennylaneDerivatives:
 
     def test_expectation_value_derivatives_multiple_values(self):
         """Test requesting multiple derivatives (expectation value and parameter)."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
@@ -365,7 +365,7 @@ class TestPennylaneDerivatives:
 
     def test_expectation_value_derivatives_known_value(self):
         """Test derivative computation with known analytical result."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
@@ -382,7 +382,7 @@ class TestPennylaneErrorHandling:
 
     def test_missing_parameter_error_in_expectation_value_circuit(self):
         """Test that missing parameter raises ValueError in expectation_value."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
@@ -393,8 +393,8 @@ class TestPennylaneErrorHandling:
 
     def test_missing_parameter_error_in_expectation_value_observable(self):
         """Test that missing observable parameter raises ValueError."""
-        x = ParameterVector("x", 1)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 1)
+        y = Parameters("y", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [y[0]])
 
@@ -405,7 +405,7 @@ class TestPennylaneErrorHandling:
 
     def test_missing_parameter_error_in_sample(self):
         """Test that missing parameter raises ValueError in sample."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
         executor = PennyLaneExecutor(shots=1000)
@@ -415,7 +415,7 @@ class TestPennylaneErrorHandling:
 
     def test_missing_parameter_error_in_statevector(self):
         """Test that missing parameter raises ValueError in statevector."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
         executor = PennyLaneExecutor()
@@ -425,7 +425,7 @@ class TestPennylaneErrorHandling:
 
     def test_missing_parameter_error_in_derivatives_circuit(self):
         """Test that missing parameter raises ValueError in expectation_value_derivatives."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
@@ -436,8 +436,8 @@ class TestPennylaneErrorHandling:
 
     def test_missing_parameter_error_in_derivatives_observable(self):
         """Test that missing parameter raises ValueError in expectation_value_derivatives."""
-        x = ParameterVector("x", 1)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 1)
+        y = Parameters("y", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [y[0]])
 

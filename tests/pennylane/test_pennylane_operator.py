@@ -15,11 +15,11 @@ from unittest.mock import MagicMock
 import numpy as np
 import pennylane as qml
 import pytest
-from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import SparsePauliOp
 
 from executor import QuantumOperator
 from executor.base.operator_base import QuantumOperatorBase
+from executor.parameters import Parameters
 from executor.pennylane.pennylane_operator import PennyLaneOperator
 
 
@@ -169,7 +169,7 @@ class TestPennyLaneOperator:
 
     def test_operator_single_parameter(self):
         """Test operator with a single parameter."""
-        theta = ParameterVector("theta", 1)
+        theta = Parameters("theta", 1)
         operator = QuantumOperator(["Z"], [theta[0]])
         plo = PennyLaneOperator(operator)
 
@@ -179,7 +179,7 @@ class TestPennyLaneOperator:
 
     def test_operator_two_parameters_same_vector(self):
         """Test operator with two parameters from the same vector."""
-        theta = ParameterVector("theta", 2)
+        theta = Parameters("theta", 2)
         operator = QuantumOperator(["ZI", "IZ"], [theta[0], theta[1]])
         plo = PennyLaneOperator(operator)
 
@@ -189,7 +189,7 @@ class TestPennyLaneOperator:
 
     def test_operator_three_parameters_same_vector(self):
         """Test operator with three parameters from the same vector."""
-        alpha = ParameterVector("alpha", 3)
+        alpha = Parameters("alpha", 3)
         operator = QuantumOperator(["ZI", "IZ", "ZZ"], [alpha[0], alpha[1], alpha[2]])
         plo = PennyLaneOperator(operator)
 
@@ -199,8 +199,8 @@ class TestPennyLaneOperator:
 
     def test_operator_multiple_parameter_vectors(self):
         """Test operator with multiple different parameter vectors."""
-        pop1 = ParameterVector("pop1", 1)
-        pop2 = ParameterVector("pop2", 1)
+        pop1 = Parameters("pop1", 1)
+        pop2 = Parameters("pop2", 1)
         operator = QuantumOperator(["ZI", "IZ"], [pop1[0], pop2[0]])
         plo = PennyLaneOperator(operator)
 
@@ -212,9 +212,9 @@ class TestPennyLaneOperator:
 
     def test_operator_three_parameter_vectors(self):
         """Test operator with three different parameter vectors."""
-        a = ParameterVector("a", 1)
-        b = ParameterVector("b", 1)
-        c = ParameterVector("c", 1)
+        a = Parameters("a", 1)
+        b = Parameters("b", 1)
+        c = Parameters("c", 1)
         operator = QuantumOperator(["X", "Y", "Z"], [a[0], b[0], c[0]])
         plo = PennyLaneOperator(operator)
 
@@ -227,7 +227,7 @@ class TestPennyLaneOperator:
 
     def test_operator_with_parameter_multiplication(self):
         """Test operator with parameter expression: 2 * theta[0]."""
-        theta = ParameterVector("theta", 1)
+        theta = Parameters("theta", 1)
         operator = QuantumOperator(["Z"], [2 * theta[0]])
         plo = PennyLaneOperator(operator)
 
@@ -236,7 +236,7 @@ class TestPennyLaneOperator:
 
     def test_operator_with_parameter_expressions(self):
         """Test operator with multiple parameter expressions."""
-        theta = ParameterVector("theta", 2)
+        theta = Parameters("theta", 2)
         operator = QuantumOperator(["ZI", "IZ"], [theta[0] * 2, theta[1] * 0.5])
         plo = PennyLaneOperator(operator)
 
@@ -246,7 +246,7 @@ class TestPennyLaneOperator:
 
     def test_operator_with_parameter_addition(self):
         """Test operator with parameter addition expression."""
-        theta = ParameterVector("theta", 2)
+        theta = Parameters("theta", 2)
         operator = QuantumOperator(["ZI", "IZ"], [theta[0] + theta[1], theta[0]])
         plo = PennyLaneOperator(operator)
 
@@ -266,7 +266,7 @@ class TestPennyLaneOperatorPropertiesAndMethods:
 
     def test_parameter_names_property_with_params(self):
         """Test parameter_names property for parametric operator."""
-        theta = ParameterVector("theta", 2)
+        theta = Parameters("theta", 2)
         operator = QuantumOperator(["ZI", "IZ"], [theta[0], theta[1]])
         plo = PennyLaneOperator(operator)
 
@@ -275,7 +275,7 @@ class TestPennyLaneOperatorPropertiesAndMethods:
 
     def test_parameter_dimensions_property(self):
         """Test parameter_dimensions property."""
-        theta = ParameterVector("theta", 3)
+        theta = Parameters("theta", 3)
         operator = QuantumOperator(["X", "Y", "Z"], [theta[0], theta[1], theta[2]])
         plo = PennyLaneOperator(operator)
 
@@ -335,7 +335,7 @@ class TestBuildPennylaneObservable:
 
     def test_single_op_with_params(self):
         """Test that build_pennylane_observable returns a valid function for a parametric operator."""
-        theta_vec = ParameterVector("theta", 1)
+        theta_vec = Parameters("theta", 1)
         sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[theta_vec[0], 0.5])
         op_base = _make_quantum_operator_base(sparse_op)
         pl_op = PennyLaneOperator(op_base)
@@ -402,7 +402,7 @@ class TestBuildPennylaneObservable:
 
     def test_list_with_params(self):
         """Test that build_pennylane_observable returns a valid function for a list of parametric operators."""
-        theta_vec = ParameterVector("theta", 1)
+        theta_vec = Parameters("theta", 1)
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[theta_vec[0]])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
         op_base1 = _make_quantum_operator_base(sparse_op1)
@@ -424,7 +424,7 @@ class TestBuildPennylaneObservable:
 
     def test_list_mixed_params_and_no_params_per_op(self):
         """Test that build_pennylane_observable returns a valid function for a list of mixed parametric and non-parametric operators."""
-        theta_vec = ParameterVector("theta", 1)
+        theta_vec = Parameters("theta", 1)
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[theta_vec[0]])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
         op_base1 = _make_quantum_operator_base(sparse_op1)

@@ -4,9 +4,10 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector, QuantumCircuit
+from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
+from executor.parameters import Parameters
 from executor.qiskit.optree import (
     OpTree,
     OpTreeCircuit,
@@ -482,7 +483,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_on_tree_and_qc(self):
         """Check parameter assignment for OpTree node and bare circuit."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
 
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
@@ -499,7 +500,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_on_expectation_and_operator(self):
         """Check parameter assignment for expectation values and operators."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
 
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
@@ -519,7 +520,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_inplace_error_cases_and_invalid_type(self):
         """Check inplace error paths and invalid element type handling."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
 
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
@@ -535,7 +536,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_inplace_on_node(self):
         """Check inplace assignment branch for node factors/circuits."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         tree = OpTreeList([])
         tree._factor_list = [2.0 * p[0]]
         result = OpTree.assign_parameters(tree, {p[0]: 0.5}, inplace=True)
@@ -545,7 +546,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_on_sum_and_unsupported_node(self):
         """Check sum branch and unsupported-node error branch."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
 
@@ -560,7 +561,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_on_optree_circuit_branches(self):
         """Check `OpTreeCircuit` assignment branches (copy/inplace)."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
         leaf = OpTreeCircuit(qc)
@@ -574,7 +575,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_inplace_on_expectation_and_operator(self):
         """Check inplace branches for expectation/measured and operator leaves."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
         op = SparsePauliOp(["Z"], [p[0]])
@@ -591,7 +592,7 @@ class TestOpTreeAssignParameters:
 
     def test_assign_parameters_inplace_with_optree_circuit_child(self):
         """Cover the inplace node branch that recurses into `OpTreeCircuit` children."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = QuantumCircuit(1)
         qc.rx(p[0], 0)
 

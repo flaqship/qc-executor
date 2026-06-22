@@ -8,13 +8,13 @@ import numpy as np
 import pytest
 from packaging import version
 from qiskit import __version__ as qiskit_version
-from qiskit.circuit import ClassicalRegister, Parameter, ParameterVector, QuantumCircuit
+from qiskit.circuit import ClassicalRegister, Parameter, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
 import executor.qiskit.optree.optree_evaluate as oe
+from executor.parameters import Parameters
 from executor.qiskit.optree import OpTree, OpTreeList, OpTreeSum
 from executor.qiskit.optree.optree import (
-    OpTreeCircuit,
     OpTreeContainer,
     OpTreeExpectationValue,
     OpTreeMeasuredOperator,
@@ -89,7 +89,7 @@ class TestOpTreeEvaluation:
 
     @pytest.fixture(scope="module")
     def _create_param_circuits(self) -> Tuple[OpTreeList, List[dict]]:
-        p = ParameterVector("p", 2)
+        p = Parameters("p", 2)
         circuit1 = QuantumCircuit(2)
         circuit1.rx(p[0], 0)
         circuit1.rx(p[1], 1)
@@ -103,7 +103,7 @@ class TestOpTreeEvaluation:
     @pytest.fixture(scope="module")
     def _create_observable_z(self) -> Tuple[OpTreeSum, List[dict]]:
         """Creates the Z-based operators used in the tests"""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         observable1 = SparsePauliOp(["IZ", "ZI"], [x[0], x[1]])
         observable2 = SparsePauliOp(["II", "ZZ"], [x[0], x[1]])
         observable = OpTreeSum([observable1, observable2])
@@ -114,7 +114,7 @@ class TestOpTreeEvaluation:
     @pytest.fixture(scope="module")
     def _create_observable_xy(self) -> Tuple[OpTreeSum, dict]:
         """Creates the XY-based operators used in the tests"""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         observable1 = SparsePauliOp(["XY", "YX"], [x[0], x[1]])
         observable2 = SparsePauliOp(["ZZ", "YY"], [x[0], x[1]])
         observable = OpTreeSum([observable1, observable2])

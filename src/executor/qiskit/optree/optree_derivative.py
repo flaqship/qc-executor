@@ -8,8 +8,9 @@ from typing import List, Set
 import numpy as np
 import sympy as sp
 from qiskit import transpile
-from qiskit.circuit import ParameterExpression, ParameterVector, QuantumCircuit
+from qiskit.circuit import ParameterExpression, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
+from executor.parameters import Parameters
 
 from .optree import (
     OpTreeCircuit,
@@ -399,7 +400,7 @@ class OpTreeDerivative:
     @staticmethod
     def differentiate(
         element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit | OpTreeOperator | SparsePauliOp,
-        parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
+        parameters: ParameterExpression | List[ParameterExpression] | Parameters,
     ) -> OpTreeNodeBase:
         """
         Calculate the derivative of a OpTree (or circuit) w.r.t. one or more parameters.
@@ -407,7 +408,7 @@ class OpTreeDerivative:
         Args:
             element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
                 to be differentiated.
-            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector):
+            parameters (ParameterExpression | List[ParameterExpression] | Parameters):
                 Parameter(s) w.r.t. which the OpTree is differentiated.
 
         Returns:
@@ -463,7 +464,7 @@ class OpTreeDerivative:
     @staticmethod
     def differentiate_v2(
         element: OpTreeNodeBase | OpTreeCircuit | QuantumCircuit | OpTreeOperator | SparsePauliOp,
-        parameters: ParameterExpression | List[ParameterExpression] | ParameterVector,
+        parameters: ParameterExpression | List[ParameterExpression] | Parameters,
     ) -> OpTreeNodeBase:
         """
         Calculate the derivative of a OpTree (or circuit) w.r.t. one or more parameters.
@@ -474,7 +475,7 @@ class OpTreeDerivative:
         Args:
             element (OpTreeNodeBase | OpTreeLeafCircuit | QuantumCircuit): OpTree (or circuit)
                 to be differentiated.
-            parameters (ParameterExpression | List[ParameterExpression] | ParameterVector):
+            parameters (ParameterExpression | List[ParameterExpression] | Parameters):
                 Parameter(s) w.r.t. which the OpTree is differentiated.
 
         Returns:

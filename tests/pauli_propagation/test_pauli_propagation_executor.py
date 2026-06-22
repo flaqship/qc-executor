@@ -1,6 +1,7 @@
 """Tests for PauliPropagationExecutor (strict native API)."""
 
 from typing import Dict
+
 import numpy as np
 import pytest
 import sympy as sp

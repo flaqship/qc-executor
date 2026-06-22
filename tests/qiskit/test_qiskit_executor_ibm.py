@@ -7,13 +7,13 @@ needed.
 
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
 from qiskit.circuit import QuantumCircuit as QiskitQC
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 from qiskit.providers import Backend
 from qiskit_ibm_runtime import Batch, Session
 
 from executor import Executor, QuantumCircuit
+from executor.parameters import Parameters
 from executor.qiskit.qiskit_circuit import QiskitCircuit
 from executor.qiskit.qiskit_executor import (
     QiskitExecutor,
@@ -292,7 +292,7 @@ class TestQiskitCircuitFromQiskit:
         assert wrapper.num_qubits == 2
 
     def test_from_qiskit_with_parameters(self):
-        p = ParameterVector("p", 2)
+        p = Parameters("p", 2)
         qc = QiskitQC(1)
         qc.rx(p[0], 0)
         qc.ry(p[1], 0)

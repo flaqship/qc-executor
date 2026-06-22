@@ -1,5 +1,7 @@
 """Tests for PauliPropagationExecutor (strict native API)."""
 
+import math
+from typing import Dict
 import numpy as np
 import pytest
 import sympy as sp
@@ -16,6 +18,7 @@ from executor.pauli_propagation import pauli_propagation_executor as ppe
 from executor.pauli_propagation.pauli_propagation_executor import _create_projector_observable
 from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
 from executor.pauli_propagation.utils.pauli_algebra import string_to_term
+from executor.pauli_propagation.utils.pauli_types import PauliSum
 
 
 class TestPauliPropagationExecutor:
@@ -770,3 +773,130 @@ class TestExecutorTranspileAndCaching:
 
         assert first is second
         assert isinstance(direct, PauliPropagationOperator)
+
+
+def empty_circuit(nqubits: int = 2) -> PauliPropagationCircuit:
+    """A circuit with no gates (observable is left unchanged by propagation)."""
+    return PauliPropagationCircuit(nqubits)
+
+
+def make_observable(terms: Dict[str, complex], nqubits: int = 2) -> PauliPropagationOperator:
+    """Build an operator from a {pauli_string: coeff} dictionary."""
+    paulis = list(terms.keys())
+    coeffs = list(terms.values())
+    return PauliPropagationOperator(paulis=paulis, coeffs=coeffs, num_qubits=nqubits)
+
+
+class TestTruncationByThreshold:
+
+    def test_no_truncation_without_settings(self):
+        """Without any truncation settings, last_truncation_stats stays None."""
+        executor = PauliPropagationExecutor()
+        circuit = empty_circuit()
+        observable = make_observable({"II": 0.5, "ZZ": 0.01})
+
+        executor.expectation_value(circuit, observable)
+
+        assert executor.get_truncation_stats() is None
+
+    def test_small_coefficient_is_removed(self):
+        """A term below the threshold must be counted as removed."""
+        threshold = 0.1
+        executor = PauliPropagationExecutor(truncate_threshold=threshold)
+        circuit = empty_circuit()
+        observable = make_observable({"II": 0.5, "ZZ": 0.05})
+
+        executor.expectation_value(circuit, observable)
+
+        stats = executor.get_truncation_stats()
+        assert stats is not None
+        assert stats.terms_removed == 1
+        assert stats.terms_remaining == 1
+
+    def test_all_terms_above_threshold_are_kept(self):
+        executor = PauliPropagationExecutor(truncate_threshold=1e-6)
+        obs = make_observable({"II": 0.5, "ZZ": 0.3, "XX": 0.2})
+
+        executor.expectation_value(empty_circuit(), obs)
+
+        stats = executor.get_truncation_stats()
+        assert stats.terms_removed == 0
+        assert stats.terms_remaining == 3
+
+    def test_all_terms_below_threshold_are_removed(self):
+        executor = PauliPropagationExecutor(truncate_threshold=1.0)
+        obs = make_observable({"II": 0.1, "ZZ": 0.05})
+
+        executor.expectation_value(empty_circuit(), obs)
+
+        stats = executor.get_truncation_stats()
+        assert stats.terms_removed == 2
+        assert stats.terms_remaining == 0
+
+
+class TestTruncationByMaxWeight:
+
+    def test_terms_above_max_weight_are_removed(self):
+        executor = PauliPropagationExecutor(max_weight=1)
+        circuit = empty_circuit()
+
+        observable = make_observable({"II": 0.5, "ZI": 0.3, "ZZ": 0.2})
+
+        executor.expectation_value(circuit, observable)
+
+        stats = executor.get_truncation_stats()
+        assert stats is not None
+        assert stats.terms_removed == 1
+        assert stats.terms_remaining == 2
+
+    def test_max_weight_equal_to_nqubits_removes_nothing(self):
+        """When max_weight == nqubits no term can exceed it."""
+        nq = 3
+        executor = PauliPropagationExecutor(max_weight=nq)
+        obs = make_observable({"III": 0.5, "ZII": 0.2, "ZZI": 0.2, "ZZZ": 0.1}, nqubits=nq)
+
+        executor.expectation_value(empty_circuit(nq), obs)
+
+        stats = executor.get_truncation_stats()
+        assert stats.terms_removed == 0
+        assert stats.terms_remaining == 4
+
+
+class TestCombinedTruncation:
+
+    def test_term_failing_only_threshold_is_removed(self):
+        """Weight-1 term with tiny coeff: weight OK but coeff too small → removed."""
+        executor = PauliPropagationExecutor(truncate_threshold=0.1, max_weight=2)
+        obs = make_observable({"II": 0.5, "ZI": 0.01})
+
+        executor.expectation_value(empty_circuit(), obs)
+
+        stats = executor.get_truncation_stats()
+        assert stats.terms_removed == 1
+
+    def test_term_failing_only_weight_is_removed(self):
+        """Weight-2 term with large coeff: coeff OK but weight too high → removed."""
+        executor = PauliPropagationExecutor(truncate_threshold=0.01, max_weight=1)
+        obs = make_observable({"II": 0.5, "ZZ": 0.9})
+
+        executor.expectation_value(empty_circuit(), obs)
+
+        stats = executor.get_truncation_stats()
+        assert stats.terms_removed == 1
+
+    def test_both_criteria_applied_simultaneously(self):
+        """
+        Terms:
+          II  w=0 coeff=0.5  → kept
+          ZI  w=1 coeff=0.05 → removed (coeff below threshold)
+          ZZ  w=2 coeff=0.4  → removed (weight too high)
+          XI  w=1 coeff=0.3  → kept
+        """
+        executor = PauliPropagationExecutor(truncate_threshold=0.1, max_weight=1)
+        obs = make_observable({"II": 0.5, "ZI": 0.05, "ZZ": 0.4, "XI": 0.3})
+
+        executor.expectation_value(empty_circuit(), obs)
+
+        stats = executor.get_truncation_stats()
+        assert stats.terms_removed == 2
+        assert stats.terms_remaining == 2

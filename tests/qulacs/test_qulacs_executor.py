@@ -2,9 +2,9 @@ import logging
 
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
+from executor.parameters import Parameters
 from executor.qulacs import QulacsCircuit, QulacsExecutor, QulacsOperator
 
 
@@ -148,7 +148,7 @@ class TestQulacsExecutorPreprocessingAndTranspile:
 class TestQulacsExecutorExpectationAndStatevector:
     def test_expectation_value_missing_circuit_parameter_raises(self):
         """Test missing circuit parameter error handling in expectation value."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
@@ -158,7 +158,7 @@ class TestQulacsExecutorExpectationAndStatevector:
 
     def test_expectation_value_missing_observable_parameter_raises(self):
         """Test missing observable parameter error handling in expectation value."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = _build_circuit(1, [])
         op = QuantumOperator(["Z"], [p[0]])
 
@@ -182,7 +182,7 @@ class TestQulacsExecutorExpectationAndStatevector:
 
     def test_statevector_missing_parameter_raises(self):
         """Test missing parameter error handling in statevector."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
 
         executor = QulacsExecutor()
@@ -203,7 +203,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_higher_order_tuple_raises(self):
         """Test that higher-order derivative tuples are rejected."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
@@ -213,7 +213,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_unknown_parameter_type_in_circuit_branch_raises(self):
         """Test unknown derivative type handling for circuit parameter loop."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
@@ -223,7 +223,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_unknown_parameter_type_in_observable_branch_raises(self):
         """Test unknown derivative type handling for observable parameter loop."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = _build_circuit(1, [])
         op = QuantumOperator(["Z"], [p[0]])
 
@@ -242,7 +242,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_missing_circuit_parameter_raises(self):
         """Test missing circuit parameter error in derivatives."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
@@ -252,7 +252,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_missing_observable_parameter_raises(self):
         """Test missing observable parameter error in derivatives."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = _build_circuit(1, [])
         op = QuantumOperator(["Z"], [p[0]])
 
@@ -262,8 +262,8 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_parameter_name_and_indexed_name(self):
         """Test circuit derivative resolution for vector and indexed names."""
-        x = ParameterVector("x", 1)
-        p = ParameterVector("p", 1)
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
         op = QuantumOperator(["Z"], [p[0]])
 
@@ -276,7 +276,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_observable_parameter_name_and_indexed_name(self):
         """Test observable derivative resolution for vector and indexed names."""
-        p = ParameterVector("p", 1)
+        p = Parameters("p", 1)
         qc = _build_circuit(1, [])
         op = QuantumOperator(["Z"], [p[0]])
 
@@ -289,7 +289,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_circuit_and_observable_parameter_mix_raises(self):
         """Test that mixed circuit+observable first-order request is rejected."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
         op = QuantumOperator(["Z"], [x[0]])
 
@@ -299,8 +299,8 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_multiple_outputs_with_empty_key(self):
         """Test dictionary output mapping for empty derivative key and named key."""
-        x = ParameterVector("x", 1)
-        p = ParameterVector("p", 1)
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
         op = QuantumOperator(["Z"], [p[0]])
 
@@ -313,8 +313,8 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_circuit_gradient_multiple_operators_shape(self):
         """Test circuit gradient return path for multiple operators."""
-        x = ParameterVector("x", 1)
-        p = ParameterVector("p", 2)
+        x = Parameters("x", 1)
+        p = Parameters("p", 2)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
         op = QuantumOperator(["Z", "X"], [p[0], p[1]])
 
@@ -326,7 +326,7 @@ class TestQulacsExecutorDerivatives:
 
     def test_derivatives_observable_gradient_multiple_operators_shape(self):
         """Test observable gradient return path for multiple operators."""
-        p = ParameterVector("p", 2)
+        p = Parameters("p", 2)
         qc = _build_circuit(1, [])
         op = QuantumOperator(["Z", "X"], [p[0], p[1]])
 

@@ -2,12 +2,11 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qulacs import ParametricQuantumCircuit
 from qulacs import QuantumCircuit as QulacsQuantumCircuit
 
 from executor import QuantumCircuit
+from executor.parameters import Parameter, Parameters
 from executor.qulacs import QulacsCircuit
 from executor.qulacs.qulacs_executor import QulacsExecutor
 
@@ -90,12 +89,12 @@ class TestQulacsCircuitParameterExpressions:
         assert parameterized is False
 
     def test_add_parameter_expression_parameter_vector_element(self, monkeypatch):
-        """Test the ParameterVectorElement branch in _add_parameter_expression."""
-        parameter = ParameterVector("x", 1)[0]
+        """Test the Parameter branch in _add_parameter_expression."""
+        parameter = Parameters("x", 1)[0]
         base_circuit = QuantumCircuit(1)
         base_circuit.rx(0, parameter)
         circuit = QulacsCircuit(base_circuit)
-        monkeypatch.setattr(ParameterVectorElement, "__neg__", lambda self: self)
+        monkeypatch.setattr(Parameter, "__neg__", lambda self: self)
 
         func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
             parameter
@@ -109,7 +108,7 @@ class TestQulacsCircuitParameterExpressions:
 
     def test_add_parameter_expression_parameter_expression_with_gradients(self):
         """Test parameter expressions with symbolic and numeric gradients."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         base_circuit = QuantumCircuit(2)
         base_circuit.rx(0, x[0])
         base_circuit.ry(1, x[1])
@@ -134,7 +133,7 @@ class TestQulacsCircuitParameterExpressions:
 
     def test_add_parameter_expression_constant_gradient_branch(self):
         """Test the gradient branch that returns a constant float."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         base_circuit = QuantumCircuit(1)
         base_circuit.rx(0, x[0])
         circuit = QulacsCircuit(base_circuit)
@@ -179,7 +178,7 @@ class TestQulacsCircuitGateBuilders:
 
     def test_add_parameterized_gates_track_parameters(self):
         """Test parameterized gate helpers for numeric and symbolic angles."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         circuit = QulacsCircuit(QuantumCircuit(2))
 
         circuit._add_parameterized_single_qubit_gate("rx", 0, 0.5)
@@ -196,7 +195,7 @@ class TestQulacsCircuitGateBuilders:
 
     def test_add_parameterized_gates_accept_iterables(self):
         """Test parameterized gate helpers with iterable qubit inputs."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         circuit = QulacsCircuit(QuantumCircuit(3))
 
         circuit._add_parameterized_single_qubit_gate("rx", [0, 1], x[0])
@@ -217,7 +216,7 @@ class TestQulacsCircuitGateBuilders:
 
     def test_add_parameterized_two_qubit_gate_out_of_range_raises(self):
         """Test that out-of-range parameterized two-qubit gates raise an error."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         circuit = QulacsCircuit(QuantumCircuit(1))
 
         with pytest.raises(ValueError):
@@ -225,7 +224,7 @@ class TestQulacsCircuitGateBuilders:
 
     def test_add_parameterized_single_qubit_gate_out_of_range_raises(self):
         """Test that out-of-range parameterized single-qubit gates raise an error."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         circuit = QulacsCircuit(QuantumCircuit(1))
 
         with pytest.raises(ValueError):
@@ -235,8 +234,8 @@ class TestQulacsCircuitGateBuilders:
 class TestQulacsCircuitBuildInstructions:
     def test_build_instructions_collects_supported_gates_and_parameters(self):
         """Test that supported instructions populate the internal lists."""
-        x = ParameterVector("x", 1)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 1)
+        y = Parameters("y", 1)
         circuit = QulacsCircuit(QuantumCircuit(2))
         source = QuantumCircuit(2)
         source.h(0)
@@ -283,7 +282,7 @@ class TestQulacsCircuitBuildInstructions:
 
     def test_build_instructions_handles_parameterized_two_qubit_gate(self):
         """Test that the parameterized two-qubit branch is executed."""
-        parameter = ParameterVector("theta", 1)[0]
+        parameter = Parameters("theta", 1)[0]
         circuit = QulacsCircuit(QuantumCircuit(2))
         dummy_circuit = _DummyCircuit(2, [])
         two_qubit_param_gate = _DummyGateOperation(
@@ -315,7 +314,7 @@ class TestQulacsCircuitRuntime:
 
     def test_get_circuit_func_caches_and_returns_expected_backend_types(self):
         """Test get_circuit_func for cached non-gradient and gradient variants."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, np.pi / 4)
@@ -338,7 +337,7 @@ class TestQulacsCircuitRuntime:
 
     def test_get_gradient_outer_jacobian_values_and_cache(self):
         """Test gradient outer Jacobian evaluation and caching."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = QuantumCircuit(2)
         qc.rx(0, 2.0 * x[0])
         qc.ry(1, x[0] * x[1])
@@ -390,7 +389,7 @@ class TestTranspileCircuitQulacs:
 
     def test_parameterized_circuit_preserves_parameters(self):
         """Test that transpile_circuit preserves circuit parameters."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])

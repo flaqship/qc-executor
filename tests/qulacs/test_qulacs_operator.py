@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
 from qulacs import GeneralQuantumOperator, PauliOperator
 
 from executor import QuantumOperator
+from executor.parameters import Parameters
 from executor.qulacs import QulacsOperator
 
 
@@ -73,7 +73,7 @@ class TestQulacsOperatorBuildInstructions:
 
     def test_build_instructions_with_parameter_expressions(self):
         """Test instruction build for parameterized coefficients."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         op = QuantumOperator(["Z", "X"], [x[0], 2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
@@ -84,7 +84,7 @@ class TestQulacsOperatorBuildInstructions:
 
     def test_build_instructions_multiple_operator_objects(self):
         """Test instruction build with a list of operators."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         op1 = QuantumOperator(["Z"], [x[0]])
         op2 = QuantumOperator(["X"], [1.0])
 
@@ -98,7 +98,7 @@ class TestQulacsOperatorBuildInstructions:
 class TestQulacsOperatorRuntimeFunctions:
     def test_get_operator_func_returns_callable_and_qulacs_objects(self):
         """Test operator callable creation and returned object types."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         op = QuantumOperator(["Z", "X"], [x[0], x[1]])
         qulacs_op = QulacsOperator(op)
 
@@ -112,7 +112,7 @@ class TestQulacsOperatorRuntimeFunctions:
 
     def test_get_gradient_outer_jacobian_with_single_parameter_element(self):
         """Test gradient parameter normalization from single element to list."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         op = QuantumOperator(["Z", "X"], [x[0], 2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
@@ -127,7 +127,7 @@ class TestQulacsOperatorRuntimeFunctions:
 
     def test_get_gradient_outer_jacobian_with_multiple_parameters(self):
         """Test outer Jacobian values for multiple gradient parameters."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         op = QuantumOperator(["Z"], [2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
@@ -142,7 +142,7 @@ class TestQulacsOperatorRuntimeFunctions:
 
     def test_get_gradient_outer_jacobian_without_gradient_parameters(self):
         """Test Jacobian behavior when no gradient parameters are requested."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         op = QuantumOperator(["Z"], [x[0]])
         qulacs_op = QulacsOperator(op)
 
@@ -154,7 +154,7 @@ class TestQulacsOperatorRuntimeFunctions:
 
     def test_get_operators_for_gradient_with_single_parameter_element(self):
         """Test gradient operator creation with single parameter input."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         op = QuantumOperator(["Z", "X"], [x[0], x[1]])
         qulacs_op = QulacsOperator(op)
 
@@ -168,7 +168,7 @@ class TestQulacsOperatorRuntimeFunctions:
 
     def test_get_operators_for_gradient_without_parameters(self):
         """Test gradient operator creation with no selected parameters."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         op = QuantumOperator(["Z"], [x[0]])
         qulacs_op = QulacsOperator(op)
 
@@ -181,7 +181,7 @@ class TestQulacsOperatorRuntimeFunctions:
 
     def test_get_operators_for_gradient_multiple_operators(self):
         """Test gradient operator extraction for multiple operator objects."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         op1 = QuantumOperator(["Z"], [x[0]])
         op2 = QuantumOperator(["X"], [1.0])
         qulacs_op = QulacsOperator([op1, op2])

@@ -1,11 +1,30 @@
+"""Gate definitions mapping Qiskit gate names to Qulacs gate operations."""
+
 from __future__ import annotations
 
 from qiskit.transpiler import Target
-from qulacs import ParametricQuantumCircuit
-from qulacs.gate import *
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs.gate import (  # pylint: disable=no-name-in-module
+    CZ,
+    RX,
+    RY,
+    RZ,
+    SWAP,
+    U1,
+    H,
+    Identity,
+    S,
+    Sdag,
+    T,
+    Tdag,
+    X,
+    Y,
+    Z,
+)
 
 
 def qulacs_gate_i(circuit: ParametricQuantumCircuit, qubit: int) -> None:
+    """Identity gate."""
     # print("Adding I gate on qubit", qubit)
     circuit.add_gate(Identity(qubit))
 
@@ -121,7 +140,7 @@ def qulacs_param_gate_rz(circuit: ParametricQuantumCircuit, angle: float, index:
 #     circuit.add_gate(CY(control, target)) # NOT IMPLEMENTED
 
 
-def qulacs_gate_U1(circuit: ParametricQuantumCircuit, angle: float, index: int) -> None:
+def qulacs_gate_u1(circuit: ParametricQuantumCircuit, angle: float, index: int) -> None:
     """U1 gate."""
     # print("Adding U1 gate with angle", angle, "on qubit", index)
     circuit.add_gate(U1(index, angle))
@@ -234,4 +253,4 @@ qiskit_qulacs_param_gate_dict = {
 #     "csx": csx,
 # }
 
-qulacs_target = Target.from_configuration(qiskit_qulacs_gate_dict.keys())
+qulacs_target = Target.from_configuration(list(qiskit_qulacs_gate_dict.keys()))

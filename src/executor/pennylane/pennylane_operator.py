@@ -1,96 +1,35 @@
+"""PennyLane operator conversion utilities for Qiskit-based quantum operators."""
+
 from __future__ import annotations
 
-from typing import List
+from typing import TYPE_CHECKING, List, cast
 
 import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
-import pennylane.pauli as pauli
+from pennylane import pauli
 from qiskit.circuit import ParameterExpression
 from qiskit.quantum_info import SparsePauliOp
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
 from ..utils.qiskit_compat import _param_is_constant, _param_to_sympy
+from ._sympy_interface import _get_sympy_interface
+
+if TYPE_CHECKING:
+    from ..quantum_operator import QuantumOperator
 
 
-def _get_sympy_interface():
-    """
-    Returns the sympy interface that is used in the parameter conversion.
-
-    Necessary for the correct conversion of sympy expressions in Qiskit to
-    python functions in PennyLane.
-
-    Returns:
-        Tuple of sympy printer and sympy modules
-    """
-    # SymPy printer for pennylane numpy implementation has to be set manually,
-    # otherwise math functions are used in lambdify instead of pennylane.numpy functions
-    from sympy.printing.numpy import NumPyPrinter as Printer
-
-    user_functions = {}
-    printer = Printer(
-        {
-            "fully_qualified_modules": False,
-            "inline": True,
-            "allow_unknown_functions": True,
-            "user_functions": user_functions,
-        }
-    )
-    # Use Pennylane numpy for sympy lambdify
-    modules = pnp
-
-    # The functions down below can be used to switch between different gradient engines
-    # as tensorflow, jax and torch. However, this is not supported and implemented yet.
-
-    #     # SymPy printer for pennylane numpy implementation has to be set manually,
-    #     # otherwise math functions are used in lambdify instead of pennylane.numpy functions
-    #     from sympy.printing.tensorflow import TensorflowPrinter as Printer  # type: ignore
-
-    #     user_functions = {}
-    #     printer = Printer(
-    #         {
-    #             "fully_qualified_modules": False,
-    #             "inline": True,
-    #             "allow_unknown_functions": True,
-    #             "user_functions": user_functions,
-    #         }
-    #     )  #
-    #     modules = tf
-
-    # elif self._gradient_engine == "jax":
-    #     from sympy.printing.numpy import JaxPrinter as Printer  # type: ignore
-
-    #     user_functions = {}
-    #     printer = Printer(
-    #         {
-    #             "fully_qualified_modules": False,
-    #             "inline": True,
-    #             "allow_unknown_functions": True,
-    #             "user_functions": user_functions,
-    #         }
-    #     )  #
-    #     modules = jnp
-    # elif self._gradient_engine == "torch" or self._gradient_engine == "pytorch":
-    #     from sympy.printing.pycode import PythonCodePrinter as Printer  # type: ignore
-
-    #     user_functions = {}
-    #     printer = Printer(
-    #         {
-    #             "fully_qualified_modules": False,
-    #             "inline": True,
-    #             "allow_unknown_functions": True,
-    #             "user_functions": user_functions,
-    #         }
-    #     )  #
-    #     modules = torch
-
-    # else:
-    #     # tbd for jax and tensorflow
-    #     printer = None
-    #     modules = None
-
-    return printer, modules
+def _resolve_coefficient(coeff, symbol_tuple, printer, modules):
+    """Convert a Qiskit operator coefficient to a float or PennyLane-compatible callable."""
+    if isinstance(coeff, ParameterExpression):
+        if not _param_is_constant(coeff):
+            symbol_expr = _param_to_sympy(coeff)
+            return lambdify(symbol_tuple, symbol_expr, modules=modules, printer=printer)
+        coeff = complex(coeff)
+    if np.imag(coeff) != 0:
+        raise ValueError("Imaginary part of operator coefficient is not supported")
+    return float(np.real(coeff))
 
 
 class PennyLaneOperator:
@@ -112,11 +51,13 @@ class PennyLaneOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = operator._qiskit_operator
+            self._qiskit_operator = cast("QuantumOperator", operator).qiskit_operator
             self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(operator, list):
-            if all([isinstance(op, QuantumOperatorBase) for op in operator]):
-                self._qiskit_operator = [op._qiskit_operator for op in operator]
+            if all(isinstance(op, QuantumOperatorBase) for op in operator):
+                self._qiskit_operator = [
+                    cast("QuantumOperator", op).qiskit_operator for op in operator
+                ]
             else:
                 raise ValueError("Unsupported operator type")
             self._num_qubits = self._qiskit_operator[0].num_qubits
@@ -200,34 +141,10 @@ class PennyLaneOperator:
 
         self._pennylane_operator_param_functions = []
         for op in operator:
-            pennylane_operator_param_function_ = []
-            for coeff in op.coeffs:
-                if isinstance(coeff, ParameterExpression):
-                    if _param_is_constant(coeff):
-                        coeff = complex(coeff)
-                        if isinstance(coeff, (np.complex128, np.complex64, complex)):
-                            if np.imag(coeff) != 0:
-                                raise ValueError(
-                                    "Imaginary part of operator coefficient is not supported"
-                                )
-                            coeff = float(np.real(coeff))
-                        else:
-                            coeff = float(coeff)
-                    else:
-                        symbol_expr = _param_to_sympy(coeff)
-                        f = lambdify(symbol_tuple, symbol_expr, modules=modules, printer=printer)
-                        pennylane_operator_param_function_.append(f)
-                else:
-                    if isinstance(coeff, np.complex128) or isinstance(coeff, np.complex64):
-                        if np.imag(coeff) != 0:
-                            raise ValueError(
-                                "Imaginary part of operator coefficient is not supported"
-                            )
-                        coeff = float(np.real(coeff))
-                    else:
-                        coeff = float(coeff)
-                    pennylane_operator_param_function_.append(coeff)
-            self._pennylane_operator_param_functions.append(pennylane_operator_param_function_)
+            coeffs = op.coeffs if op.coeffs is not None else []
+            self._pennylane_operator_param_functions.append(
+                [_resolve_coefficient(coeff, symbol_tuple, printer, modules) for coeff in coeffs]
+            )
 
         # Convert Pauli strings into PennyLane Pauli words
         for op in operator:
@@ -264,13 +181,10 @@ class PennyLaneOperator:
                 expval_list = []
                 for i, obs in enumerate(self._pennylane_words):
                     if len(obs_param_list) > 0:
-                        coeff_list = []
-                        for coeff in self._pennylane_operator_param_functions[i]:
-                            if callable(coeff):
-                                evaluated_param = coeff(*obs_param_list)
-                                coeff_list.append(evaluated_param)
-                            else:
-                                coeff_list.append(coeff)
+                        coeff_list = [
+                            coeff(*obs_param_list) if callable(coeff) else coeff
+                            for coeff in self._pennylane_operator_param_functions[i]
+                        ]
                         expval_list.append(qml.expval(qml.Hamiltonian(coeff_list, obs)))
                     else:
                         # In case no parameters are present in the observable
@@ -279,27 +193,19 @@ class PennyLaneOperator:
                         if len(self._pennylane_words[i]) == 0:
                             expval_list.append(0.0)
                         else:
-                            expval_list.append(
-                                qml.expval(sum([obs for obs in self._pennylane_words[i]]))
-                            )
+                            expval_list.append(qml.expval(qml.sum(*self._pennylane_words[i])))
                 return pnp.stack(tuple(expval_list))
-            else:
-                if len(obs_param_list) > 0:
-                    coeff_list = []
-                    for coeff in self._pennylane_operator_param_functions:
-                        if callable(coeff):
-                            evaluated_param = coeff(*obs_param_list)
-                            coeff_list.append(evaluated_param)
-                        else:
-                            coeff_list.append(coeff)
-                    return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
-                else:
-                    # In case no parameters are present in the observable
-                    # Calculate the expectation value of sum of the observables
-                    # since this is more compatible with hardware backends
-                    if len(self._pennylane_words) == 0:
-                        return 0.0
-                    else:
-                        return qml.expval(sum([obs for obs in self._pennylane_words]))
+            if len(obs_param_list) > 0:
+                coeff_list = [
+                    coeff(*obs_param_list) if callable(coeff) else coeff
+                    for coeff in self._pennylane_operator_param_functions
+                ]
+                return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
+            # In case no parameters are present in the observable
+            # Calculate the expectation value of sum of the observables
+            # since this is more compatible with hardware backends
+            if len(self._pennylane_words) == 0:
+                return 0.0
+            return qml.expval(qml.sum(*self._pennylane_words))
 
         return pennylane_observable

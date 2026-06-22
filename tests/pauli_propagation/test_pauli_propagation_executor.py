@@ -1,11 +1,9 @@
 """Tests for PauliPropagationExecutor (strict native API)."""
 
-import math
 from typing import Dict
 import numpy as np
 import pytest
 import sympy as sp
-from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit, QuantumOperator
 from executor.parameters import Parameters
@@ -18,7 +16,6 @@ from executor.pauli_propagation import pauli_propagation_executor as ppe
 from executor.pauli_propagation.pauli_propagation_executor import _create_projector_observable
 from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
 from executor.pauli_propagation.utils.pauli_algebra import string_to_term
-from executor.pauli_propagation.utils.pauli_types import PauliSum
 
 
 class TestPauliPropagationExecutor:
@@ -417,7 +414,7 @@ class TestExecutorDerivativeBranches:
         result_iterable = executor.expectation_value_derivatives(
             circuit,
             observable,
-            ParameterVector("theta", 1),
+            Parameters("theta", 1),
             theta=[0.0],
         )
 

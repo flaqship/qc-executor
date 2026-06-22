@@ -12,6 +12,8 @@ from executor.pauli_propagation.symmetry import (
     SymmetryStrategy,
 )
 from executor.pauli_propagation.utils.pauli_types import PauliSum
+from executor.quantum_operator import QuantumOperator
+from executor.parameters import Parameter
 
 
 class DummySymmetry(SymmetryStrategy):
@@ -91,21 +93,15 @@ class TestPauliPropagationOperatorConversion:
         assert converted.symmetry.name == "permutation"
 
     def test_from_quantum_operator_with_generic_operator(self):
-        class DummyCoeff:
-            def __init__(self, value):
-                self.value = value
+        op = QuantumOperator(["Z"], [Parameter(sp.Symbol("theta"), 0)])
 
-            def sympify(self):
-                return self.value
+        converted = PauliPropagationOperator.from_quantum_operator(op)
 
-        class DummyOperator:
-            paulis = ["Z"]
-            coeffs = [DummyCoeff(sp.Symbol("theta"))]
-
-        converted = PauliPropagationOperator.from_quantum_operator(DummyOperator())
-
+        assert isinstance(converted, PauliPropagationOperator)
         assert converted.is_parametrized
-        assert converted.parameters == ["theta"]
+        assert converted.parameters == ["theta[0]"]
+        assert converted.paulis == ["Z"]
+        assert converted.num_parameters == 1
 
     def test_from_quantum_operator_rejects_invalid_input(self):
         with pytest.raises(TypeError, match="expects a generic QuantumOperator"):

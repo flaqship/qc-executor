@@ -30,14 +30,14 @@ class QoqoOperator:
     ) -> None:
 
         if isinstance(observable, QuantumOperatorBase):
-            self._qiskit_observable = [observable._qiskit_operator]
-            self._num_qubits = self._qiskit_observable[0].num_qubits
+            self._qiskit_base_observable = [observable._qiskit_operator]
+            self._num_qubits = self._qiskit_base_observable[0].num_qubits
         elif isinstance(observable, list):
             if all([isinstance(obs, QuantumOperatorBase) for obs in observable]):
-                self._qiskit_observable = [obs._qiskit_operator for obs in observable]
+                self._qiskit_base_observable = [obs._qiskit_operator for obs in observable]
             else:
                 raise ValueError("Unsupported observable type")
-            self._num_qubits = self._qiskit_observable[0].num_qubits
+            self._num_qubits = self._qiskit_base_observable[0].num_qubits
         else:
             raise ValueError("Unsupported observable type")
 
@@ -46,16 +46,18 @@ class QoqoOperator:
         self.new_operators_coeff_grad = []
         self.new_operators_used_parameters = []
         self._free_parameters = set()
-
         self._qoqo_obs_parameters = []
 
-        for observable in self._qiskit_observable:
+        for observable in self._qiskit_base_observable:
             for param in observable.parameters:
                 if param.vector.name not in self._qoqo_obs_parameters:
                     self._qoqo_obs_parameters.append(param.vector.name)
 
         self.is_parameterized = any(
-            len(observable.parameters) > 0 for observable in self._qiskit_observable
+            len(observable.parameters) > 0 for observable in self._qiskit_base_observable
+        )
+        self._qiskit_observable = (
+            self._qiskit_base_observable if not self.is_parameterized else None
         )
         self._outer_jacobi_obs_cache = {}
 
@@ -72,7 +74,7 @@ class QoqoOperator:
     @property
     def hash(self) -> str:
         """Hashable object of the circuit and observable for caching"""
-        return str(self._qiskit_observable)
+        return str(self._qiskit_base_observable)
 
     @property
     def is_parametrized(self) -> bool:
@@ -109,6 +111,10 @@ class QoqoOperator:
             Tuple[PauliZProduct, float]: The qoqo measurement and a constant corresponding to the
             identity contribution that must be added after execution.
         """
+        if self._qiskit_observable is None:
+            raise ValueError(
+                "No observable defined, The parameters should be assigned before this can be used."
+            )
         observable = self._qiskit_observable
         if not isinstance(observable, SparsePauliOp):
             if isinstance(observable, list):
@@ -169,6 +175,7 @@ class QoqoOperator:
         Args:
             parameters (dict): Dictionary with parameter names as keys and their values as values.
         """
+        self._qiskit_observable = self._qiskit_base_observable.copy()
         self._qiskit_observable = [
             observable.assign_parameters(parameters) for observable in self._qiskit_observable
         ]

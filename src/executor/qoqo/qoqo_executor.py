@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import numpy as np
+import re
+
+
 from typing import Union, List
 from collections import Counter
 
@@ -200,6 +203,143 @@ class QoqoExecutor(ExecutorBase):
         if isinstance(circuit, self._native_circuit_class):
             return circuit
         return self._native_circuit_class.from_quantum_circuit(circuit)
+
+    def _expectation_value_derivatives(
+        self,
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
+        *derivative,
+        **parameters,
+    ) -> float | np.ndarray | dict:
+        """
+        Calculate the derivatives of the expectation value with respect to the parameters
+
+        Args:
+            circuit (QuantumCircuitBase): The quantum circuit.
+            observable (QuantumOperatorBase): The quantum observable.
+            values: Values for which the derivatives are calculated. Can be strings (e.g.
+                "expectation_value" or the name of parameters), or
+                ParameterVectors, ParameterVectorElements. Tuples are used for higher
+                order derivatives.
+            parameter_values: Parameters to evaluate the circuit and observable given as
+                keyword arguments.
+
+        Returns:
+            np.array | dict: The derivatives of the expectation value. If a single value
+                is provided, a numpy array is returned. If multiple values are provided, a
+                dictionary with the values as keys and the derivatives as values is returned.
+        """
+
+        if isinstance(circuit, list) or isinstance(observable, list):
+            raise NotImplementedError("Multiple circuits/observables not yet supported")
+
+        if circuit in self._circuit_cache:
+            qoqo_circuit = self._circuit_cache[circuit]
+        else:
+            if isinstance(circuit, QoqoCircuit):
+                qoqo_circuit = circuit
+            else:
+                qoqo_circuit = QoqoCircuit(circuit)
+            self._circuit_cache[circuit] = qoqo_circuit
+
+        qoqo_observable = QoqoOperator(observable)
+
+        circuit_param_names = list(qoqo_circuit.parameter_names)
+        observable_param_names = list(qoqo_observable.parameter_names)
+        all_param_names = circuit_param_names + observable_param_names
+
+        if len(derivative) == 0:
+            return self._expectation_value(circuit, observable, **parameters)
+
+        def remove_brackets(s: str) -> str:
+            return re.sub(r"\[.*?\]", "", s)
+
+        result_dict = {}
+        single_derivative = len(derivative) == 1
+
+        for deriv_param in derivative:
+            # Handle special case
+            if deriv_param == "expectation_value":
+                result = self._expectation_value(circuit, observable, **parameters)
+                if single_derivative:
+                    return result
+                result_dict["expectation_value"] = result
+                continue
+
+            # Parse parameter name
+            if isinstance(deriv_param, str):
+                param_name_str = deriv_param
+                base_name = remove_brackets(param_name_str)
+
+                # Check if indexed parameter like "x[0]"
+                if "[" in param_name_str and "]" in param_name_str:
+                    index_str = param_name_str[
+                        param_name_str.index("[") + 1 : param_name_str.index("]")
+                    ]
+                    param_index = int(index_str)
+                    param_indices = [param_index]
+                else:
+                    # Base name - compute for all indices
+                    if base_name not in parameters:
+                        raise ValueError(f"Parameter '{base_name}' not found in provided values")
+
+                    param_val = parameters[base_name]
+                    if isinstance(param_val, list):
+                        param_indices = list(range(len(param_val)))
+                    else:
+                        param_indices = [0]
+
+                param_name = base_name
+
+            elif isinstance(deriv_param, ParameterVectorElement):
+                param_name = deriv_param.vector.name
+                param_indices = [deriv_param.index]
+            else:
+                raise ValueError(f"Unknown parameter type: {type(deriv_param)}")
+
+            # Verify parameter exists
+            if param_name not in all_param_names:
+                raise ValueError(f"Parameter '{param_name}' not found in circuit or observable")
+
+            # Compute gradients using parameter shift rule
+            gradients = []
+            shift = np.pi / 2
+
+            for idx in param_indices:
+                # Create shifted parameter dictionaries
+                params_plus = parameters.copy()
+                params_minus = parameters.copy()
+
+                # Get current value and apply shift
+                if isinstance(parameters[param_name], list):
+                    params_plus[param_name] = parameters[param_name].copy()
+                    params_minus[param_name] = parameters[param_name].copy()
+                    params_plus[param_name][idx] += shift
+                    params_minus[param_name][idx] -= shift
+                else:
+                    params_plus[param_name] = parameters[param_name] + shift
+                    params_minus[param_name] = parameters[param_name] - shift
+
+                # Compute expectation values with shifted parameters
+                exp_plus = self._expectation_value(circuit, observable, **params_plus)
+                exp_minus = self._expectation_value(circuit, observable, **params_minus)
+
+                # Parameter shift gradient: [f(θ + π/2) - f(θ - π/2)] / 2
+                gradient = (exp_plus - exp_minus) / 2.0
+                gradients.append(gradient)
+
+            # Format result
+            if len(gradients) == 1:
+                result = gradients[0]
+            else:
+                result = np.array(gradients)
+
+            if single_derivative:
+                return result
+
+            result_dict[deriv_param] = result
+
+        return result_dict
 
     def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
         """Abstract implementation of operator transpilation.

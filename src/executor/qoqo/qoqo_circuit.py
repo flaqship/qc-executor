@@ -20,13 +20,14 @@ class QoqoCircuit:
         circuit: QuantumCircuit,
     ) -> None:
         # Transpile circuit to supported basis gates and expand blocks automatically
-        self._qiskit_circuit = transpile(
+        self._qiskit_base_circuit = transpile(
             decompose_to_std(circuit._qiskit_circuit),
             target=qoqo_target,
             optimization_level=0,
         )
-        self._num_qubits = self._qiskit_circuit.num_qubits
-        self.is_parameterized = len(self._qiskit_circuit.parameters) > 0
+        self._num_qubits = self._qiskit_base_circuit.num_qubits
+        self.is_parameterized = len(self._qiskit_base_circuit.parameters) > 0
+        self._qiskit_circuit = self._qiskit_base_circuit if not self.is_parameterized else None
         self._qoqo_gates_parameters = []
 
         for param in circuit.parameters:
@@ -56,7 +57,7 @@ class QoqoCircuit:
     @property
     def hash(self) -> str:
         """Hashable object of the circuit and observable for caching"""
-        return hash(str(self._qiskit_circuit))
+        return hash(str(self._qiskit_base_circuit))
 
     def circuit_metrics(self) -> dict:
         """count number of gates in the circuit"""
@@ -67,7 +68,7 @@ class QoqoCircuit:
     def from_qasm(self, qasm: str) -> None:
         """Load the circuit from a qasm string"""
         self._qoqo_circuit = qasm_str_to_circuit(qasm)
-        self._qiskit_circuit = loads(qasm)
+        self._qiskit_base_circuit = loads(qasm)
 
     def to_qasm(self) -> str:
         """Convert the circuit to a qasm string"""
@@ -90,6 +91,7 @@ class QoqoCircuit:
         Args:
             parameters (dict): Dictionary with parameter names as keys and their values as values.
         """
+        self._qiskit_circuit = self._qiskit_base_circuit.copy()
         self._qiskit_circuit.assign_parameters(parameters, inplace=True)
         if len(self._qiskit_circuit.parameters) == 0:
             self.is_parameterized = False

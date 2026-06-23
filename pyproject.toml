@@ -112,6 +112,7 @@ max-returns = 20
 max-statements = 150
 
 [tool.pylint.main]
+fail-under = 9.9
 extension-pkg-allow-list = [
     "numpy",
 ]

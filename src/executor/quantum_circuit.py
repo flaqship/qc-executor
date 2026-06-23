@@ -7,7 +7,8 @@ from typing import List
 import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
+
+from executor.parameters import Parameter
 
 from .base import QuantumCircuitBase, QuantumOperatorBase
 from .utils.qiskit_hash_functions import _circuit_key
@@ -45,7 +46,7 @@ class QuantumCircuit(QuantumCircuitBase):
         return self._qiskit_circuit.num_qubits
 
     @property
-    def parameters(self) -> List[ParameterVectorElement]:
+    def parameters(self) -> List[Parameter]:
         """Return the free trainable parameters in the circuit."""
         return list(self._qiskit_circuit.parameters)
 
@@ -240,7 +241,7 @@ class QuantumCircuit(QuantumCircuitBase):
     def pauli_evolution(
         self,
         operator: QuantumOperatorBase,
-        parameter: ParameterVectorElement | float,
+        parameter: Parameter | float,
         working_qubits: List[int] | None = None,
     ) -> None:
         """
@@ -248,7 +249,7 @@ class QuantumCircuit(QuantumCircuitBase):
 
         Args:
             operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (ParameterVectorElement | float): The evolution parameter.
+            parameter (Parameter | float): The evolution parameter.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
@@ -258,7 +259,7 @@ class QuantumCircuit(QuantumCircuitBase):
             raise ValueError("Only operators with single Pauli strings are supported")
         coeff = coeff[0]
 
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
+        if not isinstance(coeff, (Parameter, ParameterExpression)):
             coeff = np.real_if_close(coeff)
             if isinstance(coeff, complex):
                 raise ValueError("Complex coefficients are not supported")
@@ -284,7 +285,7 @@ class QuantumCircuit(QuantumCircuitBase):
     def controlled_pauli_evolution(
         self,
         operator: QuantumOperatorBase,
-        parameter: ParameterVectorElement | float,
+        parameter: Parameter | float,
         control_qubit: int,
         working_qubits: List[int] | None = None,
     ) -> None:
@@ -293,7 +294,7 @@ class QuantumCircuit(QuantumCircuitBase):
 
         Args:
             operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (ParameterVectorElement | float): The evolution parameter.
+            parameter (Parameter | float): The evolution parameter.
             control_qubit (int): The qubit to control the evolution.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
@@ -305,7 +306,7 @@ class QuantumCircuit(QuantumCircuitBase):
             raise ValueError("Only operators with single Pauli strings are supported")
         coeff = coeff[0] * parameter
 
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
+        if not isinstance(coeff, (Parameter, ParameterExpression)):
             coeff = np.real_if_close(coeff)
             if isinstance(coeff, complex):
                 raise ValueError("Complex coefficients are not supported")

@@ -8,10 +8,11 @@ import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit import transpile
 from qiskit.circuit import ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 from sympy import lambdify
+
+from executor.parameters import Parameter
 
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
@@ -31,6 +32,7 @@ class QulacsCircuit:
         self,
         circuit: QuantumCircuit,
     ) -> None:
+        super().__init__()
 
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_circuit = transpile(
@@ -78,11 +80,6 @@ class QulacsCircuit:
         """Dictionary with the dimension of each circuit parameter"""
         return self._qulacs_gates_parameters
 
-    # @property
-    # def circuit_parameter_dimensions(self) -> dict:
-    #     """Dictionary with the dimension of each circuit parameter"""
-    #     return self._qulacs_gates_parameters_dimensions
-
     @property
     def circuit_arguments(self) -> dict:
         """Dictionary of all circuit and observable parameters names"""
@@ -108,14 +105,12 @@ class QulacsCircuit:
             self._qulacs_circuit = self.get_circuit_func()
         return self._qulacs_circuit(*args, **kwargs)
 
-    def _add_parameter_expression(
-        self, angle: float | ParameterVectorElement | ParameterExpression
-    ) -> Any:
+    def _add_parameter_expression(self, angle: float | Parameter | ParameterExpression) -> Any:
         """
         Adds a parameter expression to the circuit and do the pre-processing.
 
         Args:
-            angle (ParameterVectorElement or ParameterExpression or float): angle of rotation
+            angle (Parameter or ParameterExpression or float): angle of rotation
 
         Returns:
             int: index of the parameter in the parameter vector
@@ -137,7 +132,7 @@ class QulacsCircuit:
             # Single float value
             func_list_element = angle
             func_grad_list_element = None
-        elif isinstance(angle, ParameterVectorElement):
+        elif isinstance(angle, Parameter):
             # Single parameter vector element
             parameterized = True
             func_list_element = lambdify(self._symbol_tuple_circuit, _param_to_sympy(angle))
@@ -166,7 +161,7 @@ class QulacsCircuit:
         else:
             raise TypeError(
                 f"Unsupported type for angle: {type(angle)}. "
-                "Expected float, int, ParameterVectorElement or ParameterExpression."
+                "Expected float, int, Parameter or ParameterExpression."
             )
 
         return func_list_element, func_grad_list_element, used_parameters, parameterized
@@ -220,7 +215,7 @@ class QulacsCircuit:
         self,
         gate_name: str,
         qubits: int | Iterable[int],
-        angle: float | ParameterVectorElement | ParameterExpression,
+        angle: float | Parameter | ParameterExpression,
     ):
         """
         Adds a single qubit parameterized gate to the circuit.
@@ -228,7 +223,7 @@ class QulacsCircuit:
         Args:
             gate_name (str): Name of the gate
             qubits (int or Iterable[int]): qubit indices
-            angle (ParameterVectorElement or float): angle of rotation, ca be a parameter
+            angle (Parameter or float): angle of rotation, ca be a parameter
         """
         func_list_element, func_grad_list_element, used_parameters, parameterized = (
             self._add_parameter_expression(angle)
@@ -257,7 +252,7 @@ class QulacsCircuit:
         gate_name: str,
         qubit1: int | Iterable[int],
         qubit2: int | Iterable[int],
-        angle: float | ParameterVectorElement | ParameterExpression,
+        angle: float | Parameter | ParameterExpression,
     ):
         """
         Adds a single qubit parameterized gate to the circuit.
@@ -265,7 +260,7 @@ class QulacsCircuit:
         Args:
             gate_name (str): Name of the gate
             qubits (int or Iterable[int]): qubit indices
-            angle (ParameterVectorElement or float): angle of rotation, ca be a parameter
+            angle (Parameter or float): angle of rotation, ca be a parameter
         """
         func_list_element, func_grad_list_element, used_parameters, parameterized = (
             self._add_parameter_expression(angle)
@@ -375,7 +370,7 @@ class QulacsCircuit:
     def get_circuit_func(self, gradient_param=None):
         """Returns the Qulacs circuit function for the circuit."""
 
-        if isinstance(gradient_param, ParameterVectorElement):
+        if isinstance(gradient_param, Parameter):
             gradient_param = [gradient_param]
         gradient_param = list(gradient_param) if gradient_param is not None else []
 
@@ -430,7 +425,7 @@ class QulacsCircuit:
 
     def get_gradient_outer_jacobian(
         self,
-        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+        gradient_parameters: Parameter | List[Parameter] | None = None,
     ):
         """Returns the outer jacobian needed for the chain rule in circuit derivatives.
 
@@ -439,11 +434,11 @@ class QulacsCircuit:
         parameter expression.
 
         Args:
-            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None):
+            gradient_parameters (Parameter | List[Parameter] | None):
                 Parameters to calculate the gradient for
         """
 
-        if isinstance(gradient_parameters, ParameterVectorElement):
+        if isinstance(gradient_parameters, Parameter):
             gradient_parameters = [gradient_parameters]
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
         gradient_param_dict = {p: i for i, p in enumerate(gradient_parameters)}

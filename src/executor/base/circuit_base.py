@@ -7,7 +7,8 @@ from typing import List
 
 import numpy as np
 from qiskit.circuit import ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
+
+from executor.parameters import Parameter
 
 from .operator_base import QuantumOperatorBase
 
@@ -36,7 +37,7 @@ class QuantumCircuitBase(ABC):
         return self._num_qubits
 
     @property
-    def parameters(self) -> List[ParameterVectorElement]:
+    def parameters(self) -> List[Parameter]:
         """Return the free trainable parameters in the circuit."""
         return sorted(list(self._free_parameters), key=lambda x: x.index)
 
@@ -141,10 +142,6 @@ class QuantumCircuitBase(ABC):
     def ecr(self, control_qubit: int, target_qubit: int):
         """Add ECR gates"""
         raise NotImplementedError
-        # self.cx(control_qubit, target_qubit)
-        # self.h(target_qubit)
-        # self.cz(control_qubit, target_qubit)
-        # self.h(target_qubit)
 
     @abstractmethod
     def crx(self, control_qubit: int, target_qubit: int, angle: float):
@@ -243,7 +240,7 @@ class QuantumCircuitBase(ABC):
     def pauli_evolution(
         self,
         operator: QuantumOperatorBase,
-        parameter: ParameterVectorElement | float,
+        parameter: Parameter | float,
         working_qubits: List[int] | None = None,
     ) -> None:
         """
@@ -251,7 +248,7 @@ class QuantumCircuitBase(ABC):
 
         Args:
             operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (ParameterVectorElement | float): The evolution parameter.
+            parameter (Parameter | float): The evolution parameter.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
@@ -261,7 +258,7 @@ class QuantumCircuitBase(ABC):
             raise ValueError("Only operators with single Pauli strings are supported")
         coeff = coeff[0]
 
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
+        if not isinstance(coeff, (Parameter, ParameterExpression)):
             coeff = np.real_if_close(coeff)
             if np.iscomplexobj(coeff):
                 raise ValueError("Complex coefficients are not supported")
@@ -302,7 +299,7 @@ class QuantumCircuitBase(ABC):
     def controlled_pauli_evolution(
         self,
         operator: QuantumOperatorBase,
-        parameter: ParameterVectorElement | float,
+        parameter: Parameter | float,
         control_qubit: int,
         working_qubits: List[int] | None = None,
     ) -> None:
@@ -311,7 +308,7 @@ class QuantumCircuitBase(ABC):
 
         Args:
             operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (ParameterVectorElement | float): The evolution parameter.
+            parameter (Parameter | float): The evolution parameter.
             control_qubit (int): The qubit to control the evolution.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
@@ -323,7 +320,7 @@ class QuantumCircuitBase(ABC):
             raise ValueError("Only operators with single Pauli strings are supported")
         coeff = coeff[0] * parameter
 
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
+        if not isinstance(coeff, (Parameter, ParameterExpression)):
             coeff = np.real_if_close(coeff)
             if np.iscomplexobj(coeff):
                 raise ValueError("Complex coefficients are not supported")
@@ -361,34 +358,9 @@ class QuantumCircuitBase(ABC):
         # Undo basis change
         self._undo_basis_change(paulis, qubits, working_qubits)
 
-    # def operator_evolution(
-    #     self,
-    #     hamiltonian: QuantumOperatorBase,
-    #     time: ParameterExpression | Parameter | float,
-    #     controlled_qubits: List[int] | int | None = None,
-    #     working_qubits: List[int] | int | None = None,
-    #     evolution=LieTrotterEvolution(),
-    # ) -> None:
-    #     """Apply the imaginary time evolution to the circuit.
-
-    #     Args:
-    #         hamiltonian (QuantumOperatorBase): Hamiltonian to evolve the state with
-    #         parameter (ParameterVectorElement | float): Parameter in the evolution
-    #     """
-
-    #     evolution.apply(self, hamiltonian, time, controlled_qubits, working_qubits)
-
     def compose(self, qc: "QuantumCircuitBase", qubits: List[int]) -> "QuantumCircuitBase":
         """Compose two quantum circuits."""
         raise NotImplementedError
-
-    # def fixate_parameters(self, parameters: dict):
-    #     """Fixate parameters to the circuit, removes all free parameters.
-
-    #     Args:
-    #         parameters (np.array): parameters to assign to the circuit
-    #     """
-    #     raise NotImplementedError
 
     def assign_parameters(self, parameters: dict):
         """Change parameters in the circuit.

@@ -1,4 +1,3 @@
-import pytest
 from qiskit.circuit import ParameterVector
 
 from executor import QuantumCircuit
@@ -70,3 +69,16 @@ class TestTranspileCircuitQulacs:
         assert isinstance(results, list)
         assert len(results) == 2
         assert all(isinstance(r, QulacsCircuit) for r in results)
+
+    def test_hash_and_equality(self):
+        circ1 = QuantumCircuit(2)
+        circ1.h(0)
+        circ2 = QuantumCircuit(2)
+        circ2.h(0)
+        qc1 = QulacsCircuit(circ1)
+        qc2 = QulacsCircuit(circ2)
+
+        assert hash(qc1) == hash(qc2)
+        assert qc1 != qc2
+        assert qc1 == qc1
+        assert hash(qc1) == hash(qc1)

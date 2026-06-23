@@ -12,7 +12,9 @@ from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 from sympy import lambdify
 
+from executor.circuit_idendity_mixin import CircuitIdentityMixin
 from executor.parameters import Parameter
+from executor.utils.qiskit_hash_functions import _circuit_key
 
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
@@ -20,7 +22,7 @@ from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict, qulacs_target
 
 
-class QulacsCircuit:
+class QulacsCircuit(CircuitIdentityMixin):
     """Wrapper class that converts a generic QuantumCircuit into a Qulacs-compatible circuit."""
 
     @classmethod
@@ -84,11 +86,6 @@ class QulacsCircuit:
     def circuit_arguments(self) -> dict:
         """Dictionary of all circuit and observable parameters names"""
         return self._qulacs_gates_parameters
-
-    @property
-    def hash(self) -> int:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(self._qiskit_circuit)
 
     @property
     def free_parameters(self) -> set:
@@ -475,3 +472,6 @@ class QulacsCircuit:
         self._outer_jacobi_circuit_cache[cache_value] = outer_jacobian
 
         return outer_jacobian
+
+    def _circuit_hash_key(self) -> tuple:
+        return (_circuit_key(self._qiskit_circuit),)

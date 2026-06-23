@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from qiskit.circuit import ParameterVector
 
+
 from executor import QuantumCircuit
 from executor.qiskit import QiskitCircuit
 from executor.qiskit.qiskit_executor import QiskitExecutor
@@ -24,7 +25,7 @@ class TestQiskitCircuit:
 
         assert qiskit_circ.num_qubits == 2
         assert len(qiskit_circ.parameter_names) == 0
-        assert isinstance(qiskit_circ.hash, int)
+        assert isinstance(hash(qiskit_circ), int)
 
     def test_single_hadamard_gate(self):
         """Test circuit with a single Hadamard gate."""
@@ -288,26 +289,22 @@ class TestQiskitCircuit:
         assert isinstance(qiskit_circ.parameter_dimensions, dict)
         assert qiskit_circ.parameter_dimensions["x"] == 3
 
-    def test_hash_property(self):
-        """Test that hash property returns a valid integer."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-        qiskit_circ = QiskitCircuit(qc)
+    def test_hash_and_equality(self):
+        qc1 = QuantumCircuit(2)
+        qc1.h(0)
+        qc1.cx(0, 1)
 
-        hash_value = qiskit_circ.hash
-        assert isinstance(hash_value, int)
+        qc2 = QuantumCircuit(2)
+        qc2.h(0)
+        qc2.cx(0, 1)
 
-    def test_hash_consistency(self):
-        """Test that hash remains consistent for the same circuit."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ1 = QiskitCircuit(qc1)
+        qiskit_circ2 = QiskitCircuit(qc2)
 
-        hash1 = qiskit_circ.hash
-        hash2 = qiskit_circ.hash
-        assert hash1 == hash2
+        assert hash(qiskit_circ1) == hash(qiskit_circ2)
+        assert qiskit_circ1 != qiskit_circ2
+        assert qiskit_circ1 == qiskit_circ1
+        assert hash(qiskit_circ1) == hash(qiskit_circ1.copy())
 
     @pytest.mark.parametrize(
         "vec_name, vec_len, param_values, expected_unbound_count",

@@ -8,12 +8,13 @@ from typing import List
 import numpy as np
 from qiskit.circuit import ParameterExpression
 
+from executor.circuit_idendity_mixin import CircuitIdentityMixin
 from executor.parameters import Parameter
 
 from .operator_base import QuantumOperatorBase
 
 
-class QuantumCircuitBase(ABC):
+class QuantumCircuitBase(ABC, CircuitIdentityMixin):
     """
     Base class for quantum circuits for different quantum frameworks.
 
@@ -22,6 +23,7 @@ class QuantumCircuitBase(ABC):
     """
 
     def __init__(self, num_qubits: int):
+        super().__init__()
         self._num_qubits = num_qubits
         self._free_parameters = set()
 
@@ -390,11 +392,8 @@ class QuantumCircuitBase(ABC):
         """Convert the circuit to a qasm string"""
         raise NotImplementedError
 
-    def __hash__(self):
-        raise NotImplementedError(
-            "Hashing is not implemented for this class. "
-            "Please implement the __hash__ method in the derived class."
-        )
+    def _circuit_hash_key(self):
+        return (self.num_qubits, self.draw())
 
     def __str__(self):
         raise NotImplementedError

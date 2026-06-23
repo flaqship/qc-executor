@@ -5,10 +5,12 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import List
 
+from executor.circuit_idendity_mixin import CircuitIdentityMixin
 from executor.qiskit._param_binding import build_params_dict
+from executor.utils.qiskit_hash_functions import _circuit_key
 
 
-class QiskitCircuit:
+class QiskitCircuit(CircuitIdentityMixin):
     """
     Wrapper for Qiskit circuits used by QiskitExecutor.
     Provides parameter management and circuit caching functionality.
@@ -47,11 +49,6 @@ class QiskitCircuit:
     def num_qubits(self) -> int:
         """Number of qubits in the circuit."""
         return self._num_qubits
-
-    @property
-    def hash(self) -> int:
-        """Hash of the circuit for caching."""
-        return hash(str(self._qiskit_circuit))
 
     @property
     def parameter_names(self) -> List[str]:
@@ -113,6 +110,9 @@ class QiskitCircuit:
     def copy(self):
         """Return a copy of the circuit wrapper."""
         return QiskitCircuit(self._qiskit_circuit.copy())
+
+    def _circuit_hash_key(self):
+        return (_circuit_key(self._qiskit_circuit),)
 
     def __str__(self):
         return str(self._qiskit_circuit)

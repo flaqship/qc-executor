@@ -10,6 +10,9 @@ from qiskit.circuit import Clbit, ParameterExpression
 from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 from sympy import lambdify
 
+from executor.circuit_idendity_mixin import CircuitIdentityMixin
+from executor.utils.qiskit_hash_functions import _circuit_key
+
 from ..quantum_circuit import QuantumCircuit
 from ..utils.decompose_to_std import decompose_to_std
 from ..utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
@@ -17,7 +20,7 @@ from ._sympy_interface import _get_sympy_interface
 from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
 
 
-class PennyLaneCircuit:
+class PennyLaneCircuit(CircuitIdentityMixin):
     """PennyLane circuit representation converted from a generic QuantumCircuit."""
 
     @classmethod
@@ -29,7 +32,7 @@ class PennyLaneCircuit:
         self,
         circuit: QuantumCircuit,
     ) -> None:
-
+        super().__init__()
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_circuit = transpile(
             decompose_to_std(circuit._qiskit_circuit),
@@ -72,11 +75,6 @@ class PennyLaneCircuit:
     def parameter_dimensions(self) -> dict:
         """Dictionary with the dimension of each circuit parameter"""
         return self._pennylane_gates_parameters_dimensions
-
-    @property
-    def hash(self) -> int:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(str(self._qiskit_circuit))
 
     def get_pennylane_circuit(self) -> Callable:
         """Builds and returns the PennyLane circuit as callable function"""
@@ -267,3 +265,6 @@ class PennyLaneCircuit:
                         circuit_gate(wires=wires)
 
         return pennylane_circuit
+
+    def _circuit_hash_key(self) -> tuple:
+        return (_circuit_key(self._qiskit_circuit),)

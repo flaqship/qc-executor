@@ -48,3 +48,15 @@ class TestPauliPropagationCircuit:
         assert metrics["num_qubits"] == 2
         assert metrics["num_gates"] == 2
         assert metrics["num_parameters"] == 0
+
+    def test_hash_and_equality(self):
+        circuit1 = PauliPropagationCircuit(2)
+        circuit1.h(0)
+
+        circuit2 = PauliPropagationCircuit(2)
+        circuit2.h(0)
+
+        assert circuit1 != circuit2
+        assert hash(circuit1) == hash(circuit2)
+        assert circuit1 != circuit1.copy()
+        assert circuit1 == circuit1

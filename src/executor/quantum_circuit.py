@@ -62,7 +62,7 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def draw(self) -> str:
         """Returns printable string representation of the circuit."""
-        raise NotImplementedError
+        return self._qiskit_circuit.draw("text")
 
     def h(self, qubits: int | List[int]):
         """Add hadamard gates"""
@@ -364,8 +364,9 @@ class QuantumCircuit(QuantumCircuitBase):
         """Convert the circuit to a qasm string"""
         raise NotImplementedError
 
-    def __hash__(self):
-        return hash(_circuit_key(self._qiskit_circuit))
+    def _circuit_hash_key(self) -> tuple:
+        # Override with precise Qiskit-based key
+        return (_circuit_key(self._qiskit_circuit),)
 
     def __str__(self):
         return str(self._qiskit_circuit)

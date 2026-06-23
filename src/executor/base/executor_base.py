@@ -171,7 +171,9 @@ class ExecutorBase(ABC):
         Returns:
             ExecutorBase: New executor instance with the specified backend
         """
-        from executor.factory import Executor  # pylint: disable=import-outside-toplevel
+        from executor.factory import (  # pylint: disable=import-outside-toplevel,cyclic-import
+            Executor,
+        )
 
         return Executor.switch_backend(self, backend, **overrides)
 

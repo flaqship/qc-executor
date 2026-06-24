@@ -20,3 +20,8 @@ class CircuitIdentityMixin:
 
     def __hash__(self) -> int:
         return hash(self._circuit_hash_key())
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CircuitIdentityMixin):
+            return False
+        return self._circuit_hash_key() == other._circuit_hash_key()

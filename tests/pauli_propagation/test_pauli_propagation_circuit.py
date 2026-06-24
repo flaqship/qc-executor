@@ -56,7 +56,30 @@ class TestPauliPropagationCircuit:
         circuit2 = PauliPropagationCircuit(2)
         circuit2.h(0)
 
-        assert circuit1 != circuit2
         assert hash(circuit1) == hash(circuit2)
-        assert circuit1 != circuit1.copy()
+        assert circuit1 == circuit2
         assert circuit1 == circuit1
+        assert circuit1 == circuit1.copy()
+        assert hash(circuit1) == hash(circuit1.copy())
+
+        # Different structure -> different hash
+        circuit3 = PauliPropagationCircuit(2)
+        circuit3.rx(0, 0.5)
+        assert hash(circuit1) != hash(circuit3)
+        assert circuit1 != circuit3
+
+        # Different num_qubits -> different
+        circuit4 = PauliPropagationCircuit(3)
+        circuit4.h(0)
+        assert circuit1 != circuit4
+
+        # circuit modification after hashing should change the hash
+        circuit5 = PauliPropagationCircuit(2)
+        circuit5.h(0)
+        h_before = hash(circuit5)
+        circuit5.cx(0, 1)
+        assert hash(circuit5) != h_before
+
+        # Comparison with non-circuit object
+        assert circuit1 != "not a circuit"
+        assert circuit1 != 42

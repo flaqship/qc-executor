@@ -312,9 +312,36 @@ class TestPennyLaneCircuit:
         qc2.h(0)
         plc2 = PennyLaneCircuit(qc2)
 
-        assert plc1 != plc2
         assert hash(plc1) == hash(plc2)
+        assert plc1 == plc2
         assert plc1 == plc1
+        assert hash(plc1) == hash(plc1)
+
+        # Different structure → different hash
+        qc3 = QuantumCircuit(2)
+        qc3.rx(0, 0.5)
+        plc3 = PennyLaneCircuit(qc3)
+        assert hash(plc1) != hash(plc3)
+        assert plc1 != plc3
+
+        # Different num_qubits → different
+        qc4 = QuantumCircuit(3)
+        qc4.h(0)
+        plc4 = PennyLaneCircuit(qc4)
+        assert plc1 != plc4
+
+        # circuit modification after hashing should change the hash
+        qc5 = QuantumCircuit(2)
+        qc5.h(0)
+        plc5 = PennyLaneCircuit(qc5)
+        h_before = hash(plc5)
+        qc5.cx(0, 1)
+        plc5 = PennyLaneCircuit(qc5)
+        assert hash(plc5) != h_before
+
+        # Comparison with non-circuit object
+        assert plc1 != "not a circuit"
+        assert plc1 != 42
 
     def test_build_pennylane_circuit_method(self):
         """Test that build_pennylane_circuit() returns callable."""

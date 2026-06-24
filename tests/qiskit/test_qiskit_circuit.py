@@ -302,9 +302,36 @@ class TestQiskitCircuit:
         qiskit_circ2 = QiskitCircuit(qc2)
 
         assert hash(qiskit_circ1) == hash(qiskit_circ2)
-        assert qiskit_circ1 != qiskit_circ2
+        assert qiskit_circ1 == qiskit_circ2
         assert qiskit_circ1 == qiskit_circ1
+        assert qiskit_circ1 == qiskit_circ1.copy()
         assert hash(qiskit_circ1) == hash(qiskit_circ1.copy())
+
+        # Different structure -> different hash
+        qc3 = QuantumCircuit(2)
+        qc3.h(0)
+        qiskit_circ3 = QiskitCircuit(qc3)
+        assert hash(qiskit_circ1) != hash(qiskit_circ3)
+        assert qiskit_circ1 != qiskit_circ3
+
+        # Different num_qubits -> different
+        qc4 = QuantumCircuit(3)
+        qc4.h(0)
+        qc4.cx(0, 1)
+        qiskit_circ4 = QiskitCircuit(qc4)
+        assert qiskit_circ1 != qiskit_circ4
+
+        # circuit modification after hashing should change the hash
+        qc5 = QuantumCircuit(2)
+        qc5.h(0)
+        qiskit_circ5 = QiskitCircuit(qc5)
+        h_before = hash(qiskit_circ5)
+        qc5.cx(0, 1)
+        assert hash(qiskit_circ5) != h_before
+
+        # Comparison with non-circuit object
+        assert qiskit_circ1 != "not a circuit"
+        assert qiskit_circ1 != 42
 
     @pytest.mark.parametrize(
         "vec_name, vec_len, param_values, expected_unbound_count",

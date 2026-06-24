@@ -99,7 +99,7 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
     # ------------------------------------------------------------------
 
     def _add_clifford_single(self, name: str, qubits: int | List[int]) -> None:
-        targets = qubits if isinstance(qubits, (list, tuple)) else [qubits]
+        targets = (qubits,) if isinstance(qubits, int) else tuple(qubits)
         for q in targets:
             self._add(CliffordGate(name, (q,)))
 
@@ -117,7 +117,7 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
     # ------------------------------------------------------------------
 
     def _add_rotation_single(self, name: str, qubits: int | List[int], angle: Angle) -> None:
-        targets = qubits if isinstance(qubits, (list, tuple)) else [qubits]
+        targets = (qubits,) if isinstance(qubits, int) else tuple(qubits)
         for q in targets:
             self._add(RotationGate(name, (q,), angle))
 

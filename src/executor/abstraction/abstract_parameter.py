@@ -7,8 +7,6 @@ symbolically. The expressions can later be converted to a backend's native
 parameter type (e.g. a Qiskit ``ParameterVector``) by the circuit/operator
 converters.
 
-This layer deliberately does **not** depend on Qiskit, so circuits and
-operators can be defined independently of any quantum framework.
 """
 
 from __future__ import annotations

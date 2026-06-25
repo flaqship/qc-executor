@@ -64,6 +64,8 @@ dev = [
     "black[jupyter]",
     "pylint",
     "pytest",
+    "pytest-cov",
+    "diff-cover",
     "nbmake",
 ]
 docs = [

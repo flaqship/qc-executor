@@ -32,7 +32,7 @@ class PennyLaneCircuit:
 
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_circuit = transpile(
-            decompose_to_std(circuit._qiskit_circuit),
+            decompose_to_std(circuit.qiskit_circuit),
             target=pennylane_target,
             optimization_level=0,
         )
@@ -61,6 +61,8 @@ class PennyLaneCircuit:
     @property
     def pennylane_circuit(self) -> Optional[Callable]:
         """PennyLane circuit that can be called with parameters"""
+        if self._pennylane_circuit is None:
+            self._pennylane_circuit = self.build_pennylane_circuit()
         return self._pennylane_circuit
 
     @property
@@ -78,16 +80,8 @@ class PennyLaneCircuit:
         """Hashable object of the circuit and observable for caching"""
         return hash(str(self._qiskit_circuit))
 
-    def get_pennylane_circuit(self) -> Callable:
-        """Builds and returns the PennyLane circuit as callable function"""
-        circuit = self.build_pennylane_circuit()
-        self._pennylane_circuit = circuit
-        return circuit
-
     def __call__(self, *args, **kwargs):
-        if self._pennylane_circuit is None:
-            raise RuntimeError("Call get_pennylane_circuit() before invoking the circuit.")
-        return self._pennylane_circuit(*args, **kwargs)
+        return self.pennylane_circuit(*args, **kwargs)
 
     def _get_gate_condition(self, circuit: QiskitQuantumCircuit, gate_operation: Any):
         """Get the classical condition for a gate, or None if unconditional."""

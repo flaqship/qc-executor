@@ -1035,9 +1035,7 @@ class QiskitExecutor(ExecutorBase):
         uses_ibm_backend = self._isa_transpile
 
         def _to_qiskit(c):
-            if hasattr(c, "_qiskit_circuit"):
-                return c._qiskit_circuit  # pylint: disable=protected-access
-            return c
+            return getattr(c, "qiskit_circuit", c)
 
         if isinstance(circuit, List):
             raw_circuits = [_to_qiskit(c) for c in circuit]
@@ -1058,9 +1056,7 @@ class QiskitExecutor(ExecutorBase):
             return circuit_tree, None
 
         def _to_operator(o):
-            if hasattr(o, "_qiskit_operator"):
-                return o._qiskit_operator  # pylint: disable=protected-access
-            return o
+            return getattr(o, "qiskit_operator", o)
 
         if isinstance(operator, List):
             ops = [_to_operator(o) for o in operator]
@@ -1104,10 +1100,10 @@ class QiskitExecutor(ExecutorBase):
 
         # helper to get the underlying qiskit objects
         def _unwrap(obj):
-            if hasattr(obj, "_qiskit_circuit"):
-                return obj._qiskit_circuit  # pylint: disable=protected-access
-            if hasattr(obj, "_qiskit_operator"):
-                return obj._qiskit_operator  # pylint: disable=protected-access
+            if hasattr(obj, "qiskit_circuit"):
+                return obj.qiskit_circuit
+            if hasattr(obj, "qiskit_operator"):
+                return obj.qiskit_operator
             return obj
 
         def _collect_objects(obj_or_list):
@@ -1296,31 +1292,19 @@ class QiskitExecutor(ExecutorBase):
         # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
         if isinstance(circuit, list):
-            circuit_param_set = set(
-                circuit[0]._qiskit_circuit.parameters  # pylint: disable=protected-access
-            )
+            circuit_param_set = set(getattr(circuit[0], "qiskit_circuit", circuit[0]).parameters)
         else:
-            if hasattr(circuit, "_qiskit_circuit"):
-                circ = circuit._qiskit_circuit  # pylint: disable=protected-access
-            else:
-                circ = circuit
+            circ = getattr(circuit, "qiskit_circuit", circuit)
             circuit_param_set = set(circ.parameters)
 
         if observable is not None:
             if isinstance(observable, list):
                 observable_param_set: set = set()
                 for obs in observable:
-                    if hasattr(obs, "_qiskit_operator"):
-                        obs_obj = obs._qiskit_operator  # pylint: disable=protected-access
-                    else:
-                        obs_obj = obs
+                    obs_obj = getattr(obs, "qiskit_operator", obs)
                     observable_param_set |= set(obs_obj.parameters)
             else:
-                obs_obj = (
-                    observable._qiskit_operator  # pylint: disable=protected-access
-                    if hasattr(observable, "_qiskit_operator")
-                    else observable
-                )
+                obs_obj = getattr(observable, "qiskit_operator", observable)
                 observable_param_set = set(obs_obj.parameters)
         else:
             observable_param_set = set()
@@ -1432,14 +1416,7 @@ class QiskitExecutor(ExecutorBase):
 
         is_list_input = isinstance(circuit, list)
         raw_circuits_for_nq = circuit if is_list_input else [circuit]
-        n_qubits_list = [
-            (
-                c._qiskit_circuit  # pylint: disable=protected-access
-                if hasattr(c, "_qiskit_circuit")
-                else c
-            ).num_qubits
-            for c in raw_circuits_for_nq
-        ]
+        n_qubits_list = [getattr(c, "qiskit_circuit", c).num_qubits for c in raw_circuits_for_nq]
         counts_list = self._extract_counts(result, n_qubits_list[0])
 
         if not is_list_input:
@@ -1456,22 +1433,9 @@ class QiskitExecutor(ExecutorBase):
         """
         # Convert to OpTree but without ISA transpilation — use the raw circuit
         if isinstance(circuit, list):
-            raw_circuits = [
-                (
-                    c._qiskit_circuit  # pylint: disable=protected-access
-                    if hasattr(c, "_qiskit_circuit")
-                    else c
-                )
-                for c in circuit
-            ]
+            raw_circuits = [getattr(c, "qiskit_circuit", c) for c in circuit]
         else:
-            raw_circuits = [
-                (
-                    circuit._qiskit_circuit  # pylint: disable=protected-access
-                    if hasattr(circuit, "_qiskit_circuit")
-                    else circuit
-                )
-            ]
+            raw_circuits = [getattr(circuit, "qiskit_circuit", circuit)]
 
         # Prepare parameter dictionary
         circuit_dict, _ = self._prepare_parameter_dicts(
@@ -1501,11 +1465,9 @@ class QiskitExecutor(ExecutorBase):
             QiskitCircuit: The corresponding QiskitCircuit.
         """
         qc = QiskitCircuit(circuit)
-        isa_circuit = self._isa_transpile_qiskit_circuit(
-            qc._qiskit_circuit  # pylint: disable=protected-access
-        )
-        if isa_circuit is not qc._qiskit_circuit:  # pylint: disable=protected-access
-            return QiskitCircuit._from_qiskit(isa_circuit)  # pylint: disable=protected-access
+        isa_circuit = self._isa_transpile_qiskit_circuit(qc.qiskit_circuit)
+        if isa_circuit is not qc.qiskit_circuit:
+            return QiskitCircuit.from_qiskit(isa_circuit)
         return qc
 
     def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:

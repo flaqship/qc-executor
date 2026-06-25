@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
+from executor.pauli_propagation.utils.pauli_types import PauliSum
 from executor.pauli_propagation.utils.state_overlap import (
     overlap_with_computational,
     overlap_with_zero,
@@ -12,7 +12,6 @@ from executor.pauli_propagation.utils.state_overlap import (
 
 # Try to import qiskit for validation tests
 try:
-    from qiskit import QuantumCircuit
     from qiskit.quantum_info import Statevector
 
     QISKIT_AVAILABLE = True

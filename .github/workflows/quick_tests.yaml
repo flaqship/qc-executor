@@ -32,3 +32,34 @@ jobs:
 
       - name: Test with pytest
         run: uv run pytest tests/
+
+  coverage:
+    name: Coverage Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --group dev
+
+      - name: Generate coverage report
+        run: |
+          uv run pytest tests/ \
+            --cov=executor \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=95
+
+      - name: Check coverage of changed lines
+        run: |
+          uv run diff-cover coverage.xml \
+            --compare-branch=origin/${{ github.base_ref }} \
+            --fail-under=96

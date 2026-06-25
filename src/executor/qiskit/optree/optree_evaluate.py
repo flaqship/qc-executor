@@ -667,8 +667,7 @@ def _build_expectation_list(
             # If circuits are grouped, check if the same circuit is already in the list
             circuit_already_in_list = False
             if group_circuits:
-                # pylint: disable-next=protected-access
-                hashvalue_circuit = optree_element._circuit.hashvalue
+                hashvalue_circuit = optree_element.circuit_leaf.hashvalue
                 if hashvalue_circuit in circuit_dict:
                     index = circuit_dict[hashvalue_circuit]
                     circuit_already_in_list = True

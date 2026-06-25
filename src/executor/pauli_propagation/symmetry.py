@@ -46,7 +46,6 @@ class SymmetryStrategy(ABC):
         Returns:
             Canonical representative (integer, same encoding as input)
         """
-        ...
 
     @property
     @abstractmethod
@@ -55,7 +54,6 @@ class SymmetryStrategy(ABC):
 
         Used for debugging, logging, and statistics tracking.
         """
-        ...
 
 
 class NoSymmetry(SymmetryStrategy):
@@ -107,7 +105,8 @@ def _decode_pauli_to_string(term: int, nqubits: int) -> str:
     Returns:
         Human-readable Pauli string (e.g., "ZYXI", qubit 0 is leftmost)
     """
-    from .utils.pauli_algebra import term_to_string
+    # Imported lazily to avoid a circular import with the utils package.
+    from .utils.pauli_algebra import term_to_string  # pylint: disable=import-outside-toplevel
 
     return term_to_string(term, nqubits)
 

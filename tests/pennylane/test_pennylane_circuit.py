@@ -9,13 +9,26 @@ to PennyLane format, including:
 - Circuit properties and methods
 """
 
+from unittest.mock import MagicMock
+
 import numpy as np
+import pennylane as qml
 import pytest
-from qiskit.circuit import ParameterVector
+from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 
 from executor import QuantumCircuit
+from executor.parameters import Parameters
 from executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from executor.pennylane.pennylane_executor import PennyLaneExecutor
+
+
+def _build_conditioned_gate(qc, gate_name, qubit, clbits_or_creg, val):
+    """Helper function to build a circuit with a conditioned gate."""
+    getattr(qc, gate_name)(qubit)
+    op = qc.data[-1].operation.to_mutable()
+    op.condition = (clbits_or_creg, val)
+    qc.data[-1] = qc.data[-1].replace(operation=op)
+    return qc
 
 
 class TestPennyLaneCircuit:
@@ -153,7 +166,7 @@ class TestPennyLaneCircuit:
 
     def test_single_parameter(self):
         """Test circuit with a single parameter."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0])
 
@@ -163,7 +176,7 @@ class TestPennyLaneCircuit:
 
     def test_multiple_parameters_same_vector(self):
         """Test circuit with multiple parameters from the same vector."""
-        x = ParameterVector("x", 3)
+        x = Parameters("x", 3)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
@@ -175,8 +188,8 @@ class TestPennyLaneCircuit:
 
     def test_multiple_parameter_vectors(self):
         """Test circuit with multiple different parameter vectors."""
-        x = ParameterVector("x", 2)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 2)
+        y = Parameters("y", 1)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
@@ -190,7 +203,7 @@ class TestPennyLaneCircuit:
 
     def test_parametric_two_qubit_gates(self):
         """Test two-qubit gates with parameters."""
-        theta = ParameterVector("theta", 3)
+        theta = Parameters("theta", 3)
         qc = QuantumCircuit(2)
         qc.crx(0, 1, theta[0])
         qc.cry(0, 1, theta[1])
@@ -204,7 +217,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_multiplication(self):
         """Test parameter expression with multiplication: 2 * x[0]."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0])
 
@@ -213,7 +226,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_addition(self):
         """Test parameter expression with addition: x[0] + 0.5."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] + 0.5)
 
@@ -222,7 +235,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_subtraction(self):
         """Test parameter expression with subtraction: x[0] - 0.2."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] - 0.2)
 
@@ -231,7 +244,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_arithmetic_division(self):
         """Test parameter expression with division: x[0] / 2."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] / 2)
 
@@ -240,8 +253,8 @@ class TestPennyLaneCircuit:
 
     def test_parameter_multiplication_between_vectors(self):
         """Test parameter expression multiplying two different vectors: x[0] * y[0]."""
-        x = ParameterVector("x", 1)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 1)
+        y = Parameters("y", 1)
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.crx(0, 1, x[0] * y[0])
@@ -252,14 +265,15 @@ class TestPennyLaneCircuit:
 
     def test_complex_parameter_expression(self):
         """Test complex parameter expression: 2 * x[0] - 1."""
-        x = ParameterVector("x", 1)
+        x = Parameters("x", 1)
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0] - 1)
 
         plc = PennyLaneCircuit(qc)
         assert "x" in plc.parameter_names
 
-    # Properties and Methods Tests
+
+class TestPennyLanePropertiesAndMethods:
 
     def test_num_qubits_property(self):
         """Test that num_qubits property returns correct value."""
@@ -279,8 +293,8 @@ class TestPennyLaneCircuit:
 
     def test_parameter_names_property_with_params(self):
         """Test parameter_names property for parametric circuit."""
-        x = ParameterVector("x", 2)
-        y = ParameterVector("y", 1)
+        x = Parameters("x", 2)
+        y = Parameters("y", 1)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])
@@ -292,7 +306,7 @@ class TestPennyLaneCircuit:
 
     def test_parameter_dimensions_property(self):
         """Test parameter_dimensions property."""
-        x = ParameterVector("x", 3)
+        x = Parameters("x", 3)
         qc = QuantumCircuit(3)
         qc.rx(0, x[0])
         qc.rx(1, x[1])
@@ -333,14 +347,14 @@ class TestPennyLaneCircuit:
         pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(pennylane_circuit)
 
-    def test_get_pennylane_circuit_method(self):
+    def test_get_pennylane_circuit_property(self):
         """Test that get_pennylane_circuit() returns callable and sets property."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         plc = PennyLaneCircuit(qc)
 
-        pennylane_circuit = plc.get_pennylane_circuit()
+        pennylane_circuit = plc.pennylane_circuit
         assert callable(pennylane_circuit)
         assert hasattr(plc, "_pennylane_circuit")
 
@@ -353,6 +367,148 @@ class TestPennyLaneCircuit:
 
         plc._pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(plc)
+
+    def test_call_forwards_args_and_kwargs(self):
+        """Test that calling PennyLaneCircuit forwards args and kwargs to the internal circuit."""
+        qc = QuantumCircuit(1)
+        pl_circuit = PennyLaneCircuit(qc)
+
+        called_with = {}
+
+        def fake_pennylane_circuit(*args, **kwargs):
+            called_with["args"] = args
+            called_with["kwargs"] = kwargs
+            return "result"
+
+        pl_circuit._pennylane_circuit = fake_pennylane_circuit
+
+        result = pl_circuit([1, 2], foo="bar")
+
+        assert called_with["args"] == ([1, 2],)
+        assert called_with["kwargs"] == {"foo": "bar"}
+        assert result == "result"
+
+    def test_no_condition_returns_none(self):
+        """Test that _get_gate_condition returns None for gates without conditions."""
+        qc = QiskitQuantumCircuit(1)
+        qc.h(0)
+        gate_op = qc.data[0]
+
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)  # ohne __init__
+        result = pl_circuit._get_gate_condition(qc, gate_op)
+
+        assert result is None
+
+    def test_single_clbit_condition(self):
+        """Test that _get_gate_condition correctly identifies a single clbit condition."""
+        qc = QiskitQuantumCircuit(1, 1)
+        qc = _build_conditioned_gate(qc, "h", 0, qc.clbits[0], 1)
+        gate_op = qc.data[-1]
+
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        result = pl_circuit._get_gate_condition(qc, gate_op)
+
+        assert result == (0, 1)
+
+    def test_multi_clbit_condition(self):
+        """Test that _get_gate_condition correctly identifies a multi-clbit condition."""
+        qc = QiskitQuantumCircuit(1, 2)
+        qc = _build_conditioned_gate(qc, "h", 0, qc.cregs[0], 2)
+        gate_op = qc.data[-1]
+
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        result = pl_circuit._get_gate_condition(qc, gate_op)
+
+        bit_indices, val = result
+        assert bit_indices == [0, 1]
+        assert val == 2
+
+    def test_int_condition_match_executes_gate(self):
+        """Test that _apply_conditional_gate executes the gate when integer condition matches measurements."""
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        circuit_gate = MagicMock()
+        measurements = [1, 0]
+        condition = (0, 1)
+
+        pl_circuit._apply_conditional_gate(
+            circuit_gate, (0.5,), condition, measurements, wires=[0]
+        )
+
+        circuit_gate.assert_called_once_with(0.5, wires=[0])
+
+    def test_int_condition_no_match_skips_gate(self):
+        """Test that _apply_conditional_gate skips the gate when integer condition does not match measurements."""
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        circuit_gate = MagicMock()
+        measurements = [0, 0]
+        condition = (0, 1)
+
+        pl_circuit._apply_conditional_gate(
+            circuit_gate, (0.5,), condition, measurements, wires=[0]
+        )
+
+        circuit_gate.assert_not_called()
+
+    def test_int_condition_no_param_executes_gate(self):
+        """Test that _apply_conditional_gate executes the gate without parameters when integer condition matches measurements."""
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        circuit_gate = MagicMock()
+        measurements = [1]
+        condition = (0, 1)
+
+        pl_circuit._apply_conditional_gate(circuit_gate, None, condition, measurements, wires=[0])
+
+        circuit_gate.assert_called_once_with(wires=[0])
+
+    def test_multi_bit_condition_computes_value(self):
+        """Test that _apply_conditional_gate correctly computes the integer value from multiple bits and executes the gate if it matches the condition."""
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        circuit_gate = MagicMock()
+        measurements = [1, 1]
+        condition = ([0, 1], 3)
+
+        pl_circuit._apply_conditional_gate(circuit_gate, None, condition, measurements, wires=[2])
+
+        circuit_gate.assert_called_once_with(wires=[2])
+
+    def test_mid_circuit_measurement_condition_with_param(self, monkeypatch):
+        """Test that _apply_conditional_gate correctly uses qml.cond for mid-circuit measurement conditions with parameters."""
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        circuit_gate = MagicMock()
+        condition = (0, 1)
+
+        mock_measurement_value = MagicMock()
+        mock_measurement_value.__eq__ = MagicMock(return_value="comparison_result")
+        measurements = [mock_measurement_value]
+
+        mock_cond_fn = MagicMock()
+        mock_qml_cond = MagicMock(return_value=mock_cond_fn)
+        monkeypatch.setattr(qml, "cond", mock_qml_cond)
+
+        pl_circuit._apply_conditional_gate(
+            circuit_gate, (0.5,), condition, measurements, wires=[0]
+        )
+
+        mock_qml_cond.assert_called_once_with("comparison_result", circuit_gate)
+        mock_cond_fn.assert_called_once_with(0.5, wires=[0])
+
+    def test_mid_circuit_measurement_condition_no_param(self, monkeypatch):
+        """Test that _apply_conditional_gate correctly uses qml.cond for mid-circuit measurement conditions without parameters."""
+        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
+        circuit_gate = MagicMock()
+        condition = (0, 1)
+
+        mock_measurement_value = MagicMock()
+        mock_measurement_value.__eq__ = MagicMock(return_value="comparison_result")
+        measurements = [mock_measurement_value]
+
+        mock_cond_fn = MagicMock()
+        mock_qml_cond = MagicMock(return_value=mock_cond_fn)
+        monkeypatch.setattr(qml, "cond", mock_qml_cond)
+
+        pl_circuit._apply_conditional_gate(circuit_gate, None, condition, measurements, wires=[0])
+
+        mock_cond_fn.assert_called_once_with(wires=[0])
 
 
 class TestTranspileCircuitPennyLane:
@@ -388,7 +544,7 @@ class TestTranspileCircuitPennyLane:
 
     def test_parameterized_circuit_preserves_parameters(self):
         """Test that transpile_circuit preserves circuit parameters."""
-        x = ParameterVector("x", 2)
+        x = Parameters("x", 2)
         qc = QuantumCircuit(2)
         qc.rx(0, x[0])
         qc.ry(1, x[1])

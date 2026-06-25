@@ -229,6 +229,12 @@ class OpTreeCircuit(OpTreeLeafBase):
         """Returns the circuit that is represented by the leaf."""
         return self._circuit
 
+    @circuit.setter
+    def circuit(self, value: QuantumCircuit) -> None:
+        """Sets the circuit and updates the hash."""
+        self._circuit = value
+        self._hashvalue = OpTree.hash_circuit(value)
+
     @property
     def hashvalue(self) -> tuple:
         """Returns the hashvalue of the circuit."""
@@ -323,9 +329,19 @@ class OpTreeExpectationValue(OpTreeLeafBase):
         return self._circuit.circuit
 
     @property
+    def circuit_leaf(self) -> OpTreeCircuit:
+        """Returns the circuit leaf of the expectation value."""
+        return self._circuit
+
+    @property
     def operator(self) -> SparsePauliOp:
         """Returns the operator that is represented by the leaf."""
         return self._operator.operator
+
+    @property
+    def operator_leaf(self) -> OpTreeOperator:
+        """Returns the operator leaf of the expectation value."""
+        return self._operator
 
     @property
     def hashvalue(self) -> tuple:
@@ -809,14 +825,12 @@ class OpTree:
         elif isinstance(element, (OpTreeExpectationValue, OpTreeMeasuredOperator)):
             # Assign the parameters to the circuit and operator
             if inplace:
-                # pylint: disable=protected-access
-                element._circuit.circuit = element.circuit.assign_parameters(
+                element.circuit_leaf.circuit = element.circuit.assign_parameters(
                     [dictionary[p] for p in element.circuit.parameters]
                 )
-                element._operator.operator = element.operator.assign_parameters(
+                element.operator_leaf.operator = element.operator.assign_parameters(
                     [dictionary[p] for p in element.operator.parameters]
                 )
-                # pylint: enable=protected-access
             else:
                 return OpTreeExpectationValue(
                     element.circuit.assign_parameters(

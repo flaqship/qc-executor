@@ -1,5 +1,8 @@
 """Core Pauli data types: PauliString and PauliSum."""
 
+# The lazy import of pauli_types in pauli_algebra.pauli_sum_multiply is intentional.
+# pylint: disable=cyclic-import
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List
@@ -115,7 +118,8 @@ class PauliString:
         """
         if self.nqubits != other.nqubits:
             raise ValueError(
-                f"Cannot multiply PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}"
+                f"Cannot multiply PauliStrings with different nqubits: "
+                f"{self.nqubits} vs {other.nqubits}"
             )
 
         result_term, phase = pauli_multiply(int(self.term), int(other.term), self.nqubits)
@@ -134,7 +138,8 @@ class PauliString:
         """
         if self.nqubits != other.nqubits:
             raise ValueError(
-                f"Cannot compare PauliStrings with different nqubits: {self.nqubits} vs {other.nqubits}"
+                f"Cannot compare PauliStrings with different nqubits: "
+                f"{self.nqubits} vs {other.nqubits}"
             )
 
         return pauli_commutes(int(self.term), int(other.term), self.nqubits)
@@ -226,7 +231,8 @@ class PauliSum:
             from ..symmetry import PermutationSymmetry
             psum = PauliSum(4, symmetry=PermutationSymmetry())
         """
-        from ..symmetry import NoSymmetry
+        # Imported lazily to avoid a circular import with the symmetry module.
+        from ..symmetry import NoSymmetry  # pylint: disable=import-outside-toplevel
 
         self.nqubits = nqubits
         self.dtype = get_uint_type(nqubits)
@@ -312,7 +318,8 @@ class PauliSum:
         Returns:
             True if symmetry is not NoSymmetry, False otherwise
         """
-        from ..symmetry import NoSymmetry
+        # Imported lazily to avoid a circular import with the symmetry module.
+        from ..symmetry import NoSymmetry  # pylint: disable=import-outside-toplevel
 
         return not isinstance(self.symmetry, NoSymmetry)
 

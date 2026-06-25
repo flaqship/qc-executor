@@ -5,15 +5,19 @@ Implements quantum circuit execution using Heisenberg picture (Pauli propagation
 
 from __future__ import annotations
 
+import re
 import warnings
 from typing import TYPE_CHECKING, Dict, List, overload
 
 import numpy as np
+import sympy as sp
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import NoSymmetry
+from .utils.gates import CliffordGate, LayerBarrier, PauliRotation
+from .utils.pauli_algebra import term_to_string
 from .utils.pauli_types import PauliSum
 from .utils.propagation import propagate
 from .utils.qiskit_converter import bind_parameters
@@ -141,8 +145,6 @@ def _create_projector_observable(bitstring: str, nqubits: int) -> PauliSum:
             new_result.add_term(term, coeff / 2.0)
 
             # Add the Z component (apply Z to this qubit)
-            from .utils.pauli_algebra import term_to_string
-
             term_str = term_to_string(term, nqubits)
             term_list = list(term_str)
 
@@ -255,16 +257,16 @@ class PauliPropagationExecutor(ExecutorBase):
                 raise TypeError(
                     "PauliPropagationExecutor expects PauliPropagationCircuit inputs only."
                 )
-        for observable in observables:
-            if not isinstance(observable, PauliPropagationOperator):
+        for obs in observables:
+            if not isinstance(obs, PauliPropagationOperator):
                 raise TypeError(
                     "PauliPropagationExecutor expects PauliPropagationOperator inputs only."
                 )
 
         results = []
         for circ in circuits:
-            for observable in observables:
-                exp_val = self._compute_single_expectation(circ, observable, parameters)
+            for obs in observables:
+                exp_val = self._compute_single_expectation(circ, obs, parameters)
                 results.append(exp_val)
 
         if is_single_circuit and is_single_observable:
@@ -359,10 +361,7 @@ class PauliPropagationExecutor(ExecutorBase):
             If single param requested: numpy array or float of gradients
             If multiple params requested: dict mapping param names to gradient arrays
         """
-        import sympy as sp
-
-        from .utils.pauli_algebra import term_to_string
-
+        # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
         # Convert derivative params to string names (base parameter names without indices)
         param_names = []
         for p in derivative_params:
@@ -408,6 +407,11 @@ class PauliPropagationExecutor(ExecutorBase):
         circuit_params = set(native_circuit.parameters)
         uses_indexed_names = observable_params | circuit_params
         bound_circuit = native_circuit.assign_parameters(normalized_parameter_values)
+
+        # Hoisted copies of the parameter mappings (the properties return copies)
+        observable_symbols = native_observable.parameter_symbols
+        observable_parametric_coeffs = native_observable.parametric_coeffs
+        circuit_symbols = native_circuit.parameter_symbols
 
         # Compute gradients for each derivative parameter
         result_dict = {}
@@ -480,26 +484,22 @@ class PauliPropagationExecutor(ExecutorBase):
                     # Compute analytical derivative for observable coefficients
                     # Use the actual symbol from the observable's parameter dict
                     param_symbol = None
-                    if effective_param_name in native_observable._parameters:
-                        param_symbol = native_observable._parameters[effective_param_name]
-                    elif param_name in native_observable._parameters:
-                        param_symbol = native_observable._parameters[param_name]
-                    elif base_name in native_observable._parameters:
-                        param_symbol = native_observable._parameters[base_name]
+                    if effective_param_name in observable_symbols:
+                        param_symbol = observable_symbols[effective_param_name]
+                    elif param_name in observable_symbols:
+                        param_symbol = observable_symbols[param_name]
+                    elif base_name in observable_symbols:
+                        param_symbol = observable_symbols[base_name]
                     else:
                         # Try to find a matching symbol by name
-                        for sym_name, sym in native_observable._parameters.items():
-                            if sym_name == effective_param_name or sym_name == param_name:
+                        for sym_name, sym in observable_symbols.items():
+                            if sym_name in (effective_param_name, param_name):
                                 param_symbol = sym
                                 break
 
-                    if (
-                        param_symbol is not None
-                        and hasattr(native_observable, "_parametric_coeffs")
-                        and native_observable._parametric_coeffs
-                    ):
+                    if param_symbol is not None and observable_parametric_coeffs:
                         # Observable has parametric coefficients - iterate through them
-                        for term, coeff_expr in native_observable._parametric_coeffs.items():
+                        for term, coeff_expr in observable_parametric_coeffs.items():
                             # Check if parameter appears in this coefficient
                             if param_symbol in coeff_expr.free_symbols:
                                 # Compute derivative: dcoeff/dparam
@@ -526,13 +526,11 @@ class PauliPropagationExecutor(ExecutorBase):
 
                 # === CIRCUIT CONTRIBUTION ===
                 if in_circuit:
-                    effective_symbol = native_circuit._parameters.get(effective_param_name)
+                    effective_symbol = circuit_symbols.get(effective_param_name)
                     if effective_symbol is None and effective_param_name == base_name:
-                        effective_symbol = native_circuit._parameters.get(base_name)
+                        effective_symbol = circuit_symbols.get(base_name)
 
                     if effective_symbol is not None:
-                        from .utils.gates import PauliRotation
-
                         for gate_index, (source_gate, bound_gate) in enumerate(
                             zip(native_circuit.gates, bound_circuit.gates)
                         ):
@@ -554,30 +552,33 @@ class PauliPropagationExecutor(ExecutorBase):
                                 bound_gate, normalized_parameter_values
                             )
 
-                            shifted_plus_circuit = bound_circuit.copy()
-                            shifted_minus_circuit = bound_circuit.copy()
-
-                            shifted_plus_circuit._gates[gate_index] = PauliRotation(
-                                list(bound_gate.symbols),
-                                (
-                                    bound_gate.qubits
-                                    if len(bound_gate.qubits) > 1
-                                    else bound_gate.qubits[0]
+                            shifted_plus_circuit = bound_circuit.replace_gate(
+                                gate_index,
+                                PauliRotation(
+                                    list(bound_gate.symbols),
+                                    (
+                                        bound_gate.qubits
+                                        if len(bound_gate.qubits) > 1
+                                        else bound_gate.qubits[0]
+                                    ),
+                                    bound_circuit.num_qubits,
+                                    param_expr=None,
+                                    param_value=current_angle + np.pi / 2,
                                 ),
-                                shifted_plus_circuit.num_qubits,
-                                param_expr=None,
-                                param_value=current_angle + np.pi / 2,
                             )
-                            shifted_minus_circuit._gates[gate_index] = PauliRotation(
-                                list(bound_gate.symbols),
-                                (
-                                    bound_gate.qubits
-                                    if len(bound_gate.qubits) > 1
-                                    else bound_gate.qubits[0]
+                            shifted_minus_circuit = bound_circuit.replace_gate(
+                                gate_index,
+                                PauliRotation(
+                                    list(bound_gate.symbols),
+                                    (
+                                        bound_gate.qubits
+                                        if len(bound_gate.qubits) > 1
+                                        else bound_gate.qubits[0]
+                                    ),
+                                    bound_circuit.num_qubits,
+                                    param_expr=None,
+                                    param_value=current_angle - np.pi / 2,
                                 ),
-                                shifted_minus_circuit.num_qubits,
-                                param_expr=None,
-                                param_value=current_angle - np.pi / 2,
                             )
 
                             exp_plus = self.expectation_value(
@@ -609,35 +610,33 @@ class PauliPropagationExecutor(ExecutorBase):
                     return float(single_value[0])
                 return single_value
             return float(single_value)
-        else:
-            # For multiple parameters, group by base name if they're indexed
-            final_dict = {}
-            for key, value in result_dict.items():
-                if "[" in key:
-                    # Extract base name from indexed name
-                    import re
 
-                    match = re.match(r"(\w+)", key)
-                    if match:
-                        base_name = match.group(1)
-                        if base_name not in final_dict:
-                            final_dict[base_name] = {}
-                        # Extract index
-                        idx_match = re.search(r"\[(\d+)\]", key)
-                        idx = int(idx_match.group(1)) if idx_match else 0
-                        final_dict[base_name][idx] = value
-                else:
-                    # Base name format
-                    final_dict[key] = value
+        # For multiple parameters, group by base name if they're indexed
+        final_dict = {}
+        for key, value in result_dict.items():
+            if "[" in key:
+                # Extract base name from indexed name
+                match = re.match(r"(\w+)", key)
+                if match:
+                    base_name = match.group(1)
+                    if base_name not in final_dict:
+                        final_dict[base_name] = {}
+                    # Extract index
+                    idx_match = re.search(r"\[(\d+)\]", key)
+                    idx = int(idx_match.group(1)) if idx_match else 0
+                    final_dict[base_name][idx] = value
+            else:
+                # Base name format
+                final_dict[key] = value
 
-            # Convert indexed dicts to arrays
-            for key in final_dict:
-                if isinstance(final_dict[key], dict):
-                    indices = sorted(final_dict[key].keys())
-                    final_dict[key] = np.array([final_dict[key][i] for i in indices])
+        # Convert indexed dicts to arrays
+        for key, grouped_value in final_dict.items():
+            if isinstance(grouped_value, dict):
+                indices = sorted(grouped_value.keys())
+                final_dict[key] = np.array([grouped_value[i] for i in indices])
 
-            # Return dictionary for multiple parameters
-            return final_dict
+        # Return dictionary for multiple parameters
+        return final_dict
 
     @staticmethod
     def _apply_single_qubit_gate(
@@ -690,8 +689,6 @@ class PauliPropagationExecutor(ExecutorBase):
     def _simulate_statevector(
         self, circuit: PauliPropagationCircuit, parameters: Dict[str, float]
     ) -> np.ndarray:
-        from .utils.gates import CliffordGate, LayerBarrier, PauliRotation
-
         # Normalize parameters from list format to indexed format
         normalized_params = _normalize_parameters(parameters)
 
@@ -889,7 +886,7 @@ class PauliPropagationExecutor(ExecutorBase):
     ) -> PauliPropagationOperator: ...
 
     @overload
-    def transpile_operator(
+    def transpile_operator(  # pylint: disable=arguments-differ
         self,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy,
@@ -902,7 +899,7 @@ class PauliPropagationExecutor(ExecutorBase):
     ) -> List[PauliPropagationOperator]: ...
 
     @overload
-    def transpile_operator(
+    def transpile_operator(  # pylint: disable=arguments-differ
         self,
         operator: List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy,

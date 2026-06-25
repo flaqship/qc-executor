@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from qiskit.circuit import ParameterVector
 
-import executor.quantum_circuit as quantum_circuit_module
 from executor import QuantumCircuit
 from executor.parameters import Parameters
 from tests.test_utils import SpyCircuit
@@ -131,11 +130,9 @@ class TestQuantumCircuitPauliEvolution:
         with pytest.raises(ValueError, match="single Pauli strings"):
             circuit.pauli_evolution(operator, 0.5)
 
-    def test_pauli_evolution_rejects_complex_coefficients(self, monkeypatch):
+    def test_pauli_evolution_rejects_complex_coefficients(self):
         circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X"], coeffs=[1 + 1j])
-
-        monkeypatch.setattr(quantum_circuit_module.np, "real_if_close", lambda value: value)
 
         with pytest.raises(ValueError, match="Complex coefficients are not supported"):
             circuit.pauli_evolution(operator, 0.5)
@@ -205,11 +202,9 @@ class TestQuantumCircuitControlledPauliEvolution:
         with pytest.raises(TypeError, match="is not numeric"):
             circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
 
-    def test_controlled_pauli_evolution_rejects_complex_coefficients(self, monkeypatch):
+    def test_controlled_pauli_evolution_rejects_complex_coefficients(self):
         circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X"], coeffs=[1 + 1j])
-
-        monkeypatch.setattr(quantum_circuit_module.np, "real_if_close", lambda value: value)
 
         with pytest.raises(ValueError, match="Complex coefficients are not supported"):
             circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=0)

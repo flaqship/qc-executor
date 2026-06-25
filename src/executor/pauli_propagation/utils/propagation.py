@@ -10,11 +10,12 @@ from typing import Dict, List
 import numpy as np
 
 from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
+from .pauli_algebra import pauli_multiply
 from .pauli_types import PauliSum
 from .truncation import truncate_combined
 
 
-class PropagationCache:
+class PropagationCache:  # pylint: disable=too-few-public-methods
     """Cache for intermediate results during propagation.
 
     Stores main PauliSum and auxiliary PauliSum to minimize allocations.
@@ -98,10 +99,9 @@ def propagate_single_gate(
     """
     if isinstance(gate, PauliRotation):
         return _propagate_pauli_rotation(gate, psum, param_value)
-    elif isinstance(gate, CliffordGate):
+    if isinstance(gate, CliffordGate):
         return _propagate_clifford(gate, psum)
-    else:
-        raise TypeError(f"Unknown gate type: {type(gate)}")
+    raise TypeError(f"Unknown gate type: {type(gate)}")
 
 
 def _propagate_pauli_rotation(
@@ -145,8 +145,6 @@ def _propagate_pauli_rotation(
 
             # sin(θ) * R term from rotation formula
             # Compute P * Q
-            from .pauli_algebra import pauli_multiply
-
             pq_term, pq_phase = pauli_multiply(gate.generator_term, term, psum.nqubits)
             # The full coefficient is: coeff * sin(θ) * i * pq_phase
             # For exp(iθP/2) Q exp(-iθP/2) = cos(θ)Q + i*sin(θ)PQ

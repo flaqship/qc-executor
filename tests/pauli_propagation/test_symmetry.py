@@ -3,11 +3,10 @@
 import os
 import time
 
-import numpy as np
 import pytest
 
 from executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
+from executor.pauli_propagation.utils.pauli_types import PauliSum
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
 # and hardware differences. Set RUN_BENCHMARKS=1 to enable them.
@@ -32,6 +31,16 @@ class TestNoSymmetry:
         """NoSymmetry should have descriptive name."""
         sym = NoSymmetry()
         assert "no" in sym.name.lower() or "identity" in sym.name.lower()
+
+
+class TestSymmetryHelpers:
+    """Test helper functions in symmetry module."""
+
+    def test_decode_pauli_to_string_delegates_to_pauli_algebra(self):
+        from executor.pauli_propagation.symmetry import _decode_pauli_to_string
+
+        decoded = _decode_pauli_to_string(0b110001, 3)
+        assert decoded == "XIZ"
 
 
 class TestPermutationSymmetry:
@@ -253,6 +262,11 @@ class TestCompositeSymmetry:
         name = comp.name
         assert "composite" in name.lower()
         assert "permutation" in name.lower()
+
+    def test_name_empty_composition(self):
+        """Empty composition should expose dedicated name."""
+        comp = CompositeSymmetry()
+        assert comp.name == "composite(empty)"
 
 
 class TestPauliSumSymmetryIntegration:

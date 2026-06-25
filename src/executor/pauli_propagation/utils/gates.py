@@ -12,6 +12,7 @@ import numpy as np
 import sympy as sp
 
 from .pauli_algebra import commutes as pauli_commutes
+from .pauli_algebra import get_pauli, int_to_symbol, set_pauli, symbol_to_int
 
 
 class Gate(ABC):
@@ -40,12 +41,10 @@ class Gate(ABC):
         Returns:
             True if commutes, False if anticommutes
         """
-        pass
 
     @abstractmethod
     def is_parametric(self) -> bool:
         """Return True if gate has a parameter (like rotation angle)."""
-        pass
 
 
 class PauliRotation(Gate):
@@ -81,7 +80,8 @@ class PauliRotation(Gate):
 
         if len(symbols) != len(self.qubits):
             raise ValueError(
-                f"Number of symbols ({len(symbols)}) must match number of qubits ({len(self.qubits)})"
+                f"Number of symbols ({len(symbols)}) must match "
+                f"number of qubits ({len(self.qubits)})"
             )
 
         self.symbols = symbols
@@ -98,8 +98,6 @@ class PauliRotation(Gate):
 
         # Build the Pauli generator term (what we're rotating around)
         self.generator_term = 0
-        from .pauli_algebra import set_pauli, symbol_to_int
-
         for symbol, qubit in zip(symbols, self.qubits):
             pauli_int = symbol_to_int(symbol)
             self.generator_term = set_pauli(self.generator_term, qubit, pauli_int, nqubits)
@@ -232,19 +230,16 @@ class CliffordGate(Gate):
 
         if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
             return self._transform_single_qubit(pauli_term)
-        elif self.gate_type in ["CNOT", "CX"]:
+        if self.gate_type in ["CNOT", "CX"]:
             return self._transform_cnot(pauli_term)
-        elif self.gate_type == "CZ":
+        if self.gate_type == "CZ":
             return self._transform_cz(pauli_term)
-        elif self.gate_type == "SWAP":
+        if self.gate_type == "SWAP":
             return self._transform_swap(pauli_term)
-        else:
-            raise ValueError(f"Transformation not implemented for {self.gate_type}")
+        raise ValueError(f"Transformation not implemented for {self.gate_type}")
 
     def _transform_single_qubit(self, pauli_term: int):
         """Transform single-qubit Clifford gate."""
-        from .pauli_algebra import get_pauli, int_to_symbol, set_pauli, symbol_to_int
-
         qubit = self.qubits[0]
         pauli_int = get_pauli(pauli_term, qubit, self.nqubits)
         pauli_symbol = int_to_symbol(pauli_int)
@@ -278,8 +273,6 @@ class CliffordGate(Gate):
         - Z_c Y_t → I_c Y_t
         - Z_c Z_t → I_c Z_t
         """
-        from .pauli_algebra import get_pauli, set_pauli
-
         control = self.qubits[0]
         target = self.qubits[1]
 
@@ -303,9 +296,7 @@ class CliffordGate(Gate):
                 phase *= (-1) ** ((p_c == 2 or p_t == 2) and p_c * p_t != 0)
 
         if p_t == 3:  # Target is Z
-            # XOR control with Z
-            p_c_new = p_c ^ 3  # Toggle Z bit (special handling needed)
-            # Actually simpler: Z_t acts on control
+            # Z_t acts on control
             if p_c == 0:  # I_c Z_t → Z_c Z_t
                 new_term = set_pauli(new_term, control, 3, self.nqubits)
             elif p_c == 1:  # X_c Z_t → Y_c Y_t (with phase)
@@ -346,8 +337,6 @@ class CliffordGate(Gate):
         CZ is symmetric: both qubits are control/target.
         CZ transformation: X_i → X_i Z_j, Z → Z (identity on Z)
         """
-        from .pauli_algebra import get_pauli, set_pauli
-
         q0, q1 = self.qubits[0], self.qubits[1]
         p0 = get_pauli(pauli_term, q0, self.nqubits)
         p1 = get_pauli(pauli_term, q1, self.nqubits)
@@ -372,8 +361,6 @@ class CliffordGate(Gate):
 
     def _transform_swap(self, pauli_term: int):
         """Transform SWAP gate - exchanges Paulis on two qubits."""
-        from .pauli_algebra import get_pauli, set_pauli
-
         q0, q1 = self.qubits
         p0 = get_pauli(pauli_term, q0, self.nqubits)
         p1 = get_pauli(pauli_term, q1, self.nqubits)
@@ -390,7 +377,7 @@ class CliffordGate(Gate):
         return f"CliffordGate({self.gate_type}, qubits={qubits_str})"
 
 
-class LayerBarrier:
+class LayerBarrier:  # pylint: disable=too-few-public-methods
     """Marker class for circuit layer boundaries.
 
     LayerBarrier is not an actual quantum gate. It's a placeholder used to mark

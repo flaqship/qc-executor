@@ -17,31 +17,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module:
-          - name: executor-root
-            path: src/executor/*.py
-          - name: docs
-            path: docs/
-          - name: executor-utils
-            path: src/executor/utils/
-          - name: executor-base
-            path: src/executor/base/
-          - name: executor-qulacs
-            path: src/executor/qulacs/
-          - name: executor-pauli-propagation
-            path: src/executor/pauli_propagation/*.py
-          - name: executor-pauli-propagation-utils
-            path: src/executor/pauli_propagation/utils/
-          - name: executor-qiskit
-            path: src/executor/qiskit/*.py
-          - name: executor-qiskit-optree
-            path: src/executor/qiskit/optree/
-          - name: executor-pennylane
-            path: src/executor/pennylane/
+        include:
+          # Src: Run all checks on the source code
+          - name: source
+            path: src/executor
+            args: ""
+          # Tests: Only disable the checks that are meaningless for test code
           - name: tests
-            path: tests/
+            path: tests
+            args: >-
+              --disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,redefined-outer-name,protected-access
 
-    name: pylint (${{ matrix.module.name }})
+    name: pylint (${{ matrix.name }})
 
     steps:
       - uses: actions/checkout@v4
@@ -55,4 +42,4 @@ jobs:
         run: uv sync --all-extras --group dev
 
       - name: Run Pylint
-        run: uv run pylint ${{ matrix.module.path }}
+        run: uv run pylint ${{ matrix.path }} ${{ matrix.args }}

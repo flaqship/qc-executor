@@ -239,6 +239,24 @@ class QuantumCircuitBase(ABC, CircuitIdentityMixin):
                 self.h(working_qubits[q])
                 self.s(working_qubits[q])
 
+    def _apply_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
+        """Apply the forward CNOT ladder for Pauli evolution."""
+        if not qubits:
+            return
+        control = qubits[0]
+        for target in qubits[1:]:
+            self.cx(working_qubits[control], working_qubits[target])
+            control = target
+
+    def _undo_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
+        """Undo the CNOT ladder after the phase rotation."""
+        if not qubits:
+            return
+        control = qubits[-1]
+        for target in reversed(qubits[:-1]):
+            self.cx(working_qubits[target], working_qubits[control])
+            control = target
+
     def pauli_evolution(
         self,
         operator: QuantumOperatorBase,
@@ -279,21 +297,11 @@ class QuantumCircuitBase(ABC, CircuitIdentityMixin):
         # Apply basis change for non-trivial Paulis
         self._apply_basis_change(paulis, qubits, working_qubits)
 
-        # Apply controlled chain of CNOTs
         if qubits:
-            control = qubits[0]
-            for target in qubits[1:]:
-                self.cx(working_qubits[control], working_qubits[target])
-                control = target
-
+            self._apply_cnot_ladder(qubits, working_qubits)
             # Apply phase rotation on the last qubit
-            self.rz(working_qubits[qubits[-1]], 2 * float(np.real(coeff)))
-
-            # Undo controlled CNOT chain
-            control = qubits[-1]
-            for target in reversed(qubits[:-1]):
-                self.cx(working_qubits[target], working_qubits[control])
-                control = target
+            self.rz(working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
+            self._undo_cnot_ladder(qubits, working_qubits)
 
         # Undo basis change
         self._undo_basis_change(paulis, qubits, working_qubits)
@@ -341,21 +349,11 @@ class QuantumCircuitBase(ABC, CircuitIdentityMixin):
         # Apply basis change for non-trivial Paulis
         self._apply_basis_change(paulis, qubits, working_qubits)
 
-        # Apply controlled chain of CNOTs
         if qubits:
-            control = qubits[0]
-            for target in qubits[1:]:
-                self.cx(working_qubits[control], working_qubits[target])
-                control = target
-
+            self._apply_cnot_ladder(qubits, working_qubits)
             # Apply phase rotation on the last qubit
             self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
-
-            # Undo controlled CNOT chain
-            control = qubits[-1]
-            for target in reversed(qubits[:-1]):
-                self.cx(working_qubits[target], working_qubits[control])
-                control = target
+            self._undo_cnot_ladder(qubits, working_qubits)
 
         # Undo basis change
         self._undo_basis_change(paulis, qubits, working_qubits)

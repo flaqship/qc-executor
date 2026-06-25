@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from typing import List
 
-import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ParameterExpression
 
 from executor.parameters import Parameter
 
-from .base import QuantumCircuitBase, QuantumOperatorBase
+from .base import QuantumCircuitBase
 from .utils.qiskit_hash_functions import _circuit_key
 
 
@@ -176,158 +175,8 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add measure gates"""
         raise NotImplementedError
 
-    def pauli_string(self, pauli_string: str) -> None:
-        """Apply a Pauli string to the circuit.
-
-        Args:
-            pauli_string (str): Pauli string to apply to the circuit
-
-        """
-        if len(pauli_string) != self.num_qubits:
-            raise ValueError("Pauli string length does not match number of qubits")
-
-        for i, pauli in enumerate(pauli_string[::-1]):
-            if pauli == "X":
-                self.x(i)
-            elif pauli == "Y":
-                self.y(i)
-            elif pauli == "Z":
-                self.z(i)
-            elif pauli == "I":
-                pass  # Identity gate (I) can be skipped as it does nothing
-
-    def _apply_basis_change(
-        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
-    ) -> None:
-        """Apply pre-rotation basis change for Pauli evolution."""
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.sdag(working_qubits[q])
-                self.h(working_qubits[q])
-            elif p != "Z":
-                raise ValueError(f"Unknown Pauli operator: {p}")
-
-    def _undo_basis_change(
-        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
-    ) -> None:
-        """Undo the pre-rotation basis change after Pauli evolution."""
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.h(working_qubits[q])
-                self.s(working_qubits[q])
-
-    def _apply_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
-        """Apply the forward CNOT ladder for Pauli evolution."""
-        if not qubits:
-            return
-        control = qubits[0]
-        for target in qubits[1:]:
-            self.cx(working_qubits[control], working_qubits[target])
-            control = target
-
-    def _undo_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
-        """Undo the CNOT ladder after the phase rotation."""
-        if not qubits:
-            return
-        control = qubits[-1]
-        for target in reversed(qubits[:-1]):
-            self.cx(working_qubits[target], working_qubits[control])
-            control = target
-
-    def pauli_evolution(
-        self,
-        operator: QuantumOperatorBase,
-        parameter: Parameter | float,
-        working_qubits: List[int] | None = None,
-    ) -> None:
-        """
-        Applies Pauli evolution exp(itP) where P is a Pauli operator.
-
-        Args:
-            operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (Parameter | float): The evolution parameter.
-            working_qubits (List[int]): Optional: the qubits to use as working qubits.
-        """
-
-        pauli_str = operator.paulis[0]
-        coeff = operator.coeffs
-        if len(coeff) != 1:
-            raise ValueError("Only operators with single Pauli strings are supported")
-        coeff = coeff[0]
-
-        if not isinstance(coeff, (Parameter, ParameterExpression)):
-            coeff = np.real_if_close(coeff)
-            if isinstance(coeff, complex):
-                raise ValueError("Complex coefficients are not supported")
-        else:
-            # the 1j fixes a bug in qiskit
-            coeff = -1j * (1j * coeff)
-
-        coeff = coeff * parameter
-
-        qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
-        paulis = [p for p in pauli_str if p != "I"]
-
-        if working_qubits is None:
-            working_qubits = list(range(len(pauli_str)))
-
-        self._apply_basis_change(paulis, qubits, working_qubits)
-        if qubits:
-            self._apply_cnot_ladder(qubits, working_qubits)
-            self.rz(working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
-            self._undo_cnot_ladder(qubits, working_qubits)
-        self._undo_basis_change(paulis, qubits, working_qubits)
-
-    def controlled_pauli_evolution(
-        self,
-        operator: QuantumOperatorBase,
-        parameter: Parameter | float,
-        control_qubit: int,
-        working_qubits: List[int] | None = None,
-    ) -> None:
-        """
-        Applies controlled Pauli evolution exp(itP) where P is a Pauli operator.
-
-        Args:
-            operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (Parameter | float): The evolution parameter.
-            control_qubit (int): The qubit to control the evolution.
-            working_qubits (List[int]): Optional: the qubits to use as working qubits.
-        """
-
-        pauli_str = operator.paulis[0]
-        coeff = operator.coeffs
-
-        if len(coeff) != 1:
-            raise ValueError("Only operators with single Pauli strings are supported")
-        coeff = coeff[0] * parameter
-
-        if not isinstance(coeff, (Parameter, ParameterExpression)):
-            coeff = np.real_if_close(coeff)
-            if isinstance(coeff, complex):
-                raise ValueError("Complex coefficients are not supported")
-
-        qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
-        paulis = [p for p in pauli_str if p != "I"]
-
-        if len(paulis) == 0:
-            self.rz(control_qubit, float(np.real(-coeff)))
-            return
-
-        if working_qubits is None:
-            working_qubits = list(range(len(pauli_str) + 1))
-            working_qubits.remove(control_qubit)
-
-        self._apply_basis_change(paulis, qubits, working_qubits)
-        if qubits:
-            self._apply_cnot_ladder(qubits, working_qubits)
-            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
-            self._undo_cnot_ladder(qubits, working_qubits)
-        self._undo_basis_change(paulis, qubits, working_qubits)
+    # pauli_string, pauli_evolution and controlled_pauli_evolution are
+    # inherited from QuantumCircuitBase.
 
     def compose(self, qc: QuantumCircuitBase, qubits: List[int]) -> "QuantumCircuit":
         """Compose two quantum circuits."""

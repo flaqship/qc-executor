@@ -5,6 +5,7 @@ Handles conversion from various Qiskit operator types to our internal PauliSum r
 
 from __future__ import annotations
 
+from .pauli_algebra import term_to_string
 from .pauli_types import PauliSum
 
 # Qiskit imports with optional availability check
@@ -49,7 +50,7 @@ def convert_operator(operator, nqubits: int | None = None) -> PauliSum:
     if QISKIT_AVAILABLE:
         if isinstance(operator, SparsePauliOp):
             return _convert_sparse_pauli_op(operator)
-        elif isinstance(operator, Pauli):
+        if isinstance(operator, Pauli):
             return _convert_pauli(operator)
 
     raise ValueError(f"Unsupported operator type: {type(operator)}")
@@ -114,8 +115,6 @@ def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> "SparsePauliOp":
     """
     if not QISKIT_AVAILABLE:
         raise ValueError("Qiskit not available")
-
-    from .pauli_algebra import term_to_string
 
     pauli_strings = []
     coeffs = []

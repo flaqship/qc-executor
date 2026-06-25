@@ -10,7 +10,13 @@ import sympy as sp
 from executor.base.operator_base import QuantumOperatorBase
 
 from .symmetry import CompositeSymmetry, NoSymmetry
-from .utils.pauli_algebra import get_pauli, set_pauli, term_to_string
+from .utils.pauli_algebra import (
+    get_pauli,
+    pauli_multiply,
+    set_pauli,
+    string_to_term,
+    term_to_string,
+)
 from .utils.pauli_types import PauliSum
 
 if TYPE_CHECKING:
@@ -28,7 +34,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @overload
     @classmethod
-    def from_quantum_operator(
+    def from_quantum_operator(  # pylint: disable=arguments-differ
         cls,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy,
@@ -64,6 +70,9 @@ class PauliPropagationOperator(QuantumOperatorBase):
         num_qubits: int | None = None,
         pauli_sum: PauliSum | None = None,
         symmetry_strategy: SymmetryStrategy | None = None,
+        *,
+        parametric_coeffs: Dict[int, sp.Expr] | None = None,
+        parameter_symbols: Dict[str, sp.Symbol] | None = None,
     ):
         # Track symbolic coefficients separately
         self._parametric_coeffs: Dict[int, sp.Expr] = {}  # Maps term -> symbolic expr
@@ -99,8 +108,6 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
                     # Check if coefficient is symbolic
                     if isinstance(coeff_expr, sp.Expr) and len(coeff_expr.free_symbols) > 0:
-                        from .utils.pauli_algebra import string_to_term
-
                         term = string_to_term(pauli, self._num_qubits)
                         self._parametric_coeffs[term] = coeff_expr
                         # Track parameters
@@ -117,14 +124,23 @@ class PauliPropagationOperator(QuantumOperatorBase):
         else:
             raise ValueError("Provide either paulis, num_qubits, or pauli_sum.")
 
+        # Explicit parameter tracking, intended for use together with pauli_sum
+        # (e.g. when deriving a new operator from an existing one).
+        if parametric_coeffs is not None:
+            self._parametric_coeffs = dict(parametric_coeffs)
+        if parameter_symbols is not None:
+            self._parameters = dict(parameter_symbols)
+
         super().__init__(num_qubits=self._num_qubits)
 
     @property
     def pauli_sum(self) -> PauliSum:
+        """Return a copy of the underlying PauliSum."""
         return self._pauli_sum.copy()
 
     @property
     def symmetry(self):
+        """Return the symmetry strategy of the underlying PauliSum."""
         return self._pauli_sum.symmetry
 
     @symmetry.setter
@@ -133,6 +149,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @property
     def has_active_symmetry(self) -> bool:
+        """Return True if a non-trivial symmetry strategy is active."""
         return self._pauli_sum.has_active_symmetry
 
     @property
@@ -160,14 +177,26 @@ class PauliPropagationOperator(QuantumOperatorBase):
         return list(self._parameters.keys())
 
     @property
+    def parameter_symbols(self) -> Dict[str, sp.Symbol]:
+        """Return a copy of the parameter-name to sympy-symbol mapping."""
+        return dict(self._parameters)
+
+    @property
+    def parametric_coeffs(self) -> Dict[int, sp.Expr]:
+        """Return a copy of the term to symbolic-coefficient mapping."""
+        return dict(self._parametric_coeffs)
+
+    @property
     def num_parameters(self) -> int:
         return len(self._parameters)
 
     def copy(self) -> "PauliPropagationOperator":
-        result = PauliPropagationOperator(pauli_sum=self._pauli_sum.copy())
-        result._parametric_coeffs = dict(self._parametric_coeffs)
-        result._parameters = dict(self._parameters)
-        return result
+        """Return a deep copy of this operator."""
+        return PauliPropagationOperator(
+            pauli_sum=self._pauli_sum,
+            parametric_coeffs=self._parametric_coeffs,
+            parameter_symbols=self._parameters,
+        )
 
     def assign_parameters(self, parameters: Dict[str, float]) -> "PauliPropagationOperator":
         """Bind symbolic parameters to concrete values.
@@ -178,13 +207,11 @@ class PauliPropagationOperator(QuantumOperatorBase):
         Returns:
             New operator with parameters substituted
         """
-        result = self.copy()
-
         # Build substitution dict for sympy
         subs_dict = {}
         for param_name, param_value in parameters.items():
-            if param_name in result._parameters:
-                subs_dict[result._parameters[param_name]] = param_value
+            if param_name in self._parameters:
+                subs_dict[self._parameters[param_name]] = param_value
 
         # Substitute in parametric coefficients
         new_pauli_sum = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
@@ -207,25 +234,26 @@ class PauliPropagationOperator(QuantumOperatorBase):
                 # Non-parametric term, just copy
                 new_pauli_sum.add_term(term, coeff)
 
-        result._pauli_sum = new_pauli_sum
-        result._parametric_coeffs = new_parametric_coeffs
-
         # Update parameter tracking - remove fully bound parameters
-        remaining_params = {}
-        for param_name, param_symbol in result._parameters.items():
-            if param_name not in parameters:
-                remaining_params[param_name] = param_symbol
-        result._parameters = remaining_params
+        remaining_params = {
+            name: symbol for name, symbol in self._parameters.items() if name not in parameters
+        }
 
-        return result
+        return PauliPropagationOperator(
+            pauli_sum=new_pauli_sum,
+            parametric_coeffs=new_parametric_coeffs,
+            parameter_symbols=remaining_params,
+        )
 
     def adjoint(self) -> "PauliPropagationOperator":
-        result = self.copy()
-        conjugated = PauliSum(self._num_qubits, symmetry=result._pauli_sum.symmetry)
-        for term, coeff in result._pauli_sum:
+        conjugated = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
+        for term, coeff in self._pauli_sum:
             conjugated.add_term(term, np.conjugate(coeff))
-        result._pauli_sum = conjugated
-        return result
+        return PauliPropagationOperator(
+            pauli_sum=conjugated,
+            parametric_coeffs=self._parametric_coeffs,
+            parameter_symbols=self._parameters,
+        )
 
     def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationOperator":
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
@@ -241,14 +269,16 @@ class PauliPropagationOperator(QuantumOperatorBase):
             term_mapping[term] = remapped_term
             remapped.add_term(remapped_term, coeff)
 
-        result = PauliPropagationOperator(pauli_sum=remapped)
-        result._parametric_coeffs = {
+        remapped_coeffs = {
             term_mapping[old_term]: expr
             for old_term, expr in self._parametric_coeffs.items()
             if old_term in term_mapping
         }
-        result._parameters = dict(self._parameters)
-        return result
+        return PauliPropagationOperator(
+            pauli_sum=remapped,
+            parametric_coeffs=remapped_coeffs,
+            parameter_symbols=self._parameters,
+        )
 
     def compose(self, other: "QuantumOperatorBase") -> "PauliPropagationOperator":
         if not isinstance(other, PauliPropagationOperator):
@@ -258,19 +288,22 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
         composed_symmetry = self._compose_symmetry_with(other)
         composed_sum = PauliSum(self.num_qubits, symmetry=composed_symmetry)
+        other_sum = other.pauli_sum
         for left_term, left_coeff in self._pauli_sum:
-            for right_term, right_coeff in other._pauli_sum:
-                from .utils.pauli_algebra import pauli_multiply
-
+            for right_term, right_coeff in other_sum:
                 result_term, phase = pauli_multiply(left_term, right_term, self.num_qubits)
                 composed_sum.add_term(result_term, left_coeff * right_coeff * phase)
 
         return PauliPropagationOperator(pauli_sum=composed_sum)
 
     def append(self, pauli: str, coeff=None) -> "PauliPropagationOperator":
-        result = self.copy()
-        result._pauli_sum.add_term(pauli, 1.0 if coeff is None else coeff)
-        return result
+        new_sum = self._pauli_sum.copy()
+        new_sum.add_term(pauli, 1.0 if coeff is None else coeff)
+        return PauliPropagationOperator(
+            pauli_sum=new_sum,
+            parametric_coeffs=self._parametric_coeffs,
+            parameter_symbols=self._parameters,
+        )
 
     def simplify(self) -> "PauliPropagationOperator":
         # Terms are combined on insertion in PauliSum; copy is already simplified.

@@ -24,10 +24,7 @@ class QiskitCircuit(CircuitIdentityMixin):
             circuit: QuantumCircuit object (from executor.quantum_circuit)
         """
         # Extract the internal qiskit circuit
-        if hasattr(circuit, "_qiskit_circuit"):
-            self._qiskit_circuit = circuit._qiskit_circuit
-        else:
-            self._qiskit_circuit = circuit
+        self._qiskit_circuit = getattr(circuit, "qiskit_circuit", circuit)
 
         self._num_qubits = self._qiskit_circuit.num_qubits
 
@@ -88,7 +85,7 @@ class QiskitCircuit(CircuitIdentityMixin):
         return self._qiskit_circuit
 
     @classmethod
-    def _from_qiskit(cls, qiskit_circuit) -> "QiskitCircuit":
+    def from_qiskit(cls, qiskit_circuit) -> "QiskitCircuit":
         """Create a :class:`QiskitCircuit` directly from a Qiskit ``QuantumCircuit``.
 
         This bypasses the normal ``__init__`` path which expects

@@ -569,9 +569,13 @@ class TestOpTreeAssignParameters:
         assigned = OpTree.assign_parameters(leaf, {p[0]: 0.5})
         assert isinstance(assigned, OpTreeCircuit)
         assert len(assigned.circuit.parameters) == 0
+        # copy branch must not mutate the original leaf
+        assert len(leaf.circuit.parameters) == 1
 
-        with pytest.raises(AttributeError):
-            OpTree.assign_parameters(leaf, {p[0]: 0.5}, inplace=True)
+        # inplace branch returns None and binds the parameter on the original leaf
+        result = OpTree.assign_parameters(leaf, {p[0]: 0.5}, inplace=True)
+        assert result is None
+        assert len(leaf.circuit.parameters) == 0
 
     def test_assign_parameters_inplace_on_expectation_and_operator(self):
         """Check inplace branches for expectation/measured and operator leaves."""
@@ -600,5 +604,24 @@ class TestOpTreeAssignParameters:
         child = OpTreeCircuit(qc)
         tree = OpTreeList([child], factor_list=[2.0 * p[0]])
 
-        with pytest.raises(AttributeError):
-            OpTree.assign_parameters(tree, {p[0]: 0.5}, inplace=True)
+        result = OpTree.assign_parameters(tree, {p[0]: 0.5}, inplace=True)
+
+        # inplace assignment returns None and mutates the tree in place: the child
+        # circuit's parameter is bound and the parameter-expression factor is reduced
+        # to a plain float (2.0 * 0.5).
+        assert result is None
+        assert len(child.circuit.parameters) == 0
+        assert tree.factor[0] == pytest.approx(1.0)
+
+    def test_assign_parameters_inplace_on_bare_leaves_raises(self):
+        """Inplace assignment on bare QuantumCircuit / SparsePauliOp must raise."""
+        p = Parameters("p", 1)
+        qc = QuantumCircuit(1)
+        qc.rx(p[0], 0)
+
+        with pytest.raises(ValueError, match="bare QuantumCircuit"):
+            OpTree.assign_parameters(qc, {p[0]: 0.5}, inplace=True)
+
+        op = SparsePauliOp(["Z"], [p[0]])
+        with pytest.raises(ValueError, match="bare SparsePauliOp"):
+            OpTree.assign_parameters(op, {p[0]: 0.5}, inplace=True)

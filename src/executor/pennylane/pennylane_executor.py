@@ -13,8 +13,7 @@ import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
 from pennylane.devices import Device
-from qiskit.circuit import ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
+from executor.parameters import Parameter, Parameters
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit
@@ -422,7 +421,7 @@ class PennyLaneExecutor(ExecutorBase):
         slicing = []
         pennylane_derivative = pennylane_function
         for todo_parameter in todo:
-            if isinstance(todo_parameter, (ParameterVector, ParameterVectorElement)):
+            if isinstance(todo_parameter, (Parameters, Parameter)):
                 todo_parameter = str(todo_parameter)
             todo_parameter_name = _remove_brackets(todo_parameter)
             if todo_parameter_name == todo_parameter:
@@ -459,7 +458,7 @@ class PennyLaneExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase],
-        *values: str | ParameterVector | ParameterVectorElement | tuple,
+        *values: str | Parameters | Parameter | tuple,
         **parameter_values,
     ) -> float | np.ndarray | dict:
         """

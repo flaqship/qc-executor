@@ -375,28 +375,29 @@ class TestExecutorHelperFunctions:
         with pytest.raises(ValueError, match="doesn't match nqubits"):
             _create_projector_observable("01", 1)
 
-        monkeypatch.setattr(
-            "executor.pauli_propagation.utils.pauli_algebra.term_to_string",
-            lambda term, nqubits: "X",
-        )
-        _create_projector_observable("0", 1)
+        # term_to_string is imported into the executor module's namespace, so it must
+        # be patched there (not on its source module) for the patch to take effect.
+        target = "executor.pauli_propagation.pauli_propagation_executor.term_to_string"
 
-        monkeypatch.setattr(
-            "executor.pauli_propagation.utils.pauli_algebra.term_to_string",
-            lambda term, nqubits: "Y",
-        )
-        _create_projector_observable("0", 1)
+        # X branch: I -> Z component picks up X -> Y with phase 1j.
+        monkeypatch.setattr(target, lambda term, nqubits: "X")
+        result = _create_projector_observable("0", 1)
+        assert result.get_coeff("I") == pytest.approx(0.5)
+        assert result.get_coeff("Y") == pytest.approx(0.5j)
 
-        monkeypatch.setattr(
-            "executor.pauli_propagation.utils.pauli_algebra.term_to_string",
-            lambda term, nqubits: "Z",
-        )
-        _create_projector_observable("0", 1)
+        # Y branch: X -> Y -> X with phase -1j.
+        monkeypatch.setattr(target, lambda term, nqubits: "Y")
+        result = _create_projector_observable("0", 1)
+        assert result.get_coeff("I") == pytest.approx(0.5)
+        assert result.get_coeff("X") == pytest.approx(-0.5j)
 
-        monkeypatch.setattr(
-            "executor.pauli_propagation.utils.pauli_algebra.term_to_string",
-            lambda term, nqubits: "A",
-        )
+        # Z branch: Z -> I with phase 1, doubling the existing I component.
+        monkeypatch.setattr(target, lambda term, nqubits: "Z")
+        result = _create_projector_observable("0", 1)
+        assert result.get_coeff("I") == pytest.approx(1.0)
+
+        # Unknown Pauli symbol raises.
+        monkeypatch.setattr(target, lambda term, nqubits: "A")
         with pytest.raises(ValueError, match="Unknown Pauli"):
             _create_projector_observable("0", 1)
 

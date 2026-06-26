@@ -13,19 +13,19 @@ from qiskit.primitives import (
 from qiskit.providers import Backend
 from qiskit.quantum_info import Statevector
 
-from executor.base.circuit_base import QuantumCircuitBase
-from executor.base.executor_base import ExecutorBase
-from executor.base.operator_base import QuantumOperatorBase
-from executor.qiskit.optree import OpTreeDerivative, OpTreeEvaluate
-from executor.qiskit.optree.optree import (
+from qc_executor.base.circuit_base import QuantumCircuitBase
+from qc_executor.base.executor_base import ExecutorBase
+from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.qiskit.optree import OpTreeDerivative, OpTreeEvaluate
+from qc_executor.qiskit.optree.optree import (
     OpTreeCircuit,
     OpTreeList,
     OpTreeNodeBase,
     OpTreeOperator,
 )
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_operator import QiskitOperator
-from executor.utils.qiskit_compat import (
+from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
+from qc_executor.qiskit.qiskit_operator import QiskitOperator
+from qc_executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
     QISKIT_RUNTIME_SMALLER_0_23,
@@ -193,7 +193,7 @@ def _load_aer_simulator():
         raise ImportError(
             "qiskit-aer is required for 'backend=\"aer\"' and for shot-based "
             "sampling with 'backend=\"statevector\"'. Install with: "
-            "pip install executor[qiskit-full]"
+            "pip install qc-executor[qiskit-full]"
         ) from e
     return AerSimulator
 
@@ -203,7 +203,7 @@ def _check_runtime_available():
     if not QISKIT_RUNTIME_AVAILABLE:
         raise ImportError(
             "qiskit-ibm-runtime is required for IBM backend support. "
-            "Install with: pip install executor[qiskit-full]"
+            "Install with: pip install qc-executor[qiskit-full]"
         )
 
 

@@ -95,7 +95,7 @@ def _decode_pauli_to_string(term: int, nqubits: int) -> str:
     """Convert Pauli term integer to human-readable string.
 
     Helper function for debugging and testing. Delegates to
-    :func:`~executor.pauli_propagation.utils.pauli_algebra.term_to_string` so
+    :func:`~qc_executor.pauli_propagation.utils.pauli_algebra.term_to_string` so
     that the qubit-ordering convention is defined in a single place.
 
     Args:

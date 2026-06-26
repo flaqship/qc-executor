@@ -1,7 +1,7 @@
 """Qiskit backend for the executor framework."""
 
 # Register QiskitExecutor with the factory
-from executor.factory import Executor
+from qc_executor.factory import Executor
 
 from .qiskit_circuit import QiskitCircuit
 from .qiskit_operator import QiskitOperator
@@ -13,7 +13,7 @@ except ImportError as e:
 
     warnings.warn(
         f"Qiskit executor backend not available: {e}. "
-        "Install with: pip install executor[qiskit-full]",
+        "Install with: pip install qc-executor[qiskit-full]",
         UserWarning,
     )
 

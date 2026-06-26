@@ -3,7 +3,7 @@ requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "executor"
+name = "qc-executor"
 description = "Abstraction layer for quantum circuits and operators across multiple backends."
 readme = "README.md"
 authors = [
@@ -53,11 +53,11 @@ all = [
     "qiskit-ibm-runtime>=0.18.0",
 ]
 
-[project.entry-points."executor.backends"]
-pennylane = "executor.pennylane:PennyLaneExecutor"
-qiskit = "executor.qiskit:QiskitExecutor"
-qulacs = "executor.qulacs:QulacsExecutor"
-pauli_propagation = "executor.pauli_propagation:PauliPropagationExecutor"
+[project.entry-points."qc_executor.backends"]
+pennylane = "qc_executor.pennylane:PennyLaneExecutor"
+qiskit = "qc_executor.qiskit:QiskitExecutor"
+qulacs = "qc_executor.qulacs:QulacsExecutor"
+pauli_propagation = "qc_executor.pauli_propagation:PauliPropagationExecutor"
 
 [dependency-groups]
 dev = [
@@ -71,6 +71,7 @@ dev = [
 docs = [
     "sphinx>=7.0",
     "sphinx-autodoc-typehints",
+    "myst-parser>=2.0",
 ]
 examples = [
     "nbmake",
@@ -85,10 +86,10 @@ examples = [
 managed = true
 
 [tool.hatch.version]
-path = "src/executor/__init__.py"
+path = "src/qc_executor/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/executor"]
+packages = ["src/qc_executor"]
 
 [tool.black]
 line-length = 99

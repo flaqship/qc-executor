@@ -3,9 +3,9 @@ import logging
 import numpy as np
 import pytest
 
-from executor import QuantumCircuit, QuantumOperator
-from executor.parameters import Parameters
-from executor.qulacs import QulacsCircuit, QulacsExecutor, QulacsOperator
+from qc_executor import QuantumCircuit, QuantumOperator
+from qc_executor.parameters import Parameters
+from qc_executor.qulacs import QulacsCircuit, QulacsExecutor, QulacsOperator
 
 
 def _build_circuit(num_qubits, operations):

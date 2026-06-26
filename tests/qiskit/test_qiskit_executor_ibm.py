@@ -12,17 +12,17 @@ from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 from qiskit.providers import Backend
 from qiskit_ibm_runtime import Batch, Session
 
-from executor import Executor, QuantumCircuit
-from executor.parameters import Parameters
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_executor import (
+from qc_executor import Executor, QuantumCircuit
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
+from qc_executor.qiskit.qiskit_executor import (
     QiskitExecutor,
     _classify_backend,
     _is_backend_instance,
     _resolve_backend_from_session_or_batch,
 )
-from executor.quantum_operator import QuantumOperator
-from executor.utils.qiskit_compat import (
+from qc_executor.quantum_operator import QuantumOperator
+from qc_executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
     QISKIT_RUNTIME_SMALLER_0_23,
@@ -367,7 +367,7 @@ class TestIBMInternalHelpers:
         assert primitive.kwargs["options"] == {"a": 1}
 
     def test_instantiate_runtime_primitive_v1_uses_backend_and_options(self, monkeypatch):
-        from executor.qiskit import qiskit_executor as qiskit_executor_module
+        from qc_executor.qiskit import qiskit_executor as qiskit_executor_module
 
         executor = object.__new__(QiskitExecutor)
         executor._ibm_quantum_backend = False
@@ -541,7 +541,7 @@ class TestExecutorFactoryQiskitAutoDetection:
 
         # All returned types must originate from a real package, not from
         # the executor module itself.
-        executor_module = "executor.qiskit.qiskit_executor"
+        executor_module = "qc_executor.qiskit.qiskit_executor"
         for t in accepted:
             assert (
                 getattr(t, "__module__", "") != executor_module

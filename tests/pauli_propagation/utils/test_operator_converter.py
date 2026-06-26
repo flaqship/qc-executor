@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils import operator_converter
-from executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.pauli_propagation.utils import operator_converter
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
 
 
 class TestConvertOperatorString:
@@ -59,7 +59,7 @@ class TestQiskitAvailabilityGuards:
         import importlib
         import sys
 
-        module_name = "executor.pauli_propagation.utils.operator_converter"
+        module_name = "qc_executor.pauli_propagation.utils.operator_converter"
         real_import = builtins.__import__
 
         def fake_import(name, globals=None, locals=None, fromlist=(), level=0):

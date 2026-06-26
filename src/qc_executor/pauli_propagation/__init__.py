@@ -4,7 +4,7 @@ A Python implementation of Pauli propagation for efficient quantum circuit simul
 in the Heisenberg picture. Based on PauliPropagation.jl.
 """
 
-from executor.factory import Executor
+from qc_executor.factory import Executor
 
 from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_executor import PauliPropagationExecutor

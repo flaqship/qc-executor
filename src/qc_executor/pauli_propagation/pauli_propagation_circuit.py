@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Sequence
 
 import sympy as sp
 
-from executor.base.circuit_base import QuantumCircuitBase
-from executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
+from qc_executor.base.circuit_base import QuantumCircuitBase
+from qc_executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
 
 from .utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 

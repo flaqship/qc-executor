@@ -161,7 +161,7 @@ class ExecutorBase(ABC):
     def switch_backend(self, backend: Any, **overrides) -> "ExecutorBase":
         """Switch to a different backend while preserving configuration.
 
-        Delegates to :meth:`Executor.switch_backend <executor.factory.Executor.switch_backend>`.
+        Delegates to :meth:`Executor.switch_backend <qc_executor.factory.Executor.switch_backend>`.
 
         Args:
             backend: Name of the backend (e.g., ``"qiskit"``, ``"pennylane"``)
@@ -171,7 +171,7 @@ class ExecutorBase(ABC):
         Returns:
             ExecutorBase: New executor instance with the specified backend
         """
-        from executor.factory import (  # pylint: disable=import-outside-toplevel,cyclic-import
+        from qc_executor.factory import (  # pylint: disable=import-outside-toplevel,cyclic-import
             Executor,
         )
 

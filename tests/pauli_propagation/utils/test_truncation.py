@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from executor.pauli_propagation.utils.pauli_types import PauliSum
-from executor.pauli_propagation.utils.truncation import (
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.pauli_propagation.utils.truncation import (
     TruncationStats,
     truncate_by_coeff,
     truncate_by_weight,

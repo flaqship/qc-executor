@@ -4,8 +4,13 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from executor.pauli_propagation.utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
-from executor.pauli_propagation.utils.pauli_algebra import string_to_term
+from qc_executor.pauli_propagation.utils.gates import (
+    CliffordGate,
+    Gate,
+    LayerBarrier,
+    PauliRotation,
+)
+from qc_executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 
 class TestPauliRotation:

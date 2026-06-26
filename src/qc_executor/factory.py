@@ -179,7 +179,7 @@ class Executor:
     def _discover_plugins(cls) -> None:
         """Discover and load plugins via entry points.
 
-        This method searches for entry points in the 'executor.backends' group
+        This method searches for entry points in the 'qc_executor.backends' group
         and loads them. Loading a plugin module triggers its @register decorator,
         which adds the backend to the registry.
         """
@@ -188,15 +188,17 @@ class Executor:
         # Get entry points for executor backends
         try:
             # Python 3.10+ API: supports group keyword argument
-            eps = entry_points(group="executor.backends")
+            eps = entry_points(group="qc_executor.backends")
         except TypeError:
             # Python < 3.10: entry_points() returns a dict-like mapping
             _all_eps = entry_points()
             _select = getattr(_all_eps, "select", None)
             if callable(_select):
-                eps = cast(list, _select(group="executor.backends"))
+                eps = cast(list, _select(group="qc_executor.backends"))
             else:
-                eps = cast(list, getattr(_all_eps, "get", lambda *a: [])("executor.backends", []))
+                eps = cast(
+                    list, getattr(_all_eps, "get", lambda *a: [])("qc_executor.backends", [])
+                )
 
         # Load each entry point
         for ep in eps:
@@ -229,7 +231,7 @@ class Executor:
         )
         if backend_key is not None:
             extra_name = cls._backend_extra_map[backend_key]
-            message += f" Install with: pip install executor[{extra_name}]"
+            message += f" Install with: pip install qc-executor[{extra_name}]"
         return ValueError(message)
 
     @classmethod

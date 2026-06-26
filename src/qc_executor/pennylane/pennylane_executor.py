@@ -14,7 +14,7 @@ import pennylane as qml
 import pennylane.numpy as pnp
 from pennylane.devices import Device
 
-from executor.parameters import Parameter, Parameters
+from qc_executor.parameters import Parameter, Parameters
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit

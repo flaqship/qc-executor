@@ -6,17 +6,17 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from executor import QuantumCircuit, QuantumOperator
-from executor.parameters import Parameters
-from executor.pauli_propagation import (
+from qc_executor import QuantumCircuit, QuantumOperator
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationOperator,
 )
-from executor.pauli_propagation import pauli_propagation_executor as ppe
-from executor.pauli_propagation.pauli_propagation_executor import _create_projector_observable
-from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
-from executor.pauli_propagation.utils.pauli_algebra import string_to_term
+from qc_executor.pauli_propagation import pauli_propagation_executor as ppe
+from qc_executor.pauli_propagation.pauli_propagation_executor import _create_projector_observable
+from qc_executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from qc_executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 
 class TestPauliPropagationExecutor:
@@ -377,7 +377,7 @@ class TestExecutorHelperFunctions:
 
         # term_to_string is imported into the executor module's namespace, so it must
         # be patched there (not on its source module) for the patch to take effect.
-        target = "executor.pauli_propagation.pauli_propagation_executor.term_to_string"
+        target = "qc_executor.pauli_propagation.pauli_propagation_executor.term_to_string"
 
         # X branch: I -> Z component picks up X -> Y with phase 1j.
         monkeypatch.setattr(target, lambda term, nqubits: "X")

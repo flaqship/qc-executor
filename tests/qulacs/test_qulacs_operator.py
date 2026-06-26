@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from qulacs import GeneralQuantumOperator, PauliOperator
 
-from executor import QuantumOperator
-from executor.parameters import Parameters
-from executor.qulacs import QulacsOperator
+from qc_executor import QuantumOperator
+from qc_executor.parameters import Parameters
+from qc_executor.qulacs import QulacsOperator
 
 
 class TestQulacsOperatorProperties:

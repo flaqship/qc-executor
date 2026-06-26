@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import List
 
-from executor.qiskit._param_binding import build_params_dict
+from qc_executor.qiskit._param_binding import build_params_dict
 
 
 class QiskitCircuit:
@@ -19,7 +19,7 @@ class QiskitCircuit:
         Initialize QiskitCircuit wrapper.
 
         Args:
-            circuit: QuantumCircuit object (from executor.quantum_circuit)
+            circuit: QuantumCircuit object (from qc_executor.quantum_circuit)
         """
         # Extract the internal qiskit circuit
         self._qiskit_circuit = getattr(circuit, "qiskit_circuit", circuit)

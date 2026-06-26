@@ -2,8 +2,8 @@
 
 import pytest
 
-from executor.base.executor_base import ExecutorBase
-from executor.factory import Executor
+from qc_executor.base.executor_base import ExecutorBase
+from qc_executor.factory import Executor
 
 
 class MockExecutor(ExecutorBase):
@@ -154,7 +154,7 @@ class TestExecutorFactory:
             with pytest.raises(ValueError) as exc_info:
                 Executor.create("qiskit")
 
-            assert "pip install executor[qiskit-full]" in str(exc_info.value)
+            assert "pip install qc-executor[qiskit-full]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
             Executor._backend_alias_map = original_alias_map
@@ -222,7 +222,7 @@ class TestExecutorFactory:
             with pytest.raises(ValueError) as exc_info:
                 Executor.create("statevector")
 
-            assert "pip install executor[qiskit-full]" in str(exc_info.value)
+            assert "pip install qc-executor[qiskit-full]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
             Executor._backend_alias_map = original_alias_map
@@ -321,7 +321,7 @@ class TestExecutorFactory:
         class FakeSelection:
             def select(self, group):
                 select_called["value"] = True
-                assert group == "executor.backends"
+                assert group == "qc_executor.backends"
                 return [FakeEntryPoint()]
 
         def fake_entry_points(*args, **kwargs):
@@ -329,7 +329,7 @@ class TestExecutorFactory:
                 raise TypeError("old API")
             return FakeSelection()
 
-        monkeypatch.setattr("executor.factory.entry_points", fake_entry_points)
+        monkeypatch.setattr("qc_executor.factory.entry_points", fake_entry_points)
 
         Executor._plugins_discovered = False
         Executor._discover_plugins()
@@ -353,9 +353,9 @@ class TestExecutorFactory:
         def fake_entry_points(*args, **kwargs):
             if "group" in kwargs:
                 raise TypeError("old API")
-            return FakeEntryPointsDict({"executor.backends": [FakeEntryPoint()]})
+            return FakeEntryPointsDict({"qc_executor.backends": [FakeEntryPoint()]})
 
-        monkeypatch.setattr("executor.factory.entry_points", fake_entry_points)
+        monkeypatch.setattr("qc_executor.factory.entry_points", fake_entry_points)
 
         Executor._plugins_discovered = False
         Executor._discover_plugins()
@@ -375,14 +375,14 @@ class TestExecutorIntegration:
         """Test creating QiskitExecutor via factory."""
         executor = Executor.create("qiskit")
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         assert isinstance(executor, QiskitExecutor)
         assert executor.shots is None
 
     def test_create_qiskit_via_statevector_alias(self):
         """Test creating QiskitExecutor using the statevector alias."""
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         executor = Executor.create("statevector")
         assert isinstance(executor, QiskitExecutor)
@@ -394,7 +394,7 @@ class TestExecutorIntegration:
         except ImportError:
             pytest.skip("qiskit-aer not installed")
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         executor = Executor.create("aer")
         assert isinstance(executor, QiskitExecutor)
@@ -406,7 +406,7 @@ class TestExecutorIntegration:
         except ImportError:
             pytest.skip("PennyLane not installed")
 
-        from executor.pennylane import PennyLaneExecutor
+        from qc_executor.pennylane import PennyLaneExecutor
 
         dev = qml.device("default.qubit", wires=1)
         executor = Executor.create(dev)
@@ -421,7 +421,7 @@ class TestExecutorIntegration:
         except ImportError:
             pytest.skip("PennyLane not installed")
 
-        from executor.pennylane import PennyLaneExecutor
+        from qc_executor.pennylane import PennyLaneExecutor
 
         executor = Executor.create("default.qubit", wires=1)
         assert isinstance(executor, PennyLaneExecutor)
@@ -479,7 +479,7 @@ class TestExecutorBackendSwitching:
             assert new_executor.shots == 1024
             assert new_executor._seed == 42
 
-            from executor.pennylane import PennyLaneExecutor
+            from qc_executor.pennylane import PennyLaneExecutor
 
             assert isinstance(new_executor, PennyLaneExecutor)
         except ImportError:

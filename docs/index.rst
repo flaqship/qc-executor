@@ -1,21 +1,31 @@
-QC Executor
-===========
-
-.. image:: https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue
-
-**QC Executor** is an abstraction layer for quantum circuits and operators that can be run on
-different backends (PennyLane, Qiskit, Qulacs) via a unified interface.
-
-.. code-block:: bash
-
-   pip install qc-executor
+.. include:: ../README.md
+   :parser: myst_parser.sphinx_
 
 ----
 
+Documentation
+=============
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents
+   :caption: Getting Started
+
+   installation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
+
+   usage/index
+
+.. toctree::
+   :maxdepth: 3
+   :caption: API Reference
 
    api/index
-   examples/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Advanced Topics
+
    pauli_propagation_symmetry_merging

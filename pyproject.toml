@@ -71,6 +71,7 @@ dev = [
 docs = [
     "sphinx>=7.0",
     "sphinx-autodoc-typehints",
+    "myst-parser>=2.0",
 ]
 examples = [
     "nbmake",

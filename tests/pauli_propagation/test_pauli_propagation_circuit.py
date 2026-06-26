@@ -8,7 +8,12 @@ from qiskit.circuit import Parameter
 from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameters
 from qc_executor.pauli_propagation import PauliPropagationCircuit
-from qc_executor.pauli_propagation.utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
+from qc_executor.pauli_propagation.utils.gates import (
+    CliffordGate,
+    Gate,
+    LayerBarrier,
+    PauliRotation,
+)
 
 
 class TestPauliPropagationCircuitBasics:

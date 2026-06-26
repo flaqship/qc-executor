@@ -4,7 +4,12 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from qc_executor.pauli_propagation.utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
+from qc_executor.pauli_propagation.utils.gates import (
+    CliffordGate,
+    Gate,
+    LayerBarrier,
+    PauliRotation,
+)
 from qc_executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 

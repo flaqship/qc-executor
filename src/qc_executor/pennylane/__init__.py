@@ -20,7 +20,8 @@ except ImportError as e:
     import warnings
 
     warnings.warn(
-        f"PennyLane backend not available: {e}. " "Install with: pip install qc-executor[pennylane]",
+        f"PennyLane backend not available: {e}. "
+        "Install with: pip install qc-executor[pennylane]",
         UserWarning,
     )
     raise

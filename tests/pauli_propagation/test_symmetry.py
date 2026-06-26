@@ -5,7 +5,11 @@ import time
 
 import pytest
 
-from qc_executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
+from qc_executor.pauli_propagation.symmetry import (
+    CompositeSymmetry,
+    NoSymmetry,
+    PermutationSymmetry,
+)
 from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
@@ -373,14 +377,18 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_default_no_symmetry(self):
         """Executor should default to NoSymmetry."""
-        from qc_executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
+        from qc_executor.pauli_propagation.pauli_propagation_executor import (
+            PauliPropagationExecutor,
+        )
 
         executor = PauliPropagationExecutor()
         assert isinstance(executor.symmetry_strategy, NoSymmetry)
 
     def test_executor_with_permutation_symmetry(self):
         """Executor should accept PermutationSymmetry."""
-        from qc_executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
+        from qc_executor.pauli_propagation.pauli_propagation_executor import (
+            PauliPropagationExecutor,
+        )
 
         sym = PermutationSymmetry()
         executor = PauliPropagationExecutor(symmetry_strategy=sym)

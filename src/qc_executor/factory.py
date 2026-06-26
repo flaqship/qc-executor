@@ -196,7 +196,9 @@ class Executor:
             if callable(_select):
                 eps = cast(list, _select(group="qc_executor.backends"))
             else:
-                eps = cast(list, getattr(_all_eps, "get", lambda *a: [])("qc_executor.backends", []))
+                eps = cast(
+                    list, getattr(_all_eps, "get", lambda *a: [])("qc_executor.backends", [])
+                )
 
         # Load each entry point
         for ep in eps:

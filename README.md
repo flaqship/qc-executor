@@ -1,3 +1,7 @@
+<p align="center">
+  <img alt="QC Executor" src="docs/_static/logo_large.png" />
+</p>
+
 # QC Executor
 
 This library provides an abstraction for quantum circuits and operators that can be run on different backends using an `Executor` object.

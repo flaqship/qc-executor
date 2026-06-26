@@ -44,9 +44,12 @@ html_theme = "alabaster"
 _static_dir = os.path.join(os.path.dirname(__file__), "_static")
 html_static_path = ["_static"] if os.path.isdir(_static_dir) else []
 html_theme_options = {
+    "logo": "logo.png",
+    "logo_name": True,
     "description": "Abstraction layer for quantum circuits and operators across multiple backends.",
     "github_user": "flaqship",
     "github_repo": "qc-executor",
     "github_banner": True,
     "fixed_sidebar": True,
 }
+html_favicon = '_static/favicon.png'

@@ -180,6 +180,18 @@ class TestQulacsExecutorExpectationAndStatevector:
         assert np.isclose(values[0], 1.0, atol=1e-6)
         assert np.isclose(values[1], -1.0, atol=1e-6)
 
+    def test_expectation_value_toffoli_gate(self):
+        """Test that the Toffoli (ccx) gate flips the target when both controls are set."""
+        # Both controls set -> target flips to |1>, <Z> on target = -1
+        qc_both = _build_circuit(3, [("x", [0]), ("x", [1]), ("ccx", [0, 1, 2])])
+        # Only one control set -> target stays |0>, <Z> on target = +1
+        qc_one = _build_circuit(3, [("x", [0]), ("ccx", [0, 1, 2])])
+        op = QuantumOperator(["IIZ"], [1.0])
+
+        executor = QulacsExecutor()
+        assert np.isclose(executor.expectation_value(qc_both, op), -1.0, atol=1e-6)
+        assert np.isclose(executor.expectation_value(qc_one, op), 1.0, atol=1e-6)
+
     def test_statevector_missing_parameter_raises(self):
         """Test missing parameter error handling in statevector."""
         x = Parameters("x", 1)

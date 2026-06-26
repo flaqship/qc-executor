@@ -10,6 +10,7 @@ from qulacs.gate import (  # pylint: disable=no-name-in-module
     RY,
     RZ,
     SWAP,
+    TOFFOLI,
     U1,
     H,
     Identity,
@@ -146,8 +147,11 @@ def qulacs_gate_u1(circuit: ParametricQuantumCircuit, angle: float, index: int) 
     circuit.add_gate(U1(index, angle))
 
 
-# TODO
-# Toffoli gate
+def qulacs_gate_toffoli(
+    circuit: ParametricQuantumCircuit, control1: int, control2: int, target: int
+) -> None:
+    """Toffoli (CCX) gate."""
+    circuit.add_gate(TOFFOLI(control1, control2, target))
 
 
 # def RXX(theta, wires):
@@ -211,6 +215,7 @@ qiskit_qulacs_gate_dict = {
     "cx": qulacs_gate_cnot,
     # "cy" does not exist in Qulacs
     "cz": qulacs_gate_cz,
+    "ccx": qulacs_gate_toffoli,
     "sdg": qulacs_gate_sdg,
     "tdg": qulacs_gate_tdg,
     "rx": qulacs_gate_rx,

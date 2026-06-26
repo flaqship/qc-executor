@@ -129,6 +129,14 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add CNOT gates"""
         self.cx(control_qubit, target_qubit)
 
+    def ccx(self, control_qubit1: int, control_qubit2: int, target_qubit: int):
+        """Add Toffoli (CCX) gates"""
+        self._qiskit_circuit.ccx(control_qubit1, control_qubit2, target_qubit)
+
+    def toffoli(self, control_qubit1: int, control_qubit2: int, target_qubit: int):
+        """Add Toffoli (CCX) gates"""
+        self.ccx(control_qubit1, control_qubit2, target_qubit)
+
     def ecr(self, control_qubit: int, target_qubit: int):
         """Add ECR gates"""
         self._qiskit_circuit.ecr(control_qubit, target_qubit)

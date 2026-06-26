@@ -215,6 +215,28 @@ class QulacsCircuit:
 
         self._rebuild_circuit_func = True
 
+    def _add_three_qubit_gate(self, gate_name: str, qubit1: int, qubit2: int, qubit3: int) -> None:
+        """
+        Adds a three qubit gate to the circuit.
+
+        Args:
+            gate_name (str): Name of the gate
+            qubit1 (int): qubit index of the first qubit (e.g. first control)
+            qubit2 (int): qubit index of the second qubit (e.g. second control)
+            qubit3 (int): qubit index of the third qubit (e.g. target)
+        """
+        for q in (qubit1, qubit2, qubit3):
+            if q >= self.num_qubits:
+                raise ValueError(f"Qubit index {q} is out of range")
+
+        self._operation_list.append(gate_name)
+        self._qubit_list.append([qubit1, qubit2, qubit3])
+        self._func_list.append(None)
+        self._func_grad_list.append(None)
+        self._used_parameters.append([])
+
+        self._rebuild_circuit_func = True
+
     def _add_parameterized_single_qubit_gate(
         self,
         gate_name: str,
@@ -356,11 +378,7 @@ class QulacsCircuit:
                     self._add_parameterized_single_qubit_gate(
                         gate_operation.operation.name, wires, gate_operation.operation.params[0]
                     )
-            else:
-                if len(gate_operation.qubits) > 2:
-                    raise NotImplementedError(
-                        "Only two qubit gates are supported in sQUlearn's Qulacs backend."
-                    )
+            elif len(gate_operation.qubits) == 2:
                 if not paramterized_gate:
                     self._add_two_qubit_gate(gate_operation.operation.name, wires[0], wires[1])
                 else:
@@ -370,6 +388,15 @@ class QulacsCircuit:
                         wires[1],
                         gate_operation.operation.params[0],
                     )
+            elif len(gate_operation.qubits) == 3 and not paramterized_gate:
+                self._add_three_qubit_gate(
+                    gate_operation.operation.name, wires[0], wires[1], wires[2]
+                )
+            else:
+                raise NotImplementedError(
+                    "Only up to three qubit (non-parameterized) gates are supported "
+                    "in sQUlearn's Qulacs backend."
+                )
 
     def get_circuit_func(self, gradient_param=None):
         """Returns the Qulacs circuit function for the circuit."""

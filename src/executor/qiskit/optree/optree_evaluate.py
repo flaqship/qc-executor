@@ -667,8 +667,7 @@ def _build_expectation_list(
             # If circuits are grouped, check if the same circuit is already in the list
             circuit_already_in_list = False
             if group_circuits:
-                # pylint: disable-next=protected-access
-                hashvalue_circuit = optree_element._circuit.hashvalue
+                hashvalue_circuit = optree_element.circuit_leaf.hashvalue
                 if hashvalue_circuit in circuit_dict:
                     index = circuit_dict[hashvalue_circuit]
                     circuit_already_in_list = True
@@ -798,7 +797,7 @@ def _evaluate_expectation_from_sampler(
     # If no measurement is present, create one where every circuit is connected to all
     # operators
     if operator_measurement_list is None:
-        operator_measurement_list_ = list(range(0, len(operator))) * num_results
+        operator_measurement_list_ = [list(range(0, len(operator)))] * num_results
     else:
         operator_measurement_list_ = operator_measurement_list
 
@@ -1153,10 +1152,6 @@ class OpTreeEvaluate:
             evaluation_tree = OpTreeList(tree_circuit)
         else:
             evaluation_tree = tree_circuit[0]
-        # print("Pre-processing: ", time.time() - start)
-
-        # Run the sampler primtive
-        # print("Number of circuits for sampler: ", len(total_circuit_list))
 
         if len(total_circuit_list) > 0:
             if isinstance(sampler, BaseSamplerV1):
@@ -1168,7 +1163,6 @@ class OpTreeEvaluate:
                 raise ValueError("Unknown sampler type!")
         else:
             sampler_result = []
-        # print("Sampler run time: ", time.time() - start)
 
         # Compute the expectation value from the sampler results
         final_result = []
@@ -1214,7 +1208,6 @@ class OpTreeEvaluate:
 
                 # Evaluate the circuit tree for assembling the final results
                 final_result.append(_evaluate_index_tree(circ_tree, expec2))
-        # print("Post processing: ", time.time() - start)
 
         if multiple_operator_dict and multiple_circuit_dict and not dictionaries_combined:
             # Swap axes to match the order of the dictionaries
@@ -1372,10 +1365,8 @@ class OpTreeEvaluate:
             evaluation_tree = OpTreeList(tree_circuit)
         else:
             evaluation_tree = tree_circuit[0]
-        # print("Pre-processing: ", time.time() - start)
 
         # Evaluation via the estimator
-        # print("Number of circuits for estimator: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             return _evaluate_index_tree(evaluation_tree, [])
 
@@ -1391,11 +1382,8 @@ class OpTreeEvaluate:
         else:
             raise ValueError("Unknown estimator type!")
 
-        # print("Estimator run time: ", time.time() - start)
-
         # Assembly the final values from the evaluation tree
         final_results = _evaluate_index_tree(evaluation_tree, estimator_result)
-        # print("Post-processing: ", time.time() - start)
 
         return final_results
 
@@ -1466,10 +1454,8 @@ class OpTreeEvaluate:
             evaluation_tree = OpTreeList(total_tree_list)
         else:
             evaluation_tree = total_tree_list[0]
-        # print("Pre-processing: ", time.time() - start)
 
         # Evaluation via the estimator
-        # print("Number of circuits for estimator: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             return _evaluate_index_tree(evaluation_tree, [])
 
@@ -1484,11 +1470,10 @@ class OpTreeEvaluate:
             estimator_result = np.array([r.data.evs for r in estimator.run(pubs).result()])
         else:
             raise ValueError("Unknown estimator type!")
-        # print("Run time of estimator: ", time.time() - start)
 
         # Final assembly of the results
         final_result = _evaluate_index_tree(evaluation_tree, estimator_result)
-        # print("Post-processing: ", time.time() - start)
+
         return final_result
 
     @staticmethod
@@ -1568,7 +1553,6 @@ class OpTreeEvaluate:
             evaluation_tree = total_tree_list[0]
 
         # Evaluation via the sampler
-        # print("Number of circuits for sampler: ", len(total_circuit_list))
         if len(total_circuit_list) == 0:
             _evaluate_index_tree(evaluation_tree, [])
 
@@ -1579,7 +1563,6 @@ class OpTreeEvaluate:
             sampler_result = [result.data.meas for result in sampler.run(pubs).result()]
         else:
             raise ValueError("Unknown sampler type!")
-        # print("Sampler run time: ", time.time() - start)
 
         # Computation of the expectation values from the sampler results
         expec = _evaluate_expectation_from_sampler(
@@ -1590,7 +1573,6 @@ class OpTreeEvaluate:
 
         # Final assembly of the results
         result = _evaluate_index_tree(evaluation_tree, expec)
-        # print("Post-processing: ", time.time() - start)
 
         return result
 

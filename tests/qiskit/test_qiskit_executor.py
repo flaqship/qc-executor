@@ -72,6 +72,17 @@ class TestQiskitExecutor:
         with pytest.raises(ValueError, match="cannot be combined with injected"):
             QiskitExecutor(backend=StatevectorEstimator(), options={"resilience_level": 1})
 
+    @pytest.mark.parametrize("backend_name", ["statevector", "aer"])
+    def test_shot_based_string_backends_use_aer(self, backend_name):
+        """Shot-based string backends should create Aer-backed primitives."""
+        pytest.importorskip("qiskit_aer")
+
+        executor = QiskitExecutor(backend=backend_name, shots=32, seed=0)
+
+        assert executor._backend is not None
+        assert executor._estimator is not None
+        assert executor._sampler is not None
+
     # ========================================================================
     # Logging Tests
     # ========================================================================
@@ -618,6 +629,115 @@ class TestMixedParameterEdgeCases:
         result = executor.expectation_value(qc, operator, theta=[0.0])
 
         assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+
+
+class TestExecutorInternalHelpers:
+    def test_prepare_parameter_dicts_separates_circuit_and_observable_parameters(self):
+        """Circuit and observable parameters must be split into separate dicts."""
+        x = Parameters("x", 2)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]]), ("ry", [0, x[1]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+
+        executor = QiskitExecutor()
+        circuit_dict, observable_dict = executor._prepare_parameter_dicts(
+            qc, operator, x=[0.1, 0.2], p_obs=0.3
+        )
+
+        assert circuit_dict == {x[0]: 0.1, x[1]: 0.2}
+        assert observable_dict == {p_obs[0]: 0.3}
+
+    def test_prepare_parameter_dicts_raises_for_short_parameter_vector(self):
+        """An underspecified ParameterVector should raise a clear ValueError."""
+        x = Parameters("x", 3)
+        qc = _build_circuit(1, [("rx", [0, x[2]])])
+
+        executor = QiskitExecutor()
+
+        with pytest.raises(ValueError, match="length 2 but parameter index 2"):
+            executor._prepare_parameter_dicts(qc, None, x=[0.1, 0.2])
+
+    def test_extract_counts_supports_v2_and_v1_result_formats(self):
+        """Count extraction must handle both V2 PUB results and V1 quasi distributions."""
+        executor = QiskitExecutor()
+
+        class _FakeMeas:
+            def get_counts(self):
+                return {"01": 2, "10": 1}
+
+        class _FakeData:
+            meas = _FakeMeas()
+
+        class _FakePub:
+            data = _FakeData()
+
+        class _FakeV2Result:
+            def __iter__(self):
+                return iter([_FakePub()])
+
+        v2_counts = executor._extract_counts(_FakeV2Result(), n_qubits=2)
+        assert v2_counts == [{"10": 2, "01": 1}]
+
+        class _FakeV1Result:
+            quasi_dists = [{1: 0.25, 2: 0.75}]
+            metadata = [{"shots": 4}]
+
+        v1_counts = executor._extract_counts(_FakeV1Result(), n_qubits=2)
+        assert v1_counts == [{"10": 1, "01": 3}]
+
+    def test_expectation_value_supports_lists_of_circuits_and_operators(self):
+        """Batched circuits/operators should return the full circuit/operator grid."""
+        qc0 = _build_circuit(1, [])
+        qc1 = _build_circuit(1, [("x", [0])])
+        op0 = QuantumOperator(["Z"], [1.0])
+        op1 = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        result = executor.expectation_value([qc0, qc1], [op0, op1])
+
+        values = np.asarray(result, dtype=float)
+        assert values.shape == (2, 2)
+        assert np.allclose(values, [[1.0, 1.0], [-1.0, -1.0]], atol=1e-5)
+
+    def test_statevector_supports_lists_of_circuits(self):
+        """Statevector evaluation should return one vector per circuit in list mode."""
+        qc0 = _build_circuit(1, [])
+        qc1 = _build_circuit(1, [("x", [0])])
+
+        executor = QiskitExecutor()
+        statevectors = executor.statevector([qc0, qc1])
+
+        assert isinstance(statevectors, np.ndarray)
+        assert statevectors.shape == (2, 2)
+        assert np.isclose(abs(statevectors[0, 0]), 1.0, atol=1e-5)
+        assert np.isclose(abs(statevectors[1, 1]), 1.0, atol=1e-5)
+
+    def test_sample_supports_lists_of_circuits(self):
+        """Sampling should return one count dictionary per circuit in list mode."""
+        qc0 = _build_circuit(1, [])
+        qc1 = _build_circuit(1, [("x", [0])])
+
+        executor = QiskitExecutor(shots=128, seed=0)
+        counts_list = executor.sample([qc0, qc1])
+
+        assert isinstance(counts_list, list)
+        assert len(counts_list) == 2
+        assert sum(counts_list[0].values()) == 128
+        assert sum(counts_list[1].values()) == 128
+        assert "0" in counts_list[0]
+        assert "1" in counts_list[1]
+
+    def test_transpile_operator_wraps_generic_operator_and_preserves_native_wrapper(self):
+        """Generic operators are wrapped, native Qiskit operators are passed through."""
+        executor = QiskitExecutor()
+        from executor.qiskit.qiskit_operator import QiskitOperator
+
+        generic_operator = QuantumOperator(["Z"], [1.0])
+        wrapped_operator = executor._transpile_operator(generic_operator)
+        assert wrapped_operator.qiskit_operator is generic_operator._qiskit_operator
+
+        native_operator = QiskitOperator(generic_operator)
+        assert executor._transpile_operator(native_operator) is native_operator
 
 
 # =============================================================================

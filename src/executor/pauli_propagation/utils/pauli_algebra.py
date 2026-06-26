@@ -11,6 +11,9 @@ the least-significant two bits. The public string representation uses standard
 mathematical convention: qubit 0 is the leftmost character.
 """
 
+# The lazy import of pauli_types in pauli_sum_multiply is intentional.
+# pylint: disable=cyclic-import
+
 from __future__ import annotations
 
 from typing import Tuple
@@ -34,14 +37,13 @@ def get_uint_type(nqubits: int):
     nbits = 2 * nqubits  # 2 bits per qubit
     if nbits <= 8:
         return np.uint8
-    elif nbits <= 16:
+    if nbits <= 16:
         return np.uint16
-    elif nbits <= 32:
+    if nbits <= 32:
         return np.uint32
-    elif nbits <= 64:
+    if nbits <= 64:
         return np.uint64
-    else:
-        return int
+    return int
 
 
 def symbol_to_int(symbol: str) -> int:
@@ -277,7 +279,7 @@ def pauli_sum_product(psum1, psum2):
     Note:
         Import PauliSum inside function to avoid circular imports
     """
-    from .pauli_types import PauliSum
+    from .pauli_types import PauliSum  # pylint: disable=import-outside-toplevel
 
     if psum1.nqubits != psum2.nqubits:
         raise ValueError(
@@ -352,13 +354,13 @@ def pauli_to_matrix(term: int, nqubits: int) -> np.ndarray:
     Returns:
         Complex numpy array of shape (2^n, 2^n) representing the Pauli operator
     """
-    # Single-qubit Pauli matrices
-    I = np.array([[1, 0], [0, 1]], dtype=complex)
-    X = np.array([[0, 1], [1, 0]], dtype=complex)
-    Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
-    Z = np.array([[1, 0], [0, -1]], dtype=complex)
-
-    pauli_matrices = [I, X, Y, Z]
+    # Single-qubit Pauli matrices, indexed by encoding: I=0, X=1, Y=2, Z=3
+    pauli_matrices = [
+        np.array([[1, 0], [0, 1]], dtype=complex),
+        np.array([[0, 1], [1, 0]], dtype=complex),
+        np.array([[0, -1j], [1j, 0]], dtype=complex),
+        np.array([[1, 0], [0, -1]], dtype=complex),
+    ]
 
     # Start with scalar 1
     result = np.array([[1.0]], dtype=complex)

@@ -32,11 +32,11 @@ class QulacsOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = cast(Any, operator)._qiskit_operator
+            self._qiskit_operator = cast(Any, operator).qiskit_operator
             self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(operator, list):
             if all(isinstance(obs, QuantumOperatorBase) for obs in operator):
-                self._qiskit_operator = [cast(Any, obs)._qiskit_operator for obs in operator]
+                self._qiskit_operator = [cast(Any, obs).qiskit_operator for obs in operator]
             else:
                 raise ValueError("Unsupported operator type")
             self._num_qubits = self._qiskit_operator[0].num_qubits
@@ -139,8 +139,6 @@ class QulacsOperator:
             Tuple with lists of Qulacs operator parameter functions, Qulacs Pauli words,
             Qulacs operator parameters and Qulacs operator parameter dimensions
         """
-        #        if observables == None:
-        #            return None, None, None
 
         self.multiple_operators = False
         if isinstance(operator, SparsePauliOp):
@@ -238,13 +236,6 @@ class QulacsOperator:
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
         gradient_param_dict = {p: i for i, p in enumerate(gradient_parameters)}
 
-        # cache_value = "no_gradient"
-        # if len(gradient_parameters)>0:
-        #     cache_value = tuple(gradient_parameters)
-
-        # if cache_value in self._outer_jacobi_obs_cache:
-        #     return self._outer_jacobi_obs_cache[cache_value]
-
         def outer_jacobian(*args):
 
             # Collects the args values connected to the operator parameters
@@ -272,8 +263,6 @@ class QulacsOperator:
                             )
                 outer_jacobians.append(outer_jacobian)
             return outer_jacobians
-
-        # self._outer_jacobi_obs_cache[cache_value] = outer_jacobian
 
         return outer_jacobian
 

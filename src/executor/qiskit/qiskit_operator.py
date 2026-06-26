@@ -22,10 +22,7 @@ class QiskitOperator:
             operator: QuantumOperator object (from executor.quantum_operator)
         """
         # Extract the internal qiskit operator
-        if hasattr(operator, "_qiskit_operator"):
-            self._qiskit_operator = operator._qiskit_operator
-        else:
-            self._qiskit_operator = operator
+        self._qiskit_operator = getattr(operator, "qiskit_operator", operator)
 
         self._num_qubits = self._qiskit_operator.num_qubits
 

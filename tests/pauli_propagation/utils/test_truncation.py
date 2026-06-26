@@ -1,7 +1,6 @@
 """Tests for truncation module."""
 
 import numpy as np
-import pytest
 
 from executor.pauli_propagation.utils.pauli_types import PauliSum
 from executor.pauli_propagation.utils.truncation import (

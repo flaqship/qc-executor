@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
-
 from executor import QuantumCircuit
 from executor.parameters import Parameters
 from executor.qiskit import QiskitCircuit

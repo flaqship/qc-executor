@@ -314,7 +314,7 @@ class TestPauliPropagationCircuitUtilityMethods:
 
         assert isinstance(hash(source), int)
 
-    def test_invert_copy_hash_and_string_interfaces(self):
+    def test_circuit_metrics(self):
         theta = Parameter("theta")
         circuit = PauliPropagationCircuit(2)
         circuit.x(0)
@@ -324,8 +324,8 @@ class TestPauliPropagationCircuitUtilityMethods:
 
         metrics = circuit.circuit_metrics()
         assert metrics["num_qubits"] == 2
-        assert metrics["num_gates"] == 2
-        assert metrics["num_parameters"] == 0
+        assert metrics["num_gates"] == 3
+        assert metrics["num_parameters"] == 1
 
     def test_hash_and_equality(self):
         circuit1 = PauliPropagationCircuit(2)

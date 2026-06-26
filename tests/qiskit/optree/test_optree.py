@@ -7,8 +7,8 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-from executor.parameters import Parameters
-from executor.qiskit.optree import (
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit.optree import (
     OpTree,
     OpTreeCircuit,
     OpTreeContainer,
@@ -19,7 +19,7 @@ from executor.qiskit.optree import (
     OpTreeSum,
     OpTreeValue,
 )
-from executor.qiskit.optree.optree import OpTreeNodeBase, _simplify_operator
+from qc_executor.qiskit.optree.optree import OpTreeNodeBase, _simplify_operator
 
 
 class _DummyNode(OpTreeNodeBase):

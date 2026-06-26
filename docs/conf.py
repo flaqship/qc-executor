@@ -4,14 +4,14 @@ import sys
 # Make the package importable during docs build
 sys.path.insert(0, os.path.abspath("../src"))
 
-import executor  # noqa: E402
+import qc_executor  # noqa: E402
 
 # -- Project information -----------------------------------------------------
-project = "executor"
+project = "QC Executor"
 copyright = "2026, Fraunhofer IPA"
 author = "David Kreplin, Moritz Willmann, Marco Roth, Dennis Kleinhans, Florian Wieland"
-release = executor.__version__
-version = executor.__version__
+release = qc_executor.__version__
+version = qc_executor.__version__
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -46,7 +46,7 @@ html_static_path = ["_static"] if os.path.isdir(_static_dir) else []
 html_theme_options = {
     "description": "Abstraction layer for quantum circuits and operators across multiple backends.",
     "github_user": "flaqship",
-    "github_repo": "Executor",
+    "github_repo": "qc-executor",
     "github_banner": True,
     "fixed_sidebar": True,
 }

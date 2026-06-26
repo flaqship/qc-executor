@@ -20,7 +20,7 @@ jobs:
         include:
           # Src: Run all checks on the source code
           - name: source
-            path: src/executor
+            path: src/qc_executor
             args: ""
           # Tests: Only disable the checks that are meaningless for test code
           - name: tests

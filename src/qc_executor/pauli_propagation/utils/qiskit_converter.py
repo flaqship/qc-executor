@@ -227,7 +227,7 @@ def _extract_parameter(param) -> tuple[sp.Expr | None, float | None]:
 
     # Imported lazily because qiskit_compat requires Qiskit to be installed.
     # pylint: disable-next=import-outside-toplevel
-    from executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
+    from qc_executor.utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
 
     if isinstance(param, (Parameter, ParameterExpression)):
         if _param_is_constant(param):

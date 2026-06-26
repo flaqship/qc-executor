@@ -1,8 +1,8 @@
-"""Tests for `executor.parameters`."""
+"""Tests for `qc_executor.parameters`."""
 
 import pytest
 
-from executor.parameters import Parameter, Parameters
+from qc_executor.parameters import Parameter, Parameters
 
 
 class TestParameters:

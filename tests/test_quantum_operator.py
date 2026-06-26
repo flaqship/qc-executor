@@ -1,9 +1,9 @@
-"""Tests for `executor.quantum_operator`."""
+"""Tests for `qc_executor.quantum_operator`."""
 
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
-from executor import QuantumOperator
+from qc_executor import QuantumOperator
 
 
 class TestQuantumOperatorConstruction:

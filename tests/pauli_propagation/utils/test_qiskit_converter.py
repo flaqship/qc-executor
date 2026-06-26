@@ -15,7 +15,7 @@ try:
 except ImportError:
     QISKIT_AVAILABLE = False
 
-from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from qc_executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
 
 # Skip all tests if Qiskit is not available
 pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not installed")
@@ -24,7 +24,7 @@ pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not install
 @pytest.fixture
 def qiskit_converter():
     """Import qiskit_converter module."""
-    from executor.pauli_propagation.utils import qiskit_converter as converter_module
+    from qc_executor.pauli_propagation.utils import qiskit_converter as converter_module
 
     return converter_module
 
@@ -146,7 +146,7 @@ class TestConvertSingleGate:
 
     def test_barrier_skipped(self, qiskit_converter):
         """Test that barriers are converted to LayerBarrier markers."""
-        from executor.pauli_propagation.utils.gates import LayerBarrier
+        from qc_executor.pauli_propagation.utils.gates import LayerBarrier
 
         qc = QuantumCircuit(2)
         qc.h(0)
@@ -326,7 +326,7 @@ class TestImportAndAvailabilityPaths:
 
     def test_import_sets_qiskit_unavailable_on_import_error(self):
         """Test module sets availability flag to False when qiskit import fails."""
-        from executor.pauli_propagation.utils import qiskit_converter as converter_module
+        from qc_executor.pauli_propagation.utils import qiskit_converter as converter_module
 
         original_import = builtins.__import__
 
@@ -392,7 +392,7 @@ class TestBindParametersEdgeCases:
 
     def test_bind_parameters_skips_layer_barrier(self, qiskit_converter):
         """Test LayerBarrier objects are skipped during parameter collection."""
-        from executor.pauli_propagation.utils.gates import LayerBarrier
+        from qc_executor.pauli_propagation.utils.gates import LayerBarrier
 
         result = qiskit_converter.bind_parameters([LayerBarrier()], {})
         assert result == {}

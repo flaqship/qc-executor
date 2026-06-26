@@ -15,7 +15,7 @@ import numpy as np
 import pennylane as qml
 import pytest
 
-from executor.pennylane.pennylane_gates import (
+from qc_executor.pennylane.pennylane_gates import (
     cs,
     csx,
     pennylane_target,

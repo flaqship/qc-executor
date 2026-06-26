@@ -4,15 +4,15 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from executor.base import ExecutorBase
-from executor.factory import Executor
-from executor.parameters import Parameters
-from executor.pauli_propagation import (
+from qc_executor.base import ExecutorBase
+from qc_executor.factory import Executor
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationOperator,
 )
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
+from qc_executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
 
 class TestImportPaths:
@@ -183,7 +183,7 @@ class TestStrictInputContract:
         observable = PauliPropagationOperator(["Z"], [1.0])
 
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
-            from executor import QuantumCircuit
+            from qc_executor import QuantumCircuit
 
             legacy = QuantumCircuit(1)
             executor.expectation_value(legacy, observable)
@@ -193,7 +193,7 @@ class TestStrictInputContract:
         circuit = PauliPropagationCircuit(1)
 
         with pytest.raises(TypeError, match="PauliPropagationOperator"):
-            from executor import QuantumOperator
+            from qc_executor import QuantumOperator
 
             legacy = QuantumOperator(["Z"], [1.0])
             executor.expectation_value(circuit, legacy)

@@ -2,7 +2,7 @@
 
 try:
     # Register PennyLaneExecutor with the factory
-    from executor.factory import Executor
+    from qc_executor.factory import Executor
 
     from .pennylane_circuit import PennyLaneCircuit
     from .pennylane_executor import PennyLaneExecutor
@@ -20,7 +20,7 @@ except ImportError as e:
     import warnings
 
     warnings.warn(
-        f"PennyLane backend not available: {e}. " "Install with: pip install executor[pennylane]",
+        f"PennyLane backend not available: {e}. " "Install with: pip install qc-executor[pennylane]",
         UserWarning,
     )
     raise

@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from qiskit.quantum_info import SparsePauliOp
 
-from executor import QuantumOperator
-from executor.parameters import Parameters
-from executor.qiskit import QiskitOperator
+from qc_executor import QuantumOperator
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit import QiskitOperator
 
 
 def _make_parametrized_observable(num_qubits=2, vec_name="theta", length=3):

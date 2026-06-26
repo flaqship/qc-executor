@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Dict, List, Tuple, overload
 import numpy as np
 import sympy as sp
 
-from executor.base.operator_base import QuantumOperatorBase
+from qc_executor.base.operator_base import QuantumOperatorBase
 
 from .symmetry import CompositeSymmetry, NoSymmetry
 from .utils.pauli_algebra import (

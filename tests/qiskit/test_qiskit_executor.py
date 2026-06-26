@@ -5,11 +5,11 @@ import pytest
 from qiskit.circuit import Parameter
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_executor import QiskitExecutor
-from executor.quantum_operator import QuantumOperator
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
+from qc_executor.qiskit.qiskit_executor import QiskitExecutor
+from qc_executor.quantum_operator import QuantumOperator
 
 
 def _build_circuit(num_qubits, operations):
@@ -730,7 +730,7 @@ class TestExecutorInternalHelpers:
     def test_transpile_operator_wraps_generic_operator_and_preserves_native_wrapper(self):
         """Generic operators are wrapped, native Qiskit operators are passed through."""
         executor = QiskitExecutor()
-        from executor.qiskit.qiskit_operator import QiskitOperator
+        from qc_executor.qiskit.qiskit_operator import QiskitOperator
 
         generic_operator = QuantumOperator(["Z"], [1.0])
         wrapped_operator = executor._transpile_operator(generic_operator)

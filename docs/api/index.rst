@@ -8,9 +8,9 @@ Core
    :toctree: generated
    :recursive:
 
-   executor.quantum_circuit
-   executor.quantum_operator
-   executor.parameters
+   qc_executor.quantum_circuit
+   qc_executor.quantum_operator
+   qc_executor.parameters
 
 Base Classes
 ------------
@@ -19,7 +19,7 @@ Base Classes
    :toctree: generated
    :recursive:
 
-   executor.base
+   qc_executor.base
 
 PennyLane Backend
 -----------------
@@ -28,7 +28,7 @@ PennyLane Backend
    :toctree: generated
    :recursive:
 
-   executor.pennylane
+   qc_executor.pennylane
 
 Qiskit Backend
 --------------
@@ -37,7 +37,7 @@ Qiskit Backend
    :toctree: generated
    :recursive:
 
-   executor.qiskit
+   qc_executor.qiskit
 
 Qulacs Backend
 --------------
@@ -46,7 +46,7 @@ Qulacs Backend
    :toctree: generated
    :recursive:
 
-   executor.qulacs
+   qc_executor.qulacs
 
 Pauli Propagation Backend
 -------------------------
@@ -55,7 +55,7 @@ Pauli Propagation Backend
    :toctree: generated
    :recursive:
 
-   executor.pauli_propagation
+   qc_executor.pauli_propagation
 
 Utilities
 ---------
@@ -64,4 +64,4 @@ Utilities
    :toctree: generated
    :recursive:
 
-   executor.utils
+   qc_executor.utils

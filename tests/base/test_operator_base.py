@@ -1,4 +1,4 @@
-from executor.base.operator_base import QuantumOperatorBase
+from qc_executor.base.operator_base import QuantumOperatorBase
 
 
 class ConcreteOperator(QuantumOperatorBase):

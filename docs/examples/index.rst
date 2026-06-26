@@ -1,7 +1,7 @@
 Examples
 ========
 
-The following notebooks demonstrate how to use the ``executor`` library
+The following notebooks demonstrate how to use the ``qc_executor`` library
 with each supported backend.
 
 PennyLane

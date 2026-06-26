@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from qiskit import QuantumCircuit
 
-from executor.utils.decompose_to_std import decompose_to_std
+from qc_executor.utils.decompose_to_std import decompose_to_std
 
 
 class FakeCircuit:

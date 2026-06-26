@@ -17,17 +17,17 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from executor.base.circuit_base import QuantumCircuitBase
-from executor.base.operator_base import QuantumOperatorBase
+from qc_executor.base.circuit_base import QuantumCircuitBase
+from qc_executor.base.operator_base import QuantumOperatorBase
 
 pytest.importorskip("pennylane")
 
 import pennylane as qml
 
-from executor import QuantumCircuit, QuantumOperator
-from executor.parameters import Parameters
-from executor.pennylane.pennylane_circuit import PennyLaneCircuit
-from executor.pennylane.pennylane_executor import PennyLaneExecutor
+from qc_executor import QuantumCircuit, QuantumOperator
+from qc_executor.parameters import Parameters
+from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
+from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 def _build_circuit(num_qubits, operations):
@@ -800,7 +800,7 @@ class TestPennylaneDeviceConfiguration:
 
     def test_factory_with_device_name(self):
         """Test creating executor via factory with device_name."""
-        from executor import Executor
+        from qc_executor import Executor
 
         executor = Executor.create("pennylane", backend="default.mixed")
         assert executor.device_name == "default.mixed"

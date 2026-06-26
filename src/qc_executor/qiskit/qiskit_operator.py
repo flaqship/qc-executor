@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import List
 
-from executor.qiskit._param_binding import build_params_dict
+from qc_executor.qiskit._param_binding import build_params_dict
 
 
 class QiskitOperator:
@@ -19,7 +19,7 @@ class QiskitOperator:
         Initialize QiskitOperator wrapper.
 
         Args:
-            operator: QuantumOperator object (from executor.quantum_operator)
+            operator: QuantumOperator object (from qc_executor.quantum_operator)
         """
         # Extract the internal qiskit operator
         self._qiskit_operator = getattr(operator, "qiskit_operator", operator)

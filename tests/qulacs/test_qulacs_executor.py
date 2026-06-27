@@ -180,6 +180,37 @@ class TestQulacsExecutorExpectationAndStatevector:
         assert np.isclose(values[0], 1.0, atol=1e-6)
         assert np.isclose(values[1], -1.0, atol=1e-6)
 
+    def test_expectation_value_single_circuit_multiple_observables_shape(self):
+        """Test shape handling for a single circuit with multiple observables."""
+        qc = _build_circuit(1, [("h", [0])])
+        op_z = QuantumOperator(["Z"], [1.0])
+        op_x = QuantumOperator(["X"], [1.0])
+
+        executor = QulacsExecutor()
+        values = executor.expectation_value(qc, [op_z, op_x])
+
+        assert isinstance(values, np.ndarray)
+        assert values.shape == (2,)
+        # H|0> has <Z> = 0 and <X> = 1
+        assert np.isclose(values[0], 0.0, atol=1e-6)
+        assert np.isclose(values[1], 1.0, atol=1e-6)
+
+    def test_expectation_value_multiple_circuits_multiple_observables_shape(self):
+        """Test shape and values for multiple circuits with multiple observables."""
+        qc1 = _build_circuit(1, [])  # |0>
+        qc2 = _build_circuit(1, [("x", [0])])  # |1>
+        op_z = QuantumOperator(["Z"], [1.0])
+        op_x = QuantumOperator(["X"], [1.0])
+
+        executor = QulacsExecutor()
+        values = executor.expectation_value([qc1, qc2], [op_z, op_x])
+
+        assert isinstance(values, np.ndarray)
+        assert values.shape == (2, 2)
+        # Rows are circuits, columns are observables ([Z, X]).
+        expected = np.array([[1.0, 0.0], [-1.0, 0.0]])
+        assert np.allclose(values, expected, atol=1e-6)
+
     def test_expectation_value_toffoli_gate(self):
         """Test that the Toffoli (ccx) gate flips the target when both controls are set."""
         # Both controls set -> target flips to |1>, <Z> on target = -1

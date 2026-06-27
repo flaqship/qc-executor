@@ -178,8 +178,10 @@ class QulacsExecutor(ExecutorBase):
 
         values = []
 
-        # TODO: support for multiple circuits and observables is not implemented yet
-        # Currently only single set of circuit, observable, and parameters is fully supported!
+        # Multiple circuits and multiple observables are supported and handled by the
+        # nested loops below. Only a single parameter set per call is supported, i.e.
+        # batched/multiple parameter sets are not implemented (this is consistent with
+        # the PennyLane backend).
 
         for qulacs_circuit in qulacs_circuits:
 

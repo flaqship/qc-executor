@@ -343,6 +343,11 @@ class QulacsCircuit:
 
         for gate_operation in circuit.data:
 
+            # Barriers are visualization/compiler directives with no effect on the
+            # statevector, so they are skipped during conversion.
+            if gate_operation.operation.name == "barrier":
+                continue
+
             # catch conditions of the gate
             # only c_if is supported, the other cases have been caught before
             if (

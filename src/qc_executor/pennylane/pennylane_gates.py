@@ -86,8 +86,6 @@ qiskit_pennylane_gate_dict = {
     "ryy": ryy,
     "rzz": rzz,
     "rzx": rzx,
-    # TODO: may need to be done via custom target
-    # "barrier": qml.Barrier,
     "u": qml.U3,
     "measure": qml.measure,
     "reset": reset,

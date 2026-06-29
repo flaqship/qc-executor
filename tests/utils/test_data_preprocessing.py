@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from qiskit.quantum_info import SparsePauliOp
 
-import executor.utils.data_preprocessing as dp
+import qc_executor.utils.data_preprocessing as dp
 
 
 class TestAdjustFeaturesAndParameters:

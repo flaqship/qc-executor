@@ -1,12 +1,12 @@
-"""Tests for `executor.quantum_circuit`."""
+"""Tests for `qc_executor.quantum_circuit`."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 from qiskit.circuit import ParameterVector
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
 from tests.test_utils import SpyCircuit
 
 
@@ -262,7 +262,7 @@ class TestQuantumCircuitOperations:
     def test_gate_delegates_to_qiskit(self, method, args, expected_gate, expected_args):
         mock_qiskit = MagicMock()
 
-        with patch("executor.quantum_circuit.QiskitQuantumCircuit", return_value=mock_qiskit):
+        with patch("qc_executor.quantum_circuit.QiskitQuantumCircuit", return_value=mock_qiskit):
             circuit = QuantumCircuit(3)
             getattr(circuit, method)(*args)
 

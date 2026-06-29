@@ -5,10 +5,15 @@ import pytest
 import sympy as sp
 from qiskit.circuit import Parameter
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
-from executor.pauli_propagation import PauliPropagationCircuit
-from executor.pauli_propagation.utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import PauliPropagationCircuit
+from qc_executor.pauli_propagation.utils.gates import (
+    CliffordGate,
+    Gate,
+    LayerBarrier,
+    PauliRotation,
+)
 
 
 class TestPauliPropagationCircuitBasics:
@@ -110,11 +115,11 @@ class TestPauliPropagationCircuitParameters:
             parameters = set()
 
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_circuit._param_is_constant",
+            "qc_executor.pauli_propagation.pauli_propagation_circuit._param_is_constant",
             lambda _: True,
         )
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_circuit._param_to_float",
+            "qc_executor.pauli_propagation.pauli_propagation_circuit._param_to_float",
             lambda _: 0.25,
         )
         expr_constant, value_constant = PauliPropagationCircuit._extract_parameter(

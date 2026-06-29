@@ -1,4 +1,4 @@
-from executor.base.circuit_base import QuantumCircuitBase
+from qc_executor.base.circuit_base import QuantumCircuitBase
 
 
 class SpyCircuit(QuantumCircuitBase):

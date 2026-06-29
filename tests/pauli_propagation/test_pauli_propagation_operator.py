@@ -4,16 +4,16 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from executor.parameters import Parameter
-from executor.pauli_propagation import PauliPropagationOperator
-from executor.pauli_propagation.symmetry import (
+from qc_executor.parameters import Parameter
+from qc_executor.pauli_propagation import PauliPropagationOperator
+from qc_executor.pauli_propagation.symmetry import (
     CompositeSymmetry,
     NoSymmetry,
     PermutationSymmetry,
     SymmetryStrategy,
 )
-from executor.pauli_propagation.utils.pauli_types import PauliSum
-from executor.quantum_operator import QuantumOperator
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.quantum_operator import QuantumOperator
 
 
 class DummySymmetry(SymmetryStrategy):

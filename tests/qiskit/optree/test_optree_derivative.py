@@ -5,16 +5,16 @@ from qiskit import __version__ as qiskit_version
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-from executor.parameters import Parameters
-from executor.qiskit.optree import OpTree
-from executor.qiskit.optree.optree import (
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit.optree import OpTree
+from qc_executor.qiskit.optree.optree import (
     OpTreeList,
     OpTreeNodeBase,
     OpTreeOperator,
     OpTreeSum,
     OpTreeValue,
 )
-from executor.qiskit.optree.optree_derivative import (
+from qc_executor.qiskit.optree.optree_derivative import (
     _circuit_parameter_shift,
     _differentiate_copy,
     _differentiate_inplace,

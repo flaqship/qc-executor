@@ -1,4 +1,8 @@
-# Executor
+<p align="center">
+  <img alt="QC Executor" src="docs/_static/logo_large.png" />
+</p>
+
+# QC Executor
 
 This library provides an abstraction for quantum circuits and operators that can be run on different backends using an `Executor` object.
 
@@ -6,34 +10,34 @@ This library provides an abstraction for quantum circuits and operators that can
 
 ### Core Installation
 
-Executor can be installed with only the backends you need. By default, only Qiskit (used as the common intermediate representation) is required:
+QC Executor can be installed with only the backends you need. By default, only Qiskit (used as the common intermediate representation) is required:
 
 ```bash
-pip install git+https://github.com/flaqship/Executor.git
+pip install git+https://github.com/flaqship/qc-executor.git
 ```
 
 ### Backend-Specific Installation
 
-Install Executor with specific backends:
+Install QC Executor with specific backends:
 
 ```bash
 # Install with PennyLane backend
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[pennylane]
+pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pennylane]
 
 # Install with Qulacs backend
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[qulacs]
+pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qulacs]
 
 # Install with full Qiskit support (Aer simulator and IBM Runtime)
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[qiskit-full]
+pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qiskit-full]
 
 # Install with Pauli Propagation backend
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[pauli_propagation]
+pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pauli_propagation]
 
 # Install with all backends
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[all]
+pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[all]
 
 # Install multiple specific backends
-pip install git+https://github.com/flaqship/Executor.git#egg=executor[pennylane,qulacs,pauli_propagation]
+pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pennylane,qulacs,pauli_propagation]
 ```
 
 ## Usage
@@ -43,7 +47,7 @@ pip install git+https://github.com/flaqship/Executor.git#egg=executor[pennylane,
 The `Executor` factory class provides a plugin-based interface for creating executors:
 
 ```python
-from executor import Executor
+from qc_executor import Executor
 
 # Create an executor for a specific backend
 executor = Executor.create("qiskit", shots=1024, seed=42)
@@ -53,7 +57,7 @@ backends = Executor.available_backends()
 print(backends)  # ['qiskit', 'pennylane', 'qulacs', 'pauli_propagation']
 
 # Create circuit and observable
-from executor import QuantumCircuit, QuantumOperator
+from qc_executor import QuantumCircuit, QuantumOperator
 
 circuit = QuantumCircuit(2)
 circuit.h(0)
@@ -86,9 +90,9 @@ qulacs_executor = qiskit_executor.switch_backend("qulacs", shots=2048)
 For backward compatibility, you can still import executors directly:
 
 ```python
-from executor.qiskit import QiskitExecutor
-from executor.pennylane import PennyLaneExecutor
-from executor.qulacs import QulacsExecutor
+from qc_executor.qiskit import QiskitExecutor
+from qc_executor.pennylane import PennyLaneExecutor
+from qc_executor.qulacs import QulacsExecutor
 
 # Create executor directly
 executor = QiskitExecutor(shots=1024, seed=42)
@@ -113,7 +117,7 @@ instance or a PennyLane `qml.devices.Device`), the constructor parameter name is
 `backend`.
 
 ```python
-from executor.pennylane import PennyLaneExecutor
+from qc_executor.pennylane import PennyLaneExecutor
 
 executor = PennyLaneExecutor(backend="default.mixed", shots=1000, seed=42)
 ```

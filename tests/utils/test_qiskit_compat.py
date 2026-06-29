@@ -5,7 +5,7 @@ from types import ModuleType
 
 import pytest
 
-import executor.utils.qiskit_compat as qc
+import qc_executor.utils.qiskit_compat as qc
 
 # Test data for Qiskit version testing
 QISKIT_VERSIONS = [

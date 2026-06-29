@@ -5,10 +5,10 @@ import pytest
 from qulacs import ParametricQuantumCircuit
 from qulacs import QuantumCircuit as QulacsQuantumCircuit
 
-from executor import QuantumCircuit
-from executor.parameters import Parameter, Parameters
-from executor.qulacs import QulacsCircuit
-from executor.qulacs.qulacs_executor import QulacsExecutor
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameter, Parameters
+from qc_executor.qulacs import QulacsCircuit
+from qc_executor.qulacs.qulacs_executor import QulacsExecutor
 
 
 class _DummyBit:

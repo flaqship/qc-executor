@@ -16,10 +16,10 @@ import pennylane as qml
 import pytest
 from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
-from executor.pennylane.pennylane_circuit import PennyLaneCircuit
-from executor.pennylane.pennylane_executor import PennyLaneExecutor
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
+from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
+from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 def _build_conditioned_gate(qc, gate_name, qubit, clbits_or_creg, val):

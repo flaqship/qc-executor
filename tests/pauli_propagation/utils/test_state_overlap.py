@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils.pauli_types import PauliSum
-from executor.pauli_propagation.utils.state_overlap import (
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.pauli_propagation.utils.state_overlap import (
     overlap_with_computational,
     overlap_with_zero,
     scalar_product,

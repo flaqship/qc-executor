@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from executor.parameters import Parameters
-from executor.pauli_propagation import (
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationOperator,
 )
-from executor.pauli_propagation.symmetry import PermutationSymmetry
+from qc_executor.pauli_propagation.symmetry import PermutationSymmetry
 
 
 class TestPauliPropagationExecutorNativeTypes:
@@ -89,7 +89,7 @@ class TestPauliPropagationExecutorNativeTypes:
             return obs
 
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+            "qc_executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
         )
 
         value = executor.expectation_value(circuit, observable)
@@ -109,7 +109,7 @@ class TestPauliPropagationExecutorNativeTypes:
             return obs
 
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+            "qc_executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
         )
 
         value = executor.expectation_value(circuit, observable)

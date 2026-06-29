@@ -1,4 +1,4 @@
-# Contributing to Executor
+# Contributing to QC Executor
 
 Thank you for your interest in contributing! This document covers everything you need
 to get started.
@@ -8,8 +8,8 @@ to get started.
 Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/) installed.
 
 ```bash
-git clone https://github.com/flaqship/Executor.git
-cd Executor
+git clone https://github.com/flaqship/qc-executor.git
+cd qc-executor
 uv sync --all-extras --group dev
 ```
 
@@ -40,7 +40,7 @@ uv run black -l 99 src tests
 Linting via [Pylint](https://pylint.readthedocs.io/):
 
 ```bash
-uv run pylint src/executor
+uv run pylint src/qc_executor
 ```
 
 Both are checked automatically in CI on every PR.
@@ -71,14 +71,14 @@ def expectation_value(circuit, observable, **parameters):
 
 ## Adding a New Backend
 
-1. Create a new subpackage under `src/executor/<backend>/`
+1. Create a new subpackage under `src/qc_executor/<backend>/`
 2. Implement `<Backend>Circuit`, `<Backend>Operator`, and `<Backend>Executor`
-   by subclassing the base classes in `src/executor/base/`
+   by subclassing the base classes in `src/qc_executor/base/`
 3. Add tests under `tests/<backend>/`
 4. Add an example notebook under `examples/<backend>/`
 
 When the plugin architecture is implemented, register the executor via the
-`executor.backends` entry point in `pyproject.toml`.
+`qc_executor.backends` entry point in `pyproject.toml`.
 
 ## Changelog
 
@@ -87,7 +87,7 @@ Every PR that changes user-facing behaviour should add an entry to
 
 ## Releasing (Maintainers)
 
-1. Update the version in `src/executor/__init__.py`
+1. Update the version in `src/qc_executor/__init__.py`
 2. Move the `[Unreleased]` section in `CHANGELOG.md` to a new versioned section
 3. Commit: `git commit -m "chore: release vX.Y.Z"`
 4. Tag: `git tag vX.Y.Z && git push --tags`

@@ -6,7 +6,7 @@ import pytest
 from qulacs import ParametricQuantumCircuit
 from qulacs.gate import CZ, RX, RY, RZ, SWAP, U1, H, Identity, S, Sdag, T, Tdag, X, Y, Z
 
-from executor.qulacs.qulacs_gates import (
+from qc_executor.qulacs.qulacs_gates import (
     qiskit_qulacs_gate_dict,
     qiskit_qulacs_param_gate_dict,
     qulacs_gate_cnot,

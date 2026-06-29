@@ -17,10 +17,10 @@ import pennylane as qml
 import pytest
 from qiskit.quantum_info import SparsePauliOp
 
-from executor import QuantumOperator
-from executor.base.operator_base import QuantumOperatorBase
-from executor.parameters import Parameters
-from executor.pennylane.pennylane_operator import PennyLaneOperator
+from qc_executor import QuantumOperator
+from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.parameters import Parameters
+from qc_executor.pennylane.pennylane_operator import PennyLaneOperator
 
 
 def _make_quantum_operator_base(qiskit_op):

@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pytest
 
-from executor.base.executor_base import ExecutorBase
+from qc_executor.base.executor_base import ExecutorBase
 
 
 class DummyExecutor(ExecutorBase):
@@ -263,7 +263,7 @@ class TestExecutorBaseCachingAndDelegation:
         assert ex.calls["transpile_operator"] == 2
 
     def test_switch_backend_forwards_config_and_overrides(self, monkeypatch):
-        import executor.factory as factory_module
+        import qc_executor.factory as factory_module
 
         captured = {}
 

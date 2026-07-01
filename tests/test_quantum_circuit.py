@@ -50,6 +50,17 @@ class TestQuantumCircuitBasics:
 
         assert circuit.ops == [("cx", 0, 1)]
 
+    def test_toffoli_is_alias_for_ccx(self):
+        reference = QuantumCircuit(3)
+        reference.ccx(0, 1, 2)
+
+        circuit = QuantumCircuit(3)
+        circuit.toffoli(0, 1, 2)
+
+        toffoli_ops = [instr.operation.name for instr in circuit.qiskit_circuit.data]
+        ccx_ops = [instr.operation.name for instr in reference.qiskit_circuit.data]
+        assert toffoli_ops == ccx_ops == ["ccx"]
+
 
 class TestQuantumCircuitPauliString:
 

@@ -176,6 +176,9 @@ class TestQulacsCircuitGateBuilders:
         with pytest.raises(ValueError):
             circuit._add_two_qubit_gate("cx", 0, 1)
 
+        with pytest.raises(ValueError):
+            circuit._add_three_qubit_gate("ccx", 0, 1, 2)
+
     def test_add_parameterized_gates_track_parameters(self):
         """Test parameterized gate helpers for numeric and symbolic angles."""
         x = Parameters("x", 1)

@@ -11,6 +11,7 @@ from qiskit.quantum_info import SparsePauliOp
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
+from ..qiskit.qiskit_operator import to_qiskit_operator
 from ..utils.qiskit_compat import _param_is_constant, _param_to_sympy
 
 
@@ -112,11 +113,11 @@ class PennyLaneOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = operator._qiskit_operator
+            self._qiskit_operator = to_qiskit_operator(operator)
             self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(operator, list):
             if all([isinstance(op, QuantumOperatorBase) for op in operator]):
-                self._qiskit_operator = [op._qiskit_operator for op in operator]
+                self._qiskit_operator = [to_qiskit_operator(op) for op in operator]
             else:
                 raise ValueError("Unsupported operator type")
             self._num_qubits = self._qiskit_operator[0].num_qubits
@@ -229,10 +230,13 @@ class PennyLaneOperator:
                     pennylane_operator_param_function_.append(coeff)
             self._pennylane_operator_param_functions.append(pennylane_operator_param_function_)
 
-        # Convert Pauli strings into PennyLane Pauli words
+        # Convert Pauli strings into PennyLane Pauli words. Qiskit labels are
+        # little-endian (rightmost char = qubit 0) whereas PennyLane's
+        # ``string_to_pauli_word`` assigns left-to-right (leftmost char = wire 0),
+        # so the label is reversed to keep operator wires aligned with the circuit.
         for op in operator:
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(p) for p in op.paulis.to_labels()]
+                [pauli.string_to_pauli_word(p[::-1]) for p in op.paulis.to_labels()]
             )
 
         if not islist:
@@ -273,14 +277,22 @@ class PennyLaneOperator:
                                 coeff_list.append(coeff)
                         expval_list.append(qml.expval(qml.Hamiltonian(coeff_list, obs)))
                     else:
-                        # In case no parameters are present in the observable
-                        # Calculate the expectation value of sum of the observables
-                        # since this is more compatible with hardware backends
+                        # No symbolic parameters: coefficients are plain numbers.
+                        # Weight each Pauli word by its numeric coefficient (a bare
+                        # sum would drop them) and measure the combined observable.
                         if len(self._pennylane_words[i]) == 0:
                             expval_list.append(0.0)
                         else:
                             expval_list.append(
-                                qml.expval(sum([obs for obs in self._pennylane_words[i]]))
+                                qml.expval(
+                                    sum(
+                                        coeff * word
+                                        for coeff, word in zip(
+                                            self._pennylane_operator_param_functions[i],
+                                            self._pennylane_words[i],
+                                        )
+                                    )
+                                )
                             )
                 return pnp.stack(tuple(expval_list))
             else:
@@ -294,12 +306,20 @@ class PennyLaneOperator:
                             coeff_list.append(coeff)
                     return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
                 else:
-                    # In case no parameters are present in the observable
-                    # Calculate the expectation value of sum of the observables
-                    # since this is more compatible with hardware backends
+                    # No symbolic parameters: coefficients are plain numbers.
+                    # Weight each Pauli word by its numeric coefficient (a bare
+                    # sum would drop them) and measure the combined observable.
                     if len(self._pennylane_words) == 0:
                         return 0.0
                     else:
-                        return qml.expval(sum([obs for obs in self._pennylane_words]))
+                        return qml.expval(
+                            sum(
+                                coeff * word
+                                for coeff, word in zip(
+                                    self._pennylane_operator_param_functions,
+                                    self._pennylane_words,
+                                )
+                            )
+                        )
 
         return pennylane_observable

@@ -4,6 +4,75 @@ from collections import OrderedDict
 from typing import List
 
 import numpy as np
+import sympy as sp
+from qiskit.circuit import ParameterVector as QiskitParameterVector
+from qiskit.quantum_info import SparsePauliOp
+
+from ..abstraction.abstract_parameter import Parameter, free_parameters
+
+
+def _build_qiskit_parameter_map(coeffs) -> dict:
+    """Map each native :class:`Parameter` used in ``coeffs`` to a Qiskit element.
+
+    Groups parameters by vector name and builds one Qiskit ``ParameterVector``
+    per group sized to the highest index seen. Returns ``{native Parameter:
+    qiskit element}``. Mirrors the gate-angle handling in ``qiskit_circuit.py``
+    (kept separate so the operator bridge does not depend on the circuit module).
+    """
+    max_index: dict = {}
+    for coeff in coeffs:
+        for param in free_parameters(coeff):
+            name = param.vector_name
+            max_index[name] = max(max_index.get(name, -1), param.index)
+
+    symbol_to_qiskit: dict = {}
+    for name, top in sorted(max_index.items()):
+        qiskit_vec = QiskitParameterVector(name, top + 1)
+        for i in range(top + 1):
+            symbol_to_qiskit[Parameter(name, i)] = qiskit_vec[i]
+    return symbol_to_qiskit
+
+
+def _coeff_to_qiskit(coeff, symbol_to_qiskit: dict):
+    """Convert one coefficient (numeric or symbolic) to a Qiskit-usable value.
+
+    A symbolic SymPy coefficient is replayed onto Qiskit parameter objects via
+    ``lambdify`` (Qiskit ``ParameterExpression`` supports +, -, *, /, **), so
+    parametrized coefficients survive the conversion.
+    """
+    if not isinstance(coeff, sp.Basic):
+        return coeff  # plain number (float / int / complex)
+
+    symbols = free_parameters(coeff)
+    if not symbols:  # constant expression
+        value = complex(coeff)
+        return value.real if value.imag == 0 else value
+
+    func = sp.lambdify(symbols, coeff, modules="math")
+    return func(*[symbol_to_qiskit[s] for s in symbols])
+
+
+def to_qiskit_operator(operator):
+    """Return a Qiskit ``SparsePauliOp`` for any supported operator type.
+
+    Operator counterpart to ``to_qiskit_circuit``:
+
+    * executor wrappers expose ``_qiskit_operator`` and are returned directly;
+    * a raw ``SparsePauliOp`` is returned unchanged;
+    * an ``AbstractQuantumOperator`` carries plain ``paulis``/``coeffs`` (coeffs
+      may be SymPy parameter expressions) and is converted here. Pauli labels
+      share Qiskit's little-endian convention, so the strings pass through 1:1.
+    """
+    inner = getattr(operator, "_qiskit_operator", None)
+    if inner is not None:
+        return inner
+    if isinstance(operator, SparsePauliOp):
+        return operator
+    if hasattr(operator, "paulis") and hasattr(operator, "coeffs"):
+        symbol_to_qiskit = _build_qiskit_parameter_map(operator.coeffs)
+        coeffs = [_coeff_to_qiskit(c, symbol_to_qiskit) for c in operator.coeffs]
+        return SparsePauliOp(list(operator.paulis), coeffs=coeffs)
+    return operator
 
 
 class QiskitOperator:
@@ -19,11 +88,10 @@ class QiskitOperator:
         Args:
             operator: QuantumOperator object (from executor.quantum_operator)
         """
-        # Extract the internal qiskit operator
-        if hasattr(operator, "_qiskit_operator"):
-            self._qiskit_operator = operator._qiskit_operator
-        else:
-            self._qiskit_operator = operator
+        # Build/extract the internal qiskit operator. ``to_qiskit_operator``
+        # converts an AbstractQuantumOperator's (paulis, coeffs) into a real
+        # SparsePauliOp and passes existing Qiskit operators through unchanged.
+        self._qiskit_operator = to_qiskit_operator(operator)
 
         self._num_qubits = self._qiskit_operator.num_qubits
 

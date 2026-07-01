@@ -13,7 +13,11 @@ import numpy as np
 import pytest
 from qiskit.quantum_info import SparsePauliOp
 
-from executor.abstraction import AbstractQuantumOperator, ParameterVector
+from executor.abstraction import (
+    AbstractQuantumCircuit,
+    AbstractQuantumOperator,
+    ParameterVector,
+)
 
 
 def _to_sparse(op: AbstractQuantumOperator) -> SparsePauliOp:
@@ -137,3 +141,58 @@ class TestEndToEnd:
         )
 
         assert np.isclose(value, reference)
+
+
+class TestBackendExpectationParity:
+    """Qiskit and PennyLane must agree on the abstract operator's expectation.
+
+    Regression guard for two PennyLane operator bugs (now fixed) that only
+    surface for an *asymmetric* observable on a per-qubit-asymmetric state:
+      * numeric coefficients were dropped (a bare ``sum`` of Pauli words), and
+      * Pauli labels were mapped to wires in reversed (big-endian) order.
+    Both are invisible for symmetric/all-``H`` states, so the circuit below gives
+    every qubit a distinct rotation.
+    """
+
+    @staticmethod
+    def _asymmetric_circuit() -> AbstractQuantumCircuit:
+        qc = AbstractQuantumCircuit(4)
+        qc.h(range(4))
+        for q in range(4):
+            qc.ry(q, 0.3 * (q + 1))  # distinct angle per qubit -> wire order matters
+        qc.cx(0, 1)
+        qc.cx(2, 3)
+        return qc
+
+    @staticmethod
+    def _reference(qc: AbstractQuantumCircuit, sparse: SparsePauliOp, **binds) -> float:
+        from qiskit.quantum_info import Statevector
+
+        from executor.qiskit.qiskit_circuit import to_qiskit_circuit
+
+        state = Statevector(to_qiskit_circuit(qc))
+        return float(np.real(state.expectation_value(sparse)))
+
+    def _run(self, backend: str, qc, op, **params) -> float:
+        from executor import Executor
+
+        ex = Executor.create(backend)
+        value = ex.expectation_value(qc, ex.transpile_operator(op), **params)
+        return float(np.real_if_close(value))
+
+    @pytest.mark.parametrize("backend", ["qiskit", "pennylane"])
+    def test_numeric_observable_matches_reference(self, backend):
+        pytest.importorskip(backend)
+        qc = self._asymmetric_circuit()
+        obs = AbstractQuantumOperator(["IIIZ", "IZIZ", "XIIX"], [0.5, 1.2, 0.8])
+        reference = self._reference(qc, _to_sparse(obs))
+        assert np.isclose(self._run(backend, qc, obs), reference)
+
+    @pytest.mark.parametrize("backend", ["qiskit", "pennylane"])
+    def test_parametrized_observable_matches_reference(self, backend):
+        pytest.importorskip(backend)
+        qc = self._asymmetric_circuit()
+        w = ParameterVector("w", 2)
+        obs = AbstractQuantumOperator(["IIIZ", "XIIX"], [2 * w[0], w[1]])
+        reference = self._reference(qc, SparsePauliOp(["IIIZ", "XIIX"], coeffs=[2 * 0.4, 0.9]))
+        assert np.isclose(self._run(backend, qc, obs, w=[0.4, 0.9]), reference)

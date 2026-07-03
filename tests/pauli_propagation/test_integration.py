@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import sympy as sp
 
+from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.base import ExecutorBase
 from qc_executor.factory import Executor
 from qc_executor.parameters import Parameters
@@ -185,8 +186,6 @@ class TestStrictInputContract:
         observable = PauliPropagationOperator(["Z"], [1.0])
 
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
-            from qc_executor import QuantumCircuit
-
             legacy = QuantumCircuit(1)
             executor.expectation_value(legacy, observable)
 
@@ -195,7 +194,5 @@ class TestStrictInputContract:
         circuit = PauliPropagationCircuit(1)
 
         with pytest.raises(TypeError, match="PauliPropagationOperator"):
-            from qc_executor import QuantumOperator
-
             legacy = QuantumOperator(["Z"], [1.0])
             executor.expectation_value(circuit, legacy)

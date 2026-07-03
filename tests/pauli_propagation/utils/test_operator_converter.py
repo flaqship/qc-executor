@@ -1,7 +1,12 @@
 """Tests for operator_converter module."""
 
+import builtins
+import importlib
+import sys
+
 import numpy as np
 import pytest
+from qiskit.quantum_info import Pauli, SparsePauliOp
 
 from qc_executor.pauli_propagation.utils import operator_converter
 from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
@@ -55,10 +60,6 @@ class TestQiskitAvailabilityGuards:
 
     def test_import_sets_qiskit_available_false_on_importerror(self, monkeypatch):
         """Import fallback sets QISKIT_AVAILABLE to False when import fails."""
-        import builtins
-        import importlib
-        import sys
-
         module_name = "qc_executor.pauli_propagation.utils.operator_converter"
         real_import = builtins.__import__
 
@@ -83,8 +84,6 @@ class TestConvertOperatorQiskitTypes:
 
     def test_convert_pauli(self):
         """Qiskit Pauli converts to a single-term PauliSum."""
-        from qiskit.quantum_info import Pauli
-
         psum = operator_converter.convert_operator(Pauli("YZI"))
 
         assert isinstance(psum, PauliSum)
@@ -94,8 +93,6 @@ class TestConvertOperatorQiskitTypes:
 
     def test_convert_sparse_pauli_op(self):
         """SparsePauliOp terms and coefficients are preserved."""
-        from qiskit.quantum_info import SparsePauliOp
-
         sparse_op = SparsePauliOp(["IX", "ZZ"], coeffs=[0.5 + 0.25j, -2.0])
         psum = operator_converter.convert_operator(sparse_op)
 
@@ -117,8 +114,6 @@ class TestPauliSumToSparsePauliOp:
 
     def test_pauli_sum_to_sparse_pauli_op_roundtrip(self):
         """PauliSum roundtrip keeps labels and coefficients."""
-        from qiskit.quantum_info import SparsePauliOp
-
         psum = PauliSum(3)
         psum.add_term("XII", 0.25)
         psum.add_term("IYZ", -1.5j)

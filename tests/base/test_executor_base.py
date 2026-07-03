@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pytest
 
+from qc_executor import factory as factory_module
 from qc_executor.base.executor_base import ExecutorBase
 
 
@@ -263,8 +264,6 @@ class TestExecutorBaseCachingAndDelegation:
         assert ex.calls["transpile_operator"] == 2
 
     def test_switch_backend_forwards_config_and_overrides(self, monkeypatch):
-        import qc_executor.factory as factory_module
-
         captured = {}
 
         def fake_create(_cls, backend, **kwargs):

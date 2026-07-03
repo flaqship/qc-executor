@@ -7,6 +7,7 @@ import pytest
 
 from qc_executor.base.executor_base import ExecutorBase
 from qc_executor.factory import Executor
+from qc_executor.qiskit import QiskitExecutor
 
 
 class MockExecutor(ExecutorBase):
@@ -372,15 +373,11 @@ class TestExecutorIntegration:
         """Test creating QiskitExecutor via factory."""
         executor = Executor.create("qiskit")
 
-        from qc_executor.qiskit import QiskitExecutor
-
         assert isinstance(executor, QiskitExecutor)
         assert executor.shots is None
 
     def test_create_qiskit_via_statevector_alias(self):
         """Test creating QiskitExecutor using the statevector alias."""
-        from qc_executor.qiskit import QiskitExecutor
-
         executor = Executor.create("statevector")
         assert isinstance(executor, QiskitExecutor)
 
@@ -389,19 +386,20 @@ class TestExecutorIntegration:
         if importlib.util.find_spec("qiskit_aer") is None:
             pytest.skip("qiskit-aer not installed")
 
-        from qc_executor.qiskit import QiskitExecutor
-
         executor = Executor.create("aer")
         assert isinstance(executor, QiskitExecutor)
 
     def test_autodetect_pennylane_device_instance(self):
         """Test auto-detection when passing a PennyLane device instance."""
+        # PennyLane is an optional backend, imported lazily so the module can be
+        # collected without it installed.
         try:
-            import pennylane as qml
+            import pennylane as qml  # pylint: disable=import-outside-toplevel
+            from qc_executor.pennylane import (  # pylint: disable=import-outside-toplevel
+                PennyLaneExecutor,
+            )
         except ImportError:
             pytest.skip("PennyLane not installed")
-
-        from qc_executor.pennylane import PennyLaneExecutor
 
         dev = qml.device("default.qubit", wires=1)
         executor = Executor.create(dev)
@@ -414,6 +412,7 @@ class TestExecutorIntegration:
         if importlib.util.find_spec("pennylane") is None:
             pytest.skip("PennyLane not installed")
 
+        # pylint: disable-next=import-outside-toplevel
         from qc_executor.pennylane import PennyLaneExecutor
 
         executor = Executor.create("default.qubit", wires=1)
@@ -463,6 +462,7 @@ class TestExecutorBackendSwitching:
             assert hasattr(executor, "switch_backend")
             return
 
+        # pylint: disable-next=import-outside-toplevel
         from qc_executor.pennylane import PennyLaneExecutor
 
         new_executor = executor.switch_backend("pennylane")

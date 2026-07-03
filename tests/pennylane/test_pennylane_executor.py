@@ -11,20 +11,17 @@ using PennyLane backend, including:
 - Error handling
 """
 
+import logging
 import warnings
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pennylane as qml
 import pytest
 
+from qc_executor import Executor, QuantumCircuit, QuantumOperator
 from qc_executor.base.circuit_base import QuantumCircuitBase
 from qc_executor.base.operator_base import QuantumOperatorBase
-
-pytest.importorskip("pennylane")
-
-import pennylane as qml
-
-from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.parameters import Parameters
 from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
@@ -535,29 +532,21 @@ class TestPennylaneLogging:
 
     def test_logging_default_level(self):
         """Test that default logging level is WARNING."""
-        import logging
-
         executor = PennyLaneExecutor()
         assert executor._logger.level == logging.WARNING
 
     def test_logging_info_level(self):
         """Test that INFO logging level is set correctly."""
-        import logging
-
         executor = PennyLaneExecutor(log_level="INFO")
         assert executor._logger.level == logging.INFO
 
     def test_logging_debug_level(self):
         """Test that DEBUG logging level is set correctly."""
-        import logging
-
         executor = PennyLaneExecutor(log_level="DEBUG")
         assert executor._logger.level == logging.DEBUG
 
     def test_logging_error_level(self):
         """Test that ERROR logging level is set correctly."""
-        import logging
-
         executor = PennyLaneExecutor(log_level="ERROR")
         assert executor._logger.level == logging.ERROR
 
@@ -820,8 +809,6 @@ class TestPennylaneDeviceConfiguration:
 
     def test_factory_with_device_name(self):
         """Test creating executor via factory with device_name."""
-        from qc_executor import Executor
-
         executor = Executor.create("pennylane", backend="default.mixed")
         assert executor.device_name == "default.mixed"
 

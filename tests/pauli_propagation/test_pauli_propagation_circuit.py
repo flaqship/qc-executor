@@ -80,7 +80,7 @@ class TestPauliPropagationCircuitConversion:
 
         assert isinstance(converted, PauliPropagationCircuit)
         assert not converted.is_parameterized
-        assert converted.parameters == []
+        assert not converted.parameters
 
 
 class TestPauliPropagationCircuitParameters:
@@ -308,14 +308,14 @@ class TestPauliPropagationCircuitUtilityMethods:
         source._gates = [DummyGate(0, source.num_qubits)]
 
         copied = source.copy()
-        assert copied.gates == []
+        assert not copied.gates
 
         inverted = source.invert()
-        assert inverted.gates == []
+        assert not inverted.gates
 
         target = PauliPropagationCircuit(1)
         composed = target.compose(source, [0])
-        assert composed.gates == []
+        assert not composed.gates
 
         assert isinstance(hash(source), int)
 

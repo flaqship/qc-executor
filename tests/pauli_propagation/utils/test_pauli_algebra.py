@@ -368,28 +368,28 @@ class TestPauliSumProduct:
             pauli_sum_product(psum1, psum2)
 
     def test_product_associativity(self):
-        """Test (A*B)*C = A*(B*C) for PauliSums."""
-        A = PauliSum(2)
-        A.add_term("XI", 1.0)
+        """Test (a*b)*c = a*(b*c) for PauliSums."""
+        a = PauliSum(2)
+        a.add_term("XI", 1.0)
 
-        B = PauliSum(2)
-        B.add_term("YI", 1.0)
+        b = PauliSum(2)
+        b.add_term("YI", 1.0)
 
-        C = PauliSum(2)
-        C.add_term("ZI", 1.0)
+        c = PauliSum(2)
+        c.add_term("ZI", 1.0)
 
-        # (A*B)*C
-        AB = pauli_sum_product(A, B)
-        ABC_left = pauli_sum_product(AB, C)
+        # (a*b)*c
+        ab = pauli_sum_product(a, b)
+        abc_left = pauli_sum_product(ab, c)
 
-        # A*(B*C)
-        BC = pauli_sum_product(B, C)
-        ABC_right = pauli_sum_product(A, BC)
+        # a*(b*c)
+        bc = pauli_sum_product(b, c)
+        abc_right = pauli_sum_product(a, bc)
 
         # Both should give the same result
-        assert len(ABC_left) == len(ABC_right)
-        for term, coeff in ABC_left:
-            assert np.isclose(coeff, ABC_right.get_coeff(term))
+        assert len(abc_left) == len(abc_right)
+        for term, coeff in abc_left:
+            assert np.isclose(coeff, abc_right.get_coeff(term))
 
 
 class TestPauliToMatrix:

@@ -562,14 +562,14 @@ class TestPennylaneLogging:
         executor = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("test log message")
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "test log message" in content
 
         self._close_file_handlers(executor)
 
     def test_logging_no_duplicate_handlers(self, tmp_path):
-        """Test that creating two executors with the same log file does not add duplicate handlers."""
+        """Two executors sharing a log file must not add duplicate handlers."""
         log_file = str(tmp_path / "executor.log")
         executor1 = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         handler_count_before = len(executor1._logger.handlers)
@@ -823,8 +823,8 @@ class TestDeviceInit:
         executor = PennyLaneExecutor("default.qubit")
         assert executor._custom_device is False
         assert executor.device_name == "default.qubit"
-        assert executor._device_args == ()
-        assert executor._device_kwargs == {}
+        assert not executor._device_args
+        assert not executor._device_kwargs
 
     def test_init_string_device_with_kwargs(self):
         """Extra **kwargs are stored and forwarded to qml.device()."""
@@ -975,12 +975,12 @@ class TestPennylaneExecutorHelpers:
     """Test suite for helper methods in PennyLaneExecutor."""
 
     def test_preprocess_operators_native_operator_is_passed_through(self):
-        """Test that if a native PennyLane operator is passed to _preprocess_operators, it is returned as-is without modification."""
-        exec = PennyLaneExecutor()
+        """Native PennyLane operators pass through _preprocess_operators unchanged."""
+        executor = PennyLaneExecutor()
 
-        native_op = MagicMock(spec=exec._native_operator_class)
-        native_op.__class__ = exec._native_operator_class
-        result = exec._preprocess_operators(native_op)
+        native_op = MagicMock(spec=executor._native_operator_class)
+        native_op.__class__ = executor._native_operator_class
+        result = executor._preprocess_operators(native_op)
         assert result == ([native_op], False)
 
     def test_transpile_circuit_native_is_returned_directly(self):

@@ -114,7 +114,7 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("qiskit test log message")
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "qiskit test log message" in content
 
@@ -131,7 +131,7 @@ class TestQiskitExecutor:
         operator = QuantumOperator(["Z"], [1.0])
         executor.expectation_value(qc, operator)
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "Computing expectation value" in content
 
@@ -147,7 +147,7 @@ class TestQiskitExecutor:
         qc = _build_circuit(1, [])
         executor.statevector(qc)
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "Computing statevector" in content
 

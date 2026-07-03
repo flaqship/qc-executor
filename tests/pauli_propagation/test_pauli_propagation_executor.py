@@ -21,10 +21,10 @@ from qc_executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 class TestPauliPropagationExecutor:
     def test_get_accepted_backend_types(self):
-        assert PauliPropagationExecutor.get_accepted_backend_types() == []
+        assert not PauliPropagationExecutor.get_accepted_backend_types()
 
     def test_get_accepted_backend_aliases(self):
-        assert PauliPropagationExecutor.get_accepted_backend_aliases() == []
+        assert not PauliPropagationExecutor.get_accepted_backend_aliases()
 
     def test_init(self):
         executor = PauliPropagationExecutor(
@@ -330,7 +330,7 @@ class TestExecutorHelperFunctions:
         assert ppe._as_list([1, 2]) == [1, 2]
 
     def test_normalize_parameters_variants_and_errors(self):
-        assert ppe._normalize_parameters({}) == {}
+        assert not ppe._normalize_parameters({})
 
         normalized = ppe._normalize_parameters(
             {

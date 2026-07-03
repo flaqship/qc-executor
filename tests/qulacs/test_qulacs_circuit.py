@@ -55,8 +55,8 @@ class TestQulacsCircuitProperties:
         assert isinstance(qulacs_circuit, QulacsCircuit)
         assert qulacs_circuit.num_qubits == 2
         assert len(qulacs_circuit.parameter_names) == 0
-        assert qulacs_circuit.parameter_dimensions == {}
-        assert qulacs_circuit.circuit_arguments == {}
+        assert not qulacs_circuit.parameter_dimensions
+        assert not qulacs_circuit.circuit_arguments
         assert isinstance(hash(qulacs_circuit), int)
 
     def test_get_qulacs_circuit_sets_callable_and_supports_call(self):

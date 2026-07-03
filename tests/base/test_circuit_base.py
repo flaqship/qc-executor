@@ -51,7 +51,7 @@ class TestPauliString:
         circuit = SpyCircuit(2)
         circuit.pauli_string("II")
 
-        assert circuit.ops == []
+        assert not circuit.ops
 
 
 class TestPauliEvolution:
@@ -104,7 +104,7 @@ class TestPauliEvolution:
 
         circuit.pauli_evolution(op, 1.0)
 
-        assert circuit.ops == []
+        assert not circuit.ops
 
     def test_pauli_evolution_respects_explicit_working_qubits(self):
         circuit = SpyCircuit(3)

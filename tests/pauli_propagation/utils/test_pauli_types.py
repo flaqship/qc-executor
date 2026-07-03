@@ -311,7 +311,7 @@ class TestPauliSum:
         psum1 = PauliSum(3)
         psum2 = PauliSum(4)
         with pytest.raises(ValueError, match="different nqubits"):
-            psum1 + psum2
+            _ = psum1 + psum2
 
     def test_scalar_multiplication(self):
         """Test scalar multiplication."""

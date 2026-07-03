@@ -17,19 +17,19 @@ class MockExecutor(ExecutorBase):
         """Initialize mock executor."""
         super().__init__(shots=shots, **kwargs)
 
-    def _expectation_value(self, circuit, observable, parameters=None):
+    def _expectation_value(self, circuit, observable, **parameters):
         """Mock implementation."""
         return 0.5
 
-    def _expectation_value_derivatives(self, circuit, observable, parameters=None):
+    def _expectation_value_derivatives(self, circuit, observable, *derivative, **parameters):
         """Mock implementation."""
         return np.array([0.1, 0.2])
 
-    def _sample(self, circuit, parameters=None):
+    def _sample(self, circuit, **parameters):
         """Mock implementation."""
         return {"00": 500, "11": 500}
 
-    def _statevector(self, circuit, parameters=None):
+    def _statevector(self, circuit, **parameters):
         """Mock implementation."""
         return np.array([1.0, 0.0])
 
@@ -64,16 +64,18 @@ class TestExecutorFactory:
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
 
-            def _expectation_value(self, circuit, observable, parameters=None):
+            def _expectation_value(self, circuit, observable, **parameters):
                 return 0.0
 
-            def _expectation_value_derivatives(self, circuit, observable, parameters=None):
+            def _expectation_value_derivatives(
+                self, circuit, observable, *derivative, **parameters
+            ):
                 return np.array([0.0])
 
-            def _sample(self, circuit, parameters=None):
+            def _sample(self, circuit, **parameters):
                 return {}
 
-            def _statevector(self, circuit, parameters=None):
+            def _statevector(self, circuit, **parameters):
                 return np.array([1.0])
 
             def _transpile_circuit(self, circuit):

@@ -63,10 +63,10 @@ class TestQiskitAvailabilityGuards:
         module_name = "qc_executor.pauli_propagation.utils.operator_converter"
         real_import = builtins.__import__
 
-        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        def fake_import(name, globals_=None, locals_=None, fromlist=(), level=0):
             if name == "qiskit.quantum_info":
                 raise ImportError("simulated qiskit import failure")
-            return real_import(name, globals, locals, fromlist, level)
+            return real_import(name, globals_, locals_, fromlist, level)
 
         with monkeypatch.context() as patch_ctx:
             patch_ctx.setattr(builtins, "__import__", fake_import)

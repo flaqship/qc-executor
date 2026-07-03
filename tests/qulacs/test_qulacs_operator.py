@@ -17,7 +17,7 @@ class TestQulacsOperatorProperties:
         assert isinstance(qulacs_op, QulacsOperator)
         assert qulacs_op.num_qubits == 1
         assert len(qulacs_op.parameter_names) == 0
-        assert qulacs_op.parameter_dimensions == {}
+        assert not qulacs_op.parameter_dimensions
 
     def test_from_quantum_operator_list(self):
         """Test creation from a list of generic operators."""

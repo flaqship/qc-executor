@@ -103,7 +103,7 @@ class TestExecutorBaseInternals:
         assert key_a != key_b
 
     def test_get_accepted_backend_aliases_default_empty(self):
-        assert DummyExecutor.get_accepted_backend_aliases() == []
+        assert not DummyExecutor.get_accepted_backend_aliases()
 
     def test_make_cache_size_validation(self):
         with pytest.raises(ValueError, match="max_size must be None or a positive integer"):

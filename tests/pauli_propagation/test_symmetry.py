@@ -230,7 +230,7 @@ class TestCompositeSymmetry:
         class IncrementSymmetry:
             """Test strategy that increments the term."""
 
-            def canonical_representative(self, term: int, nqubits: int) -> int:
+            def canonical_representative(self, term: int, _nqubits: int) -> int:
                 return term + 1
 
             @property
@@ -240,7 +240,7 @@ class TestCompositeSymmetry:
         class DoubleSymmetry:
             """Test strategy that doubles the term."""
 
-            def canonical_representative(self, term: int, nqubits: int) -> int:
+            def canonical_representative(self, term: int, _nqubits: int) -> int:
                 return term * 2
 
             @property

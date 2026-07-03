@@ -345,7 +345,7 @@ class TestBuildPennylaneObservable:
         dev = qml.device("default.qubit", wires=2)
 
         @qml.qnode(dev)
-        def circuit(param):
+        def circuit(_param):
             return observable_fn([1.0])
 
         result = circuit([1.0])
@@ -415,7 +415,7 @@ class TestBuildPennylaneObservable:
         dev = qml.device("default.qubit", wires=2)
 
         @qml.qnode(dev)
-        def circuit(param):
+        def circuit(_param):
             return observable_fn([1.0])
 
         result = circuit([1.0])
@@ -437,7 +437,7 @@ class TestBuildPennylaneObservable:
         dev = qml.device("default.qubit", wires=2)
 
         @qml.qnode(dev)
-        def circuit(param):
+        def circuit(_param):
             return observable_fn([1.0])
 
         result = circuit([1.0])

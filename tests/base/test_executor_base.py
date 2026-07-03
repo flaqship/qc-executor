@@ -267,7 +267,7 @@ class TestExecutorBaseCachingAndDelegation:
 
         captured = {}
 
-        def fake_create(cls, backend, **kwargs):
+        def fake_create(_cls, backend, **kwargs):
             captured["backend"] = backend
             captured["kwargs"] = kwargs
             return "new-executor"

@@ -70,7 +70,7 @@ class TestTruncateByCoeff:
         psum.add_term("II", 1.0)
         psum.add_term("ZZ", 1e-10)  # Exactly at threshold
 
-        result, stats = truncate_by_coeff(psum, min_coeff=1e-10)
+        result, _ = truncate_by_coeff(psum, min_coeff=1e-10)
 
         # Should keep term at exact threshold
         assert len(result) == 2
@@ -83,7 +83,7 @@ class TestTruncateByCoeff:
         psum.add_term("ZZ", 0.5)
         psum.add_term("XX", 0.01)
 
-        result, stats = truncate_by_coeff(psum, min_coeff=0.1)
+        _, stats = truncate_by_coeff(psum, min_coeff=0.1)
 
         # Total norm: 1.0 + 0.5 + 0.01 = 1.51
         assert np.isclose(stats.coeff_norm_total, 1.51)
@@ -98,7 +98,7 @@ class TestTruncateByCoeff:
         psum.add_term("II", 1.0)
         psum.add_term("XX", 1e-11)
 
-        result, stats = truncate_by_coeff(psum, min_coeff=1e-10, inplace=False)
+        result, _ = truncate_by_coeff(psum, min_coeff=1e-10, inplace=False)
 
         # Original should be unchanged
         assert len(psum) == 2
@@ -114,7 +114,7 @@ class TestTruncateByCoeff:
         psum.add_term("II", 1.0)
         psum.add_term("XX", 1e-11)
 
-        result, stats = truncate_by_coeff(psum, min_coeff=1e-10, inplace=True)
+        result, _ = truncate_by_coeff(psum, min_coeff=1e-10, inplace=True)
 
         # Result should be same object as psum
         assert result is psum
@@ -174,7 +174,7 @@ class TestTruncateByWeight:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 2.0)
 
-        result, stats = truncate_by_weight(psum, max_weight=0)
+        result, _ = truncate_by_weight(psum, max_weight=0)
 
         assert len(result) == 1
         assert np.isclose(result.get_coeff("II"), 1.0)
@@ -185,7 +185,7 @@ class TestTruncateByWeight:
         psum.add_term("ZZI", 1.0)  # weight 2
         psum.add_term("ZZZ", 2.0)  # weight 3
 
-        result, stats = truncate_by_weight(psum, max_weight=2)
+        result, _ = truncate_by_weight(psum, max_weight=2)
 
         # Weight 2 should be kept, weight 3 removed
         assert len(result) == 1
@@ -198,7 +198,7 @@ class TestTruncateByWeight:
         psum.add_term("ZI", 2.0)  # weight 1
         psum.add_term("XY", 3.0)  # weight 2
 
-        result, stats = truncate_by_weight(psum, max_weight=1)
+        _, stats = truncate_by_weight(psum, max_weight=1)
 
         # Total norm: 1 + 2 + 3 = 6
         assert np.isclose(stats.coeff_norm_total, 6.0)
@@ -213,7 +213,7 @@ class TestTruncateByWeight:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 2.0)
 
-        result, stats = truncate_by_weight(psum, max_weight=0, inplace=True)
+        result, _ = truncate_by_weight(psum, max_weight=0, inplace=True)
 
         assert result is psum
         assert len(psum) == 1
@@ -230,7 +230,7 @@ class TestTruncateCombined:
         psum.add_term("ZZI", 0.01)  # weight 2, coeff 0.01
         psum.add_term("ZZZ", 2.0)  # weight 3, coeff 2.0
 
-        result, stats = truncate_combined(psum, min_coeff=0.1, max_weight=2)
+        result, _ = truncate_combined(psum, min_coeff=0.1, max_weight=2)
 
         # Should keep: III (passes both), ZII (passes both)
         # Should remove: ZZI (fails coeff), ZZZ (fails weight)
@@ -244,7 +244,7 @@ class TestTruncateCombined:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 0.01)
 
-        result, stats = truncate_combined(psum, min_coeff=0.1, max_weight=None)
+        result, _ = truncate_combined(psum, min_coeff=0.1, max_weight=None)
 
         assert len(result) == 1
         assert np.isclose(result.get_coeff("II"), 1.0)
@@ -255,7 +255,7 @@ class TestTruncateCombined:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 2.0)
 
-        result, stats = truncate_combined(
+        result, _ = truncate_combined(
             psum, min_coeff=1e-15, max_weight=0  # Effectively no coeff filter
         )
 
@@ -271,10 +271,10 @@ class TestTruncateCombined:
         psum.add_term("YY", 4.0)
 
         # Custom filter: only keep terms with even coefficient real part
-        def even_coeff_filter(term, coeff):
+        def even_coeff_filter(_term, coeff):
             return int(coeff.real) % 2 == 0
 
-        result, stats = truncate_combined(psum, min_coeff=0.1, custom_filter=even_coeff_filter)
+        result, _ = truncate_combined(psum, min_coeff=0.1, custom_filter=even_coeff_filter)
 
         # Should keep: ZZ (2.0), YY (4.0)
         assert len(result) == 2
@@ -291,12 +291,10 @@ class TestTruncateCombined:
         psum.add_term("XII", 0.01)  # weight 1, even coeff, small
 
         # Only even coefficients
-        def even_filter(term, coeff):
+        def even_filter(_term, coeff):
             return int(coeff.real) % 2 == 0
 
-        result, stats = truncate_combined(
-            psum, min_coeff=0.1, max_weight=2, custom_filter=even_filter
-        )
+        result, _ = truncate_combined(psum, min_coeff=0.1, max_weight=2, custom_filter=even_filter)
 
         # Should keep: ZII (even, weight 1, coeff 2), ZZI (even, weight 2, coeff 4)
         # Should remove: III (odd), ZZZ (weight 3), XII (small coeff)
@@ -310,7 +308,7 @@ class TestTruncateCombined:
         psum.add_term("II", 1.0)
         psum.add_term("XY", 0.01)
 
-        result, stats = truncate_combined(psum, min_coeff=0.1, inplace=True)
+        result, _ = truncate_combined(psum, min_coeff=0.1, inplace=True)
 
         assert result is psum
         assert len(psum) == 1
@@ -325,7 +323,7 @@ class TestTruncationIntegration:
         psum.add_term("ZZZ", 1.0)
         psum.add_term("XXX", 0.001)
 
-        result, stats = truncate_by_coeff(psum, min_coeff=0.01)
+        result, _ = truncate_by_coeff(psum, min_coeff=0.01)
 
         assert isinstance(result, PauliSum)
         assert result.nqubits == 3
@@ -337,7 +335,7 @@ class TestTruncationIntegration:
         psum.add_term("ZZ", 0.1)
         psum.add_term("XX", 0.01)
 
-        result, stats = truncate_by_coeff(psum, min_coeff=0.05)
+        _, stats = truncate_by_coeff(psum, min_coeff=0.05)
 
         # Removed coefficient: 0.01
         # Total: 1.11

@@ -86,7 +86,7 @@ class TestPauliPropagationExecutorNativeTypes:
 
         captured = {}
 
-        def fake_propagate(gates, obs, params, max_weight, truncate_threshold):
+        def fake_propagate(_gates, obs, _params, **_kwargs):
             captured["symmetry_name"] = obs.symmetry.name
             return obs
 
@@ -106,7 +106,7 @@ class TestPauliPropagationExecutorNativeTypes:
 
         captured = {}
 
-        def fake_propagate(gates, obs, params, max_weight, truncate_threshold):
+        def fake_propagate(_gates, obs, _params, **_kwargs):
             captured["symmetry_name"] = obs.symmetry.name
             return obs
 

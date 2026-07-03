@@ -13,6 +13,7 @@ from qc_executor.pauli_propagation.utils.pauli_algebra import (
     int_to_symbol,
     pauli_multiply,
     pauli_sum_product,
+    pauli_to_matrix,
     set_pauli,
     string_to_term,
     symbol_to_int,
@@ -396,11 +397,6 @@ class TestPauliToMatrix:
 
     def test_identity_matrix(self):
         """Test identity operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("I", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -409,11 +405,6 @@ class TestPauliToMatrix:
 
     def test_x_matrix(self):
         """Test X operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("X", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -422,11 +413,6 @@ class TestPauliToMatrix:
 
     def test_y_matrix(self):
         """Test Y operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("Y", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -435,11 +421,6 @@ class TestPauliToMatrix:
 
     def test_z_matrix(self):
         """Test Z operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("Z", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -448,11 +429,6 @@ class TestPauliToMatrix:
 
     def test_two_qubit_matrix(self):
         """Test two-qubit Pauli matrix (ZZ)."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("ZZ", 2)
         matrix = pauli_to_matrix(term, 2)
 
@@ -464,11 +440,6 @@ class TestPauliToMatrix:
 
     def test_matrix_shape(self):
         """Test that matrix has correct shape."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         for nqubits in [1, 2, 3]:
             term = string_to_term("I" * nqubits, nqubits)
             matrix = pauli_to_matrix(term, nqubits)
@@ -477,11 +448,6 @@ class TestPauliToMatrix:
 
     def test_hermitian(self):
         """Test that Pauli matrices are Hermitian."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         for pauli_str in ["X", "Y", "Z", "I"]:
             term = string_to_term(pauli_str, 1)
             matrix = pauli_to_matrix(term, 1)

@@ -76,7 +76,7 @@ class TestQuantumCircuitPauliString:
 
         circuit.pauli_string("III")
 
-        assert circuit.ops == []
+        assert not circuit.ops
 
     def test_pauli_string_validates_length(self):
         circuit = QuantumCircuit(2)

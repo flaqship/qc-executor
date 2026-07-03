@@ -17,10 +17,10 @@ def _build_circuit(num_qubits, operations):
 
 class TestQulacsExecutorMetadata:
     def test_get_accepted_backend_types(self):
-        assert QulacsExecutor.get_accepted_backend_types() == []
+        assert not QulacsExecutor.get_accepted_backend_types()
 
     def test_get_accepted_backend_aliases(self):
-        assert QulacsExecutor.get_accepted_backend_aliases() == []
+        assert not QulacsExecutor.get_accepted_backend_aliases()
 
     def test_shots_property_and_remote(self):
         """Test basic public properties of the executor."""
@@ -63,7 +63,7 @@ class TestQulacsExecutorLoggingAndCache:
         executor = QulacsExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("qulacs test log message")
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "qulacs test log message" in content
 

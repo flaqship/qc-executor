@@ -6,7 +6,6 @@ import sympy as sp
 
 from qc_executor.pauli_propagation.utils.gates import (
     CliffordGate,
-    Gate,
     LayerBarrier,
     PauliRotation,
 )

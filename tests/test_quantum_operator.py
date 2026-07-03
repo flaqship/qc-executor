@@ -36,16 +36,18 @@ class TestQuantumOperatorProperties:
         assert not operator.is_parametrized
 
     def test_num_parameters(self):
-        # Since QuantumOperator is built on SparsePauliOp, which does not support parameters, this should always be 0
+        # QuantumOperator is built on SparsePauliOp, which has no parameters,
+        # so this is always 0.
         operator = QuantumOperator(["Z"], [1.0])
 
         assert operator.num_parameters == 0
 
     def test_parameters(self):
-        # Since QuantumOperator is built on SparsePauliOp, which does not support parameters, this should always be an empty list
+        # QuantumOperator is built on SparsePauliOp, which has no parameters,
+        # so this is always an empty list.
         operator = QuantumOperator(["Z"], [1.0])
 
-        assert operator.parameters == []
+        assert not operator.parameters
 
 
 class TestQuantumOperatorMutations:

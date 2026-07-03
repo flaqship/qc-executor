@@ -267,10 +267,9 @@ class TestQiskitValidation:
         psum = PauliSum(2)
         psum.add_term("II", 1.0)
 
-        # |0⟩ state
+        # |0⟩ state; ⟨ψ|I|ψ⟩ equals the total probability, which is 1 for a valid state.
         sv = Statevector.from_label("00")
-        # Expectation of identity is always 1
-        qiskit_result = 1.0
+        qiskit_result = float(sv.probabilities().sum())
 
         our_result = overlap_with_zero(psum)
         assert np.isclose(our_result, qiskit_result, atol=1e-10)

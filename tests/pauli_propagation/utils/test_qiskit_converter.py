@@ -9,13 +9,15 @@ import pytest
 # Try to import Qiskit
 try:
     from qiskit import QuantumCircuit
-    from qiskit.circuit import Parameter
+    from qiskit.circuit import Gate as QiskitGate
+    from qiskit.circuit import Parameter, ParameterExpression
 
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
 
-from qc_executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from qc_executor.pauli_propagation.utils import qiskit_converter as _qiskit_converter_module
+from qc_executor.pauli_propagation.utils.gates import CliffordGate, LayerBarrier, PauliRotation
 
 # Skip all tests if Qiskit is not available
 pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not installed")
@@ -23,10 +25,8 @@ pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not install
 
 @pytest.fixture
 def qiskit_converter():
-    """Import qiskit_converter module."""
-    from qc_executor.pauli_propagation.utils import qiskit_converter as converter_module
-
-    return converter_module
+    """Provide the qiskit_converter module under test."""
+    return _qiskit_converter_module
 
 
 class TestConvertSingleGate:
@@ -146,8 +146,6 @@ class TestConvertSingleGate:
 
     def test_barrier_skipped(self, qiskit_converter):
         """Test that barriers are converted to LayerBarrier markers."""
-        from qc_executor.pauli_propagation.utils.gates import LayerBarrier
-
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.barrier()
@@ -212,8 +210,6 @@ class TestParametricCircuits:
 
     def test_extract_parameter_constant_expression(self, qiskit_converter):
         """Test extracting a constant ParameterExpression."""
-        from qiskit.circuit import ParameterExpression
-
         constant_expr = ParameterExpression({}, "0.25")
 
         param_expr, param_value = qiskit_converter._extract_parameter(constant_expr)
@@ -312,8 +308,6 @@ class TestUnsupportedGates:
 
     def test_unsupported_gate_error(self, qiskit_converter):
         """Test error on unsupported gate."""
-        from qiskit.circuit import Gate as QiskitGate
-
         qc = QuantumCircuit(1)
         qc.append(QiskitGate("my_unsupported_gate", 1, []), [0])
 
@@ -326,8 +320,6 @@ class TestImportAndAvailabilityPaths:
 
     def test_import_sets_qiskit_unavailable_on_import_error(self):
         """Test module sets availability flag to False when qiskit import fails."""
-        from qc_executor.pauli_propagation.utils import qiskit_converter as converter_module
-
         original_import = builtins.__import__
 
         def mocked_import(name, globals_=None, locals_=None, fromlist=(), level=0):
@@ -337,11 +329,11 @@ class TestImportAndAvailabilityPaths:
 
         builtins.__import__ = mocked_import
         try:
-            reloaded = importlib.reload(converter_module)
+            reloaded = importlib.reload(_qiskit_converter_module)
             assert reloaded.QISKIT_AVAILABLE is False
         finally:
             builtins.__import__ = original_import
-            importlib.reload(converter_module)
+            importlib.reload(_qiskit_converter_module)
 
     def test_convert_circuit_raises_when_qiskit_unavailable(self, qiskit_converter, monkeypatch):
         """Test convert_circuit raises if qiskit is unavailable."""
@@ -392,8 +384,6 @@ class TestBindParametersEdgeCases:
 
     def test_bind_parameters_skips_layer_barrier(self, qiskit_converter):
         """Test LayerBarrier objects are skipped during parameter collection."""
-        from qc_executor.pauli_propagation.utils.gates import LayerBarrier
-
         result = qiskit_converter.bind_parameters([LayerBarrier()], {})
         assert result == {}
 

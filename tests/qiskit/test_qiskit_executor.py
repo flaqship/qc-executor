@@ -9,6 +9,7 @@ from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameters
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import QiskitExecutor
+from qc_executor.qiskit.qiskit_operator import QiskitOperator
 from qc_executor.quantum_operator import QuantumOperator
 
 
@@ -113,7 +114,7 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("qiskit test log message")
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "qiskit test log message" in content
 
@@ -130,7 +131,7 @@ class TestQiskitExecutor:
         operator = QuantumOperator(["Z"], [1.0])
         executor.expectation_value(qc, operator)
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "Computing expectation value" in content
 
@@ -146,7 +147,7 @@ class TestQiskitExecutor:
         qc = _build_circuit(1, [])
         executor.statevector(qc)
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "Computing statevector" in content
 
@@ -730,8 +731,6 @@ class TestExecutorInternalHelpers:
     def test_transpile_operator_wraps_generic_operator_and_preserves_native_wrapper(self):
         """Generic operators are wrapped, native Qiskit operators are passed through."""
         executor = QiskitExecutor()
-        from qc_executor.qiskit.qiskit_operator import QiskitOperator
-
         generic_operator = QuantumOperator(["Z"], [1.0])
         wrapped_operator = executor._transpile_operator(generic_operator)
         assert wrapped_operator.qiskit_operator is generic_operator._qiskit_operator

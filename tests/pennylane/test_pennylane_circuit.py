@@ -445,7 +445,7 @@ class TestPennyLanePropertiesAndMethods:
         assert val == 2
 
     def test_int_condition_match_executes_gate(self):
-        """Test that _apply_conditional_gate executes the gate when integer condition matches measurements."""
+        """_apply_conditional_gate runs the gate when the integer condition matches."""
         pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
         circuit_gate = MagicMock()
         measurements = [1, 0]
@@ -458,7 +458,7 @@ class TestPennyLanePropertiesAndMethods:
         circuit_gate.assert_called_once_with(0.5, wires=[0])
 
     def test_int_condition_no_match_skips_gate(self):
-        """Test that _apply_conditional_gate skips the gate when integer condition does not match measurements."""
+        """_apply_conditional_gate skips the gate when the integer condition does not match."""
         pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
         circuit_gate = MagicMock()
         measurements = [0, 0]
@@ -471,7 +471,7 @@ class TestPennyLanePropertiesAndMethods:
         circuit_gate.assert_not_called()
 
     def test_int_condition_no_param_executes_gate(self):
-        """Test that _apply_conditional_gate executes the gate without parameters when integer condition matches measurements."""
+        """_apply_conditional_gate runs a parameterless gate when the integer condition matches."""
         pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
         circuit_gate = MagicMock()
         measurements = [1]
@@ -482,7 +482,7 @@ class TestPennyLanePropertiesAndMethods:
         circuit_gate.assert_called_once_with(wires=[0])
 
     def test_multi_bit_condition_computes_value(self):
-        """Test that _apply_conditional_gate correctly computes the integer value from multiple bits and executes the gate if it matches the condition."""
+        """_apply_conditional_gate computes the integer from multiple bits and runs on a match."""
         pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
         circuit_gate = MagicMock()
         measurements = [1, 1]
@@ -493,7 +493,7 @@ class TestPennyLanePropertiesAndMethods:
         circuit_gate.assert_called_once_with(wires=[2])
 
     def test_mid_circuit_measurement_condition_with_param(self, monkeypatch):
-        """Test that _apply_conditional_gate correctly uses qml.cond for mid-circuit measurement conditions with parameters."""
+        """_apply_conditional_gate uses qml.cond for mid-circuit measurement with parameters."""
         pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
         circuit_gate = MagicMock()
         condition = (0, 1)
@@ -514,7 +514,7 @@ class TestPennyLanePropertiesAndMethods:
         mock_cond_fn.assert_called_once_with(0.5, wires=[0])
 
     def test_mid_circuit_measurement_condition_no_param(self, monkeypatch):
-        """Test that _apply_conditional_gate correctly uses qml.cond for mid-circuit measurement conditions without parameters."""
+        """_apply_conditional_gate uses qml.cond for mid-circuit measurement without parameters."""
         pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
         circuit_gate = MagicMock()
         condition = (0, 1)

@@ -24,7 +24,7 @@ from qc_executor.pennylane.pennylane_operator import PennyLaneOperator
 
 
 def _make_quantum_operator_base(qiskit_op):
-    """Helper function to create a MagicMock that simulates a QuantumOperatorBase with a given qiskit_operator."""
+    """Create a MagicMock that simulates a QuantumOperatorBase for a given qiskit_operator."""
     mock = MagicMock(spec=QuantumOperatorBase)
     mock.qiskit_operator = qiskit_op
     return mock
@@ -303,7 +303,7 @@ class TestPennyLaneOperatorPropertiesAndMethods:
 class TestBuildPennylaneObservable:
 
     def test_single_op_no_params_nonempty_words(self):
-        """Test that build_pennylane_observable returns a valid function for a non-parametric operator with non-empty Pauli words."""
+        """build_pennylane_observable returns a valid function for a non-parametric operator."""
         sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[1.0, 0.5])
         op_base = _make_quantum_operator_base(sparse_op)
         pl_op = PennyLaneOperator(op_base)
@@ -321,7 +321,7 @@ class TestBuildPennylaneObservable:
         assert result is not None
 
     def test_single_op_no_params_empty_words(self):
-        """Test that build_pennylane_observable returns a function that evaluates to 0 for a non-parametric operator with empty Pauli words."""
+        """build_pennylane_observable returns a function evaluating to 0 for empty Pauli words."""
         sparse_op = SparsePauliOp(["II"], coeffs=[1.0])
         op_base = _make_quantum_operator_base(sparse_op)
         pl_op = PennyLaneOperator(op_base)
@@ -334,7 +334,7 @@ class TestBuildPennylaneObservable:
         assert result == 0.0
 
     def test_single_op_with_params(self):
-        """Test that build_pennylane_observable returns a valid function for a parametric operator."""
+        """build_pennylane_observable returns a valid function for a parametric operator."""
         theta_vec = Parameters("theta", 1)
         sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[theta_vec[0], 0.5])
         op_base = _make_quantum_operator_base(sparse_op)
@@ -345,7 +345,7 @@ class TestBuildPennylaneObservable:
         dev = qml.device("default.qubit", wires=2)
 
         @qml.qnode(dev)
-        def circuit(param):
+        def circuit(_param):
             return observable_fn([1.0])
 
         result = circuit([1.0])
@@ -355,7 +355,7 @@ class TestBuildPennylaneObservable:
     # --- List branch ---
 
     def test_list_no_params_nonempty_words(self):
-        """Test that build_pennylane_observable returns a valid function for a list of non-parametric operators with non-empty Pauli words."""
+        """build_pennylane_observable handles a list of non-parametric operators."""
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[1.0])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
         op_base1 = _make_quantum_operator_base(sparse_op1)
@@ -376,7 +376,7 @@ class TestBuildPennylaneObservable:
         assert result.shape == (2,)
 
     def test_list_no_params_empty_words_for_one_operator(self):
-        """Test that build_pennylane_observable returns a function that evaluates to 0 for the operator with empty Pauli words in a list of non-parametric operators."""
+        """build_pennylane_observable returns 0 for the empty-Pauli-words operator in a list."""
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[1.0])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
         op_base1 = _make_quantum_operator_base(sparse_op1)
@@ -401,7 +401,7 @@ class TestBuildPennylaneObservable:
         assert float(result_array.flatten()[0]) == 1.0
 
     def test_list_with_params(self):
-        """Test that build_pennylane_observable returns a valid function for a list of parametric operators."""
+        """build_pennylane_observable handles a list of parametric operators."""
         theta_vec = Parameters("theta", 1)
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[theta_vec[0]])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
@@ -415,7 +415,7 @@ class TestBuildPennylaneObservable:
         dev = qml.device("default.qubit", wires=2)
 
         @qml.qnode(dev)
-        def circuit(param):
+        def circuit(_param):
             return observable_fn([1.0])
 
         result = circuit([1.0])
@@ -423,7 +423,7 @@ class TestBuildPennylaneObservable:
         assert result.shape == (2,)
 
     def test_list_mixed_params_and_no_params_per_op(self):
-        """Test that build_pennylane_observable returns a valid function for a list of mixed parametric and non-parametric operators."""
+        """build_pennylane_observable handles a mixed list of parametric and plain operators."""
         theta_vec = Parameters("theta", 1)
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[theta_vec[0]])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
@@ -437,7 +437,7 @@ class TestBuildPennylaneObservable:
         dev = qml.device("default.qubit", wires=2)
 
         @qml.qnode(dev)
-        def circuit(param):
+        def circuit(_param):
             return observable_fn([1.0])
 
         result = circuit([1.0])

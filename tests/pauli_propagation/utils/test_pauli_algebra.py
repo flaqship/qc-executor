@@ -13,6 +13,7 @@ from qc_executor.pauli_propagation.utils.pauli_algebra import (
     int_to_symbol,
     pauli_multiply,
     pauli_sum_product,
+    pauli_to_matrix,
     set_pauli,
     string_to_term,
     symbol_to_int,
@@ -367,28 +368,28 @@ class TestPauliSumProduct:
             pauli_sum_product(psum1, psum2)
 
     def test_product_associativity(self):
-        """Test (A*B)*C = A*(B*C) for PauliSums."""
-        A = PauliSum(2)
-        A.add_term("XI", 1.0)
+        """Test (a*b)*c = a*(b*c) for PauliSums."""
+        a = PauliSum(2)
+        a.add_term("XI", 1.0)
 
-        B = PauliSum(2)
-        B.add_term("YI", 1.0)
+        b = PauliSum(2)
+        b.add_term("YI", 1.0)
 
-        C = PauliSum(2)
-        C.add_term("ZI", 1.0)
+        c = PauliSum(2)
+        c.add_term("ZI", 1.0)
 
-        # (A*B)*C
-        AB = pauli_sum_product(A, B)
-        ABC_left = pauli_sum_product(AB, C)
+        # (a*b)*c
+        ab = pauli_sum_product(a, b)
+        abc_left = pauli_sum_product(ab, c)
 
-        # A*(B*C)
-        BC = pauli_sum_product(B, C)
-        ABC_right = pauli_sum_product(A, BC)
+        # a*(b*c)
+        bc = pauli_sum_product(b, c)
+        abc_right = pauli_sum_product(a, bc)
 
         # Both should give the same result
-        assert len(ABC_left) == len(ABC_right)
-        for term, coeff in ABC_left:
-            assert np.isclose(coeff, ABC_right.get_coeff(term))
+        assert len(abc_left) == len(abc_right)
+        for term, coeff in abc_left:
+            assert np.isclose(coeff, abc_right.get_coeff(term))
 
 
 class TestPauliToMatrix:
@@ -396,11 +397,6 @@ class TestPauliToMatrix:
 
     def test_identity_matrix(self):
         """Test identity operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("I", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -409,11 +405,6 @@ class TestPauliToMatrix:
 
     def test_x_matrix(self):
         """Test X operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("X", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -422,11 +413,6 @@ class TestPauliToMatrix:
 
     def test_y_matrix(self):
         """Test Y operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("Y", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -435,11 +421,6 @@ class TestPauliToMatrix:
 
     def test_z_matrix(self):
         """Test Z operator matrix."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("Z", 1)
         matrix = pauli_to_matrix(term, 1)
 
@@ -448,11 +429,6 @@ class TestPauliToMatrix:
 
     def test_two_qubit_matrix(self):
         """Test two-qubit Pauli matrix (ZZ)."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         term = string_to_term("ZZ", 2)
         matrix = pauli_to_matrix(term, 2)
 
@@ -464,11 +440,6 @@ class TestPauliToMatrix:
 
     def test_matrix_shape(self):
         """Test that matrix has correct shape."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         for nqubits in [1, 2, 3]:
             term = string_to_term("I" * nqubits, nqubits)
             matrix = pauli_to_matrix(term, nqubits)
@@ -477,11 +448,6 @@ class TestPauliToMatrix:
 
     def test_hermitian(self):
         """Test that Pauli matrices are Hermitian."""
-        from qc_executor.pauli_propagation.utils.pauli_algebra import (
-            pauli_to_matrix,
-            string_to_term,
-        )
-
         for pauli_str in ["X", "Y", "Z", "I"]:
             term = string_to_term(pauli_str, 1)
             matrix = pauli_to_matrix(term, 1)

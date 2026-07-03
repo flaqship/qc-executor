@@ -120,6 +120,19 @@ extension-pkg-allow-list = [
     "numpy",
 ]
 
+[tool.pylint.classes]
+# Recognise pytest's setup_method/setup_class as valid places to define
+# instance/class attributes, alongside the usual dunder and unittest hooks.
+defining-attr-methods = [
+    "__init__",
+    "__new__",
+    "setUp",
+    "asyncSetUp",
+    "__post_init__",
+    "setup_method",
+    "setup_class",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

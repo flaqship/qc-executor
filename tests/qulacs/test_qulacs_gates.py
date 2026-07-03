@@ -3,8 +3,25 @@
 from unittest.mock import Mock
 
 import pytest
-from qulacs import ParametricQuantumCircuit
-from qulacs.gate import CZ, RX, RY, RZ, SWAP, TOFFOLI, U1, H, Identity, S, Sdag, T, Tdag, X, Y, Z
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs.gate import (  # pylint: disable=no-name-in-module
+    CZ,
+    RX,
+    RY,
+    RZ,
+    SWAP,
+    TOFFOLI,
+    U1,
+    H,
+    Identity,
+    S,
+    Sdag,
+    T,
+    Tdag,
+    X,
+    Y,
+    Z,
+)
 
 from qc_executor.qulacs.qulacs_gates import (
     qiskit_qulacs_gate_dict,
@@ -445,10 +462,8 @@ class TestGateEdgeCases:
 
     def test_gate_function_returns_none(self, mock_circuit):
         """Test that gate functions return None."""
-        result = qulacs_gate_h(mock_circuit, 0)
-        assert result is None
+        assert qulacs_gate_h(mock_circuit, 0) is None
 
     def test_parametric_gate_function_returns_none(self, mock_circuit):
         """Test that parametric gate functions return None."""
-        result = qulacs_param_gate_rx(mock_circuit, 1.0, 0)
-        assert result is None
+        assert qulacs_param_gate_rx(mock_circuit, 1.0, 0) is None

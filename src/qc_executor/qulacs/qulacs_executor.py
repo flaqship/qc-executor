@@ -178,8 +178,10 @@ class QulacsExecutor(ExecutorBase):
 
         values = []
 
-        # TODO: support for multiple circuits and observables is not implemented yet
-        # Currently only single set of circuit, observable, and parameters is fully supported!
+        # Multiple circuits and multiple observables are supported and handled by the
+        # nested loops below. Only a single parameter set per call is supported, i.e.
+        # batched/multiple parameter sets are not implemented (this is consistent with
+        # the PennyLane backend).
 
         for qulacs_circuit in qulacs_circuits:
 
@@ -407,7 +409,15 @@ class QulacsExecutor(ExecutorBase):
         qulacs_circuits, _ = self._preprocess_circuits(circuit)
         qulacs_observables, _ = self._preprocess_operators(observable)
 
-        # TODO: multiple circuits and operators are not implemented yet
+        # Derivatives for multiple circuits or observables are not implemented. Raise an
+        # explicit error instead of silently dropping all but the first element, which
+        # would otherwise return a plausible but wrong result.
+        if len(qulacs_circuits) > 1 or len(qulacs_observables) > 1:
+            raise NotImplementedError(
+                "Derivatives for multiple circuits or observables are not supported. "
+                "Please call expectation_value_derivatives with a single circuit and "
+                "a single observable."
+            )
         qulacs_circuit = qulacs_circuits[0]
         qulacs_observable = qulacs_observables[0]
 

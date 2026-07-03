@@ -484,7 +484,15 @@ class PennyLaneExecutor(ExecutorBase):
         pennylane_circuits, _ = self._preprocess_circuits(circuit)
         pennylane_observables, _ = self._preprocess_operators(observable)
 
-        # Multiple circuits and operators are not implemented yet; use first element only.
+        # Derivatives for multiple circuits or observables are not implemented. Raise an
+        # explicit error instead of silently dropping all but the first element, which
+        # would otherwise return a plausible but wrong result.
+        if len(pennylane_circuits) > 1 or len(pennylane_observables) > 1:
+            raise NotImplementedError(
+                "Derivatives for multiple circuits or observables are not supported. "
+                "Please call expectation_value_derivatives with a single circuit and "
+                "a single observable."
+            )
         pennylane_circuit = pennylane_circuits[0]
         pennylane_observable = pennylane_observables[0]
 

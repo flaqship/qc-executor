@@ -149,6 +149,10 @@ class PennyLaneCircuit:
         printer, modules = _get_sympy_interface()
 
         for gate_operation in circuit.data:
+            # Barriers are visualization/compiler directives with no effect on the
+            # statevector, so they are skipped during conversion.
+            if gate_operation.operation.name == "barrier":
+                continue
             self._pennylane_conditions.append(self._get_gate_condition(circuit, gate_operation))
             self._pennylane_gates_param_function.append(
                 self._get_gate_param_tuple(gate_operation, symbol_tuple, printer, modules)

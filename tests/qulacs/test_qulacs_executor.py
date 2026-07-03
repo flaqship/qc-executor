@@ -180,6 +180,49 @@ class TestQulacsExecutorExpectationAndStatevector:
         assert np.isclose(values[0], 1.0, atol=1e-6)
         assert np.isclose(values[1], -1.0, atol=1e-6)
 
+    def test_expectation_value_single_circuit_multiple_observables_shape(self):
+        """Test shape handling for a single circuit with multiple observables."""
+        qc = _build_circuit(1, [("h", [0])])
+        op_z = QuantumOperator(["Z"], [1.0])
+        op_x = QuantumOperator(["X"], [1.0])
+
+        executor = QulacsExecutor()
+        values = executor.expectation_value(qc, [op_z, op_x])
+
+        assert isinstance(values, np.ndarray)
+        assert values.shape == (2,)
+        # H|0> has <Z> = 0 and <X> = 1
+        assert np.isclose(values[0], 0.0, atol=1e-6)
+        assert np.isclose(values[1], 1.0, atol=1e-6)
+
+    def test_expectation_value_multiple_circuits_multiple_observables_shape(self):
+        """Test shape and values for multiple circuits with multiple observables."""
+        qc1 = _build_circuit(1, [])  # |0>
+        qc2 = _build_circuit(1, [("x", [0])])  # |1>
+        op_z = QuantumOperator(["Z"], [1.0])
+        op_x = QuantumOperator(["X"], [1.0])
+
+        executor = QulacsExecutor()
+        values = executor.expectation_value([qc1, qc2], [op_z, op_x])
+
+        assert isinstance(values, np.ndarray)
+        assert values.shape == (2, 2)
+        # Rows are circuits, columns are observables ([Z, X]).
+        expected = np.array([[1.0, 0.0], [-1.0, 0.0]])
+        assert np.allclose(values, expected, atol=1e-6)
+
+    def test_expectation_value_toffoli_gate(self):
+        """Test that the Toffoli (ccx) gate flips the target when both controls are set."""
+        # Both controls set -> target flips to |1>, <Z> on target = -1
+        qc_both = _build_circuit(3, [("x", [0]), ("x", [1]), ("ccx", [0, 1, 2])])
+        # Only one control set -> target stays |0>, <Z> on target = +1
+        qc_one = _build_circuit(3, [("x", [0]), ("ccx", [0, 1, 2])])
+        op = QuantumOperator(["IIZ"], [1.0])
+
+        executor = QulacsExecutor()
+        assert np.isclose(executor.expectation_value(qc_both, op), -1.0, atol=1e-6)
+        assert np.isclose(executor.expectation_value(qc_one, op), 1.0, atol=1e-6)
+
     def test_statevector_missing_parameter_raises(self):
         """Test missing parameter error handling in statevector."""
         x = Parameters("x", 1)
@@ -200,6 +243,26 @@ class TestQulacsExecutorDerivatives:
         value = executor.expectation_value_derivatives(qc, op)
 
         assert isinstance(value, (float, np.ndarray))
+
+    def test_derivatives_multiple_circuits_raises(self):
+        """Test that derivatives for multiple circuits raise NotImplementedError."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QulacsExecutor()
+        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
+            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1])
+
+    def test_derivatives_multiple_observables_raises(self):
+        """Test that derivatives for multiple observables raise NotImplementedError."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+
+        executor = QulacsExecutor()
+        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
+            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1])
 
     def test_derivatives_higher_order_tuple_raises(self):
         """Test that higher-order derivative tuples are rejected."""

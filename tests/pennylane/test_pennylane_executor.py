@@ -446,6 +446,26 @@ class TestPennylaneErrorHandling:
         with pytest.raises(ValueError, match="Parameter 'y' not found"):
             executor.expectation_value_derivatives(qc, operator, x=[0.5])  # Missing y parameter
 
+    def test_derivatives_multiple_circuits_raises(self):
+        """Test that derivatives for multiple circuits raise NotImplementedError."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = PennyLaneExecutor()
+        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
+            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1])
+
+    def test_derivatives_multiple_observables_raises(self):
+        """Test that derivatives for multiple observables raise NotImplementedError."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = PennyLaneExecutor()
+        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
+            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1])
+
     def test_device_kwargs_raises(self):
         with pytest.raises(TypeError, match="'device' is not a supported argument"):
             PennyLaneExecutor(device="default.qubit")

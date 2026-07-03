@@ -347,6 +347,27 @@ class TestPennyLanePropertiesAndMethods:
         pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(pennylane_circuit)
 
+    def test_barrier_is_skipped_during_conversion(self):
+        """Test that barriers are skipped and do not affect the built gate lists."""
+        qc_plain = QuantumCircuit(2)
+        qc_plain.h(0)
+        qc_plain.cx(0, 1)
+
+        qc_barrier = QuantumCircuit(2)
+        qc_barrier.h(0)
+        qc_barrier.barrier([0, 1])
+        qc_barrier.cx(0, 1)
+        qc_barrier.barrier(0)
+
+        plc_plain = PennyLaneCircuit(qc_plain)
+        plc_barrier = PennyLaneCircuit(qc_barrier)
+
+        # The barrier circuit must yield the same gates as the plain one, and the
+        # internal parallel lists must stay aligned (no leftover entries).
+        assert len(plc_barrier._pennylane_gates) == len(plc_plain._pennylane_gates)
+        assert len(plc_barrier._pennylane_gates) == len(plc_barrier._pennylane_gates_wires)
+        assert len(plc_barrier._pennylane_gates) == len(plc_barrier._pennylane_conditions)
+
     def test_get_pennylane_circuit_property(self):
         """Test that get_pennylane_circuit() returns callable and sets property."""
         qc = QuantumCircuit(2)

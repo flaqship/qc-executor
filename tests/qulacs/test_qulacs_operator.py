@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from qulacs import GeneralQuantumOperator, PauliOperator
+from qulacs import GeneralQuantumOperator, PauliOperator  # pylint: disable=no-name-in-module
 
 from qc_executor import QuantumOperator
 from qc_executor.parameters import Parameters

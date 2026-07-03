@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from qulacs import ParametricQuantumCircuit
-from qulacs import QuantumCircuit as QulacsQuantumCircuit
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 
 from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameter, Parameters

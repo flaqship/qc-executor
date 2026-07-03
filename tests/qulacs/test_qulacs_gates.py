@@ -3,8 +3,25 @@
 from unittest.mock import Mock
 
 import pytest
-from qulacs import ParametricQuantumCircuit
-from qulacs.gate import CZ, RX, RY, RZ, SWAP, TOFFOLI, U1, H, Identity, S, Sdag, T, Tdag, X, Y, Z
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs.gate import (  # pylint: disable=no-name-in-module
+    CZ,
+    RX,
+    RY,
+    RZ,
+    SWAP,
+    TOFFOLI,
+    U1,
+    H,
+    Identity,
+    S,
+    Sdag,
+    T,
+    Tdag,
+    X,
+    Y,
+    Z,
+)
 
 from qc_executor.qulacs.qulacs_gates import (
     qiskit_qulacs_gate_dict,

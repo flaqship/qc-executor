@@ -397,6 +397,7 @@ class TestExecutorIntegration:
         # collected without it installed.
         try:
             import pennylane as qml  # pylint: disable=import-outside-toplevel
+
             from qc_executor.pennylane import (  # pylint: disable=import-outside-toplevel
                 PennyLaneExecutor,
             )

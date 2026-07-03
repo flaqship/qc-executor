@@ -58,6 +58,14 @@ class PennyLaneCircuit:
     @classmethod
     def from_quantum_circuit(cls, circuit: AbstractQuantumCircuit) -> "PennyLaneCircuit":
         """Create a PennyLane native circuit from an abstract circuit."""
+        if isinstance(circuit, cls):
+            return circuit
+        if not isinstance(circuit, AbstractQuantumCircuit):
+            raise TypeError(
+                f"The PennyLane backend only accepts AbstractQuantumCircuit or {cls.__name__}, "
+                f"got {type(circuit).__name__}. Build the circuit as an "
+                "executor.abstraction.AbstractQuantumCircuit instead."
+            )
         return cls(circuit)
 
     def __init__(

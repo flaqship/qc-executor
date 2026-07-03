@@ -6,6 +6,7 @@ then convert them to the backend of your choice (e.g. ``to_qiskit()``).
 
 from .abstract_parameter import Parameter, ParameterVector, free_parameters
 from .abstract_quantum_circuit import AbstractQuantumCircuit
+from .abstract_quantum_operator import AbstractQuantumOperator
 from .gates import AbstractGate, Barrier, CliffordGate, RotationGate
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "ParameterVector",
     "free_parameters",
     "AbstractQuantumCircuit",
+    "AbstractQuantumOperator",
     "AbstractGate",
     "CliffordGate",
     "RotationGate",

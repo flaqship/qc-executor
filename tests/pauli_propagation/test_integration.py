@@ -83,6 +83,8 @@ class TestNativeTypes:
         op_z = PauliPropagationOperator(["Z"], [1.0])
 
         results = executor.expectation_value(circuit, [op_x, op_z])
+        assert isinstance(results, np.ndarray)
+        results = np.asarray(results)
         assert len(results) == 2
         assert np.isclose(results[0], 1.0, atol=1e-10)
         assert np.isclose(results[1], 0.0, atol=1e-10)

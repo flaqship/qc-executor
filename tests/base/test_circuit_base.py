@@ -133,9 +133,7 @@ class TestControlledPauliEvolution:
         circuit = SpyCircuit(1)
         op = FakeOperator("I", [0.5])
 
-        returned = circuit.controlled_pauli_evolution(op, 4.0, control_qubit=0)
-
-        assert returned is None
+        assert circuit.controlled_pauli_evolution(op, 4.0, control_qubit=0) is None
         assert circuit.ops == [("rz", 0, -2.0)]
 
     def test_controlled_pauli_evolution_nontrivial_uses_crz(self):

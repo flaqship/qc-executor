@@ -120,6 +120,8 @@ class TestPauliPropagationExecutor:
 
         results = executor.expectation_value([circuit1, circuit2], observable)
 
+        assert isinstance(results, np.ndarray)
+        results = np.asarray(results)
         assert len(results) == 2
         assert np.isclose(results[0], 1.0, atol=1e-10)
         assert np.isclose(results[1], -1.0, atol=1e-10)
@@ -139,6 +141,8 @@ class TestBatchExpectationValue:
         single_x = executor.expectation_value(circuit, op_x)
         single_z = executor.expectation_value(circuit, op_z)
 
+        assert isinstance(batch, np.ndarray)
+        batch = np.asarray(batch)
         assert np.isclose(batch[0], single_x, atol=1e-10)
         assert np.isclose(batch[1], single_z, atol=1e-10)
 

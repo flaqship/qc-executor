@@ -462,10 +462,8 @@ class TestGateEdgeCases:
 
     def test_gate_function_returns_none(self, mock_circuit):
         """Test that gate functions return None."""
-        result = qulacs_gate_h(mock_circuit, 0)
-        assert result is None
+        assert qulacs_gate_h(mock_circuit, 0) is None
 
     def test_parametric_gate_function_returns_none(self, mock_circuit):
         """Test that parametric gate functions return None."""
-        result = qulacs_param_gate_rx(mock_circuit, 1.0, 0)
-        assert result is None
+        assert qulacs_param_gate_rx(mock_circuit, 1.0, 0) is None

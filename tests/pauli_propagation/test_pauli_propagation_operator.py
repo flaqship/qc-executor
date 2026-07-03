@@ -66,7 +66,7 @@ class TestPauliPropagationOperatorConstruction:
     def test_pauli_sum_property_returns_copy(self):
         observable = PauliPropagationOperator(["Z"], [1.0])
 
-        pauli_sum_copy = type(observable).pauli_sum.fget(observable)
+        pauli_sum_copy = observable.pauli_sum
         pauli_sum_copy.add_term("X", 2.0)
 
         assert observable.num_paulis == 1

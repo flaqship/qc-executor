@@ -30,8 +30,10 @@ class TestPauliPropagationExecutorNativeTypes:
         observable = PauliPropagationOperator(["Z"], [1.0])
 
         executor = PauliPropagationExecutor()
-        values = executor.expectation_value([circuit_0, circuit_1], observable)
+        result = executor.expectation_value([circuit_0, circuit_1], observable)
 
+        assert isinstance(result, np.ndarray)
+        values = np.asarray(result)
         assert values.shape == (2,)
         assert np.isclose(values[0], 1.0, atol=1e-10)
         assert np.isclose(values[1], -1.0, atol=1e-10)

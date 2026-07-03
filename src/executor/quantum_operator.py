@@ -126,29 +126,35 @@ class QuantumOperator(QuantumOperatorBase):
             other (QuantumOperatorBase): Operator to compose with.
 
         Returns:
-            Composed operator.
+            New composed operator; ``self`` is left unchanged (matches
+            ``SparsePauliOp.compose``).
         """
 
         if not isinstance(other, QuantumOperator):
             raise TypeError("Can only compose with a QuantumOperator instance")
-        self._qiskit_operator = self._qiskit_operator.compose(other.qiskit_operator)
-        return self
+        return self.__class__(
+            _native_operator=self._qiskit_operator.compose(other.qiskit_operator)
+        )
 
     def append(self, pauli: str, coeff=None) -> "QuantumOperatorBase":
         """
-        Append a Pauli operator with a coefficient to the operator.
+        Return a new operator with a Pauli term appended.
 
         Args:
             pauli (str): Pauli operator to append.
             coeff (float): Coefficient of the Pauli operator.
+
+        Returns:
+            New operator with the term appended; ``self`` is left unchanged.
         """
         if coeff is None:
             coeff = 1.0
 
-        self._qiskit_operator = SparsePauliOp.from_list(
-            self._qiskit_operator.to_list() + [(pauli, coeff)]
+        return self.__class__(
+            _native_operator=SparsePauliOp.from_list(
+                self._qiskit_operator.to_list() + [(pauli, coeff)]
+            )
         )
-        return self
 
     def simplify(self) -> "QuantumOperatorBase":
         """
@@ -182,12 +188,15 @@ class QuantumOperator(QuantumOperatorBase):
 
     def group_commuting(self) -> List["QuantumOperatorBase"]:
         """
-        Group commuting operators.
+        Group qubit-wise commuting operators.
+
+        ``qubit_wise=True`` matches ``AbstractQuantumOperator.group_commuting``,
+        so all backends share the same grouping criterion.
 
         Returns:
             List of commuting operators.
         """
-        commuting_op = self._qiskit_operator.group_commuting()
+        commuting_op = self._qiskit_operator.group_commuting(qubit_wise=True)
         return [self.__class__(_native_operator=operator) for operator in commuting_op]
 
     @property

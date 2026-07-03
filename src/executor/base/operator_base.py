@@ -44,13 +44,13 @@ class QuantumOperatorBase(ABC):
 
     @property
     def paulis(self) -> List[str]:
-        """Return the list of Paulis."""
-        return self._paulis
+        """Return the list of Paulis (a copy; mutating it does not affect the operator)."""
+        return list(self._paulis)
 
     @property
     def coeffs(self) -> List[float]:
-        """Return the list of coefficients."""
-        return self._coeffs
+        """Return the list of coefficients (a copy; mutating it does not affect the operator)."""
+        return list(self._coeffs)
 
     @property
     def is_parametrized(self) -> bool:
@@ -109,20 +109,21 @@ class QuantumOperatorBase(ABC):
             other (QuantumOperatorBase): Operator to compose with.
 
         Returns:
-            Composed operator.
+            New composed operator; ``self`` is left unchanged.
         """
         raise NotImplementedError
 
     @abstractmethod
     def append(self, pauli: str, coeff) -> "QuantumOperatorBase":
         """
-        Append another operator to the current operator.
+        Return a new operator with a Pauli term appended.
 
         Args:
-            other (QuantumOperatorBase): Operator to append.
+            pauli (str): Pauli label to append.
+            coeff: Coefficient of the appended term.
 
         Returns:
-            Appended operator.
+            New operator with the term appended; ``self`` is left unchanged.
         """
         raise NotImplementedError
 

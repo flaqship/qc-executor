@@ -133,27 +133,27 @@ class AbstractQuantumOperator(QuantumOperatorBase):
     # ------------------------------------------------------------------
 
     def append(self, pauli: str, coeff: Coeff = 1.0) -> "AbstractQuantumOperator":
-        """Append a single Pauli term (mutates and returns ``self``)."""
+        """Return a new operator with a single Pauli term appended."""
         if len(pauli) != self._num_qubits:
             raise ValueError("Pauli length does not match num_qubits.")
-        self._paulis.append(pauli)
-        self._coeffs.append(coeff)
-        return self
+        return self.__class__(self._paulis + [pauli], self._coeffs + [coeff], self._num_qubits)
 
     def compose(self, other: QuantumOperatorBase) -> "AbstractQuantumOperator":
         """Compose with ``other`` (apply ``self`` first, then ``other``).
 
         Matches Qiskit's ``SparsePauliOp.compose`` (``front=False``), i.e. the
-        matrix product ``other · self``. The result is not auto-simplified (call
+        matrix product ``other · self``, and like Qiskit returns a new operator
+        (``self`` is left unchanged). The result is not auto-simplified (call
         :meth:`simplify`). Verify against
         ``tests/pauli_propagation/test_cross_backend_parity.py``.
         """
         if other.num_qubits != self._num_qubits:
             raise ValueError("Cannot compose operators with different qubit counts.")
+        other_paulis, other_coeffs = other.paulis, other.coeffs
         paulis: List[str] = []
         coeffs: List[Coeff] = []
         for pa, ca in zip(self._paulis, self._coeffs):
-            for pb, cb in zip(other.paulis, other.coeffs):
+            for pb, cb in zip(other_paulis, other_coeffs):
                 phase: Coeff = 1
                 chars = []
                 for x, y in zip(pa, pb):
@@ -163,8 +163,7 @@ class AbstractQuantumOperator(QuantumOperatorBase):
                     chars.append(r)
                 paulis.append("".join(chars))
                 coeffs.append(ca * cb * phase)
-        self._paulis, self._coeffs = paulis, coeffs
-        return self
+        return self.__class__(paulis, coeffs, self._num_qubits)
 
     def adjoint(self) -> "AbstractQuantumOperator":
         """Conjugate transpose. Each Pauli string is Hermitian, so only the
@@ -207,9 +206,22 @@ class AbstractQuantumOperator(QuantumOperatorBase):
 
         ``layout[q]`` is the new index of qubit ``q``. Follows Qiskit's
         little-endian convention so the result matches ``SparsePauliOp.apply_layout``.
+
+        Raises:
+            ValueError: If the layout length does not match the operator's
+                ``num_qubits``, contains duplicate entries, or maps a qubit
+                outside the target register (without this check a too-large
+                entry would wrap around via a negative string index and
+                silently corrupt the result).
         """
         n = self._num_qubits
+        if len(layout) != n:
+            raise ValueError(f"layout must have exactly {n} entries, got {len(layout)}.")
+        if len(set(layout)) != n:
+            raise ValueError("layout entries must be unique.")
         new_n = num_qubits if num_qubits is not None else (max(layout) + 1)
+        if min(layout) < 0 or max(layout) >= new_n:
+            raise ValueError(f"layout entries must lie in [0, {new_n - 1}].")
         new_paulis = []
         for label in self._paulis:
             chars = ["I"] * new_n
@@ -221,9 +233,11 @@ class AbstractQuantumOperator(QuantumOperatorBase):
     def group_commuting(self) -> List["AbstractQuantumOperator"]:
         """Greedy *qubit-wise* commuting grouping.
 
-        Note: Qiskit's default groups generally-commuting terms; this is the
-        simpler qubit-wise variant (two strings commute if, on every qubit, the
-        Paulis are equal or at least one is ``I``).
+        Two strings commute qubit-wise if, on every qubit, the Paulis are equal
+        or at least one is ``I``. The Qiskit-backed ``QuantumOperator`` uses
+        ``group_commuting(qubit_wise=True)`` so all backends share this grouping
+        criterion (the exact partition may still differ, since the grouping
+        algorithms are heuristics).
         """
 
         def qwise_commute(a: str, b: str) -> bool:
@@ -250,8 +264,12 @@ class AbstractQuantumOperator(QuantumOperatorBase):
     # Parameters / utility
     # ------------------------------------------------------------------
 
-    def assign_parameters(self, parameters: dict) -> None:
-        """Substitute numeric values for symbolic parameters in every coefficient."""
+    def assign_parameters(self, parameters: dict) -> "AbstractQuantumOperator":
+        """Substitute numeric values for symbolic parameters in every coefficient.
+
+        Mutates ``self`` (matching ``AbstractQuantumCircuit.assign_parameters``)
+        and returns it so the call can also be used in expression position.
+        """
         for i, c in enumerate(self._coeffs):
             if isinstance(c, sp.Basic):
                 result = c.subs(parameters)
@@ -259,6 +277,7 @@ class AbstractQuantumOperator(QuantumOperatorBase):
                     self._coeffs[i] = float(result) if result.is_real else complex(result)
                 else:
                     self._coeffs[i] = result
+        return self
 
     def copy(self) -> "AbstractQuantumOperator":
         return self.__class__(list(self._paulis), list(self._coeffs), self._num_qubits)

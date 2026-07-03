@@ -109,6 +109,64 @@ class TestAlgebraParityWithQiskit:
         assert _equiv(op.apply_layout([0, 2], num_qubits=3), ref)
 
 
+class TestPureSemanticsAndValidation:
+    """Algebra methods must be pure (like SparsePauliOp) and validate input."""
+
+    def test_compose_does_not_mutate_operands(self):
+        a = AbstractQuantumOperator(["XZ"], [1.0])
+        b = AbstractQuantumOperator(["ZZ"], [0.5])
+        result = a.compose(b)
+        assert result is not a
+        assert a.paulis == ["XZ"] and a.coeffs == [1.0]
+        assert b.paulis == ["ZZ"] and b.coeffs == [0.5]
+
+    def test_append_returns_new_operator(self):
+        op = AbstractQuantumOperator(["XX"], [1.0])
+        updated = op.append("ZZ", 2.0)
+        assert updated is not op
+        assert op.paulis == ["XX"]
+        assert updated.paulis == ["XX", "ZZ"] and updated.coeffs == [1.0, 2.0]
+
+    def test_properties_return_copies(self):
+        op = AbstractQuantumOperator(["XX"], [1.0])
+        op.paulis.append("ZZ")  # mutating the returned lists ...
+        op.coeffs.append(2.0)
+        assert op.paulis == ["XX"]  # ... must not affect the operator
+        assert op.coeffs == [1.0]
+
+    def test_assign_parameters_returns_self(self):
+        x = ParameterVector("x", 1)
+        op = AbstractQuantumOperator(["XZ"], [2 * x[0]])
+        assert op.assign_parameters({x[0]: 0.5}) is op
+
+    def test_apply_layout_rejects_wrong_length(self):
+        op = AbstractQuantumOperator(["XZ"], [1.0])
+        with pytest.raises(ValueError, match="entries"):
+            op.apply_layout([0])
+
+    def test_apply_layout_rejects_duplicates(self):
+        op = AbstractQuantumOperator(["XZ"], [1.0])
+        with pytest.raises(ValueError, match="unique"):
+            op.apply_layout([1, 1])
+
+    def test_apply_layout_rejects_out_of_range(self):
+        # Without validation layout entry 3 on a 3-qubit target would write to
+        # a negative string index and silently corrupt the result.
+        op = AbstractQuantumOperator(["XZ"], [1.0])
+        with pytest.raises(ValueError, match="lie in"):
+            op.apply_layout([0, 3], num_qubits=3)
+
+    def test_group_commuting_is_qubit_wise_on_all_backends(self):
+        # XX and YY commute generally but not qubit-wise: both the abstract and
+        # the Qiskit-backed operator must put them in separate groups.
+        from executor import QuantumOperator
+
+        abstract_groups = AbstractQuantumOperator(["XX", "YY"]).group_commuting()
+        qiskit_groups = QuantumOperator(["XX", "YY"]).group_commuting()
+        assert len(abstract_groups) == 2
+        assert len(qiskit_groups) == 2
+
+
 class TestEndToEnd:
     """The abstract operator must work as the observable in expectation_value."""
 

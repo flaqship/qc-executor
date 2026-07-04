@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from executor.parameters import Parameter
+from qc_executor.parameters import Parameter
 
 
 class QuantumOperatorBase(ABC):

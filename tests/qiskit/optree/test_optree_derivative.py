@@ -5,7 +5,7 @@ from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ParameterVector, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-from executor.qiskit.optree import OpTree
+from qc_executor.qiskit.optree import OpTree
 
 QISKIT_SMALLER_2_0 = version.parse(qiskit_version) < version.parse("2.0.0")
 

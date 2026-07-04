@@ -1,9 +1,9 @@
 import pytest
 from qiskit.circuit import ParameterVector
 
-from executor import QuantumCircuit
-from executor.qulacs import QulacsCircuit
-from executor.qulacs.qulacs_executor import QulacsExecutor
+from qc_executor import QuantumCircuit
+from qc_executor.qulacs import QulacsCircuit
+from qc_executor.qulacs.qulacs_executor import QulacsExecutor
 
 
 class TestQulacsCircuit:

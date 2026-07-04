@@ -13,15 +13,15 @@ import pytest
 # Skip the entire module if qiskit-ibm-runtime is not installed
 qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
 
-from executor import Executor, QuantumCircuit
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_executor import (
+from qc_executor import Executor, QuantumCircuit
+from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
+from qc_executor.qiskit.qiskit_executor import (
     QiskitExecutor,
     _classify_backend,
     _is_backend_instance,
 )
-from executor.quantum_operator import QuantumOperator
-from executor.utils.qiskit_compat import (
+from qc_executor.quantum_operator import QuantumOperator
+from qc_executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
     QISKIT_RUNTIME_SMALLER_0_23,
@@ -309,7 +309,7 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_fake_backend(self):
         """Executor.create() should return a QiskitExecutor for a BackendV2."""
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         backend = _get_fake_backend()
         executor = Executor.create(backend, shots=1024, seed=42)
@@ -322,7 +322,7 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_session(self):
         """Executor.create() should return a QiskitExecutor for a Session."""
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         session = _get_fake_session_or_skip()
         try:
@@ -337,7 +337,7 @@ class TestExecutorFactoryQiskitAutoDetection:
         """Executor.create() should accept a StatevectorEstimator directly."""
         from qiskit.primitives import StatevectorEstimator
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         estimator = StatevectorEstimator()
         executor = Executor.create(estimator)
@@ -348,7 +348,7 @@ class TestExecutorFactoryQiskitAutoDetection:
         """Executor.create() should accept a StatevectorSampler directly."""
         from qiskit.primitives import StatevectorSampler
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         sampler = StatevectorSampler()
         executor = Executor.create(sampler)
@@ -357,8 +357,8 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_backend_estimator(self):
         """Executor.create() should accept a BackendEstimatorV2."""
-        from executor.qiskit import QiskitExecutor
-        from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2
+        from qc_executor.qiskit import QiskitExecutor
+        from qc_executor.utils.qiskit_compat import QISKIT_SMALLER_1_2
 
         backend = _get_fake_backend()
         if QISKIT_SMALLER_1_2:
@@ -383,7 +383,7 @@ class TestExecutorFactoryQiskitAutoDetection:
                 "cannot be instantiated with a fake backend."
             )
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         backend = _get_fake_backend()
         if QISKIT_RUNTIME_SMALLER_0_28:
@@ -410,7 +410,7 @@ class TestExecutorFactoryQiskitAutoDetection:
                 "cannot be instantiated with a fake backend."
             )
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         backend = _get_fake_backend()
         if QISKIT_RUNTIME_SMALLER_0_28:
@@ -429,7 +429,7 @@ class TestExecutorFactoryQiskitAutoDetection:
         """get_accepted_types() must include qiskit.providers.Backend."""
         from qiskit.providers import Backend
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -439,7 +439,7 @@ class TestExecutorFactoryQiskitAutoDetection:
         """get_accepted_types() must include the built-in statevector primitives."""
         from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -450,7 +450,7 @@ class TestExecutorFactoryQiskitAutoDetection:
         """get_accepted_types() must include Session and Batch."""
         from qiskit_ibm_runtime import Batch, Session
 
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -459,13 +459,13 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_no_dummy_classes(self):
         """Dummy sentinel classes must not appear in get_accepted_types()."""
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
         # All returned types must originate from a real package, not from
         # the executor module itself.
-        executor_module = "executor.qiskit.qiskit_executor"
+        executor_module = "qc_executor.qiskit.qiskit_executor"
         for t in accepted:
             assert (
                 getattr(t, "__module__", "") != executor_module
@@ -473,7 +473,7 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_returns_list_of_types(self):
         """get_accepted_types() must return a list of actual type objects."""
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -484,7 +484,7 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_fake_backend_isinstance_check_against_accepted_types(self):
         """A FakeBackend instance must match at least one accepted type."""
-        from executor.qiskit import QiskitExecutor
+        from qc_executor.qiskit import QiskitExecutor
 
         backend = _get_fake_backend()
         accepted = QiskitExecutor.get_accepted_backend_types()

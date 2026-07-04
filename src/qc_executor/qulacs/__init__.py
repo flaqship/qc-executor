@@ -2,7 +2,7 @@
 
 try:
     # Register QulacsExecutor with the factory
-    from executor.factory import Executor
+    from qc_executor.factory import Executor
 
     from .qulacs_circuit import QulacsCircuit
     from .qulacs_executor import QulacsExecutor

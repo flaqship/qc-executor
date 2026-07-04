@@ -12,7 +12,7 @@ try:
 except ImportError:
     QISKIT_AVAILABLE = False
 
-from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from qc_executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
 
 # Skip all tests if Qiskit is not available
 pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not installed")
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(not QISKIT_AVAILABLE, reason="Qiskit not install
 @pytest.fixture
 def qiskit_converter():
     """Import qiskit_converter module."""
-    from executor.pauli_propagation.utils import qiskit_converter as converter_module
+    from qc_executor.pauli_propagation.utils import qiskit_converter as converter_module
 
     return converter_module
 
@@ -126,7 +126,7 @@ class TestConvertSingleGate:
 
     def test_barrier_skipped(self, qiskit_converter):
         """Test that barriers are converted to LayerBarrier markers."""
-        from executor.pauli_propagation.utils.gates import LayerBarrier
+        from qc_executor.pauli_propagation.utils.gates import LayerBarrier
 
         qc = QuantumCircuit(2)
         qc.h(0)

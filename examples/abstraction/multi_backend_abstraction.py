@@ -10,8 +10,8 @@ Statevector und denselben Erwartungswert.
 
 import numpy as np
 
-from executor import Executor
-from executor.abstraction import (
+from qc_executor import Executor
+from qc_executor.abstraction import (
     AbstractQuantumCircuit,
     AbstractQuantumOperator,
     ParameterVector,

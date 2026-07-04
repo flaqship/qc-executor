@@ -12,9 +12,9 @@ to PennyLane format, including:
 import numpy as np
 import pytest
 
-from executor.abstraction import AbstractQuantumCircuit, ParameterVector
-from executor.pennylane.pennylane_circuit import PennyLaneCircuit
-from executor.pennylane.pennylane_executor import PennyLaneExecutor
+from qc_executor.abstraction import AbstractQuantumCircuit, ParameterVector
+from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
+from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 class TestPennyLaneCircuit:
@@ -43,7 +43,7 @@ class TestPennyLaneCircuit:
     def test_from_quantum_circuit_rejects_qiskit_backed_circuit(self):
         """A Qiskit-backed QuantumCircuit must fail with a clear TypeError,
         not a cryptic AttributeError deep inside the instruction builder."""
-        from executor import QuantumCircuit
+        from qc_executor import QuantumCircuit
 
         qc = QuantumCircuit(1)
         qc.h(0)

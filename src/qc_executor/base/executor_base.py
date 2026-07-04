@@ -91,7 +91,7 @@ class ExecutorBase(ABC):
         level = getattr(logging, log_level_upper)
 
         # Set up logger using a dotted hierarchy so handlers can be
-        # configured at the 'executor' package level by callers.
+        # configured at the 'qc_executor' package level by callers.
         logger_name = f"{type(self).__module__}.{type(self).__qualname__}"
         self._logger = logging.getLogger(logger_name)
         self._logger.setLevel(level)
@@ -171,7 +171,7 @@ class ExecutorBase(ABC):
         Returns:
             ExecutorBase: New executor instance with the specified backend
         """
-        from executor.factory import Executor
+        from qc_executor.factory import Executor
 
         return Executor.switch_backend(self, backend, **overrides)
 

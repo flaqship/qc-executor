@@ -2,8 +2,8 @@
 
 import numpy as np
 
-from executor.pauli_propagation import PauliPropagationOperator
-from executor.pauli_propagation.symmetry import PermutationSymmetry
+from qc_executor.pauli_propagation import PauliPropagationOperator
+from qc_executor.pauli_propagation.symmetry import PermutationSymmetry
 
 
 class TestPauliPropagationOperator:

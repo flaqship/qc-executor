@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
-from executor.pauli_propagation.utils.pauli_algebra import string_to_term
+from qc_executor.pauli_propagation.utils.gates import CliffordGate, PauliRotation
+from qc_executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 
 class TestPauliRotation:

@@ -14,8 +14,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from executor.abstraction import AbstractQuantumCircuit, ParameterVector
-from executor.abstraction.gates import CliffordGate, RotationGate
+from qc_executor.abstraction import AbstractQuantumCircuit, ParameterVector
+from qc_executor.abstraction.gates import CliffordGate, RotationGate
 
 
 class TestBroadcastExpansion:
@@ -61,7 +61,7 @@ class TestBackendParity:
 
     def test_broadcast_statevector_matches_across_backends(self):
         pytest.importorskip("pennylane")
-        from executor import Executor
+        from qc_executor import Executor
 
         qc = AbstractQuantumCircuit(4)
         qc.h(range(4))  # the broadcast form that used to break PennyLane

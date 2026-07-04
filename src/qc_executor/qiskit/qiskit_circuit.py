@@ -111,7 +111,7 @@ class QiskitCircuit:
         Initialize QiskitCircuit wrapper.
 
         Args:
-            circuit: QuantumCircuit object (from executor.quantum_circuit)
+            circuit: QuantumCircuit object (from qc_executor.quantum_circuit)
         """
         # Extract / build the internal qiskit circuit (handles abstract circuits).
         self._qiskit_circuit = to_qiskit_circuit(circuit)

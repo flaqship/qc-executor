@@ -86,7 +86,7 @@ class QiskitOperator:
         Initialize QiskitOperator wrapper.
 
         Args:
-            operator: QuantumOperator object (from executor.quantum_operator)
+            operator: QuantumOperator object (from qc_executor.quantum_operator)
         """
         # Build/extract the internal qiskit operator. ``to_qiskit_operator``
         # converts an AbstractQuantumOperator's (paulis, coeffs) into a real

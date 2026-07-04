@@ -4,10 +4,10 @@ import sys
 # Make the package importable during docs build
 sys.path.insert(0, os.path.abspath("../src"))
 
-import executor  # noqa: E402
+import qc_executor  # noqa: E402
 
 # -- Project information -----------------------------------------------------
-project = "executor"
+project = "QC Executor"
 copyright = "2026, Fraunhofer IPA"
 author = "David Kreplin, Moritz Willmann, Marco Roth, Dennis Kleinhans, Florian Wieland"
 release = executor.__version__

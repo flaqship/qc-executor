@@ -2,7 +2,7 @@
 
 try:
     # Register PennyLaneExecutor with the factory
-    from executor.factory import Executor
+    from qc_executor.factory import Executor
 
     from .pennylane_circuit import PennyLaneCircuit
     from .pennylane_executor import PennyLaneExecutor

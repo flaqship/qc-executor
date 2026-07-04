@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 from qiskit.circuit import ParameterVector
 
-from executor import QuantumCircuit
-from executor.qiskit import QiskitCircuit
-from executor.qiskit.qiskit_executor import QiskitExecutor
+from qc_executor import QuantumCircuit
+from qc_executor.qiskit import QiskitCircuit
+from qc_executor.qiskit.qiskit_executor import QiskitExecutor
 
 
 def _make_parametrized_circuit(length=3, vector_name="vec"):

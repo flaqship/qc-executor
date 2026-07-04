@@ -22,10 +22,10 @@ pytest.importorskip("pennylane")
 import pennylane as qml
 from qiskit.circuit import ParameterVector as QiskitParameterVector
 
-from executor import QuantumOperator
-from executor.abstraction import AbstractQuantumCircuit, ParameterVector
-from executor.pennylane.pennylane_circuit import PennyLaneCircuit
-from executor.pennylane.pennylane_executor import PennyLaneExecutor
+from qc_executor import QuantumOperator
+from qc_executor.abstraction import AbstractQuantumCircuit, ParameterVector
+from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
+from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 
 def _build_circuit(num_qubits, operations):
@@ -509,7 +509,7 @@ class TestPennylaneExecutor:
     def test_logging_to_file(self, tmp_path):
         """Test that log messages are written to the specified log file."""
 
-        log_file = str(tmp_path / "executor.log")
+        log_file = str(tmp_path / "qc_executor.log")
         executor = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("test log message")
 
@@ -521,7 +521,7 @@ class TestPennylaneExecutor:
 
     def test_logging_no_duplicate_handlers(self, tmp_path):
         """Test that creating two executors with the same log file does not add duplicate handlers."""
-        log_file = str(tmp_path / "executor.log")
+        log_file = str(tmp_path / "qc_executor.log")
         executor1 = PennyLaneExecutor(log_level="INFO", log_file=log_file)
         handler_count_before = len(executor1._logger.handlers)
 
@@ -760,7 +760,7 @@ class TestPennylaneExecutor:
 
     def test_factory_with_device_name(self):
         """Test creating executor via factory with device_name."""
-        from executor import Executor
+        from qc_executor import Executor
 
         executor = Executor.create("pennylane", backend="default.mixed")
         assert executor.device_name == "default.mixed"

@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 from qiskit.quantum_info import SparsePauliOp
 
-from executor.abstraction import (
+from qc_executor.abstraction import (
     AbstractQuantumCircuit,
     AbstractQuantumOperator,
     ParameterVector,
@@ -159,7 +159,7 @@ class TestPureSemanticsAndValidation:
     def test_group_commuting_is_qubit_wise_on_all_backends(self):
         # XX and YY commute generally but not qubit-wise: both the abstract and
         # the Qiskit-backed operator must put them in separate groups.
-        from executor import QuantumOperator
+        from qc_executor import QuantumOperator
 
         abstract_groups = AbstractQuantumOperator(["XX", "YY"]).group_commuting()
         qiskit_groups = QuantumOperator(["XX", "YY"]).group_commuting()
@@ -174,7 +174,7 @@ class TestEndToEnd:
         from qiskit import QuantumCircuit as QiskitCircuit
         from qiskit.quantum_info import Statevector
 
-        from executor import Executor, QuantumCircuit
+        from qc_executor import Executor, QuantumCircuit
 
         # Qiskit-backed circuit (the abstract-circuit path is wired separately).
         qc = QuantumCircuit(2)
@@ -226,13 +226,13 @@ class TestBackendExpectationParity:
     def _reference(qc: AbstractQuantumCircuit, sparse: SparsePauliOp, **binds) -> float:
         from qiskit.quantum_info import Statevector
 
-        from executor.qiskit.qiskit_circuit import to_qiskit_circuit
+        from qc_executor.qiskit.qiskit_circuit import to_qiskit_circuit
 
         state = Statevector(to_qiskit_circuit(qc))
         return float(np.real(state.expectation_value(sparse)))
 
     def _run(self, backend: str, qc, op, **params) -> float:
-        from executor import Executor
+        from qc_executor import Executor
 
         ex = Executor.create(backend)
         value = ex.expectation_value(qc, ex.transpile_operator(op), **params)

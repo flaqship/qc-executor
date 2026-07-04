@@ -1,7 +1,7 @@
 import pytest
 
-from executor import QuantumOperator
-from executor.qulacs import QulacsOperator
+from qc_executor import QuantumOperator
+from qc_executor.qulacs import QulacsOperator
 
 
 class TestQulacsOperator:

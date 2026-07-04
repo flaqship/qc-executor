@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from executor.qulacs import QulacsExecutor
+from qc_executor.qulacs import QulacsExecutor
 
 
 class TestQulacsExecutor:

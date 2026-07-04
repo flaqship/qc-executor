@@ -3,16 +3,16 @@
 import numpy as np
 import pytest
 
-from executor.parameters import Parameters
-from executor.pauli_propagation import (
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationOperator,
 )
-from executor.pauli_propagation.pauli_propagation_executor import (
+from qc_executor.pauli_propagation.pauli_propagation_executor import (
     _create_projector_observable,
 )
-from executor.pauli_propagation.utils.pauli_algebra import string_to_term
+from qc_executor.pauli_propagation.utils.pauli_algebra import string_to_term
 
 
 class TestPauliPropagationExecutor:

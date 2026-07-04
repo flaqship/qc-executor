@@ -64,7 +64,7 @@ class PennyLaneCircuit:
             raise TypeError(
                 f"The PennyLane backend only accepts AbstractQuantumCircuit or {cls.__name__}, "
                 f"got {type(circuit).__name__}. Build the circuit as an "
-                "executor.abstraction.AbstractQuantumCircuit instead."
+                "qc_executor.abstraction.AbstractQuantumCircuit instead."
             )
         return cls(circuit)
 

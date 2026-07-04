@@ -12,8 +12,8 @@ operators (SparsePauliOp) to PennyLane format, including:
 import pytest
 from qiskit.circuit import ParameterVector
 
-from executor import QuantumOperator
-from executor.pennylane.pennylane_operator import PennyLaneOperator
+from qc_executor import QuantumOperator
+from qc_executor.pennylane.pennylane_operator import PennyLaneOperator
 
 
 class TestPennyLaneOperator:

@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from executor.parameters import Parameters
-from executor.pauli_propagation import PauliPropagationCircuit
-from executor.pauli_propagation.utils.gates import CliffordGate, LayerBarrier, PauliRotation
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import PauliPropagationCircuit
+from qc_executor.pauli_propagation.utils.gates import CliffordGate, LayerBarrier, PauliRotation
 
 
 class TestPauliPropagationCircuit:

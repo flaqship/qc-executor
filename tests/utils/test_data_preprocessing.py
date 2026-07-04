@@ -1,6 +1,6 @@
 import pytest
 
-from executor.utils.data_preprocessing import adjust_features, to_tuple
+from qc_executor.utils.data_preprocessing import adjust_features, to_tuple
 
 
 class TestAdjustFeatures:

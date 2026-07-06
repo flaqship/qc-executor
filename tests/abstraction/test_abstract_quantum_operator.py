@@ -78,6 +78,54 @@ class TestParameters:
         assert not op.is_parametrized
 
 
+class TestFromQuantumOperator:
+    """from_quantum_operator must yield a framework-free abstract operator.
+
+    Foreign coefficient types (Qiskit ``ParameterExpression``) have to be
+    normalized to SymPy expressions over native ``Parameter`` symbols —
+    otherwise the abstract operator would silently carry Qiskit objects that
+    break ``parameters``/``assign_parameters`` later.
+    """
+
+    def test_numeric_qiskit_operator(self):
+        from qc_executor import QuantumOperator
+
+        op = AbstractQuantumOperator.from_quantum_operator(
+            QuantumOperator(["ZZ", "IX"], [0.5, 0.3])
+        )
+        assert isinstance(op, AbstractQuantumOperator)
+        assert op.paulis == ["ZZ", "IX"]
+        assert np.allclose([complex(c) for c in op.coeffs], [0.5, 0.3])
+        assert not op.is_parametrized
+
+    def test_parametrized_qiskit_coeffs_become_native_parameters(self):
+        from qiskit.circuit import ParameterVector as QiskitParameterVector
+
+        from qc_executor import QuantumOperator
+        from qc_executor.abstraction.abstract_parameter import Parameter
+
+        theta = QiskitParameterVector("theta", 2)
+        sparse = SparsePauliOp(["ZZ", "IX"], coeffs=[2 * theta[0], theta[1]])
+        op = AbstractQuantumOperator.from_quantum_operator(
+            QuantumOperator(_native_operator=sparse)
+        )
+
+        assert op.is_parametrized
+        assert all(isinstance(p, Parameter) for p in op.parameters)
+        assert [(p.vector_name, p.index) for p in op.parameters] == [
+            ("theta", 0),
+            ("theta", 1),
+        ]
+        op.assign_parameters(dict(zip(op.parameters, [0.4, 0.9])))
+        assert np.allclose([complex(c) for c in op.coeffs], [0.8, 0.9])
+
+    def test_abstract_input_is_copied(self):
+        original = AbstractQuantumOperator(["ZZ"], [0.5])
+        converted = AbstractQuantumOperator.from_quantum_operator(original)
+        assert converted == original
+        assert converted is not original
+
+
 class TestAlgebraParityWithQiskit:
     """Each abstract operation must match Qiskit's SparsePauliOp semantics."""
 
@@ -254,3 +302,19 @@ class TestBackendExpectationParity:
         obs = AbstractQuantumOperator(["IIIZ", "XIIX"], [2 * w[0], w[1]])
         reference = self._reference(qc, SparsePauliOp(["IIIZ", "XIIX"], coeffs=[2 * 0.4, 0.9]))
         assert np.isclose(self._run(backend, qc, obs, w=[0.4, 0.9]), reference)
+
+    def test_sympy_function_coefficient_matches_reference(self):
+        # sin(w0) as a coefficient is only expressible in SymPy — a Qiskit
+        # ``ParameterExpression`` round-trip cannot represent it. This guards
+        # the direct abstract -> PennyLane path (PennyLane-only: the Qiskit
+        # backend converts to SparsePauliOp and cannot support this).
+        pytest.importorskip("pennylane")
+        import sympy as sp
+
+        qc = self._asymmetric_circuit()
+        w = ParameterVector("w", 1)
+        obs = AbstractQuantumOperator(["IIIZ", "XIIX"], [sp.sin(w[0]), 0.8])
+        reference = self._reference(
+            qc, SparsePauliOp(["IIIZ", "XIIX"], coeffs=[np.sin(0.7), 0.8])
+        )
+        assert np.isclose(self._run("pennylane", qc, obs, w=[0.7]), reference)

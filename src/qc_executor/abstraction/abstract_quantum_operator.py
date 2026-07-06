@@ -25,7 +25,7 @@ import numpy as np
 import sympy as sp
 
 from ..base import QuantumOperatorBase
-from .abstract_parameter import Parameter, free_parameters
+from .abstract_parameter import Parameter, free_parameters, parse_symbol_name
 
 #: A coefficient is either numeric or a symbolic parameter expression.
 Coeff = Union[float, int, complex, sp.Basic]
@@ -55,6 +55,39 @@ def _is_zero(c: Coeff) -> bool:
 def _y_phase(pauli: str) -> int:
     """Sign picked up under transpose/conjugate (-1 for an odd number of Y)."""
     return -1 if pauli.count("Y") % 2 else 1
+
+
+def _normalize_coeff(coeff) -> Coeff:
+    """Bring a foreign coefficient into the canonical abstract form.
+
+    Plain numbers and SymPy expressions pass through unchanged. Anything else
+    is assumed to be a Qiskit ``ParameterExpression`` and is converted to a
+    SymPy expression over native :class:`Parameter` symbols. The Qiskit import
+    is local so this module stays Qiskit-free for purely abstract inputs.
+    """
+    if isinstance(coeff, (int, float, complex, np.number)) or isinstance(coeff, sp.Basic):
+        return coeff
+
+    from ..utils.qiskit_compat import _param_to_sympy
+
+    expr = sp.sympify(_param_to_sympy(coeff))
+    replacements = {}
+    for symbol in expr.free_symbols:
+        if isinstance(symbol, Parameter):
+            continue
+        vector_name, index = parse_symbol_name(symbol.name)
+        if index is None:
+            raise ValueError(
+                f"Cannot convert parameter {symbol.name!r}: only ParameterVector-style "
+                "names (e.g. 'theta[0]') map onto native Parameter objects."
+            )
+        replacements[symbol] = Parameter(vector_name, index)
+    expr = expr.subs(replacements)
+
+    if not expr.free_symbols:  # constant expression -> collapse to a number
+        value = complex(expr)
+        return value.real if value.imag == 0 else value
+    return expr
 
 
 class AbstractQuantumOperator(QuantumOperatorBase):
@@ -94,10 +127,19 @@ class AbstractQuantumOperator(QuantumOperatorBase):
 
     @classmethod
     def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "AbstractQuantumOperator":
-        """Return ``operator`` unchanged if abstract, else copy its paulis/coeffs."""
+        """Return ``operator`` as an abstract operator.
+
+        Abstract inputs are copied unchanged. For backend-native operators the
+        paulis/coeffs are copied and foreign coefficient types (e.g. Qiskit
+        ``ParameterExpression``) are normalized to SymPy Parameter expressions,
+        so the result carries no framework dependency.
+        """
         if isinstance(operator, cls):
             return operator.copy()
-        return cls(paulis=list(operator.paulis), coeffs=list(operator.coeffs))
+        return cls(
+            paulis=list(operator.paulis),
+            coeffs=[_normalize_coeff(c) for c in operator.coeffs],
+        )
 
     # ------------------------------------------------------------------
     # Properties

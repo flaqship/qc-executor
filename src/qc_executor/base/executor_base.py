@@ -273,6 +273,30 @@ class ExecutorBase(ABC):
 
         return normalized
 
+    def _ensure_native_operator(
+        self, observable: QuantumOperatorBase | List[QuantumOperatorBase]
+    ) -> QuantumOperatorBase | List[QuantumOperatorBase]:
+        """Convert observable(s) into the backend-native operator type.
+
+        Called by the public expectation-value methods so that generic
+        operators (e.g. an ``AbstractQuantumOperator``) can be passed in
+        directly, without an explicit ``transpile_operator`` step. Operators
+        that are already native pass through unchanged, so pre-transpiling
+        stays a valid (cached) optimization rather than a requirement.
+        Backends that declare no ``_native_operator_class`` receive the
+        observable unchanged.
+        """
+        native = self._native_operator_class
+        if native is None or observable is None:
+            return observable
+        if isinstance(observable, list):
+            return [
+                o if isinstance(o, native) else self.transpile_operator(o) for o in observable
+            ]
+        if isinstance(observable, native):
+            return observable
+        return self.transpile_operator(observable)
+
     # ========================================================================
     # Public API – Core Quantum Operations
     # ========================================================================
@@ -301,6 +325,7 @@ class ExecutorBase(ABC):
                 numpy array if multiple circuits/observables are provided.
         """
         self._logger.info("Computing expectation value")
+        observable = self._ensure_native_operator(observable)
         parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             key = self._make_result_key("expectation_value", circuit, observable, **parameters)
@@ -351,6 +376,7 @@ class ExecutorBase(ABC):
                   parameters are requested
         """
         self._logger.info("Computing expectation value derivatives")
+        observable = self._ensure_native_operator(observable)
         parameters = self._normalize_parameter_values(**parameters)
         if self._result_cache is not None:
             key = self._make_result_key(

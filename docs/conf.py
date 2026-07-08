@@ -118,8 +118,21 @@ html_theme_options = {
     # Display options
     "show_source_link": True,
     "sidebar_hide_name": False,
-    
+    # Depth of the left-sidebar navigation. 2 = pages/sections only,
+    # 3 = also list classes, 4 = also list individual methods/functions.
+    "navigation_depth": 3,
+
     # Default theme mode: "light", "dark", or "auto"
     "default_mode": "auto",
 }
 html_favicon = '_static/favicon.png'
+
+# -- Versioned documentation (flaQship theme) --------------------------------
+# Build a multi-version site with the standard sphinx-build: point each release
+# at its own directory under a shared root and the theme regenerates
+# versions.json + a root redirect and shows the header version switcher, e.g.
+#   sphinx-build -b html docs docs/_build/0.1.0
+#   FLAQSHIP_VERSION=dev sphinx-build -b html docs docs/_build/dev
+# Everything lands under docs/_build. The switcher uses page-relative links, so
+# it works at any hosting sub-path or local server root with no extra config.
+flaqship_versioned = True

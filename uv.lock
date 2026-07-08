@@ -1051,7 +1051,7 @@ wheels = [
 [[package]]
 name = "flaqship-sphinx-theme"
 version = "0.1.0"
-source = { git = "https://github.com/flaqship/flaqship-sphinx-theme.git#4b34b9f2fdea2315fa8f8b00adf71c02d6c592fc" }
+source = { git = "https://github.com/flaqship/flaqship-sphinx-theme.git#de2099ae6588149400bae6bfc3641120b088f1c6" }
 dependencies = [
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },

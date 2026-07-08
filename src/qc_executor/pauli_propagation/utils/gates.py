@@ -213,6 +213,8 @@ class CliffordGate(Gate):
         # (clear_mask, shifts, replacement_bits, phases). Built on first use
         # from the per-case transform methods so behavior stays identical.
         self._transform_table = None
+        # Numpy view of the same table for the vectorized array engine
+        self._transform_table_np = None
 
     def commutes_with(self, pauli_term: int) -> bool:
         """Clifford gates generally don't commute with arbitrary Paulis.
@@ -296,6 +298,29 @@ class CliffordGate(Gate):
 
         self._transform_table = (clear_mask, shifts, replacement_bits, phases)
         return self._transform_table
+
+    def transform_table_numpy(self):
+        """Return the transform table in numpy form for the array engine.
+
+        Requires nqubits <= 32 so all bit patterns fit in uint64 (the array
+        engine enforces this before calling).
+
+        Returns:
+            Tuple of (uint64 clear mask, shifts, uint64 replacement-bits
+            array, complex128 phase array)
+        """
+        if self._transform_table_np is None:
+            table = self._transform_table
+            if table is None:
+                table = self._build_transform_table()
+            clear_mask, shifts, replacement_bits, phases = table
+            self._transform_table_np = (
+                np.uint64(clear_mask & 0xFFFFFFFFFFFFFFFF),
+                shifts,
+                np.array(replacement_bits, dtype=np.uint64),
+                np.array(phases, dtype=np.complex128),
+            )
+        return self._transform_table_np
 
     def _transform_single_qubit(self, pauli_term: int):
         """Transform single-qubit Clifford gate."""

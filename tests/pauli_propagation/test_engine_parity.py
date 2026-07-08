@@ -219,3 +219,105 @@ class TestExecutorParity:
 
         expected = ref_overlap_with_zero(ref_propagate(circuit.gates, operator.pauli_sum))
         assert np.isclose(result, float(np.real(expected)), rtol=1e-9, atol=1e-12)
+
+
+class TestArrayEngineParity:
+    """Dict engine vs numpy array engine must agree."""
+
+    @staticmethod
+    def _propagate_with(monkeypatch, use_arrays, gates, observable, **kwargs):
+        from qc_executor.pauli_propagation.utils import propagation
+
+        monkeypatch.setattr(propagation, "USE_ARRAY_ENGINE", use_arrays)
+        if use_arrays:
+            # Force the array engine from the very first gate
+            monkeypatch.setattr(propagation, "_ARRAY_ENGINE_MIN_TERMS", 1)
+        return propagate(gates, observable.copy(), **kwargs)
+
+    @pytest.mark.parametrize("seed", [70, 71, 72, 73])
+    def test_engines_agree_mixed_gates(self, seed, monkeypatch):
+        nqubits = 5 + seed % 3
+        circuit = _random_circuit(nqubits, 30, seed, include_cnot_cz=True)
+        observable = _random_observable(nqubits, 4, seed + 100)
+
+        via_dict = self._propagate_with(monkeypatch, False, circuit.gates, observable)
+        via_arrays = self._propagate_with(monkeypatch, True, circuit.gates, observable)
+
+        _assert_terms_close(via_arrays, via_dict)
+
+    @pytest.mark.parametrize("seed", [80, 81])
+    def test_engines_agree_with_truncation(self, seed, monkeypatch):
+        nqubits = 8
+        circuit = _random_circuit(nqubits, 40, seed, include_cnot_cz=True)
+        observable = _random_observable(nqubits, 3, seed + 100)
+
+        kwargs = {"max_weight": 4, "truncate_threshold": 1e-8}
+        via_dict = self._propagate_with(monkeypatch, False, circuit.gates, observable, **kwargs)
+        via_arrays = self._propagate_with(monkeypatch, True, circuit.gates, observable, **kwargs)
+
+        _assert_terms_close(via_arrays, via_dict)
+
+    @pytest.mark.parametrize("seed", [90])
+    def test_engines_agree_with_symmetry(self, seed, monkeypatch):
+        nqubits = 6
+        circuit = _random_circuit(nqubits, 25, seed)
+        observable = _random_observable(nqubits, 5, seed + 100)
+        observable.symmetry = PermutationSymmetry()
+
+        via_dict = self._propagate_with(monkeypatch, False, circuit.gates, observable)
+        via_arrays = self._propagate_with(monkeypatch, True, circuit.gates, observable)
+
+        _assert_terms_close(via_arrays, via_dict)
+
+    @pytest.mark.parametrize("nqubits", [31, 32, 33])
+    def test_dispatch_boundary(self, nqubits):
+        """31/32 qubits go through uint64 arrays, 33 through big-int dicts.
+
+        The observable acts on the top qubit, so at 32 qubits bit 63 is in
+        use. Results must match the frozen reference either way.
+        """
+        top = nqubits - 1
+        circuit = PauliPropagationCircuit(nqubits)
+        circuit.rx(top, 0.7)
+        circuit.rz(top, -0.3)
+        circuit.rzz(top - 1, top, 1.1)
+        circuit.h(top - 1)
+        circuit.rx(top, 0.4)
+
+        observable = PauliSum(nqubits)
+        observable.add_term(3 << (2 * top), 1.0)  # Z on top qubit
+        observable.add_term((3 << (2 * top)) | (1 << (2 * (top - 1))), 0.5)  # X(top-1) Z(top)
+
+        produced = propagate(circuit.gates, observable.copy())
+        expected = ref_propagate(circuit.gates, observable.copy())
+
+        _assert_terms_close(produced, expected)
+        assert all(isinstance(t, int) for t in produced.terms)
+        assert all(isinstance(c, complex) for c in produced.terms.values())
+
+    def test_min_terms_switchover(self, monkeypatch):
+        """Default config: dict engine below threshold, arrays above; results equal."""
+        nqubits = 10
+        circuit = _random_circuit(nqubits, 45, seed=95, rotations_only=True)
+        observable = _random_observable(nqubits, 2, seed=195)
+
+        default = propagate(circuit.gates, observable.copy())
+        via_dict = self._propagate_with(monkeypatch, False, circuit.gates, observable)
+
+        _assert_terms_close(default, via_dict)
+
+
+class TestPopcountSwar:
+    """The SWAR popcount fallback must match int.bit_count exactly."""
+
+    def test_swar_matches_bit_count(self):
+        from qc_executor.pauli_propagation.utils.array_engine import popcount_swar
+
+        rng = random.Random(11)
+        values = [0, 1, 2**64 - 1, 2**63, 0x5555555555555555] + [
+            rng.getrandbits(64) for _ in range(500)
+        ]
+        arr = np.array(values, dtype=np.uint64)
+        counts = popcount_swar(arr)
+        for value, count in zip(values, counts.tolist()):
+            assert count == value.bit_count(), value

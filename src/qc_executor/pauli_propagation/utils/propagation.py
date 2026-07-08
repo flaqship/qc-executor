@@ -11,6 +11,7 @@ from typing import Dict, List
 
 import sympy as sp
 
+from . import array_engine
 from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 from .pauli_algebra import low_mask
 from .pauli_types import PauliSum
@@ -20,6 +21,14 @@ from .truncation import truncate_inplace_no_stats
 # exponent k: folds the extra factor i from the rotation formula
 # cos(θ)Q + i sin(θ)PQ into a single table lookup.
 _I_PHASE = (1j, -1.0 + 0.0j, -1j, 1.0 + 0.0j)
+
+# Adaptive engine dispatch: propagation starts on the dict-based engine and
+# switches to the numpy array engine once the term count makes vectorization
+# pay off — but only when every term fits in a uint64 (2 bits per qubit).
+# USE_ARRAY_ENGINE is a module-level escape hatch for tests and debugging.
+USE_ARRAY_ENGINE = True
+_ARRAY_ENGINE_MAX_QUBITS = 32
+_ARRAY_ENGINE_MIN_TERMS = 128  # empirical dict/array crossover
 
 
 class PropagationCache:  # pylint: disable=too-few-public-methods
@@ -435,6 +444,46 @@ def propagate(
     # If barriers exist: gates between barriers form a layer (per-layer granularity)
     layers = _split_gates_by_barriers(gates)
 
+    min_coeff = truncate_threshold if truncate_threshold else 1e-15
+    return _propagate_layers(layers, result, parameters, do_truncate, min_coeff, max_weight)
+
+
+def _propagate_layers(
+    layers: List[List[Gate]],
+    result: PauliSum,
+    parameters: Dict[str, float],
+    do_truncate: bool,
+    min_coeff: float,
+    max_weight: int | None,
+) -> PauliSum:
+    """Run the reversed layer loop on an already-merged observable copy.
+
+    Shared core of propagate() and batch_propagate(). Starts on the
+    dict-based engine and switches once to the vectorized array engine when
+    the term count reaches _ARRAY_ENGINE_MIN_TERMS (dicts are faster for
+    small sums, arrays for large ones) and terms fit in uint64.
+
+    Note on symmetry: the input must already be merged by the caller. The
+    per-layer merge below only applies to the dict engine and is currently a
+    no-op after the first gate (the per-gate helpers return PauliSums with
+    default NoSymmetry — pinned, pre-existing behavior), which is why the
+    array-engine branch does not need a merging step.
+
+    Args:
+        layers: Gate layers from _split_gates_by_barriers
+        result: Observable copy to evolve (consumed; may be returned)
+        parameters: Dict mapping parameter names to values
+        do_truncate: Whether to truncate after each layer
+        min_coeff: Coefficient threshold used when truncating
+        max_weight: Maximum Pauli weight used when truncating
+
+    Returns:
+        Evolved PauliSum
+    """
+    nqubits = result.nqubits
+    use_arrays = USE_ARRAY_ENGINE and nqubits <= _ARRAY_ENGINE_MAX_QUBITS
+    arrays = None  # (terms, coeffs) numpy representation once switched
+
     # Apply gates in reverse order (Heisenberg picture)
     # Process layers in reverse, and gates within each layer in reverse
     for layer in reversed(layers):
@@ -442,25 +491,35 @@ def propagate(
         for gate in reversed(layer):
             if gate.is_parametric():
                 param_value = _resolve_param_value(gate, parameters)
+            else:
+                param_value = None
+
+            if arrays is None and use_arrays and len(result.terms) >= _ARRAY_ENGINE_MIN_TERMS:
+                arrays = array_engine.psum_to_arrays(result)
+
+            if arrays is None:
                 result = propagate_single_gate(gate, result, param_value)
             else:
-                result = propagate_single_gate(gate, result)
+                arrays = array_engine.apply_gate(arrays[0], arrays[1], gate, param_value)
 
-        # After each layer: apply symmetry merging
-        # Groups equivalent terms that may have been created within the layer
-        _apply_symmetry_merging(result)
+        if arrays is None:
+            # After each layer: apply symmetry merging
+            # Groups equivalent terms that may have been created within the layer
+            _apply_symmetry_merging(result)
 
-        # Truncate after each layer to prevent term explosion
-        # Note: symmetry merging happens BEFORE truncation
-        # This allows truncation to work on already-reduced term set
-        # (stats-free fast path; stats were previously discarded here)
-        if do_truncate:
-            truncate_inplace_no_stats(
-                result,
-                min_coeff=truncate_threshold if truncate_threshold else 1e-15,
-                max_weight=max_weight,
+            # Truncate after each layer to prevent term explosion
+            # Note: symmetry merging happens BEFORE truncation
+            # This allows truncation to work on already-reduced term set
+            # (stats-free fast path; stats were previously discarded here)
+            if do_truncate:
+                truncate_inplace_no_stats(result, min_coeff=min_coeff, max_weight=max_weight)
+        elif do_truncate:
+            arrays = array_engine.truncate_arrays(
+                arrays[0], arrays[1], nqubits, min_coeff, max_weight
             )
 
+    if arrays is not None:
+        result = array_engine.arrays_to_psum(arrays[0], arrays[1], nqubits)
     return result
 
 
@@ -471,24 +530,17 @@ def batch_propagate(
     max_weight: int | None = None,
     truncate_threshold: float | None = None,
 ) -> List[PauliSum]:
-    """Propagate multiple observables through a circuit in a single layer-loop pass.
+    """Propagate multiple observables through the same circuit.
 
-    Instead of calling propagate() N times (one per observable), this function
-    iterates once over the layers and applies all gates in each layer to all
-    observables simultaneously. This yields an ~N× speedup for N observables
-    sharing the same circuit and parameters.
+    Amortizes the shared per-circuit work (layer splitting, parameter
+    handling — symbolic parameter expressions are compiled once and cached)
+    across observables, and evolves one observable at a time so only a single
+    intermediate term store is alive at once (lower peak memory than evolving
+    all observables in lock-step).
 
-    Symmetry merging and truncation are applied independently to each PauliSum
-    after every layer, preserving the same approximation behaviour as
-    individual propagate() calls.
-
-    Layer-based merging strategy (same as propagate()):
-        1. Initially: Merge all observables (if has_active_symmetry)
-        2. Per-layer: After propagating a layer, merge and truncate each observable
-
-        Layers are defined by LayerBarrier markers:
-        - No barriers: each gate forms own layer (per-gate granularity)
-        - With barriers: gates between barriers form a layer (per-layer granularity)
+    Each observable is propagated with exactly the same semantics as an
+    individual propagate() call: initial symmetry merge, reversed layer loop,
+    per-layer truncation, adaptive dict/array engine.
 
     Args:
         gates: List of gates and LayerBarrier markers (from convert_circuit)
@@ -507,45 +559,20 @@ def batch_propagate(
         parameters = {}
 
     do_truncate = max_weight is not None or truncate_threshold is not None
-
-    # Copy all observables so inputs are not mutated
-    results = [obs.copy() for obs in observables]
-
-    # Initial symmetry merging: reduce input observables before propagation
-    # (only if observables have active symmetry)
-    for r in results:
-        _apply_symmetry_merging(r)
+    min_coeff = truncate_threshold if truncate_threshold is not None else 1e-15
 
     # Split gates into layers by barriers
     # If no barriers: each gate forms own layer (per-gate granularity)
     # If barriers exist: gates between barriers form a layer (per-layer granularity)
     layers = _split_gates_by_barriers(gates)
 
-    # Apply gates in reverse order (Heisenberg picture)
-    # Process layers in reverse, and gates within each layer in reverse
-    for layer in reversed(layers):
-        # Propagate each gate in the layer to all observables (in reverse order)
-        for gate in reversed(layer):
-            # Resolve parameter value once per gate (shared across all observables)
-            if gate.is_parametric():
-                param_value = _resolve_param_value(gate, parameters)
-                results = [propagate_single_gate(gate, r, param_value) for r in results]
-            else:
-                results = [propagate_single_gate(gate, r) for r in results]
-
-        # After each layer: apply symmetry merging to all observables
-        # Groups equivalent terms that may have been created within the layer
-        for r in results:
-            _apply_symmetry_merging(r)
-
-        # Truncate each PauliSum independently after every layer
-        # (stats-free fast path; stats were previously discarded here)
-        if do_truncate:
-            for r in results:
-                truncate_inplace_no_stats(
-                    r,
-                    min_coeff=truncate_threshold if truncate_threshold is not None else 1e-15,
-                    max_weight=max_weight,
-                )
+    results = []
+    for observable in observables:
+        # Copy so inputs are not mutated; initial symmetry merge as in propagate()
+        result = observable.copy()
+        _apply_symmetry_merging(result)
+        results.append(
+            _propagate_layers(layers, result, parameters, do_truncate, min_coeff, max_weight)
+        )
 
     return results

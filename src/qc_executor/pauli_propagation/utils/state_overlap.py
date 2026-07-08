@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import List
 
-from .pauli_algebra import contains_x_or_y, get_pauli
+from .pauli_algebra import low_mask
 from .pauli_types import PauliSum
 
 
@@ -27,10 +27,11 @@ def overlap_with_zero(psum: PauliSum) -> complex:
         Complex expectation value for the zero state.
     """
     result = 0.0 + 0.0j
+    mask = low_mask(psum.nqubits)
 
-    for term, coeff in psum:
-        # Only terms without X or Y contribute
-        if not contains_x_or_y(term, psum.nqubits):
+    for term, coeff in psum.terms.items():
+        # Only terms without X or Y contribute (inlined contains_x_or_y)
+        if (term ^ (term >> 1)) & mask == 0:
             result += coeff
 
     return result
@@ -63,22 +64,27 @@ def overlap_with_computational(psum: PauliSum, bitstring: str | List[int]) -> co
     if len(bits) != psum.nqubits:
         raise ValueError(f"Bitstring length {len(bits)} doesn't match nqubits {psum.nqubits}")
 
+    # One low-mask-aligned bit per qubit whose classical bit is 1: the sign
+    # of a surviving (I/Z-only) term is the parity of Z positions hitting
+    # 1-bits, i.e. popcount of the Z-component word ANDed with this mask.
+    ones_mask = 0
+    for i, bit in enumerate(bits):
+        if bit == 1:
+            ones_mask |= 1 << (2 * i)
+
+    mask = low_mask(psum.nqubits)
     result = 0.0 + 0.0j
 
-    for term, coeff in psum:
+    for term, coeff in psum.terms.items():
         # Skip terms with X or Y (they don't contribute)
-        if contains_x_or_y(term, psum.nqubits):
+        if (term ^ (term >> 1)) & mask:
             continue
 
-        # Compute sign from Z operators
-        sign = 1
-        for i in range(psum.nqubits):
-            pauli = get_pauli(term, i, psum.nqubits)
-            if pauli == 3:  # Z operator
-                if bits[i] == 1:
-                    sign *= -1
-
-        result += sign * coeff
+        # Sign from Z operators on qubits whose bit is 1
+        if ((term >> 1) & ones_mask).bit_count() & 1:
+            result -= coeff
+        else:
+            result += coeff
 
     return result
 

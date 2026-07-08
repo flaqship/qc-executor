@@ -10,8 +10,38 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Tuple
 
-from .pauli_algebra import count_weight
+from .pauli_algebra import count_weight, low_mask
 from .pauli_types import PauliSum
+
+
+def truncate_inplace_no_stats(
+    psum: PauliSum, min_coeff: float = 1e-15, max_weight: int | None = None
+) -> None:
+    """Remove small-coefficient and high-weight terms in place, no statistics.
+
+    Fast path for truncation inside the propagation loop, where the
+    TruncationStats of truncate_combined() are discarded: skips the L1-norm
+    computation and the per-term bookkeeping. Removal criteria are identical
+    to truncate_combined (coefficient magnitude below ``min_coeff`` OR weight
+    above ``max_weight``).
+
+    Args:
+        psum: PauliSum to truncate (modified in place)
+        min_coeff: Minimum coefficient magnitude to keep
+        max_weight: Maximum weight to keep (None = no weight limit)
+    """
+    terms = psum.terms
+    if max_weight is None:
+        to_remove = [term for term, coeff in terms.items() if abs(coeff) < min_coeff]
+    else:
+        mask = low_mask(psum.nqubits)
+        to_remove = [
+            term
+            for term, coeff in terms.items()
+            if abs(coeff) < min_coeff or ((term | (term >> 1)) & mask).bit_count() > max_weight
+        ]
+    for term in to_remove:
+        del terms[term]
 
 
 @dataclass

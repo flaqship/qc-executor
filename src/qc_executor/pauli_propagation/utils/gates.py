@@ -12,7 +12,7 @@ import numpy as np
 import sympy as sp
 
 from .pauli_algebra import commutes as pauli_commutes
-from .pauli_algebra import get_pauli, int_to_symbol, set_pauli, symbol_to_int
+from .pauli_algebra import get_pauli, int_to_symbol, low_mask, set_pauli, symbol_to_int
 
 
 class Gate(ABC):
@@ -101,6 +101,17 @@ class PauliRotation(Gate):
         for symbol, qubit in zip(symbols, self.qubits):
             pauli_int = symbol_to_int(symbol)
             self.generator_term = set_pauli(self.generator_term, qubit, pauli_int, nqubits)
+
+        # Precomputed symplectic components of the generator for the
+        # propagation hot loop (see pauli_algebra module docstring):
+        # generator_z/generator_x are the per-qubit Z/X component words and
+        # generator_phase_count is popcount(x & z), the generator's constant
+        # contribution to the Pauli-product phase exponent.
+        mask = low_mask(nqubits)
+        gen = self.generator_term
+        self.generator_z = (gen >> 1) & mask
+        self.generator_x = (gen ^ (gen >> 1)) & mask
+        self.generator_phase_count = (self.generator_x & self.generator_z).bit_count()
 
     def commutes_with(self, pauli_term: int) -> bool:
         """Check if this rotation commutes with a Pauli term.
@@ -198,6 +209,11 @@ class CliffordGate(Gate):
         else:
             raise ValueError(f"Unknown Clifford gate type: {self.gate_type}")
 
+        # Lazily built lookup table for transform_pauli_term:
+        # (clear_mask, shifts, replacement_bits, phases). Built on first use
+        # from the per-case transform methods so behavior stays identical.
+        self._transform_table = None
+
     def commutes_with(self, pauli_term: int) -> bool:
         """Clifford gates generally don't commute with arbitrary Paulis.
 
@@ -221,22 +237,65 @@ class CliffordGate(Gate):
 
         Uses the Heisenberg picture: U† P U
 
+        Uses a lookup table over the gate's own qubit slots (4 entries for
+        single-qubit gates, 16 for two-qubit gates), generated once from the
+        per-case transform methods.
+
         Args:
             pauli_term: Bit-encoded Pauli term
 
         Returns:
             Tuple of (transformed_term, phase)
         """
+        table = self._transform_table
+        if table is None:
+            table = self._build_transform_table()
 
+        clear_mask, shifts, replacement_bits, phases = table
+        pauli_term = int(pauli_term)
+        if len(shifts) == 1:
+            idx = (pauli_term >> shifts[0]) & 0b11
+        else:
+            idx = ((pauli_term >> shifts[0]) & 0b11) | (((pauli_term >> shifts[1]) & 0b11) << 2)
+
+        return (pauli_term & clear_mask) | replacement_bits[idx], phases[idx]
+
+    def _build_transform_table(self):
+        """Build the transform lookup table from the per-case methods.
+
+        The per-case methods only read and write the gate's own qubit slots,
+        so probing them with every local Pauli combination captures the full
+        transformation (behavior-preserving by construction).
+        """
         if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
-            return self._transform_single_qubit(pauli_term)
-        if self.gate_type in ["CNOT", "CX"]:
-            return self._transform_cnot(pauli_term)
-        if self.gate_type == "CZ":
-            return self._transform_cz(pauli_term)
-        if self.gate_type == "SWAP":
-            return self._transform_swap(pauli_term)
-        raise ValueError(f"Transformation not implemented for {self.gate_type}")
+            transform = self._transform_single_qubit
+            shifts = (2 * self.qubits[0],)
+            local_terms = [p << shifts[0] for p in range(4)]
+            clear_mask = ~(0b11 << shifts[0])
+        else:
+            if self.gate_type in ["CNOT", "CX"]:
+                transform = self._transform_cnot
+            elif self.gate_type == "CZ":
+                transform = self._transform_cz
+            elif self.gate_type == "SWAP":
+                transform = self._transform_swap
+            else:
+                raise ValueError(f"Transformation not implemented for {self.gate_type}")
+            shifts = (2 * self.qubits[0], 2 * self.qubits[1])
+            local_terms = [
+                (p_a << shifts[0]) | (p_b << shifts[1]) for p_b in range(4) for p_a in range(4)
+            ]
+            clear_mask = ~((0b11 << shifts[0]) | (0b11 << shifts[1]))
+
+        replacement_bits = []
+        phases = []
+        for probe in local_terms:
+            new_term, phase = transform(probe)
+            replacement_bits.append(int(new_term))
+            phases.append(complex(phase))
+
+        self._transform_table = (clear_mask, shifts, replacement_bits, phases)
+        return self._transform_table
 
     def _transform_single_qubit(self, pauli_term: int):
         """Transform single-qubit Clifford gate."""

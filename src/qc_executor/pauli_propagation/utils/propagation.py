@@ -5,14 +5,21 @@ Propagates observables through quantum circuits in the Heisenberg picture.
 
 from __future__ import annotations
 
+import math
+from functools import lru_cache
 from typing import Dict, List
 
-import numpy as np
+import sympy as sp
 
 from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
-from .pauli_algebra import pauli_multiply
+from .pauli_algebra import low_mask
 from .pauli_types import PauliSum
-from .truncation import truncate_combined
+from .truncation import truncate_inplace_no_stats
+
+# Powers of i shifted by one (i^(k+1)), indexed by the Pauli-product phase
+# exponent k: folds the extra factor i from the rotation formula
+# cos(θ)Q + i sin(θ)PQ into a single table lookup.
+_I_PHASE = (1j, -1.0 + 0.0j, -1j, 1.0 + 0.0j)
 
 
 class PropagationCache:  # pylint: disable=too-few-public-methods
@@ -131,26 +138,75 @@ def _propagate_pauli_rotation(
     if theta is None:
         raise ValueError("Pauli rotation requires parameter value (angle)")
 
-    result = PauliSum(psum.nqubits)
+    # Hot loop: everything gate-constant is hoisted, the commute check and
+    # Pauli product are inlined whole-word bit operations (see the
+    # pauli_algebra module docstring), and terms are merged directly in a
+    # plain dict replicating PauliSum.add_term semantics (accumulate, drop
+    # magnitudes below 1e-15).
+    cos_t = math.cos(theta)
+    sin_t = math.sin(theta)
+    mask = low_mask(psum.nqubits)
+    gen = gate.generator_term
+    gen_x = gate.generator_x
+    gen_z = gate.generator_z
+    gen_k = gate.generator_phase_count
 
-    for term, coeff in psum:
-        if gate.commutes_with(term):
+    new_terms: dict = {}
+
+    for term, coeff in psum.terms.items():
+        z = (term >> 1) & mask
+        x = (term ^ (term >> 1)) & mask
+
+        if ((gen_x & z) ^ (gen_z & x)).bit_count() & 1 == 0:
             # Commuting terms pass through unchanged
-            result.add_term(term, coeff)
+            existing = new_terms.get(term)
+            if existing is None:
+                if abs(coeff) >= 1e-15:
+                    new_terms[term] = complex(coeff)
+            else:
+                existing += coeff
+                if abs(existing) < 1e-15:
+                    del new_terms[term]
+                else:
+                    new_terms[term] = existing
         else:
-            # Anticommuting terms: split into cos and sin components
+            # Anticommuting terms split as cos(θ)Q + i sin(θ)PQ.
             # cos(θ) * Q term
-            cos_coeff = coeff * np.cos(theta)
-            result.add_term(term, cos_coeff)
+            cos_coeff = coeff * cos_t
+            existing = new_terms.get(term)
+            if existing is None:
+                if abs(cos_coeff) >= 1e-15:
+                    new_terms[term] = complex(cos_coeff)
+            else:
+                existing += cos_coeff
+                if abs(existing) < 1e-15:
+                    del new_terms[term]
+                else:
+                    new_terms[term] = existing
 
-            # sin(θ) * R term from rotation formula
-            # Compute P * Q
-            pq_term, pq_phase = pauli_multiply(gate.generator_term, term, psum.nqubits)
-            # The full coefficient is: coeff * sin(θ) * i * pq_phase
-            # For exp(iθP/2) Q exp(-iθP/2) = cos(θ)Q + i*sin(θ)PQ
-            sin_coeff = coeff * np.sin(theta) * (1j) * pq_phase
-            result.add_term(pq_term, sin_coeff)
+            # sin(θ) * R term: P*Q is gen XOR term; the phase exponent of
+            # the product plus the extra i is looked up in _I_PHASE.
+            pq_term = gen ^ term
+            k = (
+                gen_k
+                + (x & z).bit_count()
+                + 2 * (gen_z & x).bit_count()
+                - ((gen_x ^ x) & (gen_z ^ z)).bit_count()
+            ) & 3
+            sin_coeff = coeff * sin_t * _I_PHASE[k]
+            existing = new_terms.get(pq_term)
+            if existing is None:
+                if abs(sin_coeff) >= 1e-15:
+                    new_terms[pq_term] = complex(sin_coeff)
+            else:
+                existing += sin_coeff
+                if abs(existing) < 1e-15:
+                    del new_terms[pq_term]
+                else:
+                    new_terms[pq_term] = existing
 
+    result = PauliSum(psum.nqubits)
+    result.terms = new_terms
     return result
 
 
@@ -166,17 +222,45 @@ def _propagate_clifford(gate: CliffordGate, psum: PauliSum) -> PauliSum:
     Returns:
         Transformed PauliSum
     """
-    result = PauliSum(psum.nqubits)
+    # Hot loop: table-driven term transformation (built lazily on the gate)
+    # with direct dict merging replicating PauliSum.add_term semantics.
+    transform = gate.transform_pauli_term
+    new_terms: dict = {}
 
-    for term, coeff in psum:
-        # Transform the Pauli term
-        new_term, phase = gate.transform_pauli_term(term)
-
-        # Add with combined coefficient
+    for term, coeff in psum.terms.items():
+        new_term, phase = transform(term)
         new_coeff = coeff * phase
-        result.add_term(new_term, new_coeff)
 
+        existing = new_terms.get(new_term)
+        if existing is None:
+            if abs(new_coeff) >= 1e-15:
+                new_terms[new_term] = complex(new_coeff)
+        else:
+            existing += new_coeff
+            if abs(existing) < 1e-15:
+                del new_terms[new_term]
+            else:
+                new_terms[new_term] = existing
+
+    result = PauliSum(psum.nqubits)
+    result.terms = new_terms
     return result
+
+
+@lru_cache(maxsize=1024)
+def _compile_param_expr(expr: sp.Expr):
+    """Compile a sympy expression to a fast numeric callable.
+
+    Returns (symbol_names, callable) with symbols sorted by name. Cached at
+    module level: sympy expressions hash and compare structurally, so the
+    cache is shared across gates and calls. Kept off gate instances because
+    lambdified functions are not picklable (required for process-based
+    parallel execution).
+    """
+    symbols = sorted(expr.free_symbols, key=lambda s: s.name)
+    names = tuple(s.name for s in symbols)
+    func = sp.lambdify(symbols, expr, modules="math")
+    return names, func
 
 
 def _resolve_param_value(
@@ -198,6 +282,18 @@ def _resolve_param_value(
     # Try to resolve symbolic expression first
     if hasattr(gate, "param_expr") and gate.param_expr is not None:
         expr = gate.param_expr
+
+        # Fast path: evaluate a pre-compiled (cached) form of the expression
+        # when all its symbols have values. Mirrors the subs() result below.
+        try:
+            names, func = _compile_param_expr(expr)
+        except Exception:  # pylint: disable=broad-except
+            names, func = None, None
+        if names and func is not None and all(name in parameters for name in names):
+            try:
+                return float(func(*(parameters[name] for name in names)))
+            except Exception:  # pylint: disable=broad-except
+                pass  # fall through to the subs()-based path
 
         # Check if all free symbols are in parameters
         subs_dict = {}
@@ -357,12 +453,12 @@ def propagate(
         # Truncate after each layer to prevent term explosion
         # Note: symmetry merging happens BEFORE truncation
         # This allows truncation to work on already-reduced term set
+        # (stats-free fast path; stats were previously discarded here)
         if do_truncate:
-            result, _ = truncate_combined(
+            truncate_inplace_no_stats(
                 result,
                 min_coeff=truncate_threshold if truncate_threshold else 1e-15,
                 max_weight=max_weight,
-                inplace=True,
             )
 
     return result
@@ -443,15 +539,13 @@ def batch_propagate(
             _apply_symmetry_merging(r)
 
         # Truncate each PauliSum independently after every layer
+        # (stats-free fast path; stats were previously discarded here)
         if do_truncate:
-            results = [
-                truncate_combined(
+            for r in results:
+                truncate_inplace_no_stats(
                     r,
                     min_coeff=truncate_threshold if truncate_threshold is not None else 1e-15,
                     max_weight=max_weight,
-                    inplace=True,
-                )[0]
-                for r in results
-            ]
+                )
 
     return results

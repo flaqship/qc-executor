@@ -465,3 +465,94 @@ class TestXYHelpers:
     def test_count_xy(self):
         assert count_xy(string_to_term("IZZI", 4), 4) == 0
         assert count_xy(string_to_term("XYZI", 4), 4) == 2
+
+
+class TestBitTrickCrossCheck:
+    """Randomized cross-checks of the whole-word fast paths.
+
+    The production primitives use O(1) whole-word bit tricks; these tests
+    compare them against straightforward per-qubit reference implementations
+    across a wide range of qubit counts, including > 32 qubits where terms
+    exceed 64 bits (Python big-int path).
+    """
+
+    _MULT_TABLE = [
+        [(0, 1), (1, 1), (2, 1), (3, 1)],
+        [(1, 1), (0, 1), (3, 1j), (2, -1j)],
+        [(2, 1), (3, -1j), (0, 1), (1, 1j)],
+        [(3, 1), (2, 1j), (1, -1j), (0, 1)],
+    ]
+
+    @staticmethod
+    def _random_terms(seed):
+        import random
+
+        rng = random.Random(seed)
+        cases = []
+        for _ in range(400):
+            nqubits = rng.choice([1, 2, 3, 5, 8, 16, 31, 32, 33, 48, 70])
+            term1 = rng.getrandbits(2 * nqubits)
+            term2 = rng.getrandbits(2 * nqubits)
+            cases.append((nqubits, term1, term2))
+        return cases
+
+    def _ref_multiply(self, term1, term2, nqubits):
+        result_term = 0
+        phase = 1.0 + 0.0j
+        for i in range(nqubits):
+            p1 = (term1 >> (2 * i)) & 3
+            p2 = (term2 >> (2 * i)) & 3
+            p_result, p_phase = self._MULT_TABLE[p1][p2]
+            result_term |= p_result << (2 * i)
+            phase *= p_phase
+        return result_term, phase
+
+    def test_pauli_multiply_matches_reference(self):
+        for nqubits, term1, term2 in self._random_terms(seed=1):
+            result, phase = pauli_multiply(term1, term2, nqubits)
+            ref_result, ref_phase = self._ref_multiply(term1, term2, nqubits)
+            assert result == ref_result, (nqubits, term1, term2)
+            assert phase == ref_phase, (nqubits, term1, term2)
+            assert isinstance(result, int)
+            assert isinstance(phase, complex)
+
+    def test_commutes_matches_reference(self):
+        for nqubits, term1, term2 in self._random_terms(seed=2):
+            anti = 0
+            for i in range(nqubits):
+                p1 = (term1 >> (2 * i)) & 3
+                p2 = (term2 >> (2 * i)) & 3
+                if p1 != 0 and p2 != 0 and p1 != p2:
+                    anti += 1
+            expected = anti % 2 == 0
+            result = commutes(term1, term2, nqubits)
+            assert result is expected, (nqubits, term1, term2)
+
+    def test_count_weight_matches_reference(self):
+        for nqubits, term, _ in self._random_terms(seed=3):
+            expected = sum(1 for i in range(nqubits) if (term >> (2 * i)) & 3 != 0)
+            assert count_weight(term, nqubits) == expected
+
+    def test_contains_x_or_y_matches_reference(self):
+        for nqubits, term, _ in self._random_terms(seed=4):
+            expected = any((term >> (2 * i)) & 3 in (1, 2) for i in range(nqubits))
+            result = contains_x_or_y(term, nqubits)
+            assert result is expected
+
+    def test_count_xy_matches_reference(self):
+        for nqubits, term, _ in self._random_terms(seed=5):
+            expected = sum(1 for i in range(nqubits) if (term >> (2 * i)) & 3 in (1, 2))
+            assert count_xy(term, nqubits) == expected
+
+    def test_numpy_integer_inputs(self):
+        """Primitives must accept numpy integers (e.g. from PauliString.term)."""
+        term1 = np.uint64(0b0110)  # q0=Y, q1=X
+        term2 = np.uint64(0b1101)  # q0=X, q1=Z
+        result, phase = pauli_multiply(term1, term2, 2)
+        ref_result, ref_phase = self._ref_multiply(int(term1), int(term2), 2)
+        assert result == ref_result
+        assert phase == ref_phase
+        assert commutes(term1, term2, 2) in (True, False)
+        assert count_weight(np.uint64(0b0110), 2) == 2
+        assert contains_x_or_y(np.uint64(0b1111), 2) is False
+        assert count_xy(np.uint64(0b0110), 2) == 2

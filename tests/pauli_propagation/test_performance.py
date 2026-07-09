@@ -137,3 +137,39 @@ class TestPropagationBenchmarks:
         print(f"\n[bench] gradient_6q_10params: {elapsed * 1e3:.2f} ms")
         assert len(np.atleast_1d(gradient)) == nparams
         assert elapsed < 300
+
+
+@_benchmark_skip
+@pytest.mark.benchmark
+class TestParallelBenchmarks:
+    """n_jobs scaling on independent circuit evaluations.
+
+    Note: on Windows each worker process pays spawn + package import cost,
+    so parallelism only wins for workloads far heavier than the startup
+    overhead. Timings are printed for comparison, not asserted.
+    """
+
+    def test_n_jobs_scaling(self):
+        # Four heavy (~seconds each) independent evaluations of the same
+        # circuit; heavy per-task cost is required to amortize worker startup
+        nqubits = 16
+        circuits = [_rotation_circuit(nqubits, 160, seed=0) for _ in range(4)]
+        observable = PauliPropagationOperator(
+            ["Z" + "I" * (nqubits - 1)], [1.0], num_qubits=nqubits
+        )
+
+        serial = PauliPropagationExecutor(truncate_threshold=1e-8)
+        elapsed_serial, results_serial = _time_call(
+            serial.expectation_value, circuits, observable, n_runs=1
+        )
+
+        parallel = PauliPropagationExecutor(truncate_threshold=1e-8, n_jobs=4)
+        elapsed_parallel, results_parallel = _time_call(
+            parallel.expectation_value, circuits, observable, n_runs=1
+        )
+
+        print(
+            f"\n[bench] n_jobs_scaling_4x16q: serial={elapsed_serial * 1e3:.0f} ms, "
+            f"n_jobs=4={elapsed_parallel * 1e3:.0f} ms"
+        )
+        assert np.allclose(results_serial, results_parallel)

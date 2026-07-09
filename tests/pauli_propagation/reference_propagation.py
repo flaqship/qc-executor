@@ -1,12 +1,16 @@
-"""Frozen reference implementation of Pauli propagation semantics.
+"""Independent reference implementation of Pauli propagation semantics.
 
-This module is a verbatim behavioral snapshot of the propagation logic as of
-the start of the performance-optimization work. It intentionally duplicates
-the original per-qubit-loop primitives and gate transformation rules
-(including their known quirks) so that parity tests can verify that
-performance changes to the production code do not alter results.
+This module duplicates the propagation logic with deliberately simple
+per-qubit loops and hand-derived transformation rules so that parity tests
+can cross-validate the (optimized, table/vector-based) production code
+against a structurally different implementation.
 
-Do NOT "fix" or optimize this module; it exists to pin behavior.
+History: it started as a bug-for-bug behavioral snapshot guarding the
+performance work; after the correctness fixes (CNOT/CZ/S Heisenberg phases,
+per-layer symmetry merging) it now reflects the corrected semantics, with
+rules derived independently from the Clifford generator maps.
+
+Do NOT optimize this module; simplicity is its purpose.
 """
 
 from __future__ import annotations
@@ -94,9 +98,12 @@ def ref_count_xy(term: int, nqubits: int) -> int:
 # Frozen Clifford transformation rules (original, quirks included)
 # ---------------------------------------------------------------------------
 
+# Heisenberg rules U† P U. S: S†XS = -Y, S†YS = X. The T entry mirrors the
+# legacy approximate CliffordGate("T") behavior (converters now emit RZ(π/4)
+# rotations for T instead, so this entry is unused in built circuits).
 _SINGLE_QUBIT_RULES = {
     "H": {0: (0, 1.0), 1: (3, 1.0), 2: (2, -1.0), 3: (1, 1.0)},
-    "S": {0: (0, 1.0), 1: (2, 1.0), 2: (1, -1.0), 3: (3, 1.0)},
+    "S": {0: (0, 1.0), 1: (2, -1.0), 2: (1, 1.0), 3: (3, 1.0)},
     "T": {
         0: (0, 1.0),
         1: (1, np.exp(-1j * np.pi / 4)),
@@ -117,71 +124,39 @@ def _ref_transform_single_qubit(gate: CliffordGate, pauli_term: int):
     return new_term, complex(phase)
 
 
-def _ref_transform_cnot(gate: CliffordGate, pauli_term: int):
-    control = gate.qubits[0]
-    target = gate.qubits[1]
+# Conjugation images φ(P) = U† P U of single-qubit Paulis on a two-qubit
+# gate's (a, b) pair, encoded as local 2-qubit terms (bits 0-1 = qubit a,
+# bits 2-3 = qubit b). Derived by hand from the generator maps
+# (CNOT: X_c → X_c X_t, Z_c → Z_c, X_t → X_t, Z_t → Z_c Z_t;
+#  CZ: X_i → X_i Z_j, Z_i → Z_i; Y = iXZ composes with phase +1).
+# The full transform of P_a ⊗ P_b follows compositionally:
+# φ(P_a ⊗ P_b) = φ(P_a ⊗ I) · φ(I ⊗ P_b), multiplied with the frozen
+# Pauli multiplication table — an independent derivation from the explicit
+# 16-entry tables used in production.
+_CNOT_IMAGES_A = {0: 0b0000, 1: 0b0101, 2: 0b0110, 3: 0b0011}
+_CNOT_IMAGES_B = {0: 0b0000, 1: 0b0100, 2: 0b1011, 3: 0b1111}
+_CZ_IMAGES_A = {0: 0b0000, 1: 0b1101, 2: 0b1110, 3: 0b0011}
+_CZ_IMAGES_B = {0: 0b0000, 1: 0b0111, 2: 0b1011, 3: 0b1100}
 
-    p_c = ref_get_pauli(pauli_term, control)
-    p_t = ref_get_pauli(pauli_term, target)
 
-    new_term = pauli_term
-    phase = 1.0
+def _ref_conjugate_two_qubit(gate: CliffordGate, images_a, images_b, pauli_term: int):
+    qubit_a, qubit_b = gate.qubits[0], gate.qubits[1]
+    p_a = ref_get_pauli(pauli_term, qubit_a)
+    p_b = ref_get_pauli(pauli_term, qubit_b)
 
-    if p_c == 1:
-        p_t_new = p_t ^ 1
-        new_term = ref_set_pauli(new_term, target, p_t_new)
-        if p_t == 2:
-            phase *= (-1) ** ((p_c == 2 or p_t == 2) and p_c * p_t != 0)
+    local_product, phase = ref_pauli_multiply(images_a[p_a], images_b[p_b], 2)
 
-    if p_t == 3:
-        if p_c == 0:
-            new_term = ref_set_pauli(new_term, control, 3)
-        elif p_c == 1:
-            new_term = ref_set_pauli(new_term, control, 2)
-            new_term = ref_set_pauli(new_term, target, 2)
-        elif p_c == 2:
-            new_term = ref_set_pauli(new_term, control, 1)
-            new_term = ref_set_pauli(new_term, target, 2)
-            phase = -1.0
-        elif p_c == 3:
-            new_term = ref_set_pauli(new_term, control, 0)
-    elif p_t == 2:
-        if p_c == 0:
-            new_term = ref_set_pauli(new_term, control, 3)
-        elif p_c == 1:
-            new_term = ref_set_pauli(new_term, control, 2)
-            new_term = ref_set_pauli(new_term, target, 3)
-        elif p_c == 2:
-            new_term = ref_set_pauli(new_term, control, 1)
-            new_term = ref_set_pauli(new_term, target, 3)
-        elif p_c == 3:
-            new_term = ref_set_pauli(new_term, control, 0)
-    elif p_t == 1:
-        if p_c == 1:
-            new_term = ref_set_pauli(new_term, target, 0)
-        elif p_c == 2:
-            new_term = ref_set_pauli(new_term, target, 0)
-
+    new_term = ref_set_pauli(pauli_term, qubit_a, local_product & 3)
+    new_term = ref_set_pauli(new_term, qubit_b, (local_product >> 2) & 3)
     return new_term, complex(phase)
+
+
+def _ref_transform_cnot(gate: CliffordGate, pauli_term: int):
+    return _ref_conjugate_two_qubit(gate, _CNOT_IMAGES_A, _CNOT_IMAGES_B, pauli_term)
 
 
 def _ref_transform_cz(gate: CliffordGate, pauli_term: int):
-    q0, q1 = gate.qubits[0], gate.qubits[1]
-    p0 = ref_get_pauli(pauli_term, q0)
-    p1 = ref_get_pauli(pauli_term, q1)
-
-    new_term = pauli_term
-    phase = 1.0
-
-    if p0 == 1:
-        p1_new = p1 ^ 3 if p1 != 3 else 0
-        new_term = ref_set_pauli(new_term, q1, p1_new if p1 == 0 else (p1 ^ 3) % 4)
-
-    if p1 == 1:
-        p0_new = p0 ^ 3 if p0 != 3 else 0
-        new_term = ref_set_pauli(new_term, q0, p0_new if p0 == 0 else (p0 ^ 3) % 4)
-
-    return new_term, complex(phase)
+    return _ref_conjugate_two_qubit(gate, _CZ_IMAGES_A, _CZ_IMAGES_B, pauli_term)
 
 
 def _ref_transform_swap(gate: CliffordGate, pauli_term: int):
@@ -278,6 +253,17 @@ def _ref_truncate_inplace(psum: PauliSum, min_coeff: float, max_weight: int | No
         del psum.terms[term]
 
 
+def _ref_merge_by_symmetry(psum: PauliSum, strategy) -> None:
+    merged: Dict[int, complex] = {}
+    for term, coeff in psum.terms.items():
+        canonical = strategy.canonical_representative(term, psum.nqubits)
+        if canonical in merged:
+            merged[canonical] += coeff
+        else:
+            merged[canonical] = coeff
+    psum.terms = merged
+
+
 def ref_propagate(
     gates: List,
     observable: PauliSum,
@@ -285,12 +271,10 @@ def ref_propagate(
     max_weight: int | None = None,
     truncate_threshold: float | None = None,
 ) -> PauliSum:
-    """Frozen copy of propagate() semantics.
+    """Reference copy of propagate() semantics.
 
-    Notes on pinned quirks:
-    - Symmetry merging effectively runs only once, on the input observable:
-      the per-gate propagation helpers return fresh PauliSums carrying the
-      default NoSymmetry, so the per-layer merge is a no-op afterwards.
+    - Symmetry merging runs on the input observable and again after each
+      layer (before truncation), using the observable's strategy.
     - Without barriers, truncation runs after every single gate.
     - Parameter resolution here supports only concrete ``param_value`` and
       simple ``param_name`` lookups (test circuits use concrete angles).
@@ -301,16 +285,12 @@ def ref_propagate(
     do_truncate = max_weight is not None or truncate_threshold is not None
     result = observable.copy()
 
-    # Initial symmetry merge (the only one that ever fires; see docstring).
-    if result.has_active_symmetry:
-        merged: Dict[int, complex] = {}
-        for term, coeff in result.terms.items():
-            canonical = result.symmetry.canonical_representative(term, result.nqubits)
-            if canonical in merged:
-                merged[canonical] += coeff
-            else:
-                merged[canonical] = coeff
-        result.terms = merged
+    has_active_symmetry = result.has_active_symmetry
+    strategy = result.symmetry
+
+    # Initial symmetry merge (preprocessing, as in production)
+    if has_active_symmetry:
+        _ref_merge_by_symmetry(result, strategy)
 
     for layer in reversed(_ref_split_layers(gates)):
         for gate in reversed(layer):
@@ -326,6 +306,10 @@ def ref_propagate(
                 result = _ref_propagate_clifford(gate, result)
             else:
                 raise TypeError(f"Unknown gate type: {type(gate)}")
+
+        # Per-layer merge before truncation (matches production order)
+        if has_active_symmetry:
+            _ref_merge_by_symmetry(result, strategy)
 
         if do_truncate:
             _ref_truncate_inplace(

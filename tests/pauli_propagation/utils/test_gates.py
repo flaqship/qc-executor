@@ -147,25 +147,25 @@ class TestCliffordGate:
         assert new_term == y_term
         assert np.isclose(phase, -1.0)
 
-    def test_s_gate_transforms_x_to_y(self):
-        """S: X → Y."""
+    def test_s_gate_transforms_x_to_minus_y(self):
+        """S (Heisenberg): S†XS = -Y."""
         s = CliffordGate("S", 0, nqubits=1)
         x_term = string_to_term("X", 1)
         y_term = string_to_term("Y", 1)
 
         new_term, phase = s.transform_pauli_term(x_term)
         assert new_term == y_term
-        assert np.isclose(phase, 1.0)
+        assert np.isclose(phase, -1.0)
 
-    def test_s_gate_transforms_y_to_minus_x(self):
-        """S: Y → -X."""
+    def test_s_gate_transforms_y_to_x(self):
+        """S (Heisenberg): S†YS = X."""
         s = CliffordGate("S", 0, nqubits=1)
         y_term = string_to_term("Y", 1)
         x_term = string_to_term("X", 1)
 
         new_term, phase = s.transform_pauli_term(y_term)
         assert new_term == x_term
-        assert np.isclose(phase, -1.0)
+        assert np.isclose(phase, 1.0)
 
     def test_swap_exchanges_paulis(self):
         """SWAP exchanges Pauli operators on two qubits."""
@@ -210,20 +210,20 @@ class TestCliffordGate:
     @pytest.mark.parametrize(
         ("input_term", "expected_term", "expected_phase"),
         [
-            ("XY", "YZ", -1.0),
+            ("XY", "YZ", 1.0),
             ("IZ", "ZZ", 1.0),
-            ("XZ", "YY", 1.0),
-            ("YZ", "XY", -1.0),
+            ("XZ", "YY", -1.0),
+            ("YZ", "XY", 1.0),
             ("ZZ", "IZ", 1.0),
             ("IY", "ZY", 1.0),
-            ("YY", "XZ", 1.0),
+            ("YY", "XZ", -1.0),
             ("ZY", "IY", 1.0),
             ("XX", "XI", 1.0),
             ("YX", "YI", 1.0),
         ],
     )
     def test_cnot_transform_branches(self, input_term, expected_term, expected_phase):
-        """CNOT branch table follows implemented transform logic."""
+        """CNOT Heisenberg conjugation table (standard literature values)."""
         cnot = CliffordGate("CNOT", [0, 1], nqubits=2)
         in_term = string_to_term(input_term, 2)
         out_term = string_to_term(expected_term, 2)
@@ -268,3 +268,65 @@ class TestLayerBarrier:
         """LayerBarrier repr is stable."""
         barrier = LayerBarrier()
         assert repr(barrier) == "LayerBarrier()"
+
+
+class TestCliffordMatrixConjugation:
+    """Authoritative check: transforms must equal exact matrix conjugation.
+
+    For every Clifford gate and every input Pauli on its qubits, the
+    transform (new_term, phase) must satisfy
+        U† P U == phase * P_new
+    as complex matrices. The T gate is excluded: it is not Clifford (its
+    conjugation of X/Y is not a single Pauli); converters emit RZ(π/4)
+    rotations for it instead.
+    """
+
+    _PAULIS = [
+        np.eye(2, dtype=complex),
+        np.array([[0, 1], [1, 0]], dtype=complex),
+        np.array([[0, -1j], [1j, 0]], dtype=complex),
+        np.array([[1, 0], [0, -1]], dtype=complex),
+    ]
+
+    # Qubit 0 (control / first gate qubit) is the FIRST kron factor,
+    # matching pauli_to_matrix and _simulate_statevector conventions.
+    _UNITARIES = {
+        "H": np.array([[1, 1], [1, -1]], dtype=complex) / np.sqrt(2),
+        "S": np.array([[1, 0], [0, 1j]], dtype=complex),
+        "X": np.array([[0, 1], [1, 0]], dtype=complex),
+        "Y": np.array([[0, -1j], [1j, 0]], dtype=complex),
+        "Z": np.array([[1, 0], [0, -1]], dtype=complex),
+        "CNOT": np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]], dtype=complex),
+        "CZ": np.diag([1, 1, 1, -1]).astype(complex),
+        "SWAP": np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=complex),
+    }
+
+    @pytest.mark.parametrize("gate_type", ["H", "S", "X", "Y", "Z"])
+    def test_single_qubit_gates(self, gate_type):
+        gate = CliffordGate(gate_type, 0, nqubits=1)
+        unitary = self._UNITARIES[gate_type]
+
+        for pauli_in in range(4):
+            new_term, phase = gate.transform_pauli_term(pauli_in)
+            expected = unitary.conj().T @ self._PAULIS[pauli_in] @ unitary
+            actual = phase * self._PAULIS[new_term & 0b11]
+            np.testing.assert_allclose(actual, expected, atol=1e-12, err_msg=f"P={pauli_in}")
+
+    @pytest.mark.parametrize("gate_type", ["CNOT", "CX", "CZ", "SWAP"])
+    def test_two_qubit_gates(self, gate_type):
+        gate = CliffordGate(gate_type, [0, 1], nqubits=2)
+        unitary = self._UNITARIES["CNOT" if gate_type == "CX" else gate_type]
+
+        for p0 in range(4):
+            for p1 in range(4):
+                term = p0 | (p1 << 2)
+                new_term, phase = gate.transform_pauli_term(term)
+
+                pauli_in = np.kron(self._PAULIS[p0], self._PAULIS[p1])
+                expected = unitary.conj().T @ pauli_in @ unitary
+                actual = phase * np.kron(
+                    self._PAULIS[new_term & 0b11], self._PAULIS[(new_term >> 2) & 0b11]
+                )
+                np.testing.assert_allclose(
+                    actual, expected, atol=1e-12, err_msg=f"(p0={p0}, p1={p1})"
+                )

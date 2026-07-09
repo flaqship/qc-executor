@@ -174,7 +174,7 @@ class TestPropagateClifford:
         assert np.isclose(result.get_coeff("Z"), 1.0)
 
     def test_s_gate_on_x(self):
-        """S transforms X → Y."""
+        """S transforms X → -Y in the Heisenberg picture (S†XS = -Y)."""
         s = CliffordGate("S", 0, nqubits=1)
         observable = PauliSum(1)
         observable.add_term("X", 1.0)
@@ -182,7 +182,7 @@ class TestPropagateClifford:
         result = propagate_single_gate(s, observable)
 
         assert len(result) == 1
-        assert np.isclose(result.get_coeff("Y"), 1.0)
+        assert np.isclose(result.get_coeff("Y"), -1.0)
 
     def test_swap_gate(self):
         """SWAP exchanges observables on two qubits."""

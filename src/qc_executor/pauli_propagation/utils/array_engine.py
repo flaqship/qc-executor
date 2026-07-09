@@ -11,12 +11,11 @@ Semantics mirror the dict-based path: term merging replicates
 PauliSum.add_term's 1e-15 pruning, and gate transforms share the exact same
 lookup tables / generator components as the dict path.
 
-Symmetry note: symmetry merging currently only ever fires on the input
-observable before propagation starts (the per-gate helpers drop the symmetry
-strategy — pinned, pre-existing behavior). That initial merge happens in
-dict-land in propagate(), so this engine needs no symmetry handling. If
-per-layer merging is ever fixed/enabled, this engine needs a vectorized
-counterpart.
+Symmetry note: this engine has no symmetry-merging step. Observables with an
+active (non-trivial) symmetry strategy are routed to the dict-based path by
+propagation._propagate_layers, where per-layer merging is applied. Adding a
+vectorized merge (e.g. for PermutationSymmetry via popcount type-counting)
+would allow lifting that restriction.
 """
 
 from __future__ import annotations

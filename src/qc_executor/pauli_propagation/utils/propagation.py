@@ -214,7 +214,8 @@ def _propagate_pauli_rotation(
                 else:
                     new_terms[pq_term] = existing
 
-    result = PauliSum(psum.nqubits)
+    # Preserve the symmetry strategy so per-layer merging keeps working
+    result = PauliSum(psum.nqubits, symmetry=psum.symmetry)
     result.terms = new_terms
     return result
 
@@ -251,7 +252,8 @@ def _propagate_clifford(gate: CliffordGate, psum: PauliSum) -> PauliSum:
             else:
                 new_terms[new_term] = existing
 
-    result = PauliSum(psum.nqubits)
+    # Preserve the symmetry strategy so per-layer merging keeps working
+    result = PauliSum(psum.nqubits, symmetry=psum.symmetry)
     result.terms = new_terms
     return result
 
@@ -463,11 +465,9 @@ def _propagate_layers(
     the term count reaches _ARRAY_ENGINE_MIN_TERMS (dicts are faster for
     small sums, arrays for large ones) and terms fit in uint64.
 
-    Note on symmetry: the input must already be merged by the caller. The
-    per-layer merge below only applies to the dict engine and is currently a
-    no-op after the first gate (the per-gate helpers return PauliSums with
-    default NoSymmetry — pinned, pre-existing behavior), which is why the
-    array-engine branch does not need a merging step.
+    Note on symmetry: the input must already be merged by the caller.
+    Observables with an active symmetry stay on the dict engine, where
+    per-layer merging is applied; the array engine has no merging step.
 
     Args:
         layers: Gate layers from _split_gates_by_barriers
@@ -481,7 +481,9 @@ def _propagate_layers(
         Evolved PauliSum
     """
     nqubits = result.nqubits
-    use_arrays = USE_ARRAY_ENGINE and nqubits <= _ARRAY_ENGINE_MAX_QUBITS
+    use_arrays = (
+        USE_ARRAY_ENGINE and nqubits <= _ARRAY_ENGINE_MAX_QUBITS and not result.has_active_symmetry
+    )
     arrays = None  # (terms, coeffs) numpy representation once switched
 
     # Apply gates in reverse order (Heisenberg picture)

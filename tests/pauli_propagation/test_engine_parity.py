@@ -25,10 +25,10 @@ from qc_executor.pauli_propagation.utils.state_overlap import overlap_with_zero
 
 from .reference_propagation import ref_overlap_with_zero, ref_propagate
 
-# Gate pools. CNOT and CZ carry known transformation bugs for Y operands
-# (see plan notes); they are exercised separately so the strict statevector
-# parity tests stay meaningful.
-_SAFE_SINGLE = ["h", "s", "x", "y", "z"]
+# Gate pools. All gates now carry exact Heisenberg transforms (t() builds an
+# RZ(π/4) rotation); CNOT/CZ are pooled separately purely to keep seeds
+# stable across circuit-generation variants.
+_SAFE_SINGLE = ["h", "s", "t", "x", "y", "z"]
 _ROTATIONS_1Q = ["rx", "ry", "rz"]
 _ROTATIONS_2Q = ["rxx", "ryy", "rzz"]
 
@@ -140,13 +140,12 @@ class TestReferenceParity:
         )
 
     @pytest.mark.parametrize("seed", [30, 31])
-    def test_symmetry_status_quo(self, seed):
-        """Pin the current symmetry-merging semantics.
+    def test_symmetry_merging_per_layer(self, seed):
+        """Symmetry merging fires on the input AND after every layer.
 
-        Today the input observable is merged once before propagation, and the
-        advertised per-layer merge never fires afterwards (the per-gate
-        helpers return PauliSums carrying default NoSymmetry). The frozen
-        reference replicates exactly that; production must agree.
+        The symmetry strategy survives gate application (it used to be lost
+        after the first gate), so the advertised per-layer merge actually
+        runs. The reference implements the same semantics independently.
         """
         nqubits = 5
         circuit = _random_circuit(nqubits, 20, seed)
@@ -157,16 +156,12 @@ class TestReferenceParity:
         expected = ref_propagate(circuit.gates, observable.copy())
 
         _assert_terms_close(produced, expected)
+        # The strategy must survive propagation on the returned sum
+        assert isinstance(produced.symmetry, PermutationSymmetry)
 
 
 class TestStatevectorParity:
-    """Expectation values must match direct statevector simulation.
-
-    Restricted to gates whose Heisenberg transforms are correct today
-    (rotations, H/S/X/Y/Z, SWAP). CNOT/CZ circuits are exercised in a
-    non-strict xfail test: they carry known phase bugs for Y operands that
-    this performance work must preserve, not fix.
-    """
+    """Expectation values must match direct statevector simulation."""
 
     @pytest.mark.parametrize("seed", [40, 41, 42, 43])
     def test_safe_gates_match_statevector(self, seed):
@@ -181,11 +176,8 @@ class TestStatevectorParity:
         assert np.isclose(pp_value, sv_value, atol=1e-8)
 
     @pytest.mark.parametrize("seed", [50, 51, 52])
-    @pytest.mark.xfail(
-        strict=False,
-        reason="Known CNOT/CZ transformation bugs for Y operands (pre-existing)",
-    )
     def test_cnot_cz_gates_match_statevector(self, seed):
+        """CNOT/CZ conjugation phases were fixed; parity is now strict."""
         nqubits = 4
         circuit = _random_circuit(nqubits, 20, seed, include_cnot_cz=True)
         observable = _random_observable(nqubits, 4, seed + 100)

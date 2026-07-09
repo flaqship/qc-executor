@@ -176,3 +176,30 @@ class TestNJobsEquivalence:
         )
 
         assert np.allclose(np.atleast_1d(grad_serial), np.atleast_1d(grad_parallel))
+
+
+class TestInternalHelpers:
+    """Coverage of executor helpers that back the parallel machinery."""
+
+    def test_resolved_n_jobs_minus_one_uses_all_cores(self):
+        import os
+
+        executor = PauliPropagationExecutor(n_jobs=-1)
+        assert executor._resolved_n_jobs() == (os.cpu_count() or 1)
+
+    def test_resolved_n_jobs_passthrough(self):
+        assert PauliPropagationExecutor(n_jobs=3)._resolved_n_jobs() == 3
+
+    def test_compute_single_expectation_compat(self):
+        """The kept-for-compat single-pair method matches the public API."""
+        circuit = PauliPropagationCircuit(2)
+        circuit.h(0)
+        circuit.cx(0, 1)
+        observable = PauliPropagationOperator(["ZZ"], [1.0])
+
+        executor = PauliPropagationExecutor(truncate_threshold=1e-10)
+        value = executor._compute_single_expectation(circuit, observable, {})
+
+        assert np.isclose(value.real, executor.expectation_value(circuit, observable))
+        # The truncation stats of the final pass are recorded
+        assert executor.last_truncation_stats is not None

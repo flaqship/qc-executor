@@ -421,3 +421,59 @@ class TestBatchPropagate:
         assert len(result) == 1
         assert np.isclose(result.get_coeff("Z"), 0.0)
         assert np.isclose(result.get_coeff("Y"), np.sin(np.pi / 3))
+
+
+class TestRotationTermCancellation:
+    """Coefficient cancellation inside the rotation hot loop."""
+
+    def test_cos_term_cancels_against_sin_term(self):
+        """RX(π/4) on Z - Y: the Y entry cancels below 1e-15 and is dropped.
+
+        Processing Z first inserts sin(π/4)·Y (its sin-term); processing Y
+        then merges -cos(π/4)·Y into it, cancelling to (at most) one ulp,
+        which is below the 1e-15 pruning threshold.
+        """
+        gate = PauliRotation(["X"], 0, nqubits=1)
+        psum = PauliSum(1)
+        psum.add_term("Z", 1.0)
+        psum.add_term("Y", -1.0)
+
+        result = propagate_single_gate(gate, psum, np.pi / 4)
+
+        z_term = 0b11
+        y_term = 0b10
+        assert y_term not in result.terms
+        assert np.isclose(result.terms[z_term], np.cos(np.pi / 4) + np.sin(np.pi / 4))
+        assert len(result) == 1
+
+
+class TestResolveParamValueFallbacks:
+    """Fallback paths of the symbolic parameter resolution."""
+
+    def test_lambdify_runtime_failure_falls_through(self):
+        """A compiled expression that raises at call time is not fatal.
+
+        sqrt(x) with x = -4 raises in the math-module fast path, and the
+        sympy subs() fallback yields a non-real number, so resolution falls
+        through all numeric paths and returns None.
+        """
+        import sympy as sp
+
+        from qc_executor.pauli_propagation.utils.propagation import _resolve_param_value
+
+        gate = PauliRotation(["Z"], 0, nqubits=1, param_expr=sp.sqrt(sp.Symbol("x_neg")))
+
+        assert _resolve_param_value(gate, {"x_neg": -4.0}) is None
+
+    def test_lambdify_fast_path_matches_subs(self):
+        """Compound expressions evaluate identically on both paths."""
+        import sympy as sp
+
+        from qc_executor.pauli_propagation.utils.propagation import _resolve_param_value
+
+        a, b = sp.Symbol("a"), sp.Symbol("b")
+        gate = PauliRotation(["Z"], 0, nqubits=1, param_expr=2 * a + sp.sin(b))
+
+        value = _resolve_param_value(gate, {"a": 0.25, "b": 0.5})
+
+        assert np.isclose(value, 2 * 0.25 + np.sin(0.5))

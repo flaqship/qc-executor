@@ -70,14 +70,15 @@ def popcount_swar(values: np.ndarray) -> np.ndarray:
     return (v * _H01) >> _S56
 
 
-if _HAS_BITWISE_COUNT:
+def popcount_u64(values: np.ndarray) -> np.ndarray:
+    """Per-element popcount of a uint64 array.
 
-    def popcount_u64(values: np.ndarray) -> np.ndarray:
-        """Per-element popcount of a uint64 array (numpy >= 2.0 fast path)."""
+    Uses np.bitwise_count (numpy >= 2.0) when available, otherwise the
+    SWAR fallback.
+    """
+    if _HAS_BITWISE_COUNT:
         return np.bitwise_count(values).astype(np.uint64)
-
-else:
-    popcount_u64 = popcount_swar
+    return popcount_swar(values)
 
 
 def psum_to_arrays(psum: PauliSum):
@@ -222,9 +223,13 @@ def apply_clifford(terms: np.ndarray, coeffs: np.ndarray, gate: CliffordGate):
     new_terms = (terms & clear_mask) | bits_arr[idx]
     new_coeffs = coeffs * phase_arr[idx]
 
-    # Merging is still required: phases can cancel and the (pre-existing,
-    # preserved) CZ/CNOT quirks make some transforms non-bijective.
-    return merge_and_prune(new_terms, new_coeffs)
+    # Clifford conjugation is a bijection on Pauli terms, so no duplicates
+    # can arise; only add_term's magnitude pruning is replicated (matching
+    # the dict engine).
+    keep = np.abs(new_coeffs) >= _TOL
+    if keep.all():
+        return new_terms, new_coeffs
+    return new_terms[keep], new_coeffs[keep]
 
 
 def apply_gate(terms: np.ndarray, coeffs: np.ndarray, gate: Gate, param_value: float | None):

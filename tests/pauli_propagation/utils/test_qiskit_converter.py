@@ -408,3 +408,18 @@ class TestBindParametersEdgeCases:
 
         with pytest.raises(ValueError, match="Missing parameter values"):
             qiskit_converter.bind_parameters([gate], {})
+
+
+class TestConvertTGate:
+    """T gates convert to exact RZ(π/4) rotations (T is not Clifford)."""
+
+    def test_convert_t_gate(self, qiskit_converter):
+        qc = QuantumCircuit(1)
+        qc.t(0)
+
+        gates = qiskit_converter.convert_circuit(qc, use_cache=False)
+        assert len(gates) == 1
+        assert isinstance(gates[0], PauliRotation)
+        assert gates[0].symbols == ["Z"]
+        assert gates[0].qubits == [0]
+        assert np.isclose(gates[0].param_value, np.pi / 4)

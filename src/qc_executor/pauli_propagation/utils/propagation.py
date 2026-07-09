@@ -167,17 +167,12 @@ def _propagate_pauli_rotation(
         x = (term ^ (term >> 1)) & mask
 
         if ((gen_x & z) ^ (gen_z & x)).bit_count() & 1 == 0:
-            # Commuting terms pass through unchanged
-            existing = new_terms.get(term)
-            if existing is None:
-                if abs(coeff) >= 1e-15:
-                    new_terms[term] = complex(coeff)
-            else:
-                existing += coeff
-                if abs(existing) < 1e-15:
-                    del new_terms[term]
-                else:
-                    new_terms[term] = existing
+            # Commuting terms pass through unchanged. No collision is
+            # possible: input keys are unique and every sin-term produced
+            # below anticommutes with the generator, so it can never equal
+            # a commuting term. Only add_term's pruning is replicated.
+            if abs(coeff) >= 1e-15:
+                new_terms[term] = complex(coeff)
         else:
             # Anticommuting terms split as cos(θ)Q + i sin(θ)PQ.
             # cos(θ) * Q term
@@ -241,16 +236,10 @@ def _propagate_clifford(gate: CliffordGate, psum: PauliSum) -> PauliSum:
         new_term, phase = transform(term)
         new_coeff = coeff * phase
 
-        existing = new_terms.get(new_term)
-        if existing is None:
-            if abs(new_coeff) >= 1e-15:
-                new_terms[new_term] = complex(new_coeff)
-        else:
-            existing += new_coeff
-            if abs(existing) < 1e-15:
-                del new_terms[new_term]
-            else:
-                new_terms[new_term] = existing
+        # Clifford conjugation is a bijection on Pauli terms, so distinct
+        # input terms never collide; only add_term's pruning is replicated.
+        if abs(new_coeff) >= 1e-15:
+            new_terms[new_term] = complex(new_coeff)
 
     # Preserve the symmetry strategy so per-layer merging keeps working
     result = PauliSum(psum.nqubits, symmetry=psum.symmetry)

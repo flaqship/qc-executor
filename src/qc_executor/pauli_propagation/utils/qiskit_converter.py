@@ -17,6 +17,52 @@ except ImportError:
 
 from .gates import CliffordGate, Gate, LayerBarrier, PauliRotation
 
+#: Gate basis natively understood by :func:`_convert_single_gate`. Any circuit
+#: using gates outside this set is first transpiled down to it (see
+#: :func:`_lower_to_supported_basis`), so richer Qiskit gates (e.g. ``sx``,
+#: ``iswap``, ``crx``, ``rzx``) are compiled into the supported basis rather
+#: than rejected.
+_PP_BASIS_GATES = [
+    "rx",
+    "ry",
+    "rz",
+    "rxx",
+    "ryy",
+    "rzz",
+    "h",
+    "s",
+    "t",
+    "x",
+    "y",
+    "z",
+    "cx",
+    "cz",
+    "swap",
+    "id",
+]
+#: Names that need no decomposition (basis gates plus passthrough directives).
+_PP_SUPPORTED_NAMES = set(_PP_BASIS_GATES) | {"cnot", "barrier", "measure"}
+
+
+def _lower_to_supported_basis(circuit):
+    """Transpile ``circuit`` to the PP basis if it uses unsupported gates.
+
+    Circuits already expressed in the supported basis are returned unchanged
+    (no transpilation cost, exact structure preserved). If transpilation fails
+    (e.g. an opaque gate with no decomposition), the original circuit is
+    returned so the downstream converter raises its informative
+    ``Unsupported gate`` error.
+    """
+    names = {instruction.operation.name for instruction in circuit.data}
+    if names <= _PP_SUPPORTED_NAMES:
+        return circuit
+    from qiskit import transpile
+
+    try:
+        return transpile(circuit, basis_gates=_PP_BASIS_GATES, optimization_level=0)
+    except Exception:
+        return circuit
+
 
 class CircuitConversionCache:
     """Cache for converted circuits to avoid re-conversion."""
@@ -37,12 +83,17 @@ class CircuitConversionCache:
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit conversion")
 
-        # Create a string representation of circuit structure
+        # Create a string representation of circuit structure. The gate
+        # parameter expressions are included (e.g. "x[0]" vs "p[0]") so that
+        # circuits sharing a gate layout but bound to different parameters do
+        # not collide; symbolic names are value-independent, preserving cache
+        # reuse across different bound values.
         circuit_str = f"nqubits={circuit.num_qubits}\n"
         for instruction in circuit.data:
             gate = instruction.operation
             qubits = [circuit.find_bit(q).index for q in instruction.qubits]
-            circuit_str += f"{gate.name}({qubits})\n"
+            params = ",".join(str(p) for p in gate.params)
+            circuit_str += f"{gate.name}({qubits}|{params})\n"
 
         # Hash the string
         return hashlib.md5(circuit_str.encode()).hexdigest()
@@ -102,6 +153,9 @@ def convert_circuit(
         cached_gates = _circuit_cache.get(circuit_hash)
         if cached_gates is not None:
             return cached_gates
+
+    # Lower richer gates (e.g. sx, iswap, crx, rzx) into the supported basis.
+    circuit = _lower_to_supported_basis(circuit)
 
     nqubits = circuit.num_qubits
     gates = []

@@ -20,13 +20,15 @@ jobs:
         include:
           # Src: Run all checks on the source code
           - name: source
-            path: src/executor
+            path: src/qc_executor
             args: ""
           # Tests: Only disable the checks that are meaningless for test code
+          # (docstrings, pytest fixture shadowing, accessing internals under
+          # test, minimal mock/stub classes, and parallel per-backend tests).
           - name: tests
             path: tests
             args: >-
-              --disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,redefined-outer-name,protected-access
+              --disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,redefined-outer-name,protected-access,too-few-public-methods,duplicate-code
 
     name: pylint (${{ matrix.name }})
 

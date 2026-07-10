@@ -3,10 +3,27 @@
 from unittest.mock import Mock
 
 import pytest
-from qulacs import ParametricQuantumCircuit
-from qulacs.gate import CZ, RX, RY, RZ, SWAP, U1, H, Identity, S, Sdag, T, Tdag, X, Y, Z
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs.gate import (  # pylint: disable=no-name-in-module
+    CZ,
+    RX,
+    RY,
+    RZ,
+    SWAP,
+    TOFFOLI,
+    U1,
+    H,
+    Identity,
+    S,
+    Sdag,
+    T,
+    Tdag,
+    X,
+    Y,
+    Z,
+)
 
-from executor.qulacs.qulacs_gates import (
+from qc_executor.qulacs.qulacs_gates import (
     qiskit_qulacs_gate_dict,
     qiskit_qulacs_param_gate_dict,
     qulacs_gate_cnot,
@@ -21,6 +38,7 @@ from executor.qulacs.qulacs_gates import (
     qulacs_gate_swap,
     qulacs_gate_t,
     qulacs_gate_tdg,
+    qulacs_gate_toffoli,
     qulacs_gate_u1,
     qulacs_gate_x,
     qulacs_gate_y,
@@ -171,6 +189,24 @@ class TestMultiQubitGates:
         mock_circuit.add_gate.assert_called_once()
         call_args = mock_circuit.add_gate.call_args[0][0]
         assert isinstance(call_args, type(CZ(0, 1)))
+
+    def test_qulacs_gate_toffoli_adds_toffoli_gate(self, mock_circuit):
+        """Test that Toffoli gate adds a TOFFOLI gate to circuit."""
+        control1, control2, target = 0, 1, 2
+
+        qulacs_gate_toffoli(mock_circuit, control1, control2, target)
+
+        mock_circuit.add_gate.assert_called_once()
+        call_args = mock_circuit.add_gate.call_args[0][0]
+        assert isinstance(call_args, type(TOFFOLI(0, 1, 2)))
+
+    def test_toffoli_with_different_qubit_triples(self, mock_circuit):
+        """Test Toffoli gate with various control/target triples."""
+        triples = [(0, 1, 2), (2, 1, 0), (0, 3, 5), (4, 2, 7)]
+        for c1, c2, tgt in triples:
+            mock_circuit.reset_mock()
+            qulacs_gate_toffoli(mock_circuit, c1, c2, tgt)
+            assert mock_circuit.add_gate.called
 
     def test_swap_with_different_qubit_pairs(self, mock_circuit):
         """Test SWAP gate with various qubit pairs."""
@@ -330,7 +366,21 @@ class TestGateDictionaries:
 
     def test_qiskit_qulacs_gate_dict_contains_standard_gates(self):
         """Test that gate dictionary contains standard single and multi-qubit gates."""
-        expected_gates = ["id", "h", "x", "y", "z", "s", "t", "swap", "cx", "cz", "sdg", "tdg"]
+        expected_gates = [
+            "id",
+            "h",
+            "x",
+            "y",
+            "z",
+            "s",
+            "t",
+            "swap",
+            "cx",
+            "cz",
+            "ccx",
+            "sdg",
+            "tdg",
+        ]
         for gate_name in expected_gates:
             assert gate_name in qiskit_qulacs_gate_dict
 
@@ -368,6 +418,7 @@ class TestGateDictionaries:
         assert qiskit_qulacs_gate_dict["swap"] == qulacs_gate_swap
         assert qiskit_qulacs_gate_dict["cx"] == qulacs_gate_cnot
         assert qiskit_qulacs_gate_dict["cz"] == qulacs_gate_cz
+        assert qiskit_qulacs_gate_dict["ccx"] == qulacs_gate_toffoli
         assert qiskit_qulacs_gate_dict["sdg"] == qulacs_gate_sdg
         assert qiskit_qulacs_gate_dict["tdg"] == qulacs_gate_tdg
         assert qiskit_qulacs_gate_dict["rx"] == qulacs_gate_rx
@@ -411,10 +462,8 @@ class TestGateEdgeCases:
 
     def test_gate_function_returns_none(self, mock_circuit):
         """Test that gate functions return None."""
-        result = qulacs_gate_h(mock_circuit, 0)
-        assert result is None
+        assert qulacs_gate_h(mock_circuit, 0) is None
 
     def test_parametric_gate_function_returns_none(self, mock_circuit):
         """Test that parametric gate functions return None."""
-        result = qulacs_param_gate_rx(mock_circuit, 1.0, 0)
-        assert result is None
+        assert qulacs_param_gate_rx(mock_circuit, 1.0, 0) is None

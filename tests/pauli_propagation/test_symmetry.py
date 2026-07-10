@@ -1,12 +1,28 @@
 """Tests for symmetry module."""
 
 import os
+import random
 import time
 
 import pytest
 
-from executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
-from executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.pauli_propagation import (
+    PauliPropagationCircuit,
+    PauliPropagationExecutor,
+    PauliPropagationOperator,
+)
+from qc_executor.pauli_propagation.symmetry import (
+    CompositeSymmetry,
+    NoSymmetry,
+    PermutationSymmetry,
+    _decode_pauli_to_string,
+)
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.pauli_propagation.utils.propagation import (
+    _apply_symmetry_merging,
+    batch_propagate,
+    propagate,
+)
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
 # and hardware differences. Set RUN_BENCHMARKS=1 to enable them.
@@ -37,8 +53,6 @@ class TestSymmetryHelpers:
     """Test helper functions in symmetry module."""
 
     def test_decode_pauli_to_string_delegates_to_pauli_algebra(self):
-        from executor.pauli_propagation.symmetry import _decode_pauli_to_string
-
         decoded = _decode_pauli_to_string(0b110001, 3)
         assert decoded == "XIZ"
 
@@ -226,7 +240,7 @@ class TestCompositeSymmetry:
         class IncrementSymmetry:
             """Test strategy that increments the term."""
 
-            def canonical_representative(self, term: int, nqubits: int) -> int:
+            def canonical_representative(self, term: int, _nqubits: int) -> int:
                 return term + 1
 
             @property
@@ -236,7 +250,7 @@ class TestCompositeSymmetry:
         class DoubleSymmetry:
             """Test strategy that doubles the term."""
 
-            def canonical_representative(self, term: int, nqubits: int) -> int:
+            def canonical_representative(self, term: int, _nqubits: int) -> int:
                 return term * 2
 
             @property
@@ -311,8 +325,6 @@ class TestPauliSumSymmetryIntegration:
         assert len(ps) == 3
 
         # Manually merge using symmetry
-        from executor.pauli_propagation.utils.propagation import _apply_symmetry_merging
-
         _apply_symmetry_merging(ps)
 
         # After merging: 1 term with coefficient sum
@@ -329,8 +341,6 @@ class TestPropagationSymmetryIntegration:
         """Propagate should apply symmetry merging if enabled."""
         # Simplified test: verify symmetry merging is callable
         # Full integration tests would require constructing realistic gate sequences
-        from executor.pauli_propagation.utils.propagation import propagate
-
         sym = PermutationSymmetry()
         observable = PauliSum(nqubits=2, symmetry=sym)
         observable.add_term("ZI", 1.0)
@@ -345,8 +355,6 @@ class TestPropagationSymmetryIntegration:
 
     def test_batch_propagate_with_symmetry(self):
         """Batch propagate should apply symmetry merging to all observables."""
-        from executor.pauli_propagation.utils.propagation import batch_propagate
-
         sym = PermutationSymmetry()
 
         obs1 = PauliSum(nqubits=2, symmetry=sym)
@@ -373,15 +381,11 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_default_no_symmetry(self):
         """Executor should default to NoSymmetry."""
-        from executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
-
         executor = PauliPropagationExecutor()
         assert isinstance(executor.symmetry_strategy, NoSymmetry)
 
     def test_executor_with_permutation_symmetry(self):
         """Executor should accept PermutationSymmetry."""
-        from executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
-
         sym = PermutationSymmetry()
         executor = PauliPropagationExecutor(symmetry_strategy=sym)
 
@@ -389,12 +393,6 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_expectation_with_symmetry(self):
         """Executor should apply symmetry during expectation value computation."""
-        from executor.pauli_propagation import (
-            PauliPropagationCircuit,
-            PauliPropagationExecutor,
-            PauliPropagationOperator,
-        )
-
         qc = PauliPropagationCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
@@ -467,8 +465,6 @@ class TestSymmetryPerformance:
     @pytest.mark.benchmark
     def test_merging_reduces_terms(self):
         """Verify that symmetry merging reduces term count on realistic examples."""
-        from executor.pauli_propagation.utils.propagation import _apply_symmetry_merging
-
         nqubits = 10
         sym = PermutationSymmetry()
 
@@ -477,8 +473,6 @@ class TestSymmetryPerformance:
 
         # Add unique permutations of a multiset without enumerating all permutations
         # Base multiset: 5 I's, 3 X's, 1 Y, 1 Z
-        import random
-
         random.seed(42)
         chars = list("IIIIIXXXYZ")
         unique_perms = set()

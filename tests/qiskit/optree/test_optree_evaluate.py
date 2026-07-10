@@ -11,10 +11,10 @@ from qiskit import __version__ as qiskit_version
 from qiskit.circuit import ClassicalRegister, Parameter, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-import executor.qiskit.optree.optree_evaluate as oe
-from executor.parameters import Parameters
-from executor.qiskit.optree import OpTree, OpTreeList, OpTreeSum
-from executor.qiskit.optree.optree import (
+import qc_executor.qiskit.optree.optree_evaluate as oe
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit.optree import OpTree, OpTreeList, OpTreeSum
+from qc_executor.qiskit.optree.optree import (
     OpTreeContainer,
     OpTreeExpectationValue,
     OpTreeMeasuredOperator,

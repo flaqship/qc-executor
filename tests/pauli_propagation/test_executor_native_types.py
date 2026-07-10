@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from executor.parameters import Parameters
-from executor.pauli_propagation import (
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationOperator,
 )
-from executor.pauli_propagation.symmetry import PermutationSymmetry
+from qc_executor.pauli_propagation.symmetry import PermutationSymmetry
 
 
 class TestPauliPropagationExecutorNativeTypes:
@@ -30,8 +30,10 @@ class TestPauliPropagationExecutorNativeTypes:
         observable = PauliPropagationOperator(["Z"], [1.0])
 
         executor = PauliPropagationExecutor()
-        values = executor.expectation_value([circuit_0, circuit_1], observable)
+        result = executor.expectation_value([circuit_0, circuit_1], observable)
 
+        assert isinstance(result, np.ndarray)
+        values = np.asarray(result)
         assert values.shape == (2,)
         assert np.isclose(values[0], 1.0, atol=1e-10)
         assert np.isclose(values[1], -1.0, atol=1e-10)
@@ -84,12 +86,12 @@ class TestPauliPropagationExecutorNativeTypes:
 
         captured = {}
 
-        def fake_propagate(gates, obs, params, max_weight, truncate_threshold):
+        def fake_propagate(_gates, obs, _params, **_kwargs):
             captured["symmetry_name"] = obs.symmetry.name
             return obs
 
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+            "qc_executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
         )
 
         value = executor.expectation_value(circuit, observable)
@@ -104,12 +106,12 @@ class TestPauliPropagationExecutorNativeTypes:
 
         captured = {}
 
-        def fake_propagate(gates, obs, params, max_weight, truncate_threshold):
+        def fake_propagate(_gates, obs, _params, **_kwargs):
             captured["symmetry_name"] = obs.symmetry.name
             return obs
 
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+            "qc_executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
         )
 
         value = executor.expectation_value(circuit, observable)

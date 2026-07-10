@@ -2,13 +2,13 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from qulacs import ParametricQuantumCircuit
-from qulacs import QuantumCircuit as QulacsQuantumCircuit
+from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
+from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 
-from executor import QuantumCircuit
-from executor.parameters import Parameter, Parameters
-from executor.qulacs import QulacsCircuit
-from executor.qulacs.qulacs_executor import QulacsExecutor
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameter, Parameters
+from qc_executor.qulacs import QulacsCircuit
+from qc_executor.qulacs.qulacs_executor import QulacsExecutor
 
 
 class _DummyBit:
@@ -55,8 +55,8 @@ class TestQulacsCircuitProperties:
         assert isinstance(qulacs_circuit, QulacsCircuit)
         assert qulacs_circuit.num_qubits == 2
         assert len(qulacs_circuit.parameter_names) == 0
-        assert qulacs_circuit.parameter_dimensions == {}
-        assert qulacs_circuit.circuit_arguments == {}
+        assert not qulacs_circuit.parameter_dimensions
+        assert not qulacs_circuit.circuit_arguments
         assert isinstance(hash(qulacs_circuit), int)
 
     def test_get_qulacs_circuit_sets_callable_and_supports_call(self):
@@ -176,6 +176,9 @@ class TestQulacsCircuitGateBuilders:
         with pytest.raises(ValueError):
             circuit._add_two_qubit_gate("cx", 0, 1)
 
+        with pytest.raises(ValueError):
+            circuit._add_three_qubit_gate("ccx", 0, 1, 2)
+
     def test_add_parameterized_gates_track_parameters(self):
         """Test parameterized gate helpers for numeric and symbolic angles."""
         x = Parameters("x", 1)
@@ -251,6 +254,21 @@ class TestQulacsCircuitBuildInstructions:
         assert x[0] in circuit._free_parameters
         assert y[0] in circuit._free_parameters
 
+    def test_build_instructions_skips_barriers(self):
+        """Test that barriers are skipped and do not appear in the instruction lists."""
+        circuit = QulacsCircuit(QuantumCircuit(2))
+        source = QuantumCircuit(2)
+        source.h(0)
+        source.barrier([0, 1])
+        source.cx(0, 1)
+        source.barrier(0)
+
+        circuit._build_circuit_instructions(source._qiskit_circuit)
+
+        assert circuit._operation_list == ["h", "cx"]
+        assert circuit._qubit_list == [[0], [0, 1]]
+        assert "barrier" not in circuit._operation_list
+
     def test_build_instructions_rejects_measure_and_unsupported_gates(self):
         """Test unsupported instructions via the internal builder."""
         circuit = QulacsCircuit(QuantumCircuit(1))
@@ -267,15 +285,27 @@ class TestQulacsCircuitBuildInstructions:
         with pytest.raises(NotImplementedError):
             circuit._build_circuit_instructions(_DummyCircuit(1, [unsupported_gate]))
 
-    def test_build_instructions_rejects_three_qubit_gate(self):
-        """Test that instructions with more than two qubits are rejected."""
+    def test_build_instructions_handles_three_qubit_gate(self):
+        """Test that supported three-qubit gates (e.g. ccx) are accepted."""
         circuit = QulacsCircuit(QuantumCircuit(3))
-        dummy_circuit = _DummyCircuit(3, [])
-        three_qubit_gate = _DummyGateOperation(
-            _DummyOperation("x", 3),
-            [dummy_circuit.bit(0), dummy_circuit.bit(1), dummy_circuit.bit(2)],
+        source = QuantumCircuit(3)
+        source.ccx(0, 1, 2)
+
+        circuit._build_circuit_instructions(source._qiskit_circuit)
+
+        assert circuit._operation_list == ["ccx"]
+        assert circuit._qubit_list == [[0, 1, 2]]
+        assert circuit._used_parameters == [[]]
+
+    def test_build_instructions_rejects_four_qubit_gate(self):
+        """Test that instructions with more than three qubits are rejected."""
+        circuit = QulacsCircuit(QuantumCircuit(4))
+        dummy_circuit = _DummyCircuit(4, [])
+        four_qubit_gate = _DummyGateOperation(
+            _DummyOperation("x", 4),
+            [dummy_circuit.bit(i) for i in range(4)],
         )
-        dummy_circuit.data = [three_qubit_gate]
+        dummy_circuit.data = [four_qubit_gate]
 
         with pytest.raises(NotImplementedError):
             circuit._build_circuit_instructions(dummy_circuit)

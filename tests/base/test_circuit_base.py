@@ -51,7 +51,7 @@ class TestPauliString:
         circuit = SpyCircuit(2)
         circuit.pauli_string("II")
 
-        assert circuit.ops == []
+        assert not circuit.ops
 
 
 class TestPauliEvolution:
@@ -104,7 +104,7 @@ class TestPauliEvolution:
 
         circuit.pauli_evolution(op, 1.0)
 
-        assert circuit.ops == []
+        assert not circuit.ops
 
     def test_pauli_evolution_respects_explicit_working_qubits(self):
         circuit = SpyCircuit(3)
@@ -133,9 +133,7 @@ class TestControlledPauliEvolution:
         circuit = SpyCircuit(1)
         op = FakeOperator("I", [0.5])
 
-        returned = circuit.controlled_pauli_evolution(op, 4.0, control_qubit=0)
-
-        assert returned is None
+        assert circuit.controlled_pauli_evolution(op, 4.0, control_qubit=0) is None
         assert circuit.ops == [("rz", 0, -2.0)]
 
     def test_controlled_pauli_evolution_nontrivial_uses_crz(self):

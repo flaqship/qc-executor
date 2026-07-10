@@ -1,12 +1,12 @@
-"""Tests for `executor.quantum_circuit`."""
+"""Tests for `qc_executor.quantum_circuit`."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 from qiskit.circuit import ParameterVector
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
 from tests.test_utils import SpyCircuit
 
 
@@ -50,6 +50,17 @@ class TestQuantumCircuitBasics:
 
         assert circuit.ops == [("cx", 0, 1)]
 
+    def test_toffoli_is_alias_for_ccx(self):
+        reference = QuantumCircuit(3)
+        reference.ccx(0, 1, 2)
+
+        circuit = QuantumCircuit(3)
+        circuit.toffoli(0, 1, 2)
+
+        toffoli_ops = [instr.operation.name for instr in circuit.qiskit_circuit.data]
+        ccx_ops = [instr.operation.name for instr in reference.qiskit_circuit.data]
+        assert toffoli_ops == ccx_ops == ["ccx"]
+
 
 class TestQuantumCircuitPauliString:
 
@@ -65,7 +76,7 @@ class TestQuantumCircuitPauliString:
 
         circuit.pauli_string("III")
 
-        assert circuit.ops == []
+        assert not circuit.ops
 
     def test_pauli_string_validates_length(self):
         circuit = QuantumCircuit(2)
@@ -262,7 +273,7 @@ class TestQuantumCircuitOperations:
     def test_gate_delegates_to_qiskit(self, method, args, expected_gate, expected_args):
         mock_qiskit = MagicMock()
 
-        with patch("executor.quantum_circuit.QiskitQuantumCircuit", return_value=mock_qiskit):
+        with patch("qc_executor.quantum_circuit.QiskitQuantumCircuit", return_value=mock_qiskit):
             circuit = QuantumCircuit(3)
             getattr(circuit, method)(*args)
 

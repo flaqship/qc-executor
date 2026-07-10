@@ -1,9 +1,13 @@
 """Tests for the Executor factory class."""
 
+import importlib.util
+
+import numpy as np
 import pytest
 
-from executor.base.executor_base import ExecutorBase
-from executor.factory import Executor
+from qc_executor.base.executor_base import ExecutorBase
+from qc_executor.factory import Executor
+from qc_executor.qiskit import QiskitExecutor
 
 
 class MockExecutor(ExecutorBase):
@@ -13,24 +17,20 @@ class MockExecutor(ExecutorBase):
         """Initialize mock executor."""
         super().__init__(shots=shots, **kwargs)
 
-    def _expectation_value(self, circuit, observable, parameters=None):
+    def _expectation_value(self, circuit, observable, **parameters):
         """Mock implementation."""
         return 0.5
 
-    def _expectation_value_derivatives(self, circuit, observable, parameters=None):
+    def _expectation_value_derivatives(self, circuit, observable, *derivative, **parameters):
         """Mock implementation."""
-        import numpy as np
-
         return np.array([0.1, 0.2])
 
-    def _sample(self, circuit, parameters=None):
+    def _sample(self, circuit, **parameters):
         """Mock implementation."""
         return {"00": 500, "11": 500}
 
-    def _statevector(self, circuit, parameters=None):
+    def _statevector(self, circuit, **parameters):
         """Mock implementation."""
-        import numpy as np
-
         return np.array([1.0, 0.0])
 
     def _transpile_circuit(self, circuit):
@@ -60,31 +60,30 @@ class TestExecutorFactory:
 
         # Register a mock backend
         @Executor.register("mock_test")
-        class TestExecutor(ExecutorBase):
+        class RegisteredExecutor(ExecutorBase):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
 
-            def _expectation_value(self, circuit, observable, parameters=None):
+            def _expectation_value(self, circuit, observable, **parameters):
                 return 0.0
 
-            def _expectation_value_derivatives(self, circuit, observable, parameters=None):
-                import numpy as np
-
+            def _expectation_value_derivatives(
+                self, circuit, observable, *derivative, **parameters
+            ):
                 return np.array([0.0])
 
-            def _sample(self, circuit, parameters=None):
+            def _sample(self, circuit, **parameters):
                 return {}
 
-            def _statevector(self, circuit, parameters=None):
-                import numpy as np
-
+            def _statevector(self, circuit, **parameters):
                 return np.array([1.0])
 
             def _transpile_circuit(self, circuit):
                 return circuit
 
-        # Check if backend is registered
+        # Check if backend is registered and maps to the decorated class
         assert "mock_test" in Executor.available_backends()
+        assert Executor._registry["mock_test"] is RegisteredExecutor
 
         # Clean up
         if "mock_test" in Executor._registry:
@@ -92,11 +91,12 @@ class TestExecutorFactory:
 
     def test_register_validates_base_class(self):
         """Test that register checks for ExecutorBase inheritance."""
-        with pytest.raises(TypeError, match="must inherit from ExecutorBase"):
 
-            @Executor.register("invalid")
-            class InvalidExecutor:
-                pass
+        class NotAnExecutor:
+            pass
+
+        with pytest.raises(TypeError, match="must inherit from ExecutorBase"):
+            Executor.register("invalid")(NotAnExecutor)
 
     def test_available_backends_empty(self):
         """Test available_backends when no backends are registered."""
@@ -154,7 +154,7 @@ class TestExecutorFactory:
             with pytest.raises(ValueError) as exc_info:
                 Executor.create("qiskit")
 
-            assert "pip install executor[qiskit-full]" in str(exc_info.value)
+            assert "pip install qc-executor[qiskit-full]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
             Executor._backend_alias_map = original_alias_map
@@ -222,7 +222,7 @@ class TestExecutorFactory:
             with pytest.raises(ValueError) as exc_info:
                 Executor.create("statevector")
 
-            assert "pip install executor[qiskit-full]" in str(exc_info.value)
+            assert "pip install qc-executor[qiskit-full]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
             Executor._backend_alias_map = original_alias_map
@@ -321,15 +321,15 @@ class TestExecutorFactory:
         class FakeSelection:
             def select(self, group):
                 select_called["value"] = True
-                assert group == "executor.backends"
+                assert group == "qc_executor.backends"
                 return [FakeEntryPoint()]
 
-        def fake_entry_points(*args, **kwargs):
+        def fake_entry_points(*_args, **kwargs):
             if "group" in kwargs:
                 raise TypeError("old API")
             return FakeSelection()
 
-        monkeypatch.setattr("executor.factory.entry_points", fake_entry_points)
+        monkeypatch.setattr("qc_executor.factory.entry_points", fake_entry_points)
 
         Executor._plugins_discovered = False
         Executor._discover_plugins()
@@ -350,12 +350,12 @@ class TestExecutorFactory:
                 get_called["value"] = True
                 return super().get(key, default)
 
-        def fake_entry_points(*args, **kwargs):
+        def fake_entry_points(*_args, **kwargs):
             if "group" in kwargs:
                 raise TypeError("old API")
-            return FakeEntryPointsDict({"executor.backends": [FakeEntryPoint()]})
+            return FakeEntryPointsDict({"qc_executor.backends": [FakeEntryPoint()]})
 
-        monkeypatch.setattr("executor.factory.entry_points", fake_entry_points)
+        monkeypatch.setattr("qc_executor.factory.entry_points", fake_entry_points)
 
         Executor._plugins_discovered = False
         Executor._discover_plugins()
@@ -375,38 +375,34 @@ class TestExecutorIntegration:
         """Test creating QiskitExecutor via factory."""
         executor = Executor.create("qiskit")
 
-        from executor.qiskit import QiskitExecutor
-
         assert isinstance(executor, QiskitExecutor)
         assert executor.shots is None
 
     def test_create_qiskit_via_statevector_alias(self):
         """Test creating QiskitExecutor using the statevector alias."""
-        from executor.qiskit import QiskitExecutor
-
         executor = Executor.create("statevector")
         assert isinstance(executor, QiskitExecutor)
 
     def test_create_qiskit_via_aer_alias(self):
         """Test creating QiskitExecutor using the aer alias."""
-        try:
-            import qiskit_aer  # noqa: F401
-        except ImportError:
+        if importlib.util.find_spec("qiskit_aer") is None:
             pytest.skip("qiskit-aer not installed")
-
-        from executor.qiskit import QiskitExecutor
 
         executor = Executor.create("aer")
         assert isinstance(executor, QiskitExecutor)
 
     def test_autodetect_pennylane_device_instance(self):
         """Test auto-detection when passing a PennyLane device instance."""
+        # PennyLane is an optional backend, imported lazily so the module can be
+        # collected without it installed.
         try:
-            import pennylane as qml
+            import pennylane as qml  # pylint: disable=import-outside-toplevel
+
+            from qc_executor.pennylane import (  # pylint: disable=import-outside-toplevel
+                PennyLaneExecutor,
+            )
         except ImportError:
             pytest.skip("PennyLane not installed")
-
-        from executor.pennylane import PennyLaneExecutor
 
         dev = qml.device("default.qubit", wires=1)
         executor = Executor.create(dev)
@@ -416,12 +412,11 @@ class TestExecutorIntegration:
 
     def test_create_pennylane_via_device_string_alias(self):
         """Test creating PennyLaneExecutor using a device string alias."""
-        try:
-            import pennylane as qml  # noqa: F401
-        except ImportError:
+        if importlib.util.find_spec("pennylane") is None:
             pytest.skip("PennyLane not installed")
 
-        from executor.pennylane import PennyLaneExecutor
+        # pylint: disable-next=import-outside-toplevel
+        from qc_executor.pennylane import PennyLaneExecutor
 
         executor = Executor.create("default.qubit", wires=1)
         assert isinstance(executor, PennyLaneExecutor)
@@ -430,24 +425,18 @@ class TestExecutorIntegration:
         """Test that pennylane backend is available if installed."""
         backends = Executor.available_backends()
 
-        try:
-            import pennylane
-
+        if importlib.util.find_spec("pennylane") is not None:
             assert "pennylane" in backends
-        except ImportError:
-            # PennyLane not installed - should not be in backends
+        else:
             assert "pennylane" not in backends
 
     def test_qulacs_backend_available(self):
         """Test that qulacs backend is available if installed."""
         backends = Executor.available_backends()
 
-        try:
-            import qulacs
-
+        if importlib.util.find_spec("qulacs") is not None:
             assert "qulacs" in backends
-        except ImportError:
-            # Qulacs not installed - should not be in backends
+        else:
             assert "qulacs" not in backends
 
 
@@ -471,36 +460,32 @@ class TestExecutorBackendSwitching:
         executor = Executor.create("qiskit", shots=1024, seed=42)
 
         # Switch to pennylane (if available)
-        try:
-            import pennylane
-
-            new_executor = executor.switch_backend("pennylane")
-
-            assert new_executor.shots == 1024
-            assert new_executor._seed == 42
-
-            from executor.pennylane import PennyLaneExecutor
-
-            assert isinstance(new_executor, PennyLaneExecutor)
-        except ImportError:
+        if importlib.util.find_spec("pennylane") is None:
             # PennyLane not installed - just verify method exists
             assert hasattr(executor, "switch_backend")
+            return
+
+        # pylint: disable-next=import-outside-toplevel
+        from qc_executor.pennylane import PennyLaneExecutor
+
+        new_executor = executor.switch_backend("pennylane")
+
+        assert new_executor.shots == 1024
+        assert new_executor._seed == 42
+        assert isinstance(new_executor, PennyLaneExecutor)
 
     def test_switch_backend_with_overrides(self):
         """Test that switch_backend can override configuration."""
         executor = Executor.create("qiskit", shots=1024, seed=42)
 
         # Switch with overrides
-        try:
-            import pennylane
+        if importlib.util.find_spec("pennylane") is None:
+            pytest.skip("PennyLane not installed")
 
-            new_executor = executor.switch_backend("pennylane", shots=2048, seed=99)
+        new_executor = executor.switch_backend("pennylane", shots=2048, seed=99)
 
-            assert new_executor.shots == 2048
-            assert new_executor._seed == 99
-        except ImportError:
-            # PennyLane not installed - skip this test
-            pass
+        assert new_executor.shots == 2048
+        assert new_executor._seed == 99
 
 
 class TestExecutorAliasRegistration:
@@ -524,13 +509,15 @@ class TestExecutorAliasRegistration:
                 def get_accepted_backend_aliases(cls) -> list[str]:
                     return ["dup.alias"]
 
-            with pytest.raises(ValueError, match="Duplicate backend alias 'dup.alias'"):
+            assert Executor._registry["dup_a"] is DupA
 
-                @Executor.register("dup_b")
-                class DupB(MockExecutor):
-                    @classmethod
-                    def get_accepted_backend_aliases(cls) -> list[str]:
-                        return ["dup.alias"]
+            class DupB(MockExecutor):
+                @classmethod
+                def get_accepted_backend_aliases(cls) -> list[str]:
+                    return ["dup.alias"]
+
+            with pytest.raises(ValueError, match="Duplicate backend alias 'dup.alias'"):
+                Executor.register("dup_b")(DupB)
 
         finally:
             Executor._registry = original_registry

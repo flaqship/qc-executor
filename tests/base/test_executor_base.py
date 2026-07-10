@@ -3,7 +3,8 @@ import logging
 import numpy as np
 import pytest
 
-from executor.base.executor_base import ExecutorBase
+from qc_executor import factory as factory_module
+from qc_executor.base.executor_base import ExecutorBase
 
 
 class DummyExecutor(ExecutorBase):
@@ -102,7 +103,7 @@ class TestExecutorBaseInternals:
         assert key_a != key_b
 
     def test_get_accepted_backend_aliases_default_empty(self):
-        assert DummyExecutor.get_accepted_backend_aliases() == []
+        assert not DummyExecutor.get_accepted_backend_aliases()
 
     def test_make_cache_size_validation(self):
         with pytest.raises(ValueError, match="max_size must be None or a positive integer"):
@@ -263,11 +264,9 @@ class TestExecutorBaseCachingAndDelegation:
         assert ex.calls["transpile_operator"] == 2
 
     def test_switch_backend_forwards_config_and_overrides(self, monkeypatch):
-        import executor.factory as factory_module
-
         captured = {}
 
-        def fake_create(cls, backend, **kwargs):
+        def fake_create(_cls, backend, **kwargs):
             captured["backend"] = backend
             captured["kwargs"] = kwargs
             return "new-executor"

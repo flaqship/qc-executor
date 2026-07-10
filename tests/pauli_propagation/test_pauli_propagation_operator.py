@@ -4,16 +4,16 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from executor.parameters import Parameter
-from executor.pauli_propagation import PauliPropagationOperator
-from executor.pauli_propagation.symmetry import (
+from qc_executor.parameters import Parameter
+from qc_executor.pauli_propagation import PauliPropagationOperator
+from qc_executor.pauli_propagation.symmetry import (
     CompositeSymmetry,
     NoSymmetry,
     PermutationSymmetry,
     SymmetryStrategy,
 )
-from executor.pauli_propagation.utils.pauli_types import PauliSum
-from executor.quantum_operator import QuantumOperator
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.quantum_operator import QuantumOperator
 
 
 class DummySymmetry(SymmetryStrategy):
@@ -66,7 +66,7 @@ class TestPauliPropagationOperatorConstruction:
     def test_pauli_sum_property_returns_copy(self):
         observable = PauliPropagationOperator(["Z"], [1.0])
 
-        pauli_sum_copy = type(observable).pauli_sum.fget(observable)
+        pauli_sum_copy = observable.pauli_sum
         pauli_sum_copy.add_term("X", 2.0)
 
         assert observable.num_paulis == 1
@@ -313,7 +313,7 @@ class TestPauliPropagationOperatorProperties:
         assert len(param_sig) == 4
         assert len(num_sig) == 4
         assert param_sig[-1]
-        assert num_sig[-1] == ()
+        assert not num_sig[-1]
 
     def test_hash_eq_str_and_repr(self):
         left = PauliPropagationOperator(["Z"], [1.0])

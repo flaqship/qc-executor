@@ -7,7 +7,7 @@ import typing
 import numpy as np
 import pytest
 
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
+from qc_executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
 
 class TestPauliString:
@@ -311,7 +311,7 @@ class TestPauliSum:
         psum1 = PauliSum(3)
         psum2 = PauliSum(4)
         with pytest.raises(ValueError, match="different nqubits"):
-            psum1 + psum2
+            _ = psum1 + psum2
 
     def test_scalar_multiplication(self):
         """Test scalar multiplication."""
@@ -389,7 +389,7 @@ class TestPauliTypesModule:
 
     def test_type_checking_import_branch(self, monkeypatch):
         """TYPE_CHECKING branch imports SymmetryStrategy when enabled."""
-        module_name = "executor.pauli_propagation.utils.pauli_types"
+        module_name = "qc_executor.pauli_propagation.utils.pauli_types"
 
         with monkeypatch.context() as patch_ctx:
             patch_ctx.setattr(typing, "TYPE_CHECKING", True)

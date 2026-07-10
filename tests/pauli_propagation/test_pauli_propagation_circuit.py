@@ -5,10 +5,15 @@ import pytest
 import sympy as sp
 from qiskit.circuit import Parameter
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
-from executor.pauli_propagation import PauliPropagationCircuit
-from executor.pauli_propagation.utils.gates import CliffordGate, Gate, LayerBarrier, PauliRotation
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import PauliPropagationCircuit
+from qc_executor.pauli_propagation.utils.gates import (
+    CliffordGate,
+    Gate,
+    LayerBarrier,
+    PauliRotation,
+)
 
 
 class TestPauliPropagationCircuitBasics:
@@ -75,7 +80,7 @@ class TestPauliPropagationCircuitConversion:
 
         assert isinstance(converted, PauliPropagationCircuit)
         assert not converted.is_parameterized
-        assert converted.parameters == []
+        assert not converted.parameters
 
 
 class TestPauliPropagationCircuitParameters:
@@ -110,11 +115,11 @@ class TestPauliPropagationCircuitParameters:
             parameters = set()
 
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_circuit._param_is_constant",
+            "qc_executor.pauli_propagation.pauli_propagation_circuit._param_is_constant",
             lambda _: True,
         )
         monkeypatch.setattr(
-            "executor.pauli_propagation.pauli_propagation_circuit._param_to_float",
+            "qc_executor.pauli_propagation.pauli_propagation_circuit._param_to_float",
             lambda _: 0.25,
         )
         expr_constant, value_constant = PauliPropagationCircuit._extract_parameter(
@@ -303,14 +308,14 @@ class TestPauliPropagationCircuitUtilityMethods:
         source._gates = [DummyGate(0, source.num_qubits)]
 
         copied = source.copy()
-        assert copied.gates == []
+        assert not copied.gates
 
         inverted = source.invert()
-        assert inverted.gates == []
+        assert not inverted.gates
 
         target = PauliPropagationCircuit(1)
         composed = target.compose(source, [0])
-        assert composed.gates == []
+        assert not composed.gates
 
         assert isinstance(hash(source), int)
 

@@ -53,7 +53,7 @@ jobs:
       - name: Generate coverage report
         run: |
           uv run pytest tests/ \
-            --cov=executor \
+            --cov=qc_executor \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=95

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pennylane as qml
-from qiskit.transpiler import Target
 
 
 def RXX(theta, wires):
@@ -108,5 +107,3 @@ qiskit_pennylane_gate_dict = {
     "csdg": csdg,
     "csx": csx,
 }
-
-pennylane_target = Target.from_configuration(qiskit_pennylane_gate_dict.keys())

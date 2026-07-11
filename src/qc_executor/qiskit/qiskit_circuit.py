@@ -9,7 +9,7 @@ from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ParameterVector as QiskitParameterVector
 
 from ..abstraction.abstract_parameter import Parameter, free_parameters
-from ..abstraction.gates import Barrier, CliffordGate, RotationGate
+from ..abstraction.gates import SUPPORTED_GATES, Barrier, CliffordGate, RotationGate
 
 
 def _build_qiskit_parameter_map(circuit) -> dict:
@@ -50,6 +50,21 @@ def _angle_to_qiskit(angle, symbol_to_qiskit: dict):
     return func(*qiskit_args)
 
 
+def _qiskit_gate_method(qc: QiskitQuantumCircuit, name: str):
+    """Resolve a gate name to its Qiskit method, refusing anything unsupported.
+
+    Qiskit resolves gates by method name, which would silently accept any name
+    Qiskit happens to implement -- including gates no other backend can run. The
+    shared vocabulary decides instead.
+    """
+    if name not in SUPPORTED_GATES:
+        raise NotImplementedError(
+            f"Gate '{name}' is not part of the abstraction's gate vocabulary "
+            "(qc_executor.abstraction.gates.SUPPORTED_GATES)."
+        )
+    return getattr(qc, name)
+
+
 def _abstract_to_qiskit(circuit) -> QiskitQuantumCircuit:
     """Build a Qiskit ``QuantumCircuit`` from an ``AbstractQuantumCircuit``.
 
@@ -63,10 +78,10 @@ def _abstract_to_qiskit(circuit) -> QiskitQuantumCircuit:
         if isinstance(gate, Barrier):
             qc.barrier(list(gate.qubits))
         elif isinstance(gate, CliffordGate):
-            getattr(qc, gate.name)(*gate.qubits)
+            _qiskit_gate_method(qc, gate.name)(*gate.qubits)
         elif isinstance(gate, RotationGate):
             angle = _angle_to_qiskit(gate.angle, symbol_to_qiskit)
-            getattr(qc, gate.name)(angle, *gate.qubits)
+            _qiskit_gate_method(qc, gate.name)(angle, *gate.qubits)
         else:  # pragma: no cover - defensive
             raise NotImplementedError(f"Unknown gate type {type(gate).__name__}")
     return qc

@@ -16,7 +16,7 @@ import sympy as sp
 
 from ..base import QuantumCircuitBase
 from .abstract_parameter import Parameter, free_parameters
-from .gates import AbstractGate, Angle, Barrier, CliffordGate, RotationGate
+from .gates import AbstractGate, Angle, Barrier, CliffordGate, RotationGate, validate_gate
 
 
 # Inversion tables used by :meth:`AbstractQuantumCircuit.invert`.
@@ -52,7 +52,24 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
         self._gates: List[AbstractGate] = []
 
     def _add(self, gate: AbstractGate) -> None:
-        """Append a gate to the circuit."""
+        """Validate a gate against the shared vocabulary and append it.
+
+        Every gate method funnels through here, so this is the one place that can
+        keep an unsupported gate from ever reaching a backend.
+
+        Raises:
+            ValueError: If the gate is not in :data:`~.gates.SUPPORTED_GATES`, has
+                the wrong shape, or addresses a qubit outside the circuit.
+        """
+        validate_gate(gate)
+
+        for qubit in gate.qubits:
+            if not 0 <= qubit < self._num_qubits:
+                raise ValueError(
+                    f"Gate '{getattr(gate, 'name', 'barrier')}' addresses qubit {qubit}, "
+                    f"which is outside the circuit (0..{self._num_qubits - 1})."
+                )
+
         self._gates.append(gate)
 
     @classmethod

@@ -20,8 +20,16 @@ from .gates import AbstractGate, Angle, Barrier, CliffordGate, RotationGate
 
 
 # Inversion tables used by :meth:`AbstractQuantumCircuit.invert`.
-_SELF_INVERSE = {"h", "x", "y", "z", "cx", "cy", "cz", "ecr", "swap"}
-_CLIFFORD_INVERSE_MAP = {"s": "sdg", "sdg": "s", "t": "tdg", "tdg": "t"}
+_SELF_INVERSE = {
+    "h", "x", "y", "z", "cx", "cy", "cz", "ecr", "swap",
+    "id", "ch", "ccx", "cswap",
+}
+_CLIFFORD_INVERSE_MAP = {
+    "s": "sdg", "sdg": "s",
+    "t": "tdg", "tdg": "t",
+    "sx": "sxdg", "sxdg": "sx",
+    "cs": "csdg", "csdg": "cs",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -103,9 +111,12 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
         for q in targets:
             self._add(CliffordGate(name, (q,)))
 
+    def id(self, qubits: int | List[int]):   self._add_clifford_single("id", qubits)
     def h(self, qubits: int | List[int]):    self._add_clifford_single("h", qubits)
     def s(self, qubits: int | List[int]):    self._add_clifford_single("s", qubits)
     def sdag(self, qubits: int | List[int]): self._add_clifford_single("sdg", qubits)
+    def sx(self, qubits: int | List[int]):   self._add_clifford_single("sx", qubits)
+    def sxdag(self, qubits: int | List[int]): self._add_clifford_single("sxdg", qubits)
     def t(self, qubits: int | List[int]):    self._add_clifford_single("t", qubits)
     def tdag(self, qubits: int | List[int]): self._add_clifford_single("tdg", qubits)
     def x(self, qubits: int | List[int]):    self._add_clifford_single("x", qubits)
@@ -120,7 +131,7 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
         targets = (qubits,) if isinstance(qubits, int) else tuple(qubits)
         for q in targets:
             self._add(RotationGate(name, (q,), angle))
-
+ 
     def rx(self, qubits: int | List[int], angle: Angle): self._add_rotation_single("rx", qubits, angle)
     def ry(self, qubits: int | List[int], angle: Angle): self._add_rotation_single("ry", qubits, angle)
     def rz(self, qubits: int | List[int], angle: Angle): self._add_rotation_single("rz", qubits, angle)
@@ -145,8 +156,30 @@ class AbstractQuantumCircuit(QuantumCircuitBase):
     def swap(self, qubit1: int, qubit2: int):
         self._add(CliffordGate("swap", (qubit1, qubit2)))
 
+    def ch(self, control_qubit: int, target_qubit: int):
+        self._add(CliffordGate("ch", (control_qubit, target_qubit)))
+
+    def cs(self, control_qubit: int, target_qubit: int):
+        self._add(CliffordGate("cs", (control_qubit, target_qubit)))
+
+    def csdag(self, control_qubit: int, target_qubit: int):
+        self._add(CliffordGate("csdg", (control_qubit, target_qubit)))
+
     def cnot(self, control_qubit: int, target_qubit: int):
         self.cx(control_qubit, target_qubit)
+
+    # ------------------------------------------------------------------
+    # Gate methods – three qubits, no angle
+    # ------------------------------------------------------------------
+
+    def ccx(self, control_qubit1: int, control_qubit2: int, target_qubit: int):
+        self._add(CliffordGate("ccx", (control_qubit1, control_qubit2, target_qubit)))
+
+    def toffoli(self, control_qubit1: int, control_qubit2: int, target_qubit: int):
+        self.ccx(control_qubit1, control_qubit2, target_qubit)
+
+    def cswap(self, control_qubit: int, qubit1: int, qubit2: int):
+        self._add(CliffordGate("cswap", (control_qubit, qubit1, qubit2)))
 
     # ------------------------------------------------------------------
     # Gate methods – two qubits, with angle

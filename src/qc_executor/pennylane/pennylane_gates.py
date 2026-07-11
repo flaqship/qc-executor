@@ -39,11 +39,23 @@ def sdg(wires):
     return qml.adjoint(qml.S(wires=wires))
 
 
+def sxdg(wires):
+    """SX-dagger gate."""
+    return qml.adjoint(qml.SX(wires=wires))
+
+
 def cs(wires):
     """CS gate."""
     if len(wires) != 2:
         raise ValueError("CS gate requires two wires.")
     return qml.ctrl(qml.S(wires[1]), wires[0])
+
+
+def csdg(wires):
+    """CS-dagger gate."""
+    if len(wires) != 2:
+        raise ValueError("CSdg gate requires two wires.")
+    return qml.ctrl(qml.adjoint(qml.S(wires[1])), wires[0])
 
 
 def csx(wires):
@@ -91,7 +103,9 @@ qiskit_pennylane_gate_dict = {
     "reset": reset,
     "tdg": tdg,
     "sdg": sdg,
+    "sxdg": sxdg,
     "cs": cs,
+    "csdg": csdg,
     "csx": csx,
 }
 

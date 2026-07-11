@@ -6,7 +6,7 @@ import sympy as sp
 
 from qc_executor.base import ExecutorBase
 from qc_executor.factory import Executor
-from qc_executor.parameters import Parameters
+from qc_executor.abstraction import ParameterVector
 from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
@@ -62,7 +62,7 @@ class TestNativeTypes:
     def test_parametric_expectation_value(self):
         executor = PauliPropagationExecutor()
 
-        p = Parameters("theta", 1)
+        p = ParameterVector("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, p[0])
         observable = PauliPropagationOperator(["Z"], [1.0])
@@ -111,7 +111,7 @@ class TestDerivativesNative:
     def test_derivative_with_string_param(self):
         executor = PauliPropagationExecutor()
 
-        p = Parameters("theta", 1)
+        p = ParameterVector("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, p[0])
         observable = PauliPropagationOperator(["Z"], [1.0])
@@ -134,8 +134,8 @@ class TestDerivativesNative:
     def test_derivative_with_composite_gate_expression_matches_expected_values(self):
         executor = PauliPropagationExecutor()
 
-        x = Parameters("x", 1)
-        p = Parameters("p", 2)
+        x = ParameterVector("x", 1)
+        p = ParameterVector("p", 2)
         circuit = PauliPropagationCircuit(2)
         circuit.h(0)
         circuit.ryy(0, 1, p[0] * x[0])
@@ -178,22 +178,28 @@ class TestFactoryIntegration:
 
 
 class TestStrictInputContract:
-    def test_reject_legacy_quantumcircuit(self):
+    def test_reject_abstract_circuit(self):
+        # PP has no abstract-circuit bridge (out of scope): the executor must
+        # reject an AbstractQuantumCircuit with a clear TypeError.
+        from qc_executor.abstraction import AbstractQuantumCircuit
+
         executor = PauliPropagationExecutor()
         observable = PauliPropagationOperator(["Z"], [1.0])
+        foreign = AbstractQuantumCircuit(1)
 
         with pytest.raises(TypeError, match="PauliPropagationCircuit"):
-            from qc_executor import QuantumCircuit
+            executor.expectation_value(foreign, observable)
 
-            legacy = QuantumCircuit(1)
-            executor.expectation_value(legacy, observable)
+    def test_abstract_quantumoperator_is_auto_converted(self):
+        # Since ExecutorBase._ensure_native_operator, expectation_value converts
+        # non-native observables automatically instead of rejecting them (the
+        # strict "transpile first" contract was dropped in favour of a uniform
+        # abstraction-in API across all backends).
+        from qc_executor.abstraction import AbstractQuantumOperator
 
-    def test_reject_legacy_quantumoperator(self):
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
+        observable = AbstractQuantumOperator(["Z"], [1.0])
 
-        with pytest.raises(TypeError, match="PauliPropagationOperator"):
-            from qc_executor import QuantumOperator
-
-            legacy = QuantumOperator(["Z"], [1.0])
-            executor.expectation_value(circuit, legacy)
+        value = executor.expectation_value(circuit, observable)
+        assert np.isclose(float(np.real_if_close(value)), 1.0)  # <Z> on |0>

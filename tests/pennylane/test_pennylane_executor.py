@@ -20,10 +20,12 @@ import pytest
 pytest.importorskip("pennylane")
 
 import pennylane as qml
-from qiskit.circuit import ParameterVector as QiskitParameterVector
 
-from qc_executor import QuantumOperator
-from qc_executor.abstraction import AbstractQuantumCircuit, ParameterVector
+from qc_executor.abstraction import (
+    AbstractQuantumCircuit,
+    AbstractQuantumOperator,
+    ParameterVector,
+)
 from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
 
@@ -83,7 +85,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_bell_state_z_basis(self):
         """Test expectation value of Bell state with Z observables."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        operator = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [1.0, 1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator)
@@ -94,7 +96,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_bell_state_zz(self):
         """Test expectation value of Bell state with ZZ observable."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        operator = QuantumOperator(["ZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZ"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator)
@@ -105,7 +107,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_hadamard_x_basis(self):
         """Test expectation value of Hadamard state with X observable."""
         qc = _build_circuit(1, [("h", [0])])
-        operator = QuantumOperator(["X"], [1.0])
+        operator = AbstractQuantumOperator(["X"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator)
@@ -116,7 +118,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_y_basis(self):
         """Test expectation value in Y basis (H followed by S gate)."""
         qc = _build_circuit(1, [("h", [0]), ("s", [0])])
-        operator = QuantumOperator(["Y"], [1.0])
+        operator = AbstractQuantumOperator(["Y"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator)
@@ -128,7 +130,7 @@ class TestPennylaneExecutor:
         """Test expectation value with parametric circuit (RX gate)."""
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator, x=[np.pi])
@@ -140,7 +142,7 @@ class TestPennylaneExecutor:
         """Test expectation value with multiple circuit parameters."""
         x = ParameterVector("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        operator = QuantumOperator(["ZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZ"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator, x=[0.0, 0.0])
@@ -150,9 +152,9 @@ class TestPennylaneExecutor:
 
     def test_expectation_value_with_observable_parameters(self):
         """Test expectation value with parametric observable."""
-        p_obs = QiskitParameterVector("p_obs", 2)
+        p_obs = ParameterVector("p_obs", 2)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        operator = QuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator, p_obs=[0.5, 0.5])
@@ -162,9 +164,9 @@ class TestPennylaneExecutor:
     def test_expectation_value_with_circuit_and_observable_parameters(self):
         """Test expectation value with both circuit and observable parameters."""
         x = ParameterVector("x", 1)
-        p_obs = QiskitParameterVector("p_obs", 1)
+        p_obs = ParameterVector("p_obs", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [p_obs[0]])
+        operator = AbstractQuantumOperator(["Z"], [p_obs[0]])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator, x=[0.0], p_obs=[1.0])
@@ -175,7 +177,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_three_qubit_chain(self):
         """Test expectation value with three-qubit GHZ-type state."""
         qc = _build_circuit(3, [("h", [0]), ("cx", [0, 1]), ("cx", [1, 2])])
-        operator = QuantumOperator(["ZZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZZ"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value(qc, operator)
@@ -323,7 +325,7 @@ class TestPennylaneExecutor:
         """Test derivative with respect to a single parameter."""
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value_derivatives(qc, operator, "x", x=[0.0])
@@ -334,7 +336,7 @@ class TestPennylaneExecutor:
         """Test derivative with respect to indexed parameter (e.g., x[0])."""
         x = ParameterVector("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        operator = QuantumOperator(["ZI"], [1.0])
+        operator = AbstractQuantumOperator(["ZI"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value_derivatives(qc, operator, "x[0]", x=[0.0, 0.0])
@@ -345,7 +347,7 @@ class TestPennylaneExecutor:
         """Test requesting multiple derivatives (expectation value and parameter)."""
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
         result = executor.expectation_value_derivatives(
@@ -359,7 +361,7 @@ class TestPennylaneExecutor:
         """Test derivative computation with known analytical result."""
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
         derivative = executor.expectation_value_derivatives(qc, operator, "x", x=[0.0])
@@ -374,7 +376,7 @@ class TestPennylaneExecutor:
         """Test that missing parameter raises ValueError in expectation_value."""
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
 
@@ -405,7 +407,7 @@ class TestPennylaneExecutor:
         """Test that missing parameter raises ValueError in expectation_value_derivatives."""
         x = ParameterVector("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
 
@@ -430,7 +432,7 @@ class TestPennylaneExecutor:
 
     def test_observable_caching(self):
         """Test that operators are properly cached."""
-        operator = QuantumOperator(["ZI"], [1.0])
+        operator = AbstractQuantumOperator(["ZI"], [1.0])
         executor = PennyLaneExecutor()
 
         # First call should add to cache
@@ -559,9 +561,9 @@ class TestPennylaneExecutor:
         """Test that operator cache respects max_cache_size with FIFO eviction."""
         executor = PennyLaneExecutor(max_cache_size=2)
 
-        op1 = QuantumOperator(["Z"], [1.0])
-        op2 = QuantumOperator(["X"], [1.0])
-        op3 = QuantumOperator(["Y"], [1.0])
+        op1 = AbstractQuantumOperator(["Z"], [1.0])
+        op2 = AbstractQuantumOperator(["X"], [1.0])
+        op3 = AbstractQuantumOperator(["Y"], [1.0])
 
         executor._preprocess_operators(op1)
         executor._preprocess_operators(op2)
@@ -609,17 +611,18 @@ class TestPennylaneExecutor:
     def test_expectation_value_result_caching(self):
         """Test that repeated expectation_value calls use the result cache."""
         qc = _build_circuit(1, [("h", [0])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor(caching=True)
         result1 = executor.expectation_value(qc, operator)
 
-        # Cache should contain one entry
-        assert len(executor._result_cache) == 1
+        # Two entries: the auto-conversion of the raw observable caches its
+        # transpile_operator result, plus the expectation_value result itself.
+        assert len(executor._result_cache) == 2
 
-        # Second call with same args must not add a new entry
+        # Second call with same args must not add new entries
         result2 = executor.expectation_value(qc, operator)
-        assert len(executor._result_cache) == 1
+        assert len(executor._result_cache) == 2
 
         # Both calls must return the same value
         assert np.isclose(result1, result2, atol=1e-10)
@@ -641,14 +644,15 @@ class TestPennylaneExecutor:
         """Test that calls with different arguments create separate cache entries."""
         qc1 = _build_circuit(1, [("h", [0])])
         qc2 = _build_circuit(1, [("x", [0])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor(caching=True)
         executor.expectation_value(qc1, operator)
         executor.expectation_value(qc2, operator)
 
-        # Two distinct circuits → two distinct cache entries
-        assert len(executor._result_cache) == 2
+        # Two distinct circuits → two distinct expectation entries, plus one
+        # shared transpile_operator entry from the observable auto-conversion.
+        assert len(executor._result_cache) == 3
 
     def test_transpile_circuit_returns_pennylane_circuit(self):
         """Test that transpile_circuit converts a QuantumCircuit to a PennyLaneCircuit."""
@@ -702,7 +706,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_with_default_mixed_device(self):
         """Test expectation value computation with default.mixed device."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        operator = QuantumOperator(["ZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZ"], [1.0])
 
         executor_default = PennyLaneExecutor()
         executor_mixed = PennyLaneExecutor(backend="default.mixed")
@@ -740,7 +744,7 @@ class TestPennylaneExecutor:
     def test_derivatives_with_default_mixed_device(self):
         """Test that expectation values can be computed with default.mixed device."""
         qc = _build_circuit(1, [("h", [0])])
-        operator = QuantumOperator(["X"], [1.0])
+        operator = AbstractQuantumOperator(["X"], [1.0])
 
         executor = PennyLaneExecutor(backend="default.mixed")
         result = executor.expectation_value(qc, operator)
@@ -751,7 +755,7 @@ class TestPennylaneExecutor:
     def test_expectation_value_with_default_mixed_nontrivial_circuit(self):
         """Test expectation value with default.mixed on a non-trivial circuit."""
         qc = _build_circuit(1, [("x", [0])])
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor(backend="default.mixed")
         result = executor.expectation_value(qc, operator)
@@ -863,12 +867,12 @@ class TestDeviceInit:
         executor = PennyLaneExecutor(dev)
 
         qc1 = _build_circuit(1, [("h", [0])])
-        op1 = QuantumOperator(["Z"], [1.0])
+        op1 = AbstractQuantumOperator(["Z"], [1.0])
         executor.expectation_value(qc1, op1)
         assert executor._device is dev
 
         qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op2 = QuantumOperator(["ZZ"], [1.0])
+        op2 = AbstractQuantumOperator(["ZZ"], [1.0])
         executor.expectation_value(qc2, op2)
         assert executor._device is dev  # still the same object
 
@@ -877,12 +881,12 @@ class TestDeviceInit:
         executor = PennyLaneExecutor("default.mixed")
 
         qc1 = _build_circuit(1, [("h", [0])])
-        op1 = QuantumOperator(["Z"], [1.0])
+        op1 = AbstractQuantumOperator(["Z"], [1.0])
         executor.expectation_value(qc1, op1)
         dev_after_1q = executor._device
 
         qc2 = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        op2 = QuantumOperator(["ZZ"], [1.0])
+        op2 = AbstractQuantumOperator(["ZZ"], [1.0])
         executor.expectation_value(qc2, op2)
         assert executor._device is dev_after_1q
         assert executor.device_name == "default.mixed"
@@ -892,7 +896,7 @@ class TestDeviceInit:
         dev = qml.device("default.qubit", wires=1)
         executor = PennyLaneExecutor(dev)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        operator = QuantumOperator(["ZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZ"], [1.0])
 
         with pytest.raises(ValueError, match="has only 1 wires"):
             executor.expectation_value(qc, operator)

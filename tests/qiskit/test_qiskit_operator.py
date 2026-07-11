@@ -1,15 +1,13 @@
 import numpy as np
 import pytest
-from qiskit.circuit import ParameterVector
-from qiskit.quantum_info import SparsePauliOp
 
-from qc_executor import QuantumOperator
+from qc_executor.abstraction import AbstractQuantumOperator, ParameterVector
 from qc_executor.qiskit import QiskitOperator
 
 
 def _make_parametrized_observable(num_qubits=2, vec_name="theta", length=3):
     """
-    Create a parametrized SparsePauliOp with a ParameterVector.
+    Create a parametrized abstract operator with a ParameterVector.
     """
     vec = ParameterVector(vec_name, length)
 
@@ -17,15 +15,14 @@ def _make_parametrized_observable(num_qubits=2, vec_name="theta", length=3):
     paulis = ["I" * num_qubits] * length
     coeffs = list(vec)
 
-    operator = SparsePauliOp(paulis, coeffs)
-    return operator
+    return AbstractQuantumOperator(paulis, coeffs)
 
 
 class TestQiskitOperator:
 
     def test_single_qubit_z_observable(self):
         """Test single-qubit Z observable."""
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -34,7 +31,7 @@ class TestQiskitOperator:
 
     def test_single_qubit_x_observable(self):
         """Test single-qubit X observable."""
-        operator = QuantumOperator(["X"], [1.0])
+        operator = AbstractQuantumOperator(["X"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -42,7 +39,7 @@ class TestQiskitOperator:
 
     def test_single_qubit_y_observable(self):
         """Test single-qubit Y observable."""
-        operator = QuantumOperator(["Y"], [1.0])
+        operator = AbstractQuantumOperator(["Y"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -50,7 +47,7 @@ class TestQiskitOperator:
 
     def test_two_qubit_zi_iz_observable(self):
         """Test two-qubit ZI + IZ observable."""
-        operator = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [1.0, 1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -58,7 +55,7 @@ class TestQiskitOperator:
 
     def test_two_qubit_xi_ix_observable(self):
         """Test two-qubit XI + IX observable."""
-        operator = QuantumOperator(["XI", "IX"], [1.0, 1.0])
+        operator = AbstractQuantumOperator(["XI", "IX"], [1.0, 1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -66,7 +63,7 @@ class TestQiskitOperator:
 
     def test_two_qubit_zz_observable(self):
         """Test two-qubit ZZ observable."""
-        operator = QuantumOperator(["ZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZ"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -74,7 +71,7 @@ class TestQiskitOperator:
 
     def test_two_qubit_xx_observable(self):
         """Test two-qubit XX observable."""
-        operator = QuantumOperator(["XX"], [1.0])
+        operator = AbstractQuantumOperator(["XX"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -82,7 +79,7 @@ class TestQiskitOperator:
 
     def test_multi_term_observable(self):
         """Test observable with multiple Pauli terms."""
-        operator = QuantumOperator(["XX", "YY", "ZZ"], [0.5, 0.3, 0.2])
+        operator = AbstractQuantumOperator(["XX", "YY", "ZZ"], [0.5, 0.3, 0.2])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -90,7 +87,7 @@ class TestQiskitOperator:
 
     def test_identity_observable(self):
         """Test identity observable."""
-        operator = QuantumOperator(["II"], [1.0])
+        operator = AbstractQuantumOperator(["II"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -98,7 +95,7 @@ class TestQiskitOperator:
 
     def test_three_qubit_observable(self):
         """Test three-qubit observable."""
-        operator = QuantumOperator(["ZZZ", "XXX"], [1.0, 0.5])
+        operator = AbstractQuantumOperator(["ZZZ", "XXX"], [1.0, 0.5])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -107,7 +104,7 @@ class TestQiskitOperator:
     @pytest.mark.parametrize("coeff", [0.0, 0.5, 1.0, -1.0, 2.5])
     def test_observable_with_various_coefficients(self, coeff):
         """Test observable with various coefficient values."""
-        operator = QuantumOperator(["Z"], [coeff])
+        operator = AbstractQuantumOperator(["Z"], [coeff])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -116,7 +113,7 @@ class TestQiskitOperator:
     def test_observable_single_parameter(self):
         """Test observable with a single parameter."""
         theta = ParameterVector("theta", 1)
-        operator = QuantumOperator(["Z"], [theta[0]])
+        operator = AbstractQuantumOperator(["Z"], [theta[0]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -126,7 +123,7 @@ class TestQiskitOperator:
     def test_observable_two_parameters_same_vector(self):
         """Test observable with two parameters from the same vector."""
         theta = ParameterVector("theta", 2)
-        operator = QuantumOperator(["ZI", "IZ"], [theta[0], theta[1]])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [theta[0], theta[1]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -136,7 +133,7 @@ class TestQiskitOperator:
     def test_observable_three_parameters_same_vector(self):
         """Test observable with three parameters from the same vector."""
         alpha = ParameterVector("alpha", 3)
-        operator = QuantumOperator(["ZI", "IZ", "ZZ"], [alpha[0], alpha[1], alpha[2]])
+        operator = AbstractQuantumOperator(["ZI", "IZ", "ZZ"], [alpha[0], alpha[1], alpha[2]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -147,7 +144,7 @@ class TestQiskitOperator:
         """Test observable with multiple different parameter vectors."""
         pop1 = ParameterVector("pop1", 1)
         pop2 = ParameterVector("pop2", 1)
-        operator = QuantumOperator(["ZI", "IZ"], [pop1[0], pop2[0]])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [pop1[0], pop2[0]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -161,7 +158,7 @@ class TestQiskitOperator:
         a = ParameterVector("a", 1)
         b = ParameterVector("b", 1)
         c = ParameterVector("c", 1)
-        operator = QuantumOperator(["X", "Y", "Z"], [a[0], b[0], c[0]])
+        operator = AbstractQuantumOperator(["X", "Y", "Z"], [a[0], b[0], c[0]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -172,7 +169,7 @@ class TestQiskitOperator:
     def test_observable_with_parameter_multiplication(self):
         """Test observable with parameter expression: 2 * theta[0]."""
         theta = ParameterVector("theta", 1)
-        operator = QuantumOperator(["Z"], [2 * theta[0]])
+        operator = AbstractQuantumOperator(["Z"], [2 * theta[0]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -181,7 +178,7 @@ class TestQiskitOperator:
     def test_observable_with_parameter_expressions(self):
         """Test observable with multiple parameter expressions."""
         theta = ParameterVector("theta", 2)
-        operator = QuantumOperator(["ZI", "IZ"], [theta[0] * 2, theta[1] * 0.5])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [theta[0] * 2, theta[1] * 0.5])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -191,7 +188,7 @@ class TestQiskitOperator:
     def test_observable_with_parameter_addition(self):
         """Test observable with parameter addition expression."""
         theta = ParameterVector("theta", 2)
-        operator = QuantumOperator(["ZI", "IZ"], [theta[0] + theta[1], theta[0]])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [theta[0] + theta[1], theta[0]])
         qiskit_op = QiskitOperator(operator)
 
         assert qiskit_op is not None
@@ -199,7 +196,7 @@ class TestQiskitOperator:
 
     def test_parameter_names_property_empty(self):
         """Test parameter_names property for non-parametric observable."""
-        operator = QuantumOperator(["Z"], [1.0])
+        operator = AbstractQuantumOperator(["Z"], [1.0])
         qiskit_op = QiskitOperator(operator)
 
         assert isinstance(qiskit_op.parameter_names, list)
@@ -208,7 +205,7 @@ class TestQiskitOperator:
     def test_parameter_names_property_with_params(self):
         """Test parameter_names property for parametric observable."""
         theta = ParameterVector("theta", 2)
-        operator = QuantumOperator(["ZI", "IZ"], [theta[0], theta[1]])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [theta[0], theta[1]])
         qiskit_op = QiskitOperator(operator)
 
         assert isinstance(qiskit_op.parameter_names, list)
@@ -217,7 +214,7 @@ class TestQiskitOperator:
     def test_parameter_dimensions_property(self):
         """Test parameter_dimensions property."""
         theta = ParameterVector("theta", 3)
-        operator = QuantumOperator(["X", "Y", "Z"], [theta[0], theta[1], theta[2]])
+        operator = AbstractQuantumOperator(["X", "Y", "Z"], [theta[0], theta[1], theta[2]])
         qiskit_op = QiskitOperator(operator)
 
         assert isinstance(qiskit_op.parameter_dimensions, dict)
@@ -225,7 +222,7 @@ class TestQiskitOperator:
 
     def test_hash_property(self):
         """Test that hash property returns a valid integer."""
-        operator = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [1.0, 1.0])
         qiskit_op = QiskitOperator(operator)
 
         hash_value = qiskit_op.hash
@@ -233,7 +230,7 @@ class TestQiskitOperator:
 
     def test_hash_consistency(self):
         """Test that hash remains consistent for the same observable."""
-        operator = QuantumOperator(["ZI", "IZ"], [1.0, 1.0])
+        operator = AbstractQuantumOperator(["ZI", "IZ"], [1.0, 1.0])
         qiskit_op = QiskitOperator(operator)
 
         hash1 = qiskit_op.hash
@@ -271,8 +268,10 @@ class TestQiskitOperator:
         operator = _make_parametrized_observable(vec_name="a", length=2)
         qiskit_op = QiskitOperator(operator)
 
-        original_params = set(operator.parameters)
-        original_str = str(operator)
+        # Reference is the converted Qiskit operator: bind_parameters returns a
+        # SparsePauliOp, so the comparison must stay within the Qiskit world.
+        original_params = set(qiskit_op.qiskit_operator.parameters)
+        original_str = str(qiskit_op.qiskit_operator)
 
         ret = qiskit_op.bind_parameters(param_values)
 

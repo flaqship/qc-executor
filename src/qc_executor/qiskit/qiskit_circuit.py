@@ -9,6 +9,7 @@ from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ParameterVector as QiskitParameterVector
 
 from ..abstraction.abstract_parameter import Parameter, free_parameters
+from ..abstraction.abstract_quantum_circuit import AbstractQuantumCircuit
 from ..abstraction.gates import SUPPORTED_GATES, Barrier, CliffordGate, RotationGate
 
 
@@ -88,19 +89,19 @@ def _abstract_to_qiskit(circuit) -> QiskitQuantumCircuit:
 
 
 def to_qiskit_circuit(circuit):
-    """Return the underlying Qiskit circuit for any supported circuit type.
+    """Return the underlying Qiskit circuit for a supported circuit type.
 
-    * executor wrappers expose ``_qiskit_circuit`` and are returned directly;
-    * an ``AbstractQuantumCircuit`` exposes a typed ``_gates`` list and is
-      converted here (cached on the instance, keyed by content hash so repeated
-      access returns identical parameter objects);
-    * anything else is assumed to already be a raw Qiskit circuit.
+    * a :class:`QiskitCircuit` wrapper is unwrapped directly;
+    * an ``AbstractQuantumCircuit`` is converted (cached on the instance, keyed
+      by content hash so repeated access returns identical parameter objects);
+    * anything else -- including raw Qiskit circuits -- is rejected: circuits
+      enter the library through the abstraction only, matching the PennyLane
+      backend's contract.
     """
-    qiskit_circuit = getattr(circuit, "_qiskit_circuit", None)
-    if qiskit_circuit is not None:
-        return qiskit_circuit
+    if isinstance(circuit, QiskitCircuit):
+        return circuit._qiskit_circuit
 
-    if hasattr(circuit, "_gates"):
+    if isinstance(circuit, AbstractQuantumCircuit):
         key = hash(circuit)
         cache = getattr(circuit, "_qiskit_conversion_cache", None)
         if cache is None or cache[0] != key:
@@ -112,7 +113,11 @@ def to_qiskit_circuit(circuit):
             return converted
         return cache[1]
 
-    return circuit
+    raise TypeError(
+        f"The Qiskit backend only accepts AbstractQuantumCircuit or QiskitCircuit, "
+        f"got {type(circuit).__name__}. Build the circuit as an "
+        "qc_executor.abstraction.AbstractQuantumCircuit instead."
+    )
 
 
 class QiskitCircuit:
@@ -239,7 +244,7 @@ class QiskitCircuit:
 
     def copy(self):
         """Return a copy of the circuit wrapper."""
-        return QiskitCircuit(self._qiskit_circuit.copy())
+        return QiskitCircuit._from_qiskit(self._qiskit_circuit.copy())
 
     def __str__(self):
         return str(self._qiskit_circuit)

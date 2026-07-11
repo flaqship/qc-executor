@@ -1,19 +1,20 @@
-"""Parameter and ParameterVector types for parameterised quantum circuits."""
+al"""Qiskit-backed parameter vector for the legacy (Qiskit-based) circuit path.
+
+The elements are Qiskit ``ParameterVectorElement`` instances, so this type only
+works with the Qiskit-backed :class:`~qc_executor.quantum_circuit.QuantumCircuit`.
+Framework-independent circuits use the native SymPy-based
+:class:`~qc_executor.abstraction.abstract_parameter.ParameterVector` instead.
+"""
 
 from __future__ import annotations
 
-from typing import TypeAlias
 from uuid import UUID, uuid4
 
 from qiskit.circuit.parametervector import ParameterVectorElement as QiskitParameterVectorElement
 
-#: Library-native parameter type. Alias for Qiskit's ``ParameterVectorElement``,
-#: decoupling user-facing code from the Qiskit class hierarchy.
-Parameter: TypeAlias = QiskitParameterVectorElement
-
 
 class Parameters:
-    """An ordered, resizable vector of :class:`Parameter` instances.
+    """An ordered, resizable vector of Qiskit ``ParameterVectorElement`` instances.
 
     Behaves like a sequence: supports indexing, iteration, and ``len()``.
     """
@@ -22,7 +23,10 @@ class Parameters:
         self._name = name
         self._root_uuid = uuid4()
         root_uuid_int = self._root_uuid.int
-        self._params = [Parameter(self, i, UUID(int=root_uuid_int + i)) for i in range(length)]
+        self._params = [
+            QiskitParameterVectorElement(self, i, UUID(int=root_uuid_int + i))
+            for i in range(length)
+        ]
 
     @property
     def name(self):
@@ -80,7 +84,7 @@ class Parameters:
             root_uuid_int = self._root_uuid.int
             self._params.extend(
                 [
-                    Parameter(self, i, UUID(int=root_uuid_int + i))
+                    QiskitParameterVectorElement(self, i, UUID(int=root_uuid_int + i))
                     for i in range(len(self._params), length)
                 ]
             )

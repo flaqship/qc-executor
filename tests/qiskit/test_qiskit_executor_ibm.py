@@ -13,14 +13,14 @@ import pytest
 # Skip the entire module if qiskit-ibm-runtime is not installed
 qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
 
-from qc_executor import Executor, QuantumCircuit
+from qc_executor import Executor
+from qc_executor.abstraction import AbstractQuantumCircuit, AbstractQuantumOperator
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import (
     QiskitExecutor,
     _classify_backend,
     _is_backend_instance,
 )
-from qc_executor.quantum_operator import QuantumOperator
 from qc_executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
@@ -55,7 +55,7 @@ def _get_fake_backend():
 
 
 def _build_circuit(num_qubits, operations):
-    qc = QuantumCircuit(num_qubits)
+    qc = AbstractQuantumCircuit(num_qubits)
     for gate_name, gate_args in operations:
         getattr(qc, gate_name)(*gate_args)
     return qc
@@ -280,7 +280,7 @@ class TestExecutionFakeBackend:
         backend = _get_fake_backend()
         executor = QiskitExecutor(backend=backend, shots=4096, seed=42)
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
-        operator = QuantumOperator(["ZZ"], [1.0])
+        operator = AbstractQuantumOperator(["ZZ"], [1.0])
         result = executor.expectation_value(qc, operator)
         # Noisy result should still be close to 1.0 for ZZ on Bell state
         assert isinstance(result, (float, np.floating, np.ndarray))

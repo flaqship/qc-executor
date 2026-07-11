@@ -40,12 +40,12 @@ class TestPennyLaneCircuit:
         assert plc.num_qubits == 1
         assert len(plc.parameter_names) == 0
 
-    def test_from_quantum_circuit_rejects_qiskit_backed_circuit(self):
-        """A Qiskit-backed QuantumCircuit must fail with a clear TypeError,
+    def test_from_quantum_circuit_rejects_raw_qiskit_circuit(self):
+        """A raw Qiskit circuit must fail with a clear TypeError,
         not a cryptic AttributeError deep inside the instruction builder."""
-        from qc_executor import QuantumCircuit
+        from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
-        qc = QuantumCircuit(1)
+        qc = QiskitQuantumCircuit(1)
         qc.h(0)
 
         with pytest.raises(TypeError, match="only accepts AbstractQuantumCircuit"):

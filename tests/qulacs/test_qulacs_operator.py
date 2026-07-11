@@ -1,6 +1,5 @@
 import pytest
 
-from qc_executor import QuantumOperator
 from qc_executor.qulacs import QulacsOperator
 
 

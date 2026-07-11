@@ -9,7 +9,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from executor import Executor, Parameters, QuantumCircuit, QuantumOperator
+from qc_executor import Executor
+from qc_executor.abstraction import (
+    AbstractQuantumCircuit,
+    AbstractQuantumOperator,
+    ParameterVector,
+)
 
 # Skip module when optional backends are missing in the active test environment.
 pytest.importorskip("qulacs")
@@ -17,15 +22,15 @@ pytest.importorskip("pennylane")
 
 
 def _build_problem():
-    x = Parameters("x", 1)
-    p = Parameters("p", 2)
-    p_obs = Parameters("p_obs", 2)
+    x = ParameterVector("x", 1)
+    p = ParameterVector("p", 2)
+    p_obs = ParameterVector("p_obs", 2)
 
-    qc = QuantumCircuit(2)
+    qc = AbstractQuantumCircuit(2)
     qc.h(0)
     qc.ryy(0, 1, p[0] * x[0])
 
-    operator = QuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
+    operator = AbstractQuantumOperator(["ZI", "IZ"], [p_obs[0], p_obs[1]])
     return qc, operator
 
 

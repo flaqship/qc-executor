@@ -11,6 +11,7 @@ from qulacs import GeneralQuantumOperator, GradCalculator, Observable, PauliOper
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
+from ..qiskit.qiskit_operator import to_qiskit_operator
 from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
 
 
@@ -29,11 +30,11 @@ class QulacsOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = operator._qiskit_operator
+            self._qiskit_operator = to_qiskit_operator(operator)
             self._num_qubits = self._qiskit_operator.num_qubits
         elif isinstance(operator, list):
             if all([isinstance(obs, QuantumOperatorBase) for obs in operator]):
-                self._qiskit_operator = [obs._qiskit_operator for obs in operator]
+                self._qiskit_operator = [to_qiskit_operator(obs) for obs in operator]
             else:
                 raise ValueError("Unsupported operator type")
             self._num_qubits = self._qiskit_operator[0].num_qubits

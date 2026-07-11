@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from qc_executor.parameters import Parameters
+from qc_executor.abstraction import ParameterVector
 from qc_executor.pauli_propagation import PauliPropagationCircuit
 from qc_executor.pauli_propagation.utils.gates import CliffordGate, LayerBarrier, PauliRotation
 
@@ -21,7 +21,7 @@ class TestPauliPropagationCircuit:
         assert isinstance(gates[2], LayerBarrier)
 
     def test_parameter_tracking(self):
-        params = Parameters("theta", 2)
+        params = ParameterVector("theta", 2)
         circuit = PauliPropagationCircuit(2)
         circuit.rx(0, params[0])
         circuit.rzz(0, 1, params[1])
@@ -30,7 +30,7 @@ class TestPauliPropagationCircuit:
         assert set(circuit.parameters) == {"theta[0]", "theta[1]"}
 
     def test_assign_parameters(self):
-        params = Parameters("theta", 1)
+        params = ParameterVector("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, params[0])
 

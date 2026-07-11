@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from qc_executor.parameters import Parameters
+from qc_executor.abstraction import ParameterVector
 from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
@@ -72,7 +72,7 @@ class TestPauliPropagationExecutor:
 
     def test_expectation_value_parametric_circuit(self):
         executor = PauliPropagationExecutor()
-        theta = Parameters("theta", 1)
+        theta = ParameterVector("theta", 1)
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
@@ -172,7 +172,7 @@ class TestParameterNormalization:
     def test_expectation_value_with_list_parameters(self):
         """Test that parameters can be passed as lists like x=[0.1], p=[0.3]."""
         executor = PauliPropagationExecutor()
-        theta = Parameters("theta", 1)
+        theta = ParameterVector("theta", 1)
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
@@ -190,7 +190,7 @@ class TestParameterNormalization:
         """Test multiple parameters in list format."""
         executor = PauliPropagationExecutor()
         # Use simple Parameters that match what bind_parameters expects
-        theta = Parameters("theta", 2)
+        theta = ParameterVector("theta", 2)
 
         circuit = PauliPropagationCircuit(2)
         circuit.rx(0, theta[0])
@@ -205,7 +205,7 @@ class TestParameterNormalization:
     def test_expectation_value_with_indexed_parameters(self):
         """Test that indexed format still works (backward compatibility)."""
         executor = PauliPropagationExecutor()
-        theta = Parameters("theta", 1)
+        theta = ParameterVector("theta", 1)
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
@@ -218,7 +218,7 @@ class TestParameterNormalization:
     def test_expectation_value_derivatives_with_list_parameters(self):
         """Test derivatives with list parameters."""
         executor = PauliPropagationExecutor()
-        theta = Parameters("theta", 1)
+        theta = ParameterVector("theta", 1)
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
@@ -231,7 +231,7 @@ class TestParameterNormalization:
     def test_statevector_with_list_parameters(self):
         """Test statevector with list parameters."""
         executor = PauliPropagationExecutor()
-        theta = Parameters("theta", 1)
+        theta = ParameterVector("theta", 1)
 
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, theta[0])
@@ -244,7 +244,7 @@ class TestParameterNormalization:
     def test_sample_with_list_parameters(self):
         """Test sampling with list parameters."""
         executor = PauliPropagationExecutor(shots=100, seed=42)
-        theta = Parameters("theta", 1)
+        theta = ParameterVector("theta", 1)
 
         circuit = PauliPropagationCircuit(1)
         circuit.h(0)

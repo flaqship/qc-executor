@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from qc_executor.parameters import Parameters
+from qc_executor.abstraction import ParameterVector
 from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
@@ -37,7 +37,7 @@ class TestPauliPropagationExecutorNativeTypes:
         assert np.isclose(values[1], -1.0, atol=1e-10)
 
     def test_expectation_value_parametric(self):
-        params = Parameters("theta", 1)
+        params = ParameterVector("theta", 1)
         circuit = PauliPropagationCircuit(1)
         circuit.rx(0, params[0])
         observable = PauliPropagationOperator(["Z"], [1.0])

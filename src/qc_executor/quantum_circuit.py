@@ -10,6 +10,7 @@ from qiskit.circuit import ParameterExpression
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase, QuantumOperatorBase
+from .base.circuit_base import _evolution_angle
 from .utils.qiskit_hash_functions import _circuit_key
 
 
@@ -256,17 +257,7 @@ class QuantumCircuit(QuantumCircuitBase):
         coeff = operator.coeffs
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
-        coeff = coeff[0]
-
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
-            coeff = np.real_if_close(coeff)
-            if isinstance(coeff, complex):
-                raise ValueError("Complex coefficients are not supported")
-        else:
-            # the 1j fixes a bug in qiskit
-            coeff = -1j * (1j * coeff)
-
-        coeff = coeff * parameter
+        coeff = _evolution_angle(coeff[0], parameter)
 
         qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
         paulis = [p for p in pauli_str if p != "I"]
@@ -277,7 +268,7 @@ class QuantumCircuit(QuantumCircuitBase):
         self._apply_basis_change(paulis, qubits, working_qubits)
         if qubits:
             self._apply_cnot_ladder(qubits, working_qubits)
-            self.rz(working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
+            self.rz(working_qubits[qubits[-1]], 2.0 * coeff)
             self._undo_cnot_ladder(qubits, working_qubits)
         self._undo_basis_change(paulis, qubits, working_qubits)
 
@@ -303,18 +294,13 @@ class QuantumCircuit(QuantumCircuitBase):
 
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
-        coeff = coeff[0] * parameter
-
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
-            coeff = np.real_if_close(coeff)
-            if isinstance(coeff, complex):
-                raise ValueError("Complex coefficients are not supported")
+        coeff = _evolution_angle(coeff[0], parameter)
 
         qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
         paulis = [p for p in pauli_str if p != "I"]
 
         if len(paulis) == 0:
-            self.rz(control_qubit, float(np.real(-coeff)))
+            self.rz(control_qubit, -coeff)
             return
 
         if working_qubits is None:
@@ -324,7 +310,7 @@ class QuantumCircuit(QuantumCircuitBase):
         self._apply_basis_change(paulis, qubits, working_qubits)
         if qubits:
             self._apply_cnot_ladder(qubits, working_qubits)
-            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
+            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * coeff)
             self._undo_cnot_ladder(qubits, working_qubits)
         self._undo_basis_change(paulis, qubits, working_qubits)
 

@@ -12,6 +12,36 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 from .operator_base import QuantumOperatorBase
 
 
+def _evolution_angle(coeff, parameter):
+    """Combine an operator coefficient and an evolution parameter into an angle.
+
+    Numeric inputs are validated (complex values are rejected) and returned as a
+    plain float. Any symbolic input -- a native SymPy parameter as well as a
+    Qiskit ``ParameterExpression`` -- is returned unevaluated, so the rotation
+    gate receives the expression itself. Deciding by "is it a number" instead of
+    an isinstance check against Qiskit's parameter types keeps this working for
+    every parameter flavour.
+
+    Args:
+        coeff: Single coefficient of the Pauli operator (numeric or symbolic).
+        parameter: Evolution parameter (numeric or symbolic).
+
+    Returns:
+        ``coeff * parameter`` as a float, or as an unevaluated expression if
+        either factor is symbolic.
+
+    Raises:
+        ValueError: If the numeric product has an imaginary part.
+    """
+    angle = coeff * parameter
+    if isinstance(angle, (int, float, complex, np.number)):
+        angle = np.real_if_close(angle)
+        if np.iscomplexobj(angle):
+            raise ValueError("Complex coefficients are not supported")
+        angle = float(angle)
+    return angle
+
+
 class QuantumCircuitBase(ABC):
     """
     Base class for quantum circuits for different quantum frameworks.
@@ -259,17 +289,7 @@ class QuantumCircuitBase(ABC):
         coeff = operator.coeffs
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
-        coeff = coeff[0]
-
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
-            coeff = np.real_if_close(coeff)
-            if np.iscomplexobj(coeff):
-                raise ValueError("Complex coefficients are not supported")
-        else:
-            # the 1j fixes a bug in qiskit
-            coeff = -1j * (1j * coeff)
-
-        coeff = coeff * parameter
+        coeff = _evolution_angle(coeff[0], parameter)
 
         qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
         paulis = [p for p in pauli_str if p != "I"]
@@ -288,7 +308,7 @@ class QuantumCircuitBase(ABC):
                 control = target
 
             # Apply phase rotation on the last qubit
-            self.rz(working_qubits[qubits[-1]], 2 * float(np.real(coeff)))
+            self.rz(working_qubits[qubits[-1]], 2 * coeff)
 
             # Undo controlled CNOT chain
             control = qubits[-1]
@@ -321,18 +341,13 @@ class QuantumCircuitBase(ABC):
 
         if len(coeff) != 1:
             raise ValueError("Only operators with single Pauli strings are supported")
-        coeff = coeff[0] * parameter
-
-        if not isinstance(coeff, (ParameterVectorElement, ParameterExpression)):
-            coeff = np.real_if_close(coeff)
-            if np.iscomplexobj(coeff):
-                raise ValueError("Complex coefficients are not supported")
+        coeff = _evolution_angle(coeff[0], parameter)
 
         qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
         paulis = [p for p in pauli_str if p != "I"]
 
         if len(paulis) == 0:
-            self.rz(control_qubit, float(np.real(-coeff)))
+            self.rz(control_qubit, -coeff)
             return
 
         if working_qubits is None:
@@ -350,7 +365,7 @@ class QuantumCircuitBase(ABC):
                 control = target
 
             # Apply phase rotation on the last qubit
-            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * float(np.real(coeff)))
+            self.crz(control_qubit, working_qubits[qubits[-1]], 2.0 * coeff)
 
             # Undo controlled CNOT chain
             control = qubits[-1]

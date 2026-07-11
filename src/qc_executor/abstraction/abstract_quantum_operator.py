@@ -30,6 +30,9 @@ from .abstract_parameter import Parameter, free_parameters, parse_symbol_name
 #: A coefficient is either numeric or a symbolic parameter expression.
 Coeff = Union[float, int, complex, sp.Basic]
 
+#: The only characters allowed in a Pauli label (checked at construction).
+_PAULI_CHARS = frozenset("IXYZ")
+
 # Single-qubit Pauli products: ``left + right`` -> ``(phase, result)``.
 # Used by :meth:`AbstractQuantumOperator.compose`.
 _PAULI_MUL = {
@@ -99,9 +102,11 @@ class AbstractQuantumOperator(QuantumOperatorBase):
         H = AbstractQuantumOperator(paulis=["ZZ", "IX"], coeffs=[0.5, 0.3])
 
     Args:
-        paulis: Pauli label strings (e.g. ``["IX", "ZZ"]``); all the same length.
+        paulis: Pauli label strings (e.g. ``["IX", "ZZ"]``); all the same
+            length, uppercase characters ``I``, ``X``, ``Y``, ``Z`` only.
         coeffs: Matching coefficients (number or SymPy expression). Defaults to 1.
-        num_qubits: Only required when ``paulis`` is empty.
+        num_qubits: Only required when ``paulis`` is empty; if given alongside
+            ``paulis`` it must equal the label length.
     """
 
     def __init__(
@@ -115,7 +120,18 @@ class AbstractQuantumOperator(QuantumOperatorBase):
             width = len(paulis[0])
             if any(len(p) != width for p in paulis):
                 raise ValueError("All Pauli strings must have the same length.")
-            num_qubits = width if num_qubits is None else num_qubits
+            for p in paulis:
+                if not _PAULI_CHARS.issuperset(p):
+                    raise ValueError(
+                        f"Invalid Pauli label {p!r}: only the characters "
+                        "I, X, Y, Z are allowed."
+                    )
+            if num_qubits is not None and num_qubits != width:
+                raise ValueError(
+                    f"num_qubits ({num_qubits}) does not match the Pauli "
+                    f"string length ({width})."
+                )
+            num_qubits = width
         elif num_qubits is None:
             raise ValueError("num_qubits is required when paulis is empty.")
 

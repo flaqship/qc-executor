@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Any, List
 
 import numpy as np
-from qiskit.circuit import ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .operator_base import QuantumOperatorBase
+
+#: A rotation angle or evolution parameter: a plain number, or a symbolic
+#: parameter expression in the flavour of the concrete backend (native SymPy
+#: ``Parameter``, Qiskit ``ParameterExpression``, ...). The base class never
+#: inspects the symbolic type -- see :func:`_evolution_angle`.
+ParameterLike = Any
 
 
 def _evolution_angle(coeff, parameter):
@@ -66,8 +70,13 @@ class QuantumCircuitBase(ABC):
         return self._num_qubits
 
     @property
-    def parameters(self) -> List[ParameterVectorElement]:
-        """Return the free trainable parameters in the circuit."""
+    def parameters(self) -> List[Any]:
+        """Return the free trainable parameters in the circuit.
+
+        The element type is backend-native (native SymPy ``Parameter`` for the
+        abstraction, Qiskit parameter elements for the Qiskit backend); the
+        only requirement here is an ``index`` attribute used for sorting.
+        """
         return sorted(list(self._free_parameters), key=lambda x: x.index)
 
     @property
@@ -273,7 +282,7 @@ class QuantumCircuitBase(ABC):
     def pauli_evolution(
         self,
         operator: QuantumOperatorBase,
-        parameter: ParameterVectorElement | float,
+        parameter: ParameterLike,
         working_qubits: List[int] | None = None,
     ) -> None:
         """
@@ -281,7 +290,8 @@ class QuantumCircuitBase(ABC):
 
         Args:
             operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (ParameterVectorElement | float): The evolution parameter.
+            parameter (ParameterLike): The evolution parameter -- numeric, or a
+                backend-native symbolic parameter expression.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """
 
@@ -322,7 +332,7 @@ class QuantumCircuitBase(ABC):
     def controlled_pauli_evolution(
         self,
         operator: QuantumOperatorBase,
-        parameter: ParameterVectorElement | float,
+        parameter: ParameterLike,
         control_qubit: int,
         working_qubits: List[int] | None = None,
     ) -> None:
@@ -331,7 +341,8 @@ class QuantumCircuitBase(ABC):
 
         Args:
             operator (QuantumOperatorBase): The Pauli operator to evolve.
-            parameter (ParameterVectorElement | float): The evolution parameter.
+            parameter (ParameterLike): The evolution parameter -- numeric, or a
+                backend-native symbolic parameter expression.
             control_qubit (int): The qubit to control the evolution.
             working_qubits (List[int]): Optional: the qubits to use as working qubits.
         """

@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
-
-from qc_executor.parameters import Parameter
+from typing import Any, List, Optional
 
 
 class QuantumOperatorBase(ABC):
@@ -58,12 +56,17 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @property
-    def parameters(self) -> List[Parameter]:
+    def parameters(self) -> List[Any]:
         """
-        Return the parameters of the operator.
+        Return the free parameters of the operator.
+
+        The element type is backend-native: the abstraction returns its own
+        SymPy-based ``Parameter`` objects, the Qiskit backend returns Qiskit
+        parameter elements. Code working across backends must not assume a
+        specific class.
 
         Returns:
-            List of parameters.
+            List of backend-native parameter objects.
         """
         raise NotImplementedError
 

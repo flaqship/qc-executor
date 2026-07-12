@@ -8,7 +8,6 @@ PennyLane equivalents, including:
 - Controlled gates (CS, CSX)
 - Reset gate
 - Gate dictionary completeness
-- PennyLane target validation
 """
 
 import numpy as np
@@ -22,7 +21,6 @@ from qc_executor.pennylane.pennylane_gates import (
     RZZ,
     cs,
     csx,
-    pennylane_target,
     qiskit_pennylane_gate_dict,
     reset,
     sdg,
@@ -225,28 +223,3 @@ class TestPennyLaneGates:
         """Test that measure gate is in the dictionary."""
         assert "measure" in qiskit_pennylane_gate_dict
         assert qiskit_pennylane_gate_dict["measure"] == qml.measure
-
-    # PennyLane Target Tests
-
-    def test_pennylane_target_exists(self):
-        """Test that PennyLane target object exists."""
-        assert pennylane_target is not None
-
-    def test_pennylane_target_has_operations(self):
-        """Test that PennyLane target has operations attribute."""
-        assert hasattr(pennylane_target, "operations")
-        assert len(pennylane_target.operations) > 0
-
-    def test_pennylane_target_contains_gates(self):
-        """Test that PennyLane target contains expected gate operations."""
-        operation_names = [operator.name for operator in pennylane_target.operations]
-
-        # Check a sample of important gates
-        important_gates = ["h", "x", "cx", "rx", "ry", "rz"]
-        for gate in important_gates:
-            assert gate in operation_names, f"Gate '{gate}' not in target operations"
-
-    def test_pennylane_target_gate_count(self):
-        """Test that PennyLane target has reasonable number of gates."""
-        # Should have at least 20 gates
-        assert len(pennylane_target.operations) >= 20

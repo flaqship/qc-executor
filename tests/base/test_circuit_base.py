@@ -1,6 +1,8 @@
 import pytest
+import sympy as sp
 from qiskit.circuit import ParameterVector
 
+from qc_executor.abstraction import ParameterVector as NativeParameterVector
 from qc_executor.base.circuit_base import QuantumCircuitBase
 
 
@@ -207,16 +209,43 @@ class TestPauliEvolution:
         assert ("rz", 0, 2.0) in circuit.ops
         assert ("cx", 1, 0) in circuit.ops
 
-    def test_pauli_evolution_with_parameterized_coeff_runs(self):
-        coeff = 1.0
+    def test_pauli_evolution_with_native_symbolic_parameter(self):
+        """A native SymPy parameter must reach rz as an unevaluated expression.
+
+        Regression guard: the numeric/symbolic branch used to test against
+        Qiskit's parameter types, so native parameters fell into the numeric
+        branch and crashed at float().
+        """
+        w = NativeParameterVector("w", 1)
         circuit = SpyCircuit(1)
-        op = FakeOperator("Z", [coeff])
+        op = FakeOperator("Z", [0.5])
+
+        circuit.pauli_evolution(op, w[0])
+
+        name, qubit, angle = circuit.ops[0]
+        assert (name, qubit) == ("rz", 0)
+        assert sp.simplify(angle - w[0]) == 0  # 2 * 0.5 * w[0]
+
+    def test_pauli_evolution_with_native_symbolic_coeff(self):
+        w = NativeParameterVector("w", 1)
+        circuit = SpyCircuit(1)
+        op = FakeOperator("Z", [w[0]])
 
         circuit.pauli_evolution(op, 2.0)
 
-        assert len(circuit.ops) == 1
-        assert circuit.ops[0][0] == "rz"
-        assert circuit.ops[0][1] == 0
+        angle = circuit.ops[0][2]
+        assert sp.simplify(angle - 4 * w[0]) == 0
+
+    def test_pauli_evolution_with_qiskit_parameter_keeps_expression(self):
+        """Qiskit expressions must survive too, and bind to the right value."""
+        theta = ParameterVector("theta", 1)
+        circuit = SpyCircuit(1)
+        op = FakeOperator("Z", [0.5])
+
+        circuit.pauli_evolution(op, theta[0])
+
+        angle = circuit.ops[0][2]
+        assert float(angle.assign(theta[0], 2.0)) == pytest.approx(2.0)
 
 
 class TestControlledPauliEvolution:
@@ -270,3 +299,29 @@ class TestControlledPauliEvolution:
         assert ("cx", 1, 0) in circuit.ops
         assert ("crz", 2, 0, 2.0) in circuit.ops
         assert ("s", 1) in circuit.ops
+
+    def test_controlled_pauli_evolution_with_native_symbolic_parameter(self):
+        """The crz angle must stay a symbolic expression for native parameters."""
+        w = NativeParameterVector("w", 1)
+        circuit = SpyCircuit(2)
+        op = FakeOperator("Z", [1.0])
+
+        circuit.controlled_pauli_evolution(op, w[0], control_qubit=1)
+
+        crz_ops = [op for op in circuit.ops if op[0] == "crz"]
+        assert len(crz_ops) == 1
+        _, control, target, angle = crz_ops[0]
+        assert (control, target) == (1, 0)
+        assert sp.simplify(angle - 2 * w[0]) == 0
+
+    def test_controlled_pauli_evolution_identity_with_symbolic_parameter(self):
+        """Identity operators short-circuit to a single rz on the control qubit."""
+        w = NativeParameterVector("w", 1)
+        circuit = SpyCircuit(1)
+        op = FakeOperator("I", [1.0])
+
+        circuit.controlled_pauli_evolution(op, w[0], control_qubit=0)
+
+        name, qubit, angle = circuit.ops[0]
+        assert (name, qubit) == ("rz", 0)
+        assert sp.simplify(angle + w[0]) == 0  # -coeff

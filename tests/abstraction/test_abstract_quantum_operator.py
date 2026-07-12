@@ -55,6 +55,24 @@ class TestConstruction:
             AbstractQuantumOperator([])
         assert AbstractQuantumOperator([], num_qubits=3).num_qubits == 3
 
+    def test_invalid_pauli_characters_raise(self):
+        # Without the check "AB" only failed deep inside compose (KeyError) and
+        # lowercase "zx" silently skipped the Y sign flip in transpose.
+        with pytest.raises(ValueError, match="Invalid Pauli label"):
+            AbstractQuantumOperator(["AB"], [1.0])
+        with pytest.raises(ValueError, match="Invalid Pauli label"):
+            AbstractQuantumOperator(["zx"], [1.0])
+        # append builds through the constructor, so it inherits the check
+        with pytest.raises(ValueError, match="Invalid Pauli label"):
+            AbstractQuantumOperator(["XX"], [1.0]).append("AB")
+
+    def test_num_qubits_must_match_pauli_width(self):
+        # An inconsistent operator used to blow up later (IndexError in
+        # apply_layout) instead of failing at construction time.
+        with pytest.raises(ValueError, match="does not match"):
+            AbstractQuantumOperator(["ZZ"], [1.0], num_qubits=3)
+        assert AbstractQuantumOperator(["ZZ"], [1.0], num_qubits=2).num_qubits == 2
+
     def test_equality_is_order_independent(self):
         a = AbstractQuantumOperator(["ZZ", "IX"], [0.5, 0.3])
         b = AbstractQuantumOperator(["IX", "ZZ"], [0.3, 0.5])
@@ -87,11 +105,19 @@ class TestFromQuantumOperator:
     break ``parameters``/``assign_parameters`` later.
     """
 
-    def test_numeric_qiskit_operator(self):
-        from qc_executor import QuantumOperator
+    @staticmethod
+    def _foreign_operator(sparse):
+        """Minimal stand-in for a backend-native operator (paulis + coeffs)."""
 
+        class _Foreign:
+            paulis = [str(p) for p in sparse.paulis]
+            coeffs = list(sparse.coeffs)
+
+        return _Foreign()
+
+    def test_numeric_foreign_operator(self):
         op = AbstractQuantumOperator.from_quantum_operator(
-            QuantumOperator(["ZZ", "IX"], [0.5, 0.3])
+            self._foreign_operator(SparsePauliOp(["ZZ", "IX"], [0.5, 0.3]))
         )
         assert isinstance(op, AbstractQuantumOperator)
         assert op.paulis == ["ZZ", "IX"]
@@ -101,14 +127,11 @@ class TestFromQuantumOperator:
     def test_parametrized_qiskit_coeffs_become_native_parameters(self):
         from qiskit.circuit import ParameterVector as QiskitParameterVector
 
-        from qc_executor import QuantumOperator
         from qc_executor.abstraction.abstract_parameter import Parameter
 
         theta = QiskitParameterVector("theta", 2)
         sparse = SparsePauliOp(["ZZ", "IX"], coeffs=[2 * theta[0], theta[1]])
-        op = AbstractQuantumOperator.from_quantum_operator(
-            QuantumOperator(_native_operator=sparse)
-        )
+        op = AbstractQuantumOperator.from_quantum_operator(self._foreign_operator(sparse))
 
         assert op.is_parametrized
         assert all(isinstance(p, Parameter) for p in op.parameters)
@@ -204,13 +227,11 @@ class TestPureSemanticsAndValidation:
         with pytest.raises(ValueError, match="lie in"):
             op.apply_layout([0, 3], num_qubits=3)
 
-    def test_group_commuting_is_qubit_wise_on_all_backends(self):
-        # XX and YY commute generally but not qubit-wise: both the abstract and
-        # the Qiskit-backed operator must put them in separate groups.
-        from qc_executor import QuantumOperator
-
+    def test_group_commuting_is_qubit_wise_like_qiskit(self):
+        # XX and YY commute generally but not qubit-wise: the abstract grouping
+        # must match Qiskit's qubit-wise grouping and put them in separate groups.
         abstract_groups = AbstractQuantumOperator(["XX", "YY"]).group_commuting()
-        qiskit_groups = QuantumOperator(["XX", "YY"]).group_commuting()
+        qiskit_groups = SparsePauliOp(["XX", "YY"]).group_commuting(qubit_wise=True)
         assert len(abstract_groups) == 2
         assert len(qiskit_groups) == 2
 
@@ -222,10 +243,13 @@ class TestEndToEnd:
         from qiskit import QuantumCircuit as QiskitCircuit
         from qiskit.quantum_info import Statevector
 
-        from qc_executor import Executor, QuantumCircuit
+        from qc_executor import Executor
+        from qc_executor.pauli_propagation.pauli_propagation_circuit import (
+            PauliPropagationCircuit,
+        )
 
-        # Qiskit-backed circuit (the abstract-circuit path is wired separately).
-        qc = QuantumCircuit(2)
+        # PP-native circuit (PP has no abstract-circuit bridge; out of scope).
+        qc = PauliPropagationCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
         obs = AbstractQuantumOperator(["ZZ", "IX"], [0.5, 0.3])
@@ -302,6 +326,23 @@ class TestBackendExpectationParity:
         obs = AbstractQuantumOperator(["IIIZ", "XIIX"], [2 * w[0], w[1]])
         reference = self._reference(qc, SparsePauliOp(["IIIZ", "XIIX"], coeffs=[2 * 0.4, 0.9]))
         assert np.isclose(self._run(backend, qc, obs, w=[0.4, 0.9]), reference)
+
+    @pytest.mark.parametrize("backend", ["qiskit", "pennylane"])
+    def test_raw_abstract_observable_without_transpile(self, backend):
+        # The base class auto-converts raw observables (_ensure_native_operator),
+        # so expectation_value must accept an AbstractQuantumOperator directly.
+        # Regression guard: the qiskit backend used to crash on this call
+        # (AttributeError deep in _observable_key) because only pennylane
+        # converted internally.
+        pytest.importorskip(backend)
+        from qc_executor import Executor
+
+        qc = self._asymmetric_circuit()
+        obs = AbstractQuantumOperator(["IIIZ", "XIIX"], [0.5, 0.8])
+        reference = self._reference(qc, _to_sparse(obs))
+        ex = Executor.create(backend)
+        value = float(np.real_if_close(ex.expectation_value(qc, obs)))
+        assert np.isclose(value, reference)
 
     def test_sympy_function_coefficient_matches_reference(self):
         # sin(w0) as a coefficient is only expressible in SymPy — a Qiskit

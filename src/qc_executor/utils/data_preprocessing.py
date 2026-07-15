@@ -3,9 +3,6 @@ from __future__ import annotations
 from typing import Tuple
 
 import numpy as np
-from packaging import version
-from qiskit import __version__ as qiskit_version
-from qiskit.quantum_info import SparsePauliOp
 
 
 def adjust_features(x: np.ndarray | float, x_length: int) -> Tuple[np.ndarray, bool]:
@@ -174,6 +171,11 @@ def ensure_complex_coeffs(operator):
         The operator unchanged, or a new SparsePauliOp with complex128 coefficients
         if running on an affected Qiskit version.
     """
+    # Local imports: only the Qiskit backend calls this helper, and the rest of
+    # this module must stay importable without Qiskit (e.g. for PennyLane).
+    from packaging import version
+    from qiskit import __version__ as qiskit_version
+    from qiskit.quantum_info import SparsePauliOp
 
     if version.parse("2.1.0") <= version.parse(qiskit_version) < version.parse(
         "2.2.0"

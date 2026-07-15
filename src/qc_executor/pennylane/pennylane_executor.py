@@ -10,9 +10,8 @@ from typing import List, overload
 import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
-from qiskit.circuit import ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
 
+from ..abstraction.abstract_parameter import Parameter, ParameterVector
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
@@ -376,7 +375,7 @@ class PennyLaneExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         observable: QuantumOperatorBase,
-        *values: str | ParameterVector | ParameterVectorElement | tuple,
+        *values: str | Parameter | ParameterVector | tuple,
         **parameter_values,
     ) -> np.array | dict:
         """
@@ -386,8 +385,9 @@ class PennyLaneExecutor(ExecutorBase):
             circuit (QuantumCircuitBase): The quantum circuit.
             observable (QuantumOperatorBase): The quantum observable.
             values: Values for which the derivatives are calculated. Can be strings (e.g.
-                "expectation_value" or the name of parameters), or
-                ParameterVectors, ParameterVectorElements. Tuples are used for higher
+                "expectation_value" or the name of parameters), or parameter objects
+                (native ``Parameter`` / ``ParameterVector``; anything whose ``str()``
+                yields the parameter name is accepted). Tuples are used for higher
                 order derivatives.
             parameter_values: Parameters to evaluate the circuit and observable given as
                 keyword arguments.
@@ -495,7 +495,9 @@ class PennyLaneExecutor(ExecutorBase):
 
                 pennylane_derivative = pennylane_function
                 for todo_parameter in todo:
-                    if isinstance(todo_parameter, (ParameterVector, ParameterVectorElement)):
+                    # Parameter objects (native or framework-specific) are
+                    # identified by their string form, e.g. "theta[0]".
+                    if not isinstance(todo_parameter, str):
                         todo_parameter = str(todo_parameter)
                     todo_parameter_name = remove_brackets(todo_parameter)
                     if todo_parameter_name == todo_parameter:

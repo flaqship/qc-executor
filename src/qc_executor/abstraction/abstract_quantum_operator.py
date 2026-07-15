@@ -25,7 +25,7 @@ import numpy as np
 import sympy as sp
 
 from ..base import QuantumOperatorBase
-from .abstract_parameter import Parameter, free_parameters, parse_symbol_name
+from .abstract_parameter import Parameter, free_parameters
 
 #: A coefficient is either numeric or a symbolic parameter expression.
 Coeff = Union[float, int, complex, sp.Basic]
@@ -43,54 +43,11 @@ _PAULI_MUL = {
 }
 
 
-def _conj(c: Coeff) -> Coeff:
-    """Complex conjugate that works for numbers and SymPy expressions."""
-    return sp.conjugate(c) if isinstance(c, sp.Basic) else np.conjugate(c)
-
-
 def _is_zero(c: Coeff) -> bool:
     """True if ``c`` is (numerically or symbolically) zero."""
     if isinstance(c, sp.Basic):
         return bool(sp.simplify(c) == 0)
     return bool(np.isclose(complex(c), 0.0))
-
-
-def _y_phase(pauli: str) -> int:
-    """Sign picked up under transpose/conjugate (-1 for an odd number of Y)."""
-    return -1 if pauli.count("Y") % 2 else 1
-
-
-def _normalize_coeff(coeff) -> Coeff:
-    """Bring a foreign coefficient into the canonical abstract form.
-
-    Plain numbers and SymPy expressions pass through unchanged. Anything else
-    is assumed to be a Qiskit ``ParameterExpression`` and is converted to a
-    SymPy expression over native :class:`Parameter` symbols. The Qiskit import
-    is local so this module stays Qiskit-free for purely abstract inputs.
-    """
-    if isinstance(coeff, (int, float, complex, np.number)) or isinstance(coeff, sp.Basic):
-        return coeff
-
-    from ..utils.qiskit_compat import _param_to_sympy
-
-    expr = sp.sympify(_param_to_sympy(coeff))
-    replacements = {}
-    for symbol in expr.free_symbols:
-        if isinstance(symbol, Parameter):
-            continue
-        vector_name, index = parse_symbol_name(symbol.name)
-        if index is None:
-            raise ValueError(
-                f"Cannot convert parameter {symbol.name!r}: only ParameterVector-style "
-                "names (e.g. 'theta[0]') map onto native Parameter objects."
-            )
-        replacements[symbol] = Parameter(vector_name, index)
-    expr = expr.subs(replacements)
-
-    if not expr.free_symbols:  # constant expression -> collapse to a number
-        value = complex(expr)
-        return value.real if value.imag == 0 else value
-    return expr
 
 
 class AbstractQuantumOperator(QuantumOperatorBase):
@@ -143,18 +100,17 @@ class AbstractQuantumOperator(QuantumOperatorBase):
 
     @classmethod
     def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "AbstractQuantumOperator":
-        """Return ``operator`` as an abstract operator.
+        """Return ``operator`` as a copy if abstract; reject anything else.
 
-        Abstract inputs are copied unchanged. For backend-native operators the
-        paulis/coeffs are copied and foreign coefficient types (e.g. Qiskit
-        ``ParameterExpression``) are normalized to SymPy Parameter expressions,
-        so the result carries no framework dependency.
+        Observables enter the library through the abstraction only (matching
+        ``from_quantum_circuit``), so backend-native operators are not
+        converted here.
         """
         if isinstance(operator, cls):
             return operator.copy()
-        return cls(
-            paulis=list(operator.paulis),
-            coeffs=[_normalize_coeff(c) for c in operator.coeffs],
+        raise TypeError(
+            f"Cannot build an AbstractQuantumOperator from {type(operator).__name__}. "
+            "Build the observable as a qc_executor.abstraction.AbstractQuantumOperator instead."
         )
 
     # ------------------------------------------------------------------
@@ -190,12 +146,6 @@ class AbstractQuantumOperator(QuantumOperatorBase):
     # Algebra
     # ------------------------------------------------------------------
 
-    def append(self, pauli: str, coeff: Coeff = 1.0) -> "AbstractQuantumOperator":
-        """Return a new operator with a single Pauli term appended."""
-        if len(pauli) != self._num_qubits:
-            raise ValueError("Pauli length does not match num_qubits.")
-        return self.__class__(self._paulis + [pauli], self._coeffs + [coeff], self._num_qubits)
-
     def compose(self, other: QuantumOperatorBase) -> "AbstractQuantumOperator":
         """Compose with ``other`` (apply ``self`` first, then ``other``).
 
@@ -223,25 +173,6 @@ class AbstractQuantumOperator(QuantumOperatorBase):
                 coeffs.append(ca * cb * phase)
         return self.__class__(paulis, coeffs, self._num_qubits)
 
-    def adjoint(self) -> "AbstractQuantumOperator":
-        """Conjugate transpose. Each Pauli string is Hermitian, so only the
-        coefficients are conjugated."""
-        return self.__class__(self._paulis, [_conj(c) for c in self._coeffs], self._num_qubits)
-
-    def transpose(self) -> "AbstractQuantumOperator":
-        return self.__class__(
-            self._paulis,
-            [c * _y_phase(p) for p, c in zip(self._paulis, self._coeffs)],
-            self._num_qubits,
-        )
-
-    def conjugate(self) -> "AbstractQuantumOperator":
-        return self.__class__(
-            self._paulis,
-            [_conj(c) * _y_phase(p) for p, c in zip(self._paulis, self._coeffs)],
-            self._num_qubits,
-        )
-
     def simplify(self) -> "AbstractQuantumOperator":
         """Combine duplicate Pauli strings and drop (near-)zero terms."""
         combined: dict = {}
@@ -256,67 +187,6 @@ class AbstractQuantumOperator(QuantumOperatorBase):
         if not paulis:  # keep a valid (zero) operator on the same register
             return self.__class__(["I" * self._num_qubits], [0.0], self._num_qubits)
         return self.__class__(paulis, coeffs, self._num_qubits)
-
-    def apply_layout(
-        self, layout: List[int], num_qubits: Optional[int] = None
-    ) -> "AbstractQuantumOperator":
-        """Embed the operator on a (possibly larger) register.
-
-        ``layout[q]`` is the new index of qubit ``q``. Follows Qiskit's
-        little-endian convention so the result matches ``SparsePauliOp.apply_layout``.
-
-        Raises:
-            ValueError: If the layout length does not match the operator's
-                ``num_qubits``, contains duplicate entries, or maps a qubit
-                outside the target register (without this check a too-large
-                entry would wrap around via a negative string index and
-                silently corrupt the result).
-        """
-        n = self._num_qubits
-        if len(layout) != n:
-            raise ValueError(f"layout must have exactly {n} entries, got {len(layout)}.")
-        if len(set(layout)) != n:
-            raise ValueError("layout entries must be unique.")
-        new_n = num_qubits if num_qubits is not None else (max(layout) + 1)
-        if min(layout) < 0 or max(layout) >= new_n:
-            raise ValueError(f"layout entries must lie in [0, {new_n - 1}].")
-        new_paulis = []
-        for label in self._paulis:
-            chars = ["I"] * new_n
-            for q in range(n):
-                chars[new_n - 1 - layout[q]] = label[n - 1 - q]
-            new_paulis.append("".join(chars))
-        return self.__class__(new_paulis, list(self._coeffs), new_n)
-
-    def group_commuting(self) -> List["AbstractQuantumOperator"]:
-        """Greedy *qubit-wise* commuting grouping.
-
-        Two strings commute qubit-wise if, on every qubit, the Paulis are equal
-        or at least one is ``I``. The Qiskit-backed ``QuantumOperator`` uses
-        ``group_commuting(qubit_wise=True)`` so all backends share this grouping
-        criterion (the exact partition may still differ, since the grouping
-        algorithms are heuristics).
-        """
-
-        def qwise_commute(a: str, b: str) -> bool:
-            return all(x == y or "I" in (x, y) for x, y in zip(a, b))
-
-        groups: List[List[int]] = []
-        for i, p in enumerate(self._paulis):
-            for g in groups:
-                if all(qwise_commute(p, self._paulis[j]) for j in g):
-                    g.append(i)
-                    break
-            else:
-                groups.append([i])
-        return [
-            self.__class__(
-                [self._paulis[i] for i in g],
-                [self._coeffs[i] for i in g],
-                self._num_qubits,
-            )
-            for g in groups
-        ]
 
     # ------------------------------------------------------------------
     # Parameters / utility
@@ -339,23 +209,6 @@ class AbstractQuantumOperator(QuantumOperatorBase):
 
     def copy(self) -> "AbstractQuantumOperator":
         return self.__class__(list(self._paulis), list(self._coeffs), self._num_qubits)
-
-    @property
-    def is_unitary(self) -> bool:
-        """True for a single Pauli term with unit-modulus coefficient."""
-        return len(self._paulis) == 1 and _is_zero(abs(complex(self._coeffs[0])) - 1.0)
-
-    @property
-    def is_real(self) -> bool:
-        return all(
-            _is_zero(sp.im(c) if isinstance(c, sp.Basic) else np.imag(c)) for c in self._coeffs
-        )
-
-    @property
-    def is_imaginary(self) -> bool:
-        return all(
-            _is_zero(sp.re(c) if isinstance(c, sp.Basic) else np.real(c)) for c in self._coeffs
-        )
 
     # ------------------------------------------------------------------
     # Dunder methods

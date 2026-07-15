@@ -81,29 +81,6 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def adjoint(self) -> "QuantumOperatorBase":
-        """
-        Return the adjoint of the operator.
-
-        Returns:
-            Adjoint of the operator.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def apply_layout(self, layout: List[int]) -> "QuantumOperatorBase":
-        """
-        Apply a layout to the operator.
-
-        Args:
-            layout (List[int]): Layout to apply.
-
-        Returns:
-            Operator with applied layout.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def compose(self, other: "QuantumOperatorBase") -> "QuantumOperatorBase":
         """
         Compose the operator with another operator.
@@ -117,86 +94,12 @@ class QuantumOperatorBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def append(self, pauli: str, coeff) -> "QuantumOperatorBase":
-        """
-        Return a new operator with a Pauli term appended.
-
-        Args:
-            pauli (str): Pauli label to append.
-            coeff: Coefficient of the appended term.
-
-        Returns:
-            New operator with the term appended; ``self`` is left unchanged.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def simplify(self) -> "QuantumOperatorBase":
         """
         Simplify the operator.
 
         Returns:
             Simplified operator.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def transpose(self) -> "QuantumOperatorBase":
-        """
-        Return the transpose of the operator.
-
-        Returns:
-            Transpose of the operator.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def conjugate(self) -> "QuantumOperatorBase":
-        """
-        Return the conjugate of the operator.
-
-        Returns:
-            Conjugate of the operator.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def group_commuting(self) -> List["QuantumOperatorBase"]:
-        """
-        Group commuting operators.
-
-        Returns:
-            List of commuting operators.
-        """
-        raise NotImplementedError
-
-    @property
-    def is_unitary(self) -> bool:
-        """
-        Return True if the operator is unitary.
-
-        Returns:
-            True if the operator is unitary.
-        """
-        raise NotImplementedError
-
-    @property
-    def is_real(self) -> bool:
-        """
-        Return True if the operator is real.
-
-        Returns:
-            True if the operator is real.
-        """
-        raise NotImplementedError
-
-    @property
-    def is_imaginary(self) -> bool:
-        """
-        Return True if the operator is imaginary.
-
-        Returns:
-            True if the operator is imaginary.
         """
         raise NotImplementedError
 

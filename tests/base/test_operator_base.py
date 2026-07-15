@@ -11,31 +11,11 @@ class ConcreteOperator(QuantumOperatorBase):
     def from_quantum_operator(cls, operator: "QuantumOperatorBase") -> "QuantumOperatorBase":
         return operator
 
-    def adjoint(self):
-        return self
-
-    def apply_layout(self, layout: dict):
-        return self
-
     def compose(self, other: "QuantumOperatorBase"):
-        return self
-
-    def append(self, pauli: str, coeff):
-        self._paulis.append(pauli)
-        self._coeffs.append(coeff)
         return self
 
     def simplify(self):
         return self
-
-    def transpose(self):
-        return self
-
-    def conjugate(self):
-        return self
-
-    def group_commuting(self):
-        return [self]
 
 
 class TestOperatorBaseContract:

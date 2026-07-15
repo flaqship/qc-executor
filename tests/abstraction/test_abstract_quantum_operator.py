@@ -56,15 +56,12 @@ class TestConstruction:
         assert AbstractQuantumOperator([], num_qubits=3).num_qubits == 3
 
     def test_invalid_pauli_characters_raise(self):
-        # Without the check "AB" only failed deep inside compose (KeyError) and
-        # lowercase "zx" silently skipped the Y sign flip in transpose.
+        # Without the check "AB" only failed deep inside compose (KeyError in
+        # _PAULI_MUL) and lowercase labels slipped through silently.
         with pytest.raises(ValueError, match="Invalid Pauli label"):
             AbstractQuantumOperator(["AB"], [1.0])
         with pytest.raises(ValueError, match="Invalid Pauli label"):
             AbstractQuantumOperator(["zx"], [1.0])
-        # append builds through the constructor, so it inherits the check
-        with pytest.raises(ValueError, match="Invalid Pauli label"):
-            AbstractQuantumOperator(["XX"], [1.0]).append("AB")
 
     def test_num_qubits_must_match_pauli_width(self):
         # An inconsistent operator used to blow up later (IndexError in
@@ -97,50 +94,12 @@ class TestParameters:
 
 
 class TestFromQuantumOperator:
-    """from_quantum_operator must yield a framework-free abstract operator.
+    """from_quantum_operator is a strict door: abstract in, copy out.
 
-    Foreign coefficient types (Qiskit ``ParameterExpression``) have to be
-    normalized to SymPy expressions over native ``Parameter`` symbols —
-    otherwise the abstract operator would silently carry Qiskit objects that
-    break ``parameters``/``assign_parameters`` later.
+    Backend-native operators are rejected with ``TypeError`` (matching the
+    circuit door ``from_quantum_circuit``), so framework objects can never
+    enter the abstraction through this path.
     """
-
-    @staticmethod
-    def _foreign_operator(sparse):
-        """Minimal stand-in for a backend-native operator (paulis + coeffs)."""
-
-        class _Foreign:
-            paulis = [str(p) for p in sparse.paulis]
-            coeffs = list(sparse.coeffs)
-
-        return _Foreign()
-
-    def test_numeric_foreign_operator(self):
-        op = AbstractQuantumOperator.from_quantum_operator(
-            self._foreign_operator(SparsePauliOp(["ZZ", "IX"], [0.5, 0.3]))
-        )
-        assert isinstance(op, AbstractQuantumOperator)
-        assert op.paulis == ["ZZ", "IX"]
-        assert np.allclose([complex(c) for c in op.coeffs], [0.5, 0.3])
-        assert not op.is_parametrized
-
-    def test_parametrized_qiskit_coeffs_become_native_parameters(self):
-        from qiskit.circuit import ParameterVector as QiskitParameterVector
-
-        from qc_executor.abstraction.abstract_parameter import Parameter
-
-        theta = QiskitParameterVector("theta", 2)
-        sparse = SparsePauliOp(["ZZ", "IX"], coeffs=[2 * theta[0], theta[1]])
-        op = AbstractQuantumOperator.from_quantum_operator(self._foreign_operator(sparse))
-
-        assert op.is_parametrized
-        assert all(isinstance(p, Parameter) for p in op.parameters)
-        assert [(p.vector_name, p.index) for p in op.parameters] == [
-            ("theta", 0),
-            ("theta", 1),
-        ]
-        op.assign_parameters(dict(zip(op.parameters, [0.4, 0.9])))
-        assert np.allclose([complex(c) for c in op.coeffs], [0.8, 0.9])
 
     def test_abstract_input_is_copied(self):
         original = AbstractQuantumOperator(["ZZ"], [0.5])
@@ -148,21 +107,21 @@ class TestFromQuantumOperator:
         assert converted == original
         assert converted is not original
 
+    def test_duck_typed_foreign_operator_is_rejected(self):
+        class _Foreign:
+            paulis = ["ZZ", "IX"]
+            coeffs = [0.5, 0.3]
+
+        with pytest.raises(TypeError, match="AbstractQuantumOperator"):
+            AbstractQuantumOperator.from_quantum_operator(_Foreign())
+
+    def test_raw_sparse_pauli_op_is_rejected(self):
+        with pytest.raises(TypeError, match="SparsePauliOp"):
+            AbstractQuantumOperator.from_quantum_operator(SparsePauliOp(["ZZ"], [1.0]))
+
 
 class TestAlgebraParityWithQiskit:
-    """Each abstract operation must match Qiskit's SparsePauliOp semantics."""
-
-    def test_adjoint(self):
-        op = AbstractQuantumOperator(["XZ", "YI"], [1.0, 2.0 + 1j])
-        assert _equiv(op.adjoint(), _to_sparse(op).adjoint())
-
-    def test_transpose(self):
-        op = AbstractQuantumOperator(["XZ", "YI"], [1.0, 2.0])
-        assert _equiv(op.transpose(), _to_sparse(op).transpose())
-
-    def test_conjugate(self):
-        op = AbstractQuantumOperator(["XZ", "YI"], [1.0, 1j])
-        assert _equiv(op.conjugate(), _to_sparse(op).conjugate())
+    """The remaining algebra (compose/simplify) must match SparsePauliOp semantics."""
 
     def test_simplify_combines_terms(self):
         op = AbstractQuantumOperator(["XX", "XX", "ZZ"], [1, 2, 5])
@@ -173,11 +132,6 @@ class TestAlgebraParityWithQiskit:
         b = AbstractQuantumOperator(["ZZ", "XY"], [0.5, 1j])
         ref = _to_sparse(a).compose(_to_sparse(b))
         assert _equiv(a.compose(b), ref)
-
-    def test_apply_layout(self):
-        op = AbstractQuantumOperator(["XZ", "YI"], [1.0, 2.0])
-        ref = _to_sparse(op).apply_layout([0, 2], 3)
-        assert _equiv(op.apply_layout([0, 2], num_qubits=3), ref)
 
 
 class TestPureSemanticsAndValidation:
@@ -191,13 +145,6 @@ class TestPureSemanticsAndValidation:
         assert a.paulis == ["XZ"] and a.coeffs == [1.0]
         assert b.paulis == ["ZZ"] and b.coeffs == [0.5]
 
-    def test_append_returns_new_operator(self):
-        op = AbstractQuantumOperator(["XX"], [1.0])
-        updated = op.append("ZZ", 2.0)
-        assert updated is not op
-        assert op.paulis == ["XX"]
-        assert updated.paulis == ["XX", "ZZ"] and updated.coeffs == [1.0, 2.0]
-
     def test_properties_return_copies(self):
         op = AbstractQuantumOperator(["XX"], [1.0])
         op.paulis.append("ZZ")  # mutating the returned lists ...
@@ -209,31 +156,6 @@ class TestPureSemanticsAndValidation:
         x = ParameterVector("x", 1)
         op = AbstractQuantumOperator(["XZ"], [2 * x[0]])
         assert op.assign_parameters({x[0]: 0.5}) is op
-
-    def test_apply_layout_rejects_wrong_length(self):
-        op = AbstractQuantumOperator(["XZ"], [1.0])
-        with pytest.raises(ValueError, match="entries"):
-            op.apply_layout([0])
-
-    def test_apply_layout_rejects_duplicates(self):
-        op = AbstractQuantumOperator(["XZ"], [1.0])
-        with pytest.raises(ValueError, match="unique"):
-            op.apply_layout([1, 1])
-
-    def test_apply_layout_rejects_out_of_range(self):
-        # Without validation layout entry 3 on a 3-qubit target would write to
-        # a negative string index and silently corrupt the result.
-        op = AbstractQuantumOperator(["XZ"], [1.0])
-        with pytest.raises(ValueError, match="lie in"):
-            op.apply_layout([0, 3], num_qubits=3)
-
-    def test_group_commuting_is_qubit_wise_like_qiskit(self):
-        # XX and YY commute generally but not qubit-wise: the abstract grouping
-        # must match Qiskit's qubit-wise grouping and put them in separate groups.
-        abstract_groups = AbstractQuantumOperator(["XX", "YY"]).group_commuting()
-        qiskit_groups = SparsePauliOp(["XX", "YY"]).group_commuting(qubit_wise=True)
-        assert len(abstract_groups) == 2
-        assert len(qiskit_groups) == 2
 
 
 class TestEndToEnd:

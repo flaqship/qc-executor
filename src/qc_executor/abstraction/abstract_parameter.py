@@ -88,13 +88,13 @@ class ParameterVector:
         return self._params.index(value)
 
     def resize(self, length: int) -> None:
-        """Grow or shrink the vector to ``length`` elements."""
-        if length > len(self._params):
-            self._params.extend(
-                Parameter(self._name, i) for i in range(len(self._params), length)
-            )
+        """Set the vector to ``length`` elements, trimming or appending at the tail."""
+        current = len(self._params)
+        if length < current:
+            self._params[length:] = []
         else:
-            del self._params[length:]
+            for i in range(current, length):
+                self._params.append(Parameter(self._name, i))
 
     def __getitem__(self, key) -> Parameter:
         return self._params[key]
@@ -106,10 +106,11 @@ class ParameterVector:
         return len(self._params)
 
     def __str__(self) -> str:
-        return f"{self._name}, {[str(p) for p in self._params]}"
+        elements = ", ".join(str(p) for p in self._params)
+        return f"{self._name}: [{elements}]"
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(name={self._name!r}, length={len(self)})"
+        return f"<{type(self).__name__} {self._name!r} with {len(self)} element(s)>"
 
 
 def free_parameters(expr) -> List[Parameter]:

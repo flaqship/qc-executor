@@ -187,6 +187,34 @@ class QuantumCircuitBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def ch(self, control_qubit: int, target_qubit: int):
+        """Add CH (controlled-Hadamard) gates"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def i(self, qubits: int | List[int]):
+        """Add Identity gates"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def u(self, qubits: int | List[int], theta: float, phi: float, lam: float):
+        """Add U gates (general single-qubit unitary, 3 parameters)"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def cu(
+        self,
+        control_qubit: int,
+        target_qubit: int,
+        theta: float,
+        phi: float,
+        lam: float,
+        gamma: float,
+    ):
+        """Add CU gates (general controlled unitary, 4 parameters)"""
+        raise NotImplementedError
+
+    @abstractmethod
     def barrier(self, qubits: int | List[int]):
         """Add barrier gates"""
         raise NotImplementedError

@@ -173,7 +173,31 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add SWAP gates"""
         self._qiskit_circuit.swap(qubit1, qubit2)
 
-    def barrier(self, qubits: int | List[int]):
+    def ch(self, control_qubit: int, target_qubit: int):
+        """Add CH gates"""
+        self._qiskit_circuit.ch(control_qubit, target_qubit)
+
+    def i(self, qubits: int | List[int]):
+        """Add Identity gates"""
+        self._qiskit_circuit.id(qubits)
+
+    def u(self, qubits: int | List[int], theta: float, phi: float, lam: float):
+        """Add U gates"""
+        self._qiskit_circuit.u(theta, phi, lam, qubits)
+
+    def cu(
+        self,
+        control_qubit: int,
+        target_qubit: int,
+        theta: float,
+        phi: float,
+        lam: float,
+        gamma: float,
+    ):
+        """Add CU gates"""
+        self._qiskit_circuit.cu(theta, phi, lam, gamma, control_qubit, target_qubit)
+
+    def barrier(self, qubits: int | List[int] = None):
         """Add barrier gates"""
         self._qiskit_circuit.barrier(qubits)
 

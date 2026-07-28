@@ -199,7 +199,10 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def barrier(self, qubits: int | List[int] = None):
         """Add barrier gates"""
-        self._qiskit_circuit.barrier(qubits)
+        if qubits is None:
+            self._qiskit_circuit.barrier()
+        else:
+            self._qiskit_circuit.barrier(qubits)
 
     def measure(self):
         """Add measure gates"""

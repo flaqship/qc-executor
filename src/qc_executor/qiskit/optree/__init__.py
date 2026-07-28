@@ -10,6 +10,7 @@ from .optree import (  # pylint: disable=cyclic-import
     OpTreeOperator,
     OpTreeSum,
     OpTreeValue,
+    OpTreeElementBase,
 )
 from .optree_derivative import OpTreeDerivative  # pylint: disable=cyclic-import
 from .optree_evaluate import OpTreeEvaluate  # pylint: disable=cyclic-import
@@ -26,4 +27,5 @@ __all__ = [
     "OpTreeMeasuredOperator",
     "OpTreeContainer",
     "OpTreeValue",
+    "OpTreeElementBase",
 ]

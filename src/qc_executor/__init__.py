@@ -4,7 +4,7 @@ import logging
 
 from . import base
 from .factory import Executor
-from .parameters import Parameters
+from .parameters import Parameters, Parameter
 from .quantum_circuit import QuantumCircuit
 from .quantum_operator import QuantumOperator
 
@@ -37,13 +37,7 @@ except ImportError as e:
 
 __version__ = "0.1.0"
 
-__all__ = [
-    "Executor",
-    "base",
-    "QuantumCircuit",
-    "QuantumOperator",
-    "Parameters",
-]
+__all__ = ["Executor", "base", "QuantumCircuit", "QuantumOperator", "Parameters", "Parameter"]
 
 # Add optional backends to __all__ if available
 if qiskit is not None:

@@ -210,3 +210,6 @@ class QuantumOperatorBase(ABC):
 
     def __repr__(self):
         raise NotImplementedError
+    
+    def __add__(self, other):
+        raise NotImplementedError

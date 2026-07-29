@@ -245,3 +245,17 @@ class QuantumOperator(QuantumOperatorBase):
             String representation of the operator.
         """
         return str(self._qiskit_operator)
+    
+    def __add__(self, other: "QuantumOperatorBase") -> "QuantumOperator":
+        """
+        Add two QuantumOperator instances.
+
+        Args:
+            other (QuantumOperatorBase): The other QuantumOperator instance to add.
+
+        Returns:
+            QuantumOperator: A new QuantumOperator instance representing the sum of the two operators.
+        """
+        if not isinstance(other, QuantumOperator):
+            raise TypeError("Can only add another QuantumOperator instance")
+        return self.__class__(_native_operator=self._qiskit_operator + other.qiskit_operator)

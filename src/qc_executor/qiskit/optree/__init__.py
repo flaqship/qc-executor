@@ -4,13 +4,13 @@ from .optree import (  # pylint: disable=cyclic-import
     OpTree,
     OpTreeCircuit,
     OpTreeContainer,
+    OpTreeElementBase,
     OpTreeExpectationValue,
     OpTreeList,
     OpTreeMeasuredOperator,
     OpTreeOperator,
     OpTreeSum,
     OpTreeValue,
-    OpTreeElementBase,
 )
 from .optree_derivative import OpTreeDerivative  # pylint: disable=cyclic-import
 from .optree_evaluate import OpTreeEvaluate  # pylint: disable=cyclic-import

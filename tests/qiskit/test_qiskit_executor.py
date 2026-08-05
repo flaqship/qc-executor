@@ -164,10 +164,10 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(max_cache_size=64)
         assert executor._max_cache_size == 64
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that cache is unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that the default cache bound is used when max_cache_size is not specified."""
         executor = QiskitExecutor()
-        assert executor._max_cache_size is None
+        assert executor._max_cache_size == 4096
 
     def test_expectation_value_bell_state_z_basis(self):
         """Test expectation value of Bell state with Z observables."""
@@ -302,7 +302,8 @@ class TestQiskitExecutor:
         result = executor.sample(qc, x=[np.pi])
 
         assert isinstance(result, dict)
-        # After RX(pi), qubit 0 should be flipped
+        # After RX(pi), qubit 0 should be flipped; the public bitstring
+        # convention puts qubit 0 leftmost.
         assert "10" in result
         assert result["10"] >= 900  # Should have high count
 
@@ -484,7 +485,7 @@ class TestStandaloneParameterSupport:
         result = executor.expectation_value(qc, operator, theta=0.0)
 
         assert isinstance(result, (float, np.floating, np.ndarray))
-        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+        assert np.isclose(np.real(result), 1.0, atol=1e-5)
 
     def test_expectation_value_standalone_parameter_pi(self):
         """RY(pi)|0> = |1>, <Z> = -1 with a standalone Parameter."""
@@ -495,7 +496,7 @@ class TestStandaloneParameterSupport:
         executor = QiskitExecutor()
         result = executor.expectation_value(qc, operator, theta=np.pi)
 
-        assert np.isclose(float(np.real(result)), -1.0, atol=1e-5)
+        assert np.isclose(np.real(result), -1.0, atol=1e-5)
 
     def test_statevector_standalone_parameter(self):
         """statevector works with a standalone Parameter."""
@@ -534,7 +535,7 @@ class TestStandaloneParameterSupport:
         # RY(0)⊗RY(0)|00> = |00>, <ZZ> = 1
         result = executor.expectation_value(qc, operator, alpha=0.0, beta=0.0)
 
-        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+        assert np.isclose(np.real(result), 1.0, atol=1e-5)
 
 
 class TestParameterVectorSupport:
@@ -577,10 +578,10 @@ class TestParameterVectorSupport:
         """ParameterVector elements are bound by index correctly."""
         x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        operator = QuantumOperator(["IZ"], [1.0])
+        operator = QuantumOperator(["ZI"], [1.0])
 
         executor = QiskitExecutor()
-        # x[0]=pi → qubit 0 flipped → <IZ> = -1; x[1]=0 → qubit 1 unchanged
+        # x[0]=pi → qubit 0 flipped → <ZI> = -1; x[1]=0 → qubit 1 unchanged
         result = executor.expectation_value(qc, operator, x=[np.pi, 0.0])
 
         assert np.isclose(result, -1.0, atol=1e-5)
@@ -607,7 +608,7 @@ class TestMixedParameterEdgeCases:
         op_b = QuantumOperator(["Z"], [1.0])
         result_b = executor.expectation_value(qc_b, op_b, x=[angle])
 
-        assert np.isclose(float(np.real(result_a)), float(np.real(result_b)), atol=1e-5)
+        assert np.isclose(np.real(result_a), np.real(result_b), atol=1e-5)
 
     def test_scalar_value_for_standalone_parameter(self):
         """A scalar (non-list) value can be passed for a standalone Parameter."""
@@ -618,7 +619,7 @@ class TestMixedParameterEdgeCases:
         executor = QiskitExecutor()
         result = executor.expectation_value(qc, operator, theta=0.0)
 
-        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+        assert np.isclose(np.real(result), 1.0, atol=1e-5)
 
     def test_list_value_for_standalone_parameter(self):
         """A single-element list is also accepted for a standalone Parameter."""
@@ -629,7 +630,7 @@ class TestMixedParameterEdgeCases:
         executor = QiskitExecutor()
         result = executor.expectation_value(qc, operator, theta=[0.0])
 
-        assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+        assert np.isclose(np.real(result), 1.0, atol=1e-5)
 
 
 class TestExecutorInternalHelpers:
@@ -676,6 +677,8 @@ class TestExecutorInternalHelpers:
             def __iter__(self):
                 return iter([_FakePub()])
 
+        # Qiskit-native bitstrings (q0 rightmost) are converted to the
+        # public convention (q0 leftmost).
         v2_counts = executor._extract_counts(_FakeV2Result(), n_qubits=2)
         assert v2_counts == [{"10": 2, "01": 1}]
 
@@ -782,12 +785,12 @@ class TestQubitOrdering:
         assert result["11"] == 100
 
     def test_statevector_x_on_qubit_1(self):
-        """X on qubit 1 → statevector index for |01> should be 1 (q0 leftmost)."""
+        """X on qubit 1 → amplitude at index 1 (big-endian ordering, q0 = MSB)."""
         qc = _build_circuit(2, [("x", [1])])
 
         executor = QiskitExecutor()
         sv = executor.statevector(qc)
 
-        # With q0 leftmost: |01> means q0=0, q1=1
-        # Computational basis: 0*2^1 + 1*2^0 = 1 → index 1
+        # Big-endian convention: qubit 0 is the most significant bit, so
+        # q0=0, q1=1 -> index 0*2^1 + 1*2^0 = 1
         assert np.isclose(abs(sv[1]), 1.0, atol=1e-5), f"Expected amplitude at index 1; got {sv}"

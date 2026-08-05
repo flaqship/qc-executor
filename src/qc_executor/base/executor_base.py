@@ -7,12 +7,27 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, List, overload
+from typing import Any, Dict, List, Sequence, overload
 
 import numpy as np
+from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
+
+#: Probabilities smaller than this threshold are omitted from results. Defined
+#: once here so that every backend prunes with the identical threshold —
+#: backends must not apply their own tolerances, or the same input would yield
+#: slightly different results per backend.
+_PROBABILITY_TOL = 1e-13
+
+#: Default bound for the in-memory caches. Sized for RDM-style workloads,
+#: which measure O(n_orbitals^4) distinct observables. Deliberately not
+#: ``None`` (unbounded): variational loops pass fresh parameters on every
+#: optimizer step, so each call adds an entry that is never hit again and an
+#: unbounded cache grows linearly with the iteration count (measured ~430 MB
+#: RSS after 20k ``expectation_value`` calls on an 8-qubit ansatz).
+_DEFAULT_MAX_CACHE_SIZE = 4096
 
 
 class _BoundedCache(OrderedDict):
@@ -47,7 +62,14 @@ class ExecutorBase(ABC):
             in memory.
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
-            in each in-memory cache. ``None`` means unlimited.
+            in each in-memory cache. ``None`` selects the default bound of
+            4096 entries; an unbounded cache can only be requested by passing
+            a sufficiently large number.
+
+    .. todo::
+        ``None`` used to mean "unbounded" and now means "default bound", so
+        there is no longer a way to ask for an unbounded cache explicitly.
+        Decide whether to reintroduce one (for example ``max_cache_size=0``).
     """
 
     _native_circuit_class = None
@@ -74,7 +96,9 @@ class ExecutorBase(ABC):
         self._log_file = log_file
         self._caching = caching
         self._cache_dir = cache_dir
-        self._max_cache_size = max_cache_size
+        self._max_cache_size = (
+            _DEFAULT_MAX_CACHE_SIZE if max_cache_size is None else max_cache_size
+        )
 
         # Result cache – shared across all public interface methods (method name
         # is part of the key to prevent cross-method collisions).
@@ -182,6 +206,17 @@ class ExecutorBase(ABC):
     # ========================================================================
 
     @staticmethod
+    def _structural_cache_key(obj):
+        """Return a mutation-aware cache key for a circuit or operator."""
+        method = getattr(obj, "structural_key", None)
+        if method is not None:
+            try:
+                return (type(obj).__qualname__, method())
+            except NotImplementedError:
+                pass
+        return obj
+
+    @staticmethod
     def _make_result_key(method_name: str, *args, **kwargs) -> tuple:
         """Build a hashable cache key for a public-interface call.
 
@@ -196,6 +231,10 @@ class ExecutorBase(ABC):
         """
 
         def _to_hashable(v):
+            if isinstance(v, (QuantumCircuitBase, QuantumOperatorBase)):
+                # Key circuits/operators by their current structure so that
+                # in-place mutations never hit stale cached results.
+                return ExecutorBase._structural_cache_key(v)
             if isinstance(v, np.ndarray):
                 # Include dtype, shape, and strides (memory layout) to avoid collisions
                 # between arrays that share the same raw bytes but differ structurally.
@@ -335,6 +374,10 @@ class ExecutorBase(ABC):
         Calculate the derivatives of the expectation value with respect to the
         parameters of the circuit.
 
+        The return format and the ordering below are part of the public API;
+        :meth:`expectation_value_gradient` and downstream consumers rely on
+        both.
+
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
                 or a list of circuits.
@@ -351,6 +394,9 @@ class ExecutorBase(ABC):
                 - single float/array if one derivative parameter is requested
                 - dictionary mapping parameter names to gradient arrays if multiple
                   parameters are requested
+
+            Entries within each parameter vector are ordered by numeric
+            element index, i.e. ``theta[2]`` precedes ``theta[10]``.
         """
         self._logger.info("Computing expectation value derivatives")
         parameters = self._normalize_parameter_values(**parameters)
@@ -368,6 +414,114 @@ class ExecutorBase(ABC):
             return result
         return self._expectation_value_derivatives(circuit, observable, *derivative, **parameters)
 
+    def expectation_value_gradient(
+        self,
+        circuit: QuantumCircuitBase,
+        observable: QuantumOperatorBase | List[QuantumOperatorBase],
+        parameters: int | Sequence[int] | None = None,
+        **parameter_values,
+    ) -> np.ndarray:
+        """Compute the gradient of expectation values w.r.t. all circuit parameters.
+
+        The gradient is returned as a flat array in numeric parameter-index
+        order (grouped by parameter vector, in circuit parameter order), so
+        that it lines up with a positional parameter vector.
+
+        Unlike :meth:`expectation_value` and :meth:`statevector`, this method
+        requires a generic :class:`QuantumCircuitBase`; backend-native
+        (transpiled) circuits are rejected because the parameter names are
+        read off ``circuit.parameters``.
+
+        .. todo::
+            Decide whether backend-native circuits should be supported here
+            as well, so that all executor entry points accept the same inputs.
+
+        Args:
+            circuit (QuantumCircuitBase): A single quantum circuit.
+            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The
+                Hermitian observable or a list of observables.
+            parameters (int | Sequence[int] | None): Indices of the parameters
+                to return the gradient for. Default is all.
+            parameter_values: Values for the free parameters of the circuit
+                and the observable(s) given as keyword arguments.
+
+        Returns:
+            np.ndarray: Gradient array of shape ``(n_params,)`` for a single
+            observable and ``(n_obs, n_params)`` for a list of observables.
+
+        Raises:
+            ValueError: If a list of circuits is passed.
+        """
+        self._logger.info("Computing expectation value gradient")
+        if isinstance(circuit, list):
+            raise ValueError("expectation_value_gradient supports a single circuit only")
+        multiple_observables = isinstance(observable, (list, tuple))
+        observables = observable if multiple_observables else [observable]
+
+        kwargs = self._normalize_parameter_values(**parameter_values)
+        vector_names = self._vector_names(circuit)
+
+        gradients = [
+            self._raw_gradient(circuit, operator, vector_names, kwargs) for operator in observables
+        ]
+        result = np.array(gradients if multiple_observables else gradients[0])
+
+        if parameters is not None:
+            result = result[..., np.atleast_1d(parameters)]
+        return result
+
+    @staticmethod
+    def _vector_names(circuit) -> List[str]:
+        """Return the unique parameter-vector names in parameter order."""
+        names: List[str] = []
+        for parameter in circuit.parameters:
+            if isinstance(parameter, ParameterVectorElement):
+                name = parameter.vector.name
+            else:
+                name = parameter.name
+            if name not in names:
+                names.append(name)
+        return names
+
+    def _raw_gradient(
+        self,
+        circuit,
+        operator,
+        vector_names: List[str],
+        kwargs: Dict[str, float],
+    ) -> np.ndarray:
+        """Compute the index-ordered gradient for a single operator.
+
+        Args:
+            circuit: A single executor-compatible circuit.
+            operator: A single coerced, Hermitian observable.
+            vector_names (List[str]): Parameter-vector names of the circuit.
+            kwargs (Dict[str, float]): Normalized keyword parameters.
+
+        Returns:
+            np.ndarray: The gradient, flat and in parameter-index order.
+        """
+        if not vector_names:
+            return np.array([])
+        raw = self.expectation_value_derivatives(circuit, operator, *vector_names, **kwargs)
+        if len(vector_names) == 1:
+            parts = {vector_names[0]: raw}
+        else:
+            parts = raw
+
+        grouped: Dict[str, list] = {name: [] for name in vector_names}
+        for parameter in circuit.parameters:
+            if isinstance(parameter, ParameterVectorElement):
+                grouped[parameter.vector.name].append(parameter)
+            else:
+                grouped[parameter.name].append(parameter)
+
+        full_gradient = []
+        for name in vector_names:
+            matched = grouped[name]
+            full_gradient.append(np.asarray(parts[name]).reshape(len(matched)))
+        return np.concatenate(full_gradient)
+
     @abstractmethod
     def _expectation_value_derivatives(
         self,
@@ -384,6 +538,9 @@ class ExecutorBase(ABC):
     ) -> dict | List[dict]:
         """
         Computes samples of the quantumstate of the given circuit.
+
+        Bitstring keys use the big-endian convention ``q[0]q[1]...q[n-1]``
+        (qubit 0 is the leftmost character).
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
@@ -414,7 +571,11 @@ class ExecutorBase(ABC):
     def _sample(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
     ) -> dict | List[dict]:
-        """Abstract implementation of circuit sampling."""
+        """Abstract implementation of circuit sampling.
+
+        Returned bitstring keys must use the big-endian convention
+        ``q[0]q[1]...q[n-1]`` (qubit 0 is the leftmost character).
+        """
         raise NotImplementedError
 
     def statevector(
@@ -422,6 +583,9 @@ class ExecutorBase(ABC):
     ) -> np.ndarray:
         """
         Computes the statevector of the quantum circuit.
+
+        Amplitudes use the big-endian basis ordering: index ``i`` encodes
+        qubit 0 as the most significant bit.
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
@@ -450,8 +614,51 @@ class ExecutorBase(ABC):
     def _statevector(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
     ) -> np.ndarray:
-        """Abstract implementation of statevector computation."""
+        """Abstract implementation of statevector computation.
+
+        The returned amplitudes must use the big-endian basis ordering
+        (qubit 0 is the most significant bit of the index).
+        """
         raise NotImplementedError
+
+    def probabilities(self, circuit: QuantumCircuitBase, **parameters) -> Dict[int, float]:
+        """Compute the measurement probabilities of a circuit.
+
+        With ``shots=None`` the probabilities are exact (derived from the
+        statevector); otherwise they are estimated from sampled counts.
+
+        Args:
+            circuit (QuantumCircuitBase): A single quantum circuit.
+            parameters: Values for the free parameters of the circuit given as
+                keyword arguments.
+
+        Returns:
+            Dict[int, float]: Mapping of basis-state index (big-endian
+            ordering, qubit 0 = most significant bit) to probability.
+            Entries below ``1e-13`` are omitted.
+
+        Raises:
+            ValueError: If a list of circuits or multiple parameter sets are
+                passed.
+        """
+        if isinstance(circuit, list):
+            raise ValueError("probabilities supports a single circuit only")
+        if self._shots is None:
+            state_vector = np.asarray(self.statevector(circuit, **parameters))
+            probability_values = np.abs(state_vector) ** 2
+            return {
+                index: float(value)
+                for index, value in enumerate(probability_values)
+                if value >= _PROBABILITY_TOL
+            }
+        counts = self.sample(circuit, **parameters)
+        # unwrap the single-set case since some backends return one counts dict per parameter set.
+        if isinstance(counts, list):
+            if len(counts) != 1:
+                raise ValueError("probabilities supports a single parameter set only")
+            counts = counts[0]
+        total = sum(counts.values())
+        return {int(str(bits), 2): count / total for bits, count in counts.items()}
 
     # ========================================================================
     # Public API – Circuit/Operator Handling

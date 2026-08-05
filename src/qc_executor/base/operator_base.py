@@ -196,6 +196,10 @@ class QuantumOperatorBase(ABC):
         """
         raise NotImplementedError
 
+    def structural_key(self) -> tuple:
+        """Return a hashable key describing the current operator structure."""
+        raise NotImplementedError
+
     def __hash__(self):
         raise NotImplementedError(
             "Hashing is not implemented for this class. "
@@ -210,6 +214,6 @@ class QuantumOperatorBase(ABC):
 
     def __repr__(self):
         raise NotImplementedError
-    
+
     def __add__(self, other):
         raise NotImplementedError

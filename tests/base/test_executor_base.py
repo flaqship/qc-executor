@@ -29,7 +29,8 @@ class DummyExecutor(ExecutorBase):
 
     def _expectation_value(self, circuit, observable, **parameters):
         self.calls["expectation"] += 1
-        return ("ev", circuit, observable, parameters)
+        self.last_expectation_args = (circuit, observable, parameters)
+        return float(self.calls["expectation"])
 
     def _expectation_value_derivatives(self, circuit, observable, *derivative, **parameters):
         self.calls["derivatives"] += 1
@@ -117,7 +118,7 @@ class TestExecutorBaseCachingAndDelegation:
         first = ex.expectation_value("c0", "o0", x=[0.1, 0.2])
         second = ex.expectation_value("c0", "o0", x=[0.1, 0.2])
 
-        assert first == second
+        assert np.array_equal(first, second)
         assert ex.calls["expectation"] == 1
 
     def test_expectation_value_derivatives_uses_cache_and_derivative_key(self):

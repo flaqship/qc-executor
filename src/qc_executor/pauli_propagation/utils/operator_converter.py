@@ -74,8 +74,9 @@ def _convert_sparse_pauli_op(sparse_op: "SparsePauliOp") -> PauliSum:
 
     # Iterate through Pauli terms and coefficients
     for pauli, coeff in zip(sparse_op.paulis, sparse_op.coeffs):
-        # Qiskit labels already use the same public ordering as Pauli propagation.
-        pauli_str = pauli.to_label()
+        # Qiskit labels are little-endian (rightmost character acts on
+        # qubit 0); the internal PauliSum encoding is leftmost-qubit-0.
+        pauli_str = pauli.to_label()[::-1]
         psum.add_term(pauli_str, complex(coeff))
 
     return psum
@@ -93,8 +94,9 @@ def _convert_pauli(pauli: "Pauli") -> PauliSum:
     nqubits = pauli.num_qubits
     psum = PauliSum(nqubits)
 
-    # Qiskit labels already use the same public ordering as Pauli propagation.
-    pauli_str = pauli.to_label()
+    # Qiskit labels are little-endian (rightmost character acts on qubit 0);
+    # the internal PauliSum encoding is leftmost-qubit-0.
+    pauli_str = pauli.to_label()[::-1]
     psum.add_term(pauli_str, 1.0)
     return psum
 
@@ -120,8 +122,9 @@ def pauli_sum_to_sparse_pauli_op(psum: PauliSum) -> "SparsePauliOp":
     coeffs = []
 
     for term, coeff in psum:
-        # Convert term to string using the leftmost-qubit-0 convention.
-        pauli_str = term_to_string(term, psum.nqubits)
+        # Internal terms are leftmost-qubit-0; qiskit labels are
+        # little-endian, so reverse on the way out.
+        pauli_str = term_to_string(term, psum.nqubits)[::-1]
 
         pauli_strings.append(pauli_str)
         coeffs.append(coeff)

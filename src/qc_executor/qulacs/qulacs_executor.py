@@ -103,18 +103,20 @@ class QulacsExecutor(ExecutorBase):
 
         qulacs_circuits = []
 
-        # Check the cache for already converted circuits
+        # Check the cache for already converted circuits. Cache keys are
+        # structural, so in-place mutated circuits never hit stale entries.
         for circ in circuits:
             if isinstance(circ, self._native_circuit_class):
                 qulacs_circuits.append(circ)
                 continue
-            if circ in self._circuit_cache:
+            key = self._structural_cache_key(circ)
+            if key in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
-                qulacs_circuits.append(self._circuit_cache[circ])
+                qulacs_circuits.append(self._circuit_cache[key])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
                 qulacs_circuit = QulacsCircuit(cast(QuantumCircuit, circ))
-                self._circuit_cache[circ] = qulacs_circuit
+                self._circuit_cache[key] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
 
         return qulacs_circuits, multiple_circuits
@@ -144,13 +146,14 @@ class QulacsExecutor(ExecutorBase):
             if isinstance(op, self._native_operator_class):
                 qulacs_operators.append(op)
                 continue
-            if op in self._operator_cache:
+            key = self._structural_cache_key(op)
+            if key in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
-                qulacs_operators.append(self._operator_cache[op])
+                qulacs_operators.append(self._operator_cache[key])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
                 qulacs_operator = QulacsOperator(op)
-                self._operator_cache[op] = qulacs_operator
+                self._operator_cache[key] = qulacs_operator
                 qulacs_operators.append(qulacs_operator)
 
         return qulacs_operators, multiple_operators
@@ -487,8 +490,12 @@ class QulacsExecutor(ExecutorBase):
                 else:
                     raise ValueError("Unknown parameter type:", type(todo[0]))
             if len(parameter_vector) > 0:
-                indices = np.argsort([str(t) for t in parameter_vector])
-                parameter_vector = [parameter_vector[i] for i in indices]
+                # Sort numerically by vector name and element index; a plain
+                # string sort would order theta[10] before theta[2].
+                parameter_vector = sorted(
+                    parameter_vector,
+                    key=lambda p: (remove_brackets(p.name), getattr(p, "index", 0)),
+                )
 
             # get the parameter objects for the requested observable derivatives
             observable_vector = []
@@ -506,8 +513,10 @@ class QulacsExecutor(ExecutorBase):
                 else:
                     raise ValueError("Unknown parameter type:", type(todo[0]))
             if len(observable_vector) > 0:
-                indices = np.argsort([str(t) for t in observable_vector])
-                observable_vector = [observable_vector[i] for i in indices]
+                observable_vector = sorted(
+                    observable_vector,
+                    key=lambda p: (remove_brackets(p.name), getattr(p, "index", 0)),
+                )
 
             # Compute the requested derivatives
             if len(parameter_vector) == 0 and len(observable_vector) == 0:

@@ -81,12 +81,12 @@ class TestQulacsExecutorLoggingAndCache:
         executor = QulacsExecutor(max_cache_size=1)
         assert executor._operator_cache.max_size == 1
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that caches are unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that caches use the default bound when max_cache_size is not specified."""
         executor = QulacsExecutor()
-        assert executor._max_cache_size is None
-        assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._max_cache_size == 4096
+        assert executor._circuit_cache.max_size == 4096
+        assert executor._operator_cache.max_size == 4096
 
 
 class TestQulacsExecutorPreprocessingAndTranspile:
@@ -217,6 +217,8 @@ class TestQulacsExecutorExpectationAndStatevector:
         qc_both = _build_circuit(3, [("x", [0]), ("x", [1]), ("ccx", [0, 1, 2])])
         # Only one control set -> target stays |0>, <Z> on target = +1
         qc_one = _build_circuit(3, [("x", [0]), ("ccx", [0, 1, 2])])
+        # Z on the target qubit 2; public labels are big-endian
+        # (leftmost character acts on qubit 0).
         op = QuantumOperator(["IIZ"], [1.0])
 
         executor = QulacsExecutor()

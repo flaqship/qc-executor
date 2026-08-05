@@ -21,6 +21,7 @@ import pytest
 
 from qc_executor import Executor, QuantumCircuit, QuantumOperator
 from qc_executor.base.circuit_base import QuantumCircuitBase
+from qc_executor.base.executor_base import ExecutorBase
 from qc_executor.base.operator_base import QuantumOperatorBase
 from qc_executor.parameters import Parameters
 from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
@@ -220,7 +221,8 @@ class TestPennylaneSampling:
 
         samples = result[0]
         assert isinstance(samples, dict)
-        # After RX(pi), qubit 0 should be flipped
+        # After RX(pi), qubit 0 should be flipped; the public bitstring
+        # convention puts qubit 0 leftmost.
         assert "10" in samples
         assert samples["10"] >= 900  # Should have high count
 
@@ -472,32 +474,55 @@ class TestPennylaneCaching:
     """Test suite for PennyLane executor caching."""
 
     def test_circuit_caching(self):
-        """Test that circuits are properly cached."""
+        """Test that circuits are cached under their structural key."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         executor = PennyLaneExecutor()
 
         # First call should add to cache
         executor._preprocess_circuits(qc)
-        assert qc in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc) in executor._circuit_cache
 
         # Second call should use cache
         cached_circuits, _ = executor._preprocess_circuits(qc)
         assert len(cached_circuits) == 1
-        assert cached_circuits[0] is executor._circuit_cache[qc]
+        assert (
+            cached_circuits[0] is executor._circuit_cache[ExecutorBase._structural_cache_key(qc)]
+        )
+
+        # A structurally identical fresh object hits the same entry
+        qc_clone = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        cached_clone, _ = executor._preprocess_circuits(qc_clone)
+        assert cached_clone[0] is cached_circuits[0]
+        assert len(executor._circuit_cache) == 1
+
+        # An in-place mutation produces a fresh conversion
+        qc.x(0)
+        mutated, _ = executor._preprocess_circuits(qc)
+        assert mutated[0] is not cached_circuits[0]
+        assert len(executor._circuit_cache) == 2
 
     def test_observable_caching(self):
-        """Test that operators are properly cached."""
+        """Test that operators are cached under their structural key."""
         operator = QuantumOperator(["ZI"], [1.0])
         executor = PennyLaneExecutor()
 
         # First call should add to cache
         executor._preprocess_operators(operator)
-        assert operator in executor._operator_cache
+        assert ExecutorBase._structural_cache_key(operator) in executor._operator_cache
 
         # Second call should use cache
         cached_operators, _ = executor._preprocess_operators(operator)
         assert len(cached_operators) == 1
-        assert cached_operators[0] is executor._operator_cache[operator]
+        assert (
+            cached_operators[0]
+            is executor._operator_cache[ExecutorBase._structural_cache_key(operator)]
+        )
+
+        # A structurally identical fresh object hits the same entry
+        operator_clone = QuantumOperator(["ZI"], [1.0])
+        cached_clone, _ = executor._preprocess_operators(operator_clone)
+        assert cached_clone[0] is cached_operators[0]
+        assert len(executor._operator_cache) == 1
 
 
 class TestPennylaneProperties:
@@ -598,11 +623,14 @@ class TestPennylaneCacheSizeRestriction:
         # Adding a third circuit should evict the oldest (qc1)
         executor._preprocess_circuits(qc3)
         assert len(executor._circuit_cache) == 2
-        assert qc1 not in executor._circuit_cache
-        assert qc2 in executor._circuit_cache
-        assert qc3 in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc1) not in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc2) in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc3) in executor._circuit_cache
         # qc2 was inserted before qc3, so it should be first in the ordered dict
-        assert list(executor._circuit_cache.keys()) == [qc2, qc3]
+        assert list(executor._circuit_cache.keys()) == [
+            ExecutorBase._structural_cache_key(qc2),
+            ExecutorBase._structural_cache_key(qc3),
+        ]
 
     def test_cache_size_restriction_observables(self):
         """Test that operator cache respects max_cache_size with FIFO eviction."""
@@ -619,17 +647,20 @@ class TestPennylaneCacheSizeRestriction:
         # Adding a third operator should evict the oldest (op1)
         executor._preprocess_operators(op3)
         assert len(executor._operator_cache) == 2
-        assert op1 not in executor._operator_cache
-        assert op2 in executor._operator_cache
-        assert op3 in executor._operator_cache
-        assert list(executor._operator_cache.keys()) == [op2, op3]
+        assert ExecutorBase._structural_cache_key(op1) not in executor._operator_cache
+        assert ExecutorBase._structural_cache_key(op2) in executor._operator_cache
+        assert ExecutorBase._structural_cache_key(op3) in executor._operator_cache
+        assert list(executor._operator_cache.keys()) == [
+            ExecutorBase._structural_cache_key(op2),
+            ExecutorBase._structural_cache_key(op3),
+        ]
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that cache is unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that caches use the default bound when max_cache_size is not specified."""
         executor = PennyLaneExecutor()
-        assert executor._max_cache_size is None
-        assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._max_cache_size == 4096
+        assert executor._circuit_cache.max_size == 4096
+        assert executor._operator_cache.max_size == 4096
 
 
 class TestPennylaneResultCaching:
@@ -828,9 +859,11 @@ class TestDeviceInit:
 
     def test_init_string_device_with_kwargs(self):
         """Extra **kwargs are stored and forwarded to qml.device()."""
-        executor = PennyLaneExecutor("default.qubit", custom_decomps={})
+        # "wires" is accepted by every PennyLane version; device-specific
+        # kwargs come and go across releases and would make this version-fragile.
+        executor = PennyLaneExecutor("default.qubit", wires=2)
         assert executor._custom_device is False
-        assert executor._device_kwargs == {"custom_decomps": {}}
+        assert executor._device_kwargs == {"wires": 2}
 
     # -- Device instance init -----------------------------------------------
 

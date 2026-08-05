@@ -12,6 +12,7 @@ from typing import List, cast, overload
 import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
+from packaging.version import Version
 from pennylane.devices import Device
 
 from qc_executor.parameters import Parameter, Parameters
@@ -21,6 +22,10 @@ from ..quantum_circuit import QuantumCircuit
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_operator import PennyLaneOperator
+
+# PennyLane 0.44 deprecated the ``argnum`` keyword of ``qml.jacobian`` in
+# favor of ``argnums``; 0.45 removed it.
+_JACOBIAN_ARG_KEYWORD = "argnums" if Version(qml.__version__) >= Version("0.44.0") else "argnum"
 
 
 def _remove_brackets(s: str) -> str:
@@ -239,18 +244,20 @@ class PennyLaneExecutor(ExecutorBase):
 
         qulacs_circuits = []
 
-        # Check the cache for already converted circuits
+        # Check the cache for already converted circuits. Cache keys are
+        # structural, so in-place mutated circuits never hit stale entries.
         for circ in circuits:
             if isinstance(circ, self._native_circuit_class):
                 qulacs_circuits.append(circ)
                 continue
-            if circ in self._circuit_cache:
+            key = self._structural_cache_key(circ)
+            if key in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
-                qulacs_circuits.append(self._circuit_cache[circ])
+                qulacs_circuits.append(self._circuit_cache[key])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
                 qulacs_circuit = PennyLaneCircuit(cast(QuantumCircuit, circ))
-                self._circuit_cache[circ] = qulacs_circuit
+                self._circuit_cache[key] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
 
         return qulacs_circuits, multiple_circuits
@@ -267,13 +274,14 @@ class PennyLaneExecutor(ExecutorBase):
             if isinstance(op, self._native_operator_class):
                 pennylane_operators.append(op)
                 continue
-            if op in self._operator_cache:
+            key = self._structural_cache_key(op)
+            if key in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
-                pennylane_operators.append(self._operator_cache[op])
+                pennylane_operators.append(self._operator_cache[key])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
                 pennylane_operator = PennyLaneOperator(op)
-                self._operator_cache[op] = pennylane_operator
+                self._operator_cache[key] = pennylane_operator
                 pennylane_operators.append(pennylane_operator)
 
         return pennylane_operators, multiple_operators
@@ -445,7 +453,9 @@ class PennyLaneExecutor(ExecutorBase):
                 observable_parameters_adjusted[obs_idx] = pnp.array(
                     observable_parameters_adjusted[obs_idx], requires_grad=True
                 )
-            pennylane_derivative = qml.jacobian(pennylane_derivative, argnum=arg_index)
+            pennylane_derivative = qml.jacobian(
+                pennylane_derivative, **{_JACOBIAN_ARG_KEYWORD: arg_index}
+            )
 
         result = np.real_if_close(
             np.array(

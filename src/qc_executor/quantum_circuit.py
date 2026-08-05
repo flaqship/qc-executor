@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from typing import List
 
+import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
+from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase
@@ -32,10 +34,41 @@ class QuantumCircuit(QuantumCircuitBase):
         """Identity conversion for generic circuits."""
         return circuit
 
+    @classmethod
+    def from_qiskit(cls, circuit: QiskitQuantumCircuit) -> "QuantumCircuit":
+        """Wrap a native qiskit circuit.
+
+        Args:
+            circuit (QiskitQuantumCircuit): The qiskit circuit to wrap. The
+                circuit is used as-is (not copied).
+
+        Returns:
+            QuantumCircuit: The wrapping circuit.
+        """
+        return cls(circuit.num_qubits, _native_circuit=circuit)
+
     @property
     def qiskit_circuit(self) -> QiskitQuantumCircuit:
         """The underlying Qiskit circuit."""
         return self._qiskit_circuit
+
+    @qiskit_circuit.setter
+    def qiskit_circuit(self, circuit: QiskitQuantumCircuit) -> None:
+        """Replace the underlying Qiskit circuit.
+
+        Args:
+            circuit (QiskitQuantumCircuit): The new native circuit. Must act
+                on the same number of qubits.
+
+        Raises:
+            ValueError: If the qubit count differs from the current circuit.
+        """
+        if circuit.num_qubits != self._num_qubits:
+            raise ValueError(
+                f"Replacement circuit must have {self._num_qubits} qubits, "
+                f"got {circuit.num_qubits}."
+            )
+        self._qiskit_circuit = circuit
 
     @property
     def num_qubits(self) -> int:
@@ -57,9 +90,9 @@ class QuantumCircuit(QuantumCircuitBase):
         """Check if the wavefunction is parameterized."""
         return len(self.parameters) > 0
 
-    def draw(self) -> str:
-        """Returns printable string representation of the circuit."""
-        raise NotImplementedError
+    def draw(self):
+        """Return a printable text representation of the circuit."""
+        return self._qiskit_circuit.draw("text")
 
     def h(self, qubits: int | List[int]):
         """Add hadamard gates"""
@@ -173,6 +206,10 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add SWAP gates"""
         self._qiskit_circuit.swap(qubit1, qubit2)
 
+    def cswap(self, control_qubit: int, qubit1: int, qubit2: int):
+        """Add a controlled-SWAP (Fredkin) gate."""
+        self._qiskit_circuit.cswap(control_qubit, qubit1, qubit2)
+
     def ch(self, control_qubit: int, target_qubit: int):
         """Add CH gates"""
         self._qiskit_circuit.ch(control_qubit, target_qubit)
@@ -211,12 +248,81 @@ class QuantumCircuit(QuantumCircuitBase):
     # pauli_string, pauli_evolution and controlled_pauli_evolution are
     # inherited from QuantumCircuitBase.
 
-    def compose(self, qc: QuantumCircuitBase, qubits: List[int]) -> "QuantumCircuit":
-        """Compose two quantum circuits."""
-        if isinstance(qc, QuantumCircuit):
-            self._qiskit_circuit.compose(qc.qiskit_circuit, qubits, inplace=True)
-            return self
-        raise ValueError("The circuit to compose must be a QuantumCircuit object")
+    def compose(
+        self,
+        qc: QuantumCircuitBase,
+        qubits: List[int] | None = None,
+        new_parameters: bool = True,
+    ) -> "QuantumCircuit":
+        """Compose another circuit into this one (always in place).
+
+        Parameters of both circuits are re-indexed into a single fresh
+        parameter vector so that repeatedly composing circuits that use
+        identically named parameter vectors never collides. The parameters of
+        ``self`` keep their positions; the parameters of ``qc`` are appended.
+
+        Args:
+            qc (QuantumCircuitBase): Circuit to compose with.
+            qubits (List[int] | None): Qubit indices of ``self`` that the
+                qubits of ``qc`` are mapped onto. Defaults to the identity
+                mapping, which requires equal qubit counts.
+            new_parameters (bool): If True (default), the parameters of ``qc``
+                are appended after the parameters of ``self``. If False, the
+                parameters of both circuits are merged positionally, i.e.
+                parameter ``i`` of ``qc`` becomes parameter ``i`` of ``self``.
+
+        Returns:
+            QuantumCircuit: This circuit, after composition.
+
+        Raises:
+            ValueError: If ``qc`` is not a compatible circuit or the qubit
+                mapping is invalid.
+        """
+        if not isinstance(qc, QuantumCircuit):
+            raise ValueError("QuantumCircuit can only compose with QuantumCircuit objects")
+
+        if qubits is None:
+            if self.num_qubits != qc.num_qubits:
+                raise ValueError(
+                    "When qubits=None, both circuits must have the same number of qubits "
+                    f"(got self.num_qubits={self.num_qubits}, qc.num_qubits={qc.num_qubits})."
+                )
+            qubits = list(range(qc.num_qubits))
+
+        if len(qubits) != qc.num_qubits:
+            raise ValueError(
+                f"Qubit mapping length must equal qc.num_qubits "
+                f"(got len(qubits)={len(qubits)}, qc.num_qubits={qc.num_qubits})."
+            )
+        if any(q < 0 or q >= self.num_qubits for q in qubits):
+            raise ValueError("Qubit mapping contains indexes out of range for the target circuit.")
+
+        own = self._qiskit_circuit
+        other = qc.qiskit_circuit
+
+        if own.parameters and other.parameters:
+            # TODO: Merging squashes both circuits into a single vector named
+            # after self's first parameter, so qc's parameters are renamed
+            # (e.g. "y[0]" becomes "x[1]") and keyword access via the old name
+            # stops working. Decide whether the original names should be kept.
+            own_params = list(own.parameters)
+            other_params = list(other.parameters)
+            first = own_params[0]
+            name = first.vector.name if isinstance(first, ParameterVectorElement) else first.name
+            if new_parameters:
+                merged = ParameterVector(name, len(own_params) + len(other_params))
+                other_target = merged[len(own_params) :]
+            else:
+                merged = ParameterVector(name, max(len(own_params), len(other_params)))
+                other_target = merged[: len(other_params)]
+            own.assign_parameters(dict(zip(own_params, merged[: len(own_params)])), inplace=True)
+            other_assigned = other.assign_parameters(
+                dict(zip(other_params, other_target)), inplace=False
+            )
+            own.compose(other_assigned, qubits, inplace=True)
+        else:
+            own.compose(other, qubits, inplace=True)
+        return self
 
     def assign_parameters(self, parameters: dict):
         """Change parameters in the circuit.
@@ -225,6 +331,16 @@ class QuantumCircuit(QuantumCircuitBase):
             parameters (np.array): parameters to assign to the circuit
         """
         self._qiskit_circuit.assign_parameters(parameters, inplace=True)
+
+    def fixate_parameters(self, parameters: np.ndarray) -> None:
+        """Bind all free parameters, removing them from the circuit.
+
+        Args:
+            parameters (np.ndarray): Values to assign, in parameter order.
+        """
+        self._qiskit_circuit.assign_parameters(
+            dict(zip(self._qiskit_circuit.parameters, parameters)), inplace=True
+        )
 
     def invert(self) -> "QuantumCircuit":
         """Invert the circuit."""
@@ -246,8 +362,22 @@ class QuantumCircuit(QuantumCircuitBase):
         """Convert the circuit to a qasm string"""
         raise NotImplementedError
 
+    def structural_key(self) -> tuple:
+        """Return a hashable key describing the current circuit structure.
+
+        Recomputed on every call so that in-place mutations are always
+        reflected; never memoize this value.
+        """
+        return _circuit_key(self._qiskit_circuit)
+
     def __hash__(self):
         return hash(_circuit_key(self._qiskit_circuit))
+
+    def __eq__(self, other):
+        """Structural equality, consistent with the structural ``__hash__``."""
+        return isinstance(other, QuantumCircuit) and _circuit_key(
+            self._qiskit_circuit
+        ) == _circuit_key(other._qiskit_circuit)
 
     def __str__(self):
         return str(self._qiskit_circuit)

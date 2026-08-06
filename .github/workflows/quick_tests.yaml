@@ -33,6 +33,24 @@ jobs:
       - name: Test with pytest
         run: uv run pytest tests/
 
+  core_isolation:
+    name: Core install without optional backends
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install without optional extras
+        run: uv sync --group dev
+
+      - name: Verify the core package imports and optional backends degrade gracefully
+        run: uv run pytest tests/test_import_isolation.py -v
+
   coverage:
     name: Coverage Gate
     runs-on: ubuntu-latest

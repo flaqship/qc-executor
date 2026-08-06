@@ -577,10 +577,10 @@ class TestParameterVectorSupport:
         """ParameterVector elements are bound by index correctly."""
         x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        operator = QuantumOperator(["IZ"], [1.0])
+        operator = QuantumOperator(["ZI"], [1.0])
 
         executor = QiskitExecutor()
-        # x[0]=pi → qubit 0 flipped → <IZ> = -1; x[1]=0 → qubit 1 unchanged
+        # x[0]=pi -> qubit 0 flipped -> <Z on qubit 0> = -1; x[1]=0 leaves qubit 1
         result = executor.expectation_value(qc, operator, x=[np.pi, 0.0])
 
         assert np.isclose(result, -1.0, atol=1e-5)
@@ -735,7 +735,7 @@ class TestExecutorInternalHelpers:
         executor = QiskitExecutor()
         generic_operator = QuantumOperator(["Z"], [1.0])
         wrapped_operator = executor._transpile_operator(generic_operator)
-        assert wrapped_operator.qiskit_operator is generic_operator._qiskit_operator
+        assert wrapped_operator.qiskit_operator == generic_operator.qiskit_operator
 
         native_operator = QiskitOperator(generic_operator)
         assert executor._transpile_operator(native_operator) is native_operator

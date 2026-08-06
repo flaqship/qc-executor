@@ -1,268 +1,46 @@
-"""Concrete quantum operator implementation backed by a Qiskit SparsePauliOp."""
+"""The framework-independent quantum operator.
+
+``QuantumOperator`` is a thin leaf on
+:class:`~qc_executor.base.operator_base.QuantumOperatorBase`: the sparse Pauli
+representation, the algebra and the parameter handling all live in the base and
+are shared verbatim with every backend's native operator type.
+"""
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, cast
-
-from qiskit.quantum_info import SparsePauliOp
+from typing import Any
 
 from .base import QuantumOperatorBase
-from .utils.qiskit_hash_functions import _observable_key
 
-
-def _coeffs(coeffs: List) -> List:
-    """Convert symbolic coefficients to Qiskit's parameter representation.
-
-    Coefficients are supplied as numbers or as SymPy expressions built from
-    :class:`~qc_executor.parameters.Parameter`; ``SparsePauliOp`` cannot consume
-    SymPy, so symbolic entries are compiled to ``ParameterExpression`` here.
-
-    Args:
-        coeffs: The coefficients to convert.
-
-    Returns:
-        The coefficients in a form Qiskit accepts.
-    """
-    # Imported lazily: qc_executor.quantum_operator is imported before the qiskit
-    # subpackage in qc_executor/__init__.py, so a module-level import would cycle.
-    from .qiskit._sympy_bridge import to_qiskit_expr  # pylint: disable=import-outside-toplevel
-
-    return [to_qiskit_expr(coeff) for coeff in coeffs]
+__all__ = ["QuantumOperator"]
 
 
 class QuantumOperator(QuantumOperatorBase):
-    """Quantum operator backed by a Qiskit SparsePauliOp."""
+    """A weighted sum of Pauli strings, not tied to any quantum framework.
 
-    @classmethod
-    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> QuantumOperatorBase:
-        """Identity conversion for generic operators."""
-        return operator
+    Qubit ``q`` is character ``q`` of the label, so ``QuantumOperator(["ZI"],
+    [1.0])`` measures Z on qubit 0.
 
-    def __init__(
-        self,
-        paulis: Optional[List[str]] = None,
-        coeffs: Optional[List[float]] = None,
-        num_qubits: Optional[int] = None,
-        _native_operator: Optional[SparsePauliOp] = None,
-    ):
-        super().__init__(num_qubits=num_qubits, paulis=paulis, coeffs=coeffs)
-        if _native_operator is not None:
-            self._qiskit_operator: SparsePauliOp = _native_operator
-        elif paulis is not None:
-            native_coeffs = None if coeffs is None else _coeffs(coeffs)
-            self._qiskit_operator = SparsePauliOp(paulis, coeffs=cast(Any, native_coeffs))
-        elif num_qubits is not None:
-            self._qiskit_operator = SparsePauliOp.from_list([("I" * num_qubits, 0.0)])
-        else:
-            raise ValueError("Must provide paulis, num_qubits, or _native_operator")
+    Args:
+        paulis: Pauli labels making up the operator.
+        coeffs: One coefficient per label; numbers or SymPy expressions.
+        num_qubits: Width, required only when no labels are given.
+    """
 
     @property
-    def qiskit_operator(self) -> SparsePauliOp:
-        """The underlying Qiskit SparsePauliOp."""
-        return self._qiskit_operator
+    def qiskit_operator(self) -> Any:
+        """The operator translated to Qiskit.
 
-    @property
-    def num_qubits(self) -> int:
-        """Return the number of qubits in the circuit."""
-        return cast(int, self._qiskit_operator.num_qubits)
-
-    @property
-    def num_paulis(self) -> int:
-        """Return the number of Paulis in the operator."""
-        return len(self.paulis)
-
-    @property
-    def paulis(self) -> List[str]:
-        """Return the list of Paulis."""
-        return list(self._qiskit_operator.paulis.to_labels())
-
-    @property
-    def coeffs(self) -> List:
-        """Return the list of coefficients."""
-        return cast(Any, self._qiskit_operator.coeffs).tolist()
-
-    @property
-    def is_parametrized(self) -> bool:
-        """Return True if the operator is parametrized."""
-        return len(self.parameters) > 0
-
-    @property
-    def parameters(self) -> list:
-        """
-        Return the parameters of the operator.
+        Provided so backends that still consume Qiskit objects keep working
+        while they are migrated onto the shared representation.  Requires the
+        ``qiskit`` extra.
 
         Returns:
-            List of parameters.
+            The equivalent ``qiskit.quantum_info.SparsePauliOp``.
         """
-        return list(self._qiskit_operator.parameters)
-
-    @property
-    def num_parameters(self) -> int:
-        """
-        Return the number of parameters in the operator.
-
-        Returns:
-            Number of parameters.
-        """
-        return len(self.parameters)
-
-    def copy(self) -> "QuantumOperatorBase":
-        """
-        Return a copy of the operator.
-
-        Returns:
-            Copy of the operator.
-        """
-        return_value = self.__class__(_native_operator=self._qiskit_operator.copy())
-        return return_value
-
-    def adjoint(self) -> "QuantumOperatorBase":
-        """
-        Return the adjoint of the operator.
-
-        Returns:
-            Adjoint of the operator.
-        """
-        return_value = self.__class__(_native_operator=self._qiskit_operator.adjoint())
-        return return_value
-
-    def apply_layout(self, layout: List[int]) -> "QuantumOperatorBase":
-        """
-        Apply a layout to the operator.
-
-        Args:
-            layout (List[int]): Layout to apply.
-
-        Returns:
-            Operator with applied layout.
-        """
-        return_value = self.__class__(_native_operator=self._qiskit_operator.apply_layout(layout))
-        return return_value
-
-    def compose(self, other: "QuantumOperatorBase") -> "QuantumOperatorBase":
-        """
-        Compose the operator with another operator.
-
-        Args:
-            other (QuantumOperatorBase): Operator to compose with.
-
-        Returns:
-            Composed operator.
-        """
-
-        if not isinstance(other, QuantumOperator):
-            raise TypeError("Can only compose with a QuantumOperator instance")
-        self._qiskit_operator = self._qiskit_operator.compose(other.qiskit_operator)
-        return self
-
-    def append(self, pauli: str, coeff=None) -> "QuantumOperatorBase":
-        """
-        Append a Pauli operator with a coefficient to the operator.
-
-        Args:
-            pauli (str): Pauli operator to append.
-            coeff (float): Coefficient of the Pauli operator.
-        """
-        if coeff is None:
-            coeff = 1.0
-
-        self._qiskit_operator = SparsePauliOp.from_list(
-            self._qiskit_operator.to_list() + [(pauli, _coeffs([coeff])[0])]
-        )
-        return self
-
-    def simplify(self) -> "QuantumOperatorBase":
-        """
-        Simplify the operator.
-
-        Returns:
-            Simplified operator.
-        """
-        return_value = self.__class__(_native_operator=self._qiskit_operator.simplify())
-        return return_value
-
-    def transpose(self) -> "QuantumOperatorBase":
-        """
-        Return the transpose of the operator.
-
-        Returns:
-            Transpose of the operator.
-        """
-        return_value = self.__class__(_native_operator=self._qiskit_operator.transpose())
-        return return_value
-
-    def conjugate(self) -> "QuantumOperatorBase":
-        """
-        Return the conjugate of the operator.
-
-        Returns:
-            Conjugate of the operator.
-        """
-        return_value = self.__class__(_native_operator=self._qiskit_operator.conjugate())
-        return return_value
-
-    def group_commuting(self) -> List["QuantumOperatorBase"]:
-        """
-        Group commuting operators.
-
-        Returns:
-            List of commuting operators.
-        """
-        commuting_op = self._qiskit_operator.group_commuting()
-        return [self.__class__(_native_operator=operator) for operator in commuting_op]
-
-    @property
-    def is_unitary(self) -> bool:
-        """
-        Return True if the operator is unitary.
-
-        Returns:
-            True if the operator is unitary.
-        """
-        return self._qiskit_operator.is_unitary()
-
-    @property
-    def is_real(self) -> bool:
-        """
-        Return True if the operator is real.
-
-        Returns:
-            True if the operator is real.
-        """
-        raise NotImplementedError
-
-    @property
-    def is_imaginary(self) -> bool:
-        """
-        Return True if the operator is imaginary.
-
-        Returns:
-            True if the operator is imaginary.
-        """
-        raise NotImplementedError
-
-    def __hash__(self):
-        return hash(_observable_key(self._qiskit_operator))
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, QuantumOperator) and self._qiskit_operator == other._qiskit_operator
+        # Imported lazily so the core package stays free of Qiskit.
+        from .qiskit._ir_bridge import (  # pylint: disable=import-outside-toplevel
+            pauli_ir_to_sparse_pauli_op,
         )
 
-    def __str__(self):
-        """
-        Return the string representation of the operator.
-
-        Returns:
-            String representation of the operator.
-        """
-        return str(self._qiskit_operator)
-
-    def __repr__(self):
-        """
-        Return the string representation of the operator.
-
-        Returns:
-            String representation of the operator.
-        """
-        return str(self._qiskit_operator)
+        return pauli_ir_to_sparse_pauli_op(self._ir)

@@ -15,14 +15,12 @@ from unittest.mock import MagicMock
 import numpy as np
 import pennylane as qml
 import pytest
-
-# This wrapper is still built on Qiskit objects, so these unit tests construct
-# Qiskit parameters directly instead of the framework-independent types.
-from qiskit.circuit import ParameterVector as Parameters
+from qiskit.circuit import ParameterVector as QiskitParameterVector
 from qiskit.quantum_info import SparsePauliOp
 
 from qc_executor import QuantumOperator
 from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.parameters import Parameters
 from qc_executor.pennylane.pennylane_operator import PennyLaneOperator
 
 
@@ -339,7 +337,7 @@ class TestBuildPennylaneObservable:
     def test_single_op_with_params(self):
         """build_pennylane_observable returns a valid function for a parametric operator."""
         theta_vec = Parameters("theta", 1)
-        sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[theta_vec[0], 0.5])
+        sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[QiskitParameterVector("theta", 1)[0], 0.5])
         op_base = _make_quantum_operator_base(sparse_op)
         pl_op = PennyLaneOperator(op_base)
 
@@ -405,7 +403,7 @@ class TestBuildPennylaneObservable:
 
     def test_list_with_params(self):
         """build_pennylane_observable handles a list of parametric operators."""
-        theta_vec = Parameters("theta", 1)
+        theta_vec = QiskitParameterVector("theta", 1)
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[theta_vec[0]])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
         op_base1 = _make_quantum_operator_base(sparse_op1)
@@ -427,7 +425,7 @@ class TestBuildPennylaneObservable:
 
     def test_list_mixed_params_and_no_params_per_op(self):
         """build_pennylane_observable handles a mixed list of parametric and plain operators."""
-        theta_vec = Parameters("theta", 1)
+        theta_vec = QiskitParameterVector("theta", 1)
         sparse_op1 = SparsePauliOp(["ZZ"], coeffs=[theta_vec[0]])
         sparse_op2 = SparsePauliOp(["XX"], coeffs=[0.5])
         op_base1 = _make_quantum_operator_base(sparse_op1)

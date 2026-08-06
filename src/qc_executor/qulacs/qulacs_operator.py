@@ -180,7 +180,9 @@ class QulacsOperator:
         self.new_operators_used_parameters = []
         for op in operator:
 
-            paulis = [str(p) for p in op.paulis]
+            # Qiskit renders qubit 0 rightmost; the Qulacs term string built
+            # below indexes character i as qubit i, so the label is reversed.
+            paulis = [str(p)[::-1] for p in op.paulis]
             coeff = list(np.real_if_close(np.asarray(cast(Any, op.coeffs))))
 
             new_operator = []

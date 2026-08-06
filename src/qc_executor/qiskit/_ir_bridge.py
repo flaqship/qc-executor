@@ -10,14 +10,22 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
+import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit import ClassicalRegister, QuantumRegister
+from qiskit.quantum_info import PauliList, SparsePauliOp
 
 from ..base.circuit_ir import CircuitIR, Condition, Instruction
 from ..base.gate_set import OpCode
-from ._sympy_bridge import to_qiskit_expr
+from ..base.operator_ir import PauliIR
+from ._sympy_bridge import from_qiskit_expr, to_qiskit_expr
 
-__all__ = ["ir_to_qiskit", "SUPPORTED_OPCODES"]
+__all__ = [
+    "ir_to_qiskit",
+    "pauli_ir_to_sparse_pauli_op",
+    "sparse_pauli_op_to_pauli_ir",
+    "SUPPORTED_OPCODES",
+]
 
 
 def _gate(method: str) -> Callable[[Any, Instruction, tuple], None]:
@@ -111,6 +119,50 @@ def ir_to_qiskit(ir: CircuitIR) -> QiskitQuantumCircuit:
             _emit(circuit, instruction, params)
 
     return circuit
+
+
+def pauli_ir_to_sparse_pauli_op(ir: PauliIR) -> SparsePauliOp:
+    """Translate a sparse Pauli operator into Qiskit's ``SparsePauliOp``.
+
+    The symplectic columns map across **without** reversal: both sides index the
+    ``z``/``x`` arrays by qubit number.  Only the rendered label differs, because
+    this project writes qubit 0 leftmost and Qiskit writes it rightmost, so
+    ``["ZI"]`` here becomes ``["IZ"]`` there and both mean Z on qubit 0.
+
+    Args:
+        ir: The operator to translate.
+
+    Returns:
+        The equivalent ``SparsePauliOp``.
+    """
+    pauli_list = PauliList.from_symplectic(ir.z, ir.x)
+    coeffs = [to_qiskit_expr(coeff) for coeff in ir.coeffs]
+    return SparsePauliOp(pauli_list, np.array(coeffs, dtype=object if ir.symbolic else complex))
+
+
+def sparse_pauli_op_to_pauli_ir(operator: SparsePauliOp) -> PauliIR:
+    """Translate a Qiskit ``SparsePauliOp`` into the shared representation.
+
+    Args:
+        operator: The Qiskit operator to translate.
+
+    Returns:
+        The equivalent :class:`~qc_executor.base.operator_ir.PauliIR`.
+    """
+    paulis = operator.paulis
+    coeffs = [from_qiskit_expr(coeff) for coeff in operator.coeffs]
+    # Build the coefficient column (splitting out symbolic entries) via a
+    # throwaway all-identity operator, then attach the real Pauli data.
+    numeric = PauliIR.from_labels(
+        ["I" * operator.num_qubits] * len(coeffs), coeffs, operator.num_qubits
+    )
+    return PauliIR(
+        operator.num_qubits,
+        np.asarray(paulis.z),
+        np.asarray(paulis.x),
+        numeric.coeffs_array,
+        numeric.symbolic,
+    )
 
 
 def _condition_target(circuit: QiskitQuantumCircuit, condition: Condition) -> Any:

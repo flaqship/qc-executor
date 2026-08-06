@@ -1,20 +1,16 @@
 import numpy as np
 import pytest
-
-# This wrapper is still built on Qiskit objects, so these unit tests construct
-# Qiskit parameters directly instead of the framework-independent types.
-from qiskit.circuit import ParameterVector as Parameters
+from qiskit.circuit import ParameterVector as QiskitParameterVector
 from qiskit.quantum_info import SparsePauliOp
 
 from qc_executor import QuantumOperator
+from qc_executor.parameters import Parameters
 from qc_executor.qiskit import QiskitOperator
 
 
 def _make_parametrized_observable(num_qubits=2, vec_name="theta", length=3):
-    """
-    Create a parametrized SparsePauliOp with a Parameters.
-    """
-    vec = Parameters(vec_name, length)
+    """Create a parametrized raw Qiskit SparsePauliOp."""
+    vec = QiskitParameterVector(vec_name, length)
 
     # One Pauli term per parameter (coefficients are parameters)
     paulis = ["I" * num_qubits] * length
@@ -219,8 +215,8 @@ class TestQiskitOperator:
 
     def test_from_quantum_operator_with_raw_qiskit_operator(self):
         """Test from_quantum_operator with a native Qiskit SparsePauliOp."""
-        theta = Parameters("theta", 2)
-        raw_operator = SparsePauliOp(["Z", "I"], [theta[0], theta[1]])
+        qtheta = QiskitParameterVector("theta", 2)
+        raw_operator = SparsePauliOp(["Z", "I"], [qtheta[0], qtheta[1]])
 
         qiskit_op = QiskitOperator.from_quantum_operator(raw_operator)
 
@@ -235,7 +231,9 @@ class TestQiskitOperator:
         operator = QuantumOperator(["Z"], [theta[0]])
         qiskit_op = QiskitOperator(operator)
 
-        assert qiskit_op.qiskit_operator is operator._qiskit_operator
+        # qiskit_operator is now a translation of the shared representation
+        # rather than a stored attribute, so compare by value.
+        assert qiskit_op.qiskit_operator == operator.qiskit_operator
         assert isinstance(qiskit_op.free_parameters, set)
         assert len(qiskit_op.free_parameters) == 1
 

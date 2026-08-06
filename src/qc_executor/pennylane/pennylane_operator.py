@@ -146,10 +146,12 @@ class PennyLaneOperator:
                 [_resolve_coefficient(coeff, symbol_tuple, printer, modules) for coeff in coeffs]
             )
 
-        # Convert Pauli strings into PennyLane Pauli words
+        # Convert Pauli strings into PennyLane Pauli words.  Qiskit renders
+        # qubit 0 rightmost while string_to_pauli_word reads it leftmost, so the
+        # label is reversed here.
         for op in operator:
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(p) for p in op.paulis.to_labels()]
+                [pauli.string_to_pauli_word(p[::-1]) for p in op.paulis.to_labels()]
             )
 
         if not islist:

@@ -28,7 +28,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @overload
     @classmethod
-    def from_quantum_operator(
+    def from_quantum_operator(  # pylint: disable=arguments-differ
         cls, operator: QuantumOperatorBase
     ) -> "PauliPropagationOperator": ...
 
@@ -41,7 +41,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
     ) -> "PauliPropagationOperator": ...
 
     @classmethod
-    def from_quantum_operator(
+    def from_quantum_operator(  # pylint: disable=arguments-differ
         cls,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
@@ -255,7 +255,9 @@ class PauliPropagationOperator(QuantumOperatorBase):
             parameter_symbols=self._parameters,
         )
 
-    def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationOperator":
+    def apply_layout(
+        self, layout: Dict[int, int], num_qubits: int | None = None
+    ) -> "PauliPropagationOperator":
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
         term_mapping: Dict[int, int] = {}
 

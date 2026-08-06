@@ -1,12 +1,10 @@
 import numpy as np
 import pytest
-
-# This wrapper is still built on Qiskit objects, so these unit tests construct
-# Qiskit parameters directly instead of the framework-independent types.
-from qiskit.circuit import ParameterVector as Parameters
 from qulacs import GeneralQuantumOperator, PauliOperator  # pylint: disable=no-name-in-module
 
 from qc_executor import QuantumOperator
+from qc_executor.parameters import Parameters
+from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
 from qc_executor.qulacs import QulacsOperator
 
 
@@ -82,8 +80,8 @@ class TestQulacsOperatorBuildInstructions:
 
         assert "x" in qulacs_op.parameter_names
         assert qulacs_op.parameter_dimensions["x"] == 2
-        assert x[0] in qulacs_op._free_parameters
-        assert x[1] in qulacs_op._free_parameters
+        assert to_qiskit_expr(x[0]) in qulacs_op._free_parameters
+        assert to_qiskit_expr(x[1]) in qulacs_op._free_parameters
 
     def test_build_instructions_multiple_operator_objects(self):
         """Test instruction build with a list of operators."""
@@ -119,7 +117,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op = QuantumOperator(["Z", "X"], [x[0], 2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
-        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new(x[0])
+        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new(to_qiskit_expr(x[0]))
         jacobians = jacobian_func([0.5, 0.25])
 
         assert isinstance(jacobians, list)
@@ -134,7 +132,9 @@ class TestQulacsOperatorRuntimeFunctions:
         op = QuantumOperator(["Z"], [2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
-        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new([x[0], x[1]])
+        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new(
+            [to_qiskit_expr(x[0]), to_qiskit_expr(x[1])]
+        )
         jacobians = jacobian_func([0.5, 0.25])
 
         assert len(jacobians) == 1
@@ -161,7 +161,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op = QuantumOperator(["Z", "X"], [x[0], x[1]])
         qulacs_op = QulacsOperator(op)
 
-        operators_func = qulacs_op.get_operators_for_gradient(x[0])
+        operators_func = qulacs_op.get_operators_for_gradient(to_qiskit_expr(x[0]))
         gradient_operators = operators_func()
 
         assert isinstance(gradient_operators, list)
@@ -189,7 +189,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op2 = QuantumOperator(["X"], [1.0])
         qulacs_op = QulacsOperator([op1, op2])
 
-        operators_func = qulacs_op.get_operators_for_gradient([x[0]])
+        operators_func = qulacs_op.get_operators_for_gradient([to_qiskit_expr(x[0])])
         gradient_operators = operators_func()
 
         assert len(gradient_operators) == 2

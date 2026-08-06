@@ -1,6 +1,7 @@
 import pytest
-from qiskit.circuit import ParameterVector
 
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameters
 from tests.test_utils import SpyCircuit
 
 
@@ -20,9 +21,10 @@ class FakeOperator:
 
 class TestQuantumCircuitBasePropertiesAndAliases:
     def test_parameter_ordering_and_count(self):
-        circuit = SpyCircuit(1)
-        x = ParameterVector("x", 3)
-        circuit._free_parameters = {x[2], x[0], x[1]}
+        circuit = QuantumCircuit(1)
+        x = Parameters("x", 3)
+        for index in (2, 0, 1):
+            circuit.rx(0, x[index])
 
         assert circuit.parameters == [x[0], x[1], x[2]]
         assert circuit.num_parameters == 3

@@ -144,7 +144,9 @@ def substitute(expr: Any, binding: Mapping[Parameter, float]) -> Any:
     if not isinstance(expr, sp.Basic):
         return float(expr)
     result = canonicalize(expr).xreplace(dict(binding))
-    if result.free_symbols:
+    # xreplace on a bare Symbol returns the replacement object itself, which is
+    # a plain Python float rather than a SymPy number.
+    if isinstance(result, sp.Basic) and result.free_symbols:
         return result
     return float(result)
 

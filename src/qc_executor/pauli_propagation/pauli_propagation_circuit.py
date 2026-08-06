@@ -149,12 +149,12 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def h(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
-            self._gates.append(CliffordGate("H", qubit, self._num_qubits))
+            self._gates.append(CliffordGate("H", qubit, self.num_qubits))
 
     def s(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
-            self._gates.append(CliffordGate("S", qubit, self._num_qubits))
+            self._gates.append(CliffordGate("S", qubit, self.num_qubits))
 
     def sdag(self, qubits: int | List[int]):
         self.rz(qubits, -1.5707963267948966)
@@ -162,7 +162,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def t(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
-            self._gates.append(CliffordGate("T", qubit, self._num_qubits))
+            self._gates.append(CliffordGate("T", qubit, self.num_qubits))
 
     def tdag(self, qubits: int | List[int]):
         self.rz(qubits, -0.7853981633974483)
@@ -173,17 +173,17 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def x(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
-            self._gates.append(CliffordGate("X", qubit, self._num_qubits))
+            self._gates.append(CliffordGate("X", qubit, self.num_qubits))
 
     def y(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
-            self._gates.append(CliffordGate("Y", qubit, self._num_qubits))
+            self._gates.append(CliffordGate("Y", qubit, self.num_qubits))
 
     def z(self, qubits: int | List[int]):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
         for qubit in qubit_list:
-            self._gates.append(CliffordGate("Z", qubit, self._num_qubits))
+            self._gates.append(CliffordGate("Z", qubit, self.num_qubits))
 
     def rx(self, qubits: int | List[int], angle: float):
         qubit_list = [qubits] if isinstance(qubits, int) else qubits
@@ -194,7 +194,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 PauliRotation(
                     ["X"],
                     qubit,
-                    self._num_qubits,
+                    self.num_qubits,
                     param_expr=param_expr,
                     param_value=param_value,
                 )
@@ -209,7 +209,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 PauliRotation(
                     ["Y"],
                     qubit,
-                    self._num_qubits,
+                    self.num_qubits,
                     param_expr=param_expr,
                     param_value=param_value,
                 )
@@ -224,14 +224,14 @@ class PauliPropagationCircuit(QuantumCircuitBase):
                 PauliRotation(
                     ["Z"],
                     qubit,
-                    self._num_qubits,
+                    self.num_qubits,
                     param_expr=param_expr,
                     param_value=param_value,
                 )
             )
 
     def cx(self, control_qubit: int, target_qubit: int):
-        self._gates.append(CliffordGate("CNOT", [control_qubit, target_qubit], self._num_qubits))
+        self._gates.append(CliffordGate("CNOT", [control_qubit, target_qubit], self.num_qubits))
 
     def cy(self, control_qubit: int, target_qubit: int):
         self.sdag(target_qubit)
@@ -239,7 +239,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         self.s(target_qubit)
 
     def cz(self, control_qubit: int, target_qubit: int):
-        self._gates.append(CliffordGate("CZ", [control_qubit, target_qubit], self._num_qubits))
+        self._gates.append(CliffordGate("CZ", [control_qubit, target_qubit], self.num_qubits))
 
     def crx(self, control_qubit: int, target_qubit: int, angle: float):
         raise NotImplementedError("CRX is not yet supported in PauliPropagationCircuit.")
@@ -250,60 +250,67 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def crz(self, control_qubit: int, target_qubit: int, angle: float):
         raise NotImplementedError("CRZ is not yet supported in PauliPropagationCircuit.")
 
-    def rxx(self, control_qubit: int, target_qubit: int, angle: float):
+    def rxx(self, qubit1: int, qubit2: int, angle: float):
         param_expr, param_value = self._extract_parameter(angle)
         self._record_parameter(param_expr)
         self._gates.append(
             PauliRotation(
                 ["X", "X"],
-                [control_qubit, target_qubit],
-                self._num_qubits,
+                [qubit1, qubit2],
+                self.num_qubits,
                 param_expr=param_expr,
                 param_value=param_value,
             )
         )
 
-    def ryy(self, control_qubit: int, target_qubit: int, angle: float):
+    def ryy(self, qubit1: int, qubit2: int, angle: float):
         param_expr, param_value = self._extract_parameter(angle)
         self._record_parameter(param_expr)
         self._gates.append(
             PauliRotation(
                 ["Y", "Y"],
-                [control_qubit, target_qubit],
-                self._num_qubits,
+                [qubit1, qubit2],
+                self.num_qubits,
                 param_expr=param_expr,
                 param_value=param_value,
             )
         )
 
-    def rzz(self, control_qubit: int, target_qubit: int, angle: float):
+    def rzz(self, qubit1: int, qubit2: int, angle: float):
         param_expr, param_value = self._extract_parameter(angle)
         self._record_parameter(param_expr)
         self._gates.append(
             PauliRotation(
                 ["Z", "Z"],
-                [control_qubit, target_qubit],
-                self._num_qubits,
+                [qubit1, qubit2],
+                self.num_qubits,
                 param_expr=param_expr,
                 param_value=param_value,
             )
         )
 
-    def rzx(self, control_qubit: int, target_qubit: int, angle: float):
+    def rzx(self, qubit1: int, qubit2: int, angle: float):
         raise NotImplementedError("RZX is not yet supported in PauliPropagationCircuit.")
 
     def swap(self, qubit1: int, qubit2: int):
-        self._gates.append(CliffordGate("SWAP", [qubit1, qubit2], self._num_qubits))
+        self._gates.append(CliffordGate("SWAP", [qubit1, qubit2], self.num_qubits))
 
-    def barrier(self, qubits: int | List[int]):
+    def barrier(self, qubits: int | List[int] | None = None):
         self._gates.append(LayerBarrier())
 
-    def measure(self):
+    def measure(self, qubits=None, clbits=None):
         raise NotImplementedError("Measurement is not represented in PauliPropagationCircuit.")
 
-    def compose(self, qc: "QuantumCircuitBase", qubits: List[int]) -> "PauliPropagationCircuit":
+    def compose(
+        self,
+        qc: "QuantumCircuitBase",
+        qubits: List[int] | None = None,
+        clbits: List[int] | None = None,
+    ) -> "PauliPropagationCircuit":
         if not isinstance(qc, PauliPropagationCircuit):
             raise TypeError("compose currently supports PauliPropagationCircuit only.")
+        if qubits is None:
+            qubits = list(range(qc.num_qubits))
         if len(qubits) != qc.num_qubits:
             raise ValueError("Length of qubits mapping must match composed circuit qubit count.")
 
@@ -470,9 +477,11 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         }
 
     def from_qasm(self, qasm: str) -> None:
+        """QASM import is not supported for this datatype."""
         raise NotImplementedError("QASM import is intentionally not supported for this datatype.")
 
     def to_qasm(self) -> str:
+        """QASM export is not supported for this datatype."""
         raise NotImplementedError("QASM export is intentionally not supported for this datatype.")
 
     def __hash__(self):

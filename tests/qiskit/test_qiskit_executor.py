@@ -2,14 +2,11 @@ import logging
 
 import numpy as np
 import pytest
-
-# This wrapper is still built on Qiskit objects, so these unit tests construct
-# Qiskit parameters directly instead of the framework-independent types.
-from qiskit.circuit import Parameter
-from qiskit.circuit import ParameterVector as Parameters
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
 from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameter, Parameters
+from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import QiskitExecutor
 from qc_executor.qiskit.qiskit_operator import QiskitOperator
@@ -648,8 +645,10 @@ class TestExecutorInternalHelpers:
             qc, operator, x=[0.1, 0.2], p_obs=0.3
         )
 
-        assert circuit_dict == {x[0]: 0.1, x[1]: 0.2}
-        assert observable_dict == {p_obs[0]: 0.3}
+        # The executor binds Qiskit's own parameter objects, so compare against
+        # the translated parameters rather than the framework-independent ones.
+        assert circuit_dict == {to_qiskit_expr(x[0]): 0.1, to_qiskit_expr(x[1]): 0.2}
+        assert observable_dict == {to_qiskit_expr(p_obs[0]): 0.3}
 
     def test_prepare_parameter_dicts_raises_for_short_parameter_vector(self):
         """An underspecified ParameterVector should raise a clear ValueError."""

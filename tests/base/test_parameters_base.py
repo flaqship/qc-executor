@@ -94,6 +94,13 @@ class TestSubstituteAndEvaluate:
     def test_substitute_on_a_plain_number(self):
         assert substitute(2.5, {}) == 2.5
 
+    def test_substitute_a_bare_symbol(self):
+        """xreplace on a bare Symbol returns the raw replacement, not a SymPy number."""
+        x = Parameters("x", 1)
+        result = substitute(x[0], {x[0]: 0.75})
+        assert isinstance(result, float)
+        assert result == 0.75
+
     def test_evaluate_requires_a_fully_bound_expression(self):
         x = Parameters("x", 2)
         with pytest.raises(ValueError, match=r"not fully bound; missing: x\[1\]"):

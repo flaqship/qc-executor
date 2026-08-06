@@ -2,15 +2,12 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
-# This wrapper is still built on Qiskit objects, so these unit tests construct
-# Qiskit parameters directly instead of the framework-independent types.
-from qiskit.circuit import ParameterVector as Parameters
-from qiskit.circuit.parametervector import ParameterVectorElement as Parameter
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 
 from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameter, Parameters
+from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
 from qc_executor.qulacs import QulacsCircuit
 from qc_executor.qulacs.qulacs_executor import QulacsExecutor
 
@@ -85,30 +82,32 @@ class TestQulacsCircuitParameterExpressions:
     def test_add_parameter_expression_numeric_values(self, angle, expected):
         """Test parameter expression handling for numeric inputs."""
         circuit = QulacsCircuit(QuantumCircuit(1))
-        func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(angle)
+        func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
+            to_qiskit_expr(angle)
+        )
 
         assert func == expected
         assert func_grad is None
         assert used_parameters is None
         assert parameterized is False
 
-    def test_add_parameter_expression_parameter_vector_element(self, monkeypatch):
+    def test_add_parameter_expression_parameter_vector_element(self):
         """Test the Parameter branch in _add_parameter_expression."""
         parameter = Parameters("x", 1)[0]
         base_circuit = QuantumCircuit(1)
         base_circuit.rx(0, parameter)
         circuit = QulacsCircuit(base_circuit)
-        monkeypatch.setattr(Parameter, "__neg__", lambda self: self)
 
         func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
-            parameter
+            to_qiskit_expr(parameter)
         )
 
         assert parameterized is True
-        assert used_parameters == [parameter]
+        assert used_parameters == [to_qiskit_expr(parameter)]
         assert len(func_grad) == 1
-        assert func(0.25) == 0.25
-        assert func_grad[0](0.25) == 1.0
+        # Qulacs defines its rotation gates with the opposite angle sign.
+        assert func(0.25) == -0.25
+        assert func_grad[0](0.25) == -1.0
 
     def test_add_parameter_expression_parameter_expression_with_gradients(self):
         """Test parameter expressions with symbolic and numeric gradients."""
@@ -120,11 +119,11 @@ class TestQulacsCircuitParameterExpressions:
         expression = 2.0 * x[0] + x[1] * x[0]
 
         func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
-            expression
+            to_qiskit_expr(expression)
         )
 
         assert parameterized is True
-        assert set(used_parameters) == {x[0], x[1]}
+        assert set(used_parameters) == {to_qiskit_expr(x[0]), to_qiskit_expr(x[1])}
         assert np.isclose(func(0.5, 0.25), -(2.0 * 0.5 + 0.25 * 0.5))
 
         gradient_by_parameter = {
@@ -132,8 +131,8 @@ class TestQulacsCircuitParameterExpressions:
             for index, parameter in enumerate(used_parameters)
         }
 
-        assert np.isclose(gradient_by_parameter[x[0]], -(2.0 + 0.25))
-        assert np.isclose(gradient_by_parameter[x[1]], -(0.5))
+        assert np.isclose(gradient_by_parameter[to_qiskit_expr(x[0])], -(2.0 + 0.25))
+        assert np.isclose(gradient_by_parameter[to_qiskit_expr(x[1])], -(0.5))
 
     def test_add_parameter_expression_constant_gradient_branch(self):
         """Test the gradient branch that returns a constant float."""
@@ -143,11 +142,11 @@ class TestQulacsCircuitParameterExpressions:
         circuit = QulacsCircuit(base_circuit)
 
         func, func_grad, used_parameters, parameterized = circuit._add_parameter_expression(
-            2.0 * x[0]
+            to_qiskit_expr(2.0 * x[0])
         )
 
         assert parameterized is True
-        assert used_parameters == [x[0]]
+        assert used_parameters == [to_qiskit_expr(x[0])]
         assert np.isclose(func(0.25), -0.5)
         assert func_grad[0]() == -2.0
 
@@ -189,12 +188,12 @@ class TestQulacsCircuitGateBuilders:
         circuit = QulacsCircuit(QuantumCircuit(2))
 
         circuit._add_parameterized_single_qubit_gate("rx", 0, 0.5)
-        circuit._add_parameterized_single_qubit_gate("ry", 1, x[0])
-        circuit._add_parameterized_two_qubit_gate("rz", 0, 1, x[0])
+        circuit._add_parameterized_single_qubit_gate("ry", 1, to_qiskit_expr(x[0]))
+        circuit._add_parameterized_two_qubit_gate("rz", 0, 1, to_qiskit_expr(x[0]))
 
         assert circuit._used_parameters[0] == []
-        assert circuit._used_parameters[1] == [x[0]]
-        assert circuit._used_parameters[2] == [x[0]]
+        assert circuit._used_parameters[1] == [to_qiskit_expr(x[0])]
+        assert circuit._used_parameters[2] == [to_qiskit_expr(x[0])]
         assert circuit._func_list[0] == -0.5
         assert circuit._func_grad_list[0] is None
         assert circuit._func_grad_list[1][0](0.25) == -1.0
@@ -205,11 +204,12 @@ class TestQulacsCircuitGateBuilders:
         x = Parameters("x", 1)
         circuit = QulacsCircuit(QuantumCircuit(3))
 
-        circuit._add_parameterized_single_qubit_gate("rx", [0, 1], x[0])
-        circuit._add_parameterized_two_qubit_gate("rz", [0, 1], [1, 2], x[0])
+        circuit._add_parameterized_single_qubit_gate("rx", [0, 1], to_qiskit_expr(x[0]))
+        circuit._add_parameterized_two_qubit_gate("rz", [0, 1], [1, 2], to_qiskit_expr(x[0]))
 
         assert circuit._qubit_list[:4] == [[0], [1], [0, 1], [1, 2]]
-        assert circuit._used_parameters[:4] == [[x[0]], [x[0]], [x[0]], [x[0]]]
+        expected = [to_qiskit_expr(x[0])]
+        assert circuit._used_parameters[:4] == [expected] * 4
 
     def test_add_parameterized_two_qubit_gate_with_float(self):
         """Test the numeric branch of the parameterized two-qubit helper."""
@@ -227,7 +227,7 @@ class TestQulacsCircuitGateBuilders:
         circuit = QulacsCircuit(QuantumCircuit(1))
 
         with pytest.raises(ValueError):
-            circuit._add_parameterized_two_qubit_gate("rz", 0, 1, x[0])
+            circuit._add_parameterized_two_qubit_gate("rz", 0, 1, to_qiskit_expr(x[0]))
 
     def test_add_parameterized_single_qubit_gate_out_of_range_raises(self):
         """Test that out-of-range parameterized single-qubit gates raise an error."""
@@ -235,7 +235,7 @@ class TestQulacsCircuitGateBuilders:
         circuit = QulacsCircuit(QuantumCircuit(1))
 
         with pytest.raises(ValueError):
-            circuit._add_parameterized_single_qubit_gate("rx", 1, x[0])
+            circuit._add_parameterized_single_qubit_gate("rx", 1, to_qiskit_expr(x[0]))
 
 
 class TestQulacsCircuitBuildInstructions:
@@ -250,13 +250,13 @@ class TestQulacsCircuitBuildInstructions:
         source.rx(0, x[0])
         source.ry(1, y[0])
 
-        circuit._build_circuit_instructions(source._qiskit_circuit)
+        circuit._build_circuit_instructions(source.qiskit_circuit)
 
         assert circuit._operation_list == ["h", "cx", "rx", "ry"]
         assert circuit._qubit_list == [[0], [0, 1], [0], [1]]
         assert circuit.parameter_dimensions == {"x": 1, "y": 1}
-        assert x[0] in circuit._free_parameters
-        assert y[0] in circuit._free_parameters
+        assert to_qiskit_expr(x[0]) in circuit._free_parameters
+        assert to_qiskit_expr(y[0]) in circuit._free_parameters
 
     def test_build_instructions_skips_barriers(self):
         """Test that barriers are skipped and do not appear in the instruction lists."""
@@ -267,7 +267,7 @@ class TestQulacsCircuitBuildInstructions:
         source.cx(0, 1)
         source.barrier(0)
 
-        circuit._build_circuit_instructions(source._qiskit_circuit)
+        circuit._build_circuit_instructions(source.qiskit_circuit)
 
         assert circuit._operation_list == ["h", "cx"]
         assert circuit._qubit_list == [[0], [0, 1]]
@@ -295,7 +295,7 @@ class TestQulacsCircuitBuildInstructions:
         source = QuantumCircuit(3)
         source.ccx(0, 1, 2)
 
-        circuit._build_circuit_instructions(source._qiskit_circuit)
+        circuit._build_circuit_instructions(source.qiskit_circuit)
 
         assert circuit._operation_list == ["ccx"]
         assert circuit._qubit_list == [[0, 1, 2]]
@@ -316,7 +316,7 @@ class TestQulacsCircuitBuildInstructions:
 
     def test_build_instructions_handles_parameterized_two_qubit_gate(self):
         """Test that the parameterized two-qubit branch is executed."""
-        parameter = Parameters("theta", 1)[0]
+        parameter = to_qiskit_expr(Parameters("theta", 1)[0])
         circuit = QulacsCircuit(QuantumCircuit(2))
         dummy_circuit = _DummyCircuit(2, [])
         two_qubit_param_gate = _DummyGateOperation(
@@ -357,8 +357,8 @@ class TestQulacsCircuitRuntime:
 
         native_func = circuit.get_circuit_func()
         cached_native_func = circuit.get_circuit_func()
-        parametric_func = circuit.get_circuit_func(x[0])
-        cached_parametric_func = circuit.get_circuit_func([x[0]])
+        parametric_func = circuit.get_circuit_func(to_qiskit_expr(x[0]))
+        cached_parametric_func = circuit.get_circuit_func([to_qiskit_expr(x[0])])
 
         assert native_func is cached_native_func
         assert parametric_func is cached_parametric_func
@@ -378,8 +378,8 @@ class TestQulacsCircuitRuntime:
 
         circuit = QulacsCircuit(qc)
 
-        jacobian_func = circuit.get_gradient_outer_jacobian(x[0])
-        cached_jacobian_func = circuit.get_gradient_outer_jacobian([x[0]])
+        jacobian_func = circuit.get_gradient_outer_jacobian(to_qiskit_expr(x[0]))
+        cached_jacobian_func = circuit.get_gradient_outer_jacobian([to_qiskit_expr(x[0])])
 
         assert jacobian_func is cached_jacobian_func
 

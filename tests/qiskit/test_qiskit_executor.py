@@ -2,11 +2,14 @@ import logging
 
 import numpy as np
 import pytest
+
+# This wrapper is still built on Qiskit objects, so these unit tests construct
+# Qiskit parameters directly instead of the framework-independent types.
 from qiskit.circuit import Parameter
+from qiskit.circuit import ParameterVector as Parameters
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
 from qc_executor import QuantumCircuit
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import QiskitExecutor
 from qc_executor.qiskit.qiskit_operator import QiskitOperator

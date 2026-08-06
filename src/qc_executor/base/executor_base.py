@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Any, List, overload
@@ -13,6 +12,7 @@ import numpy as np
 
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
+from .parameters_base import normalize_values
 
 
 class _BoundedCache(OrderedDict):
@@ -238,42 +238,7 @@ class ExecutorBase(ABC):
         Returns:
             Dictionary with normalized parameters using vector keys.
         """
-        normalized = {}
-        indexed_params = {}  # Maps "x" -> ["x[0]", "x[1]", ...]
-        vector_params = set()
-
-        for key, value in parameters.items():
-            # Check for indexed key pattern: "x[i]" or "p[i]"
-            match = re.match(r"^([a-zA-Z_]\w*)\[(\d+)\]$", key)
-            if match:
-                param_name = match.group(1)
-                index = int(match.group(2))
-                if param_name not in indexed_params:
-                    indexed_params[param_name] = {}
-                indexed_params[param_name][index] = value
-            else:
-                vector_params.add(key)
-                normalized[key] = value
-
-        conflicting_params = sorted(vector_params.intersection(indexed_params))
-        if conflicting_params:
-            raise ValueError(
-                "Cannot mix vector and indexed parameter forms for: "
-                f"{', '.join(conflicting_params)}"
-            )
-
-        # Convert collected indexed params to vector form
-        for param_name, index_dict in indexed_params.items():
-            max_index = max(index_dict.keys())
-            vector_form = [index_dict.get(i) for i in range(max_index + 1)]
-            if any(value is None for value in vector_form):
-                raise ValueError(
-                    f"Incomplete indexed parameters for '{param_name}': "
-                    "missing indices would produce None values in the vector form."
-                )
-            normalized[param_name] = vector_form
-
-        return normalized
+        return normalize_values(**parameters)
 
     # ========================================================================
     # Public API – Core Quantum Operations

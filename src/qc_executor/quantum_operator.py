@@ -10,6 +10,26 @@ from .base import QuantumOperatorBase
 from .utils.qiskit_hash_functions import _observable_key
 
 
+def _coeffs(coeffs: List) -> List:
+    """Convert symbolic coefficients to Qiskit's parameter representation.
+
+    Coefficients are supplied as numbers or as SymPy expressions built from
+    :class:`~qc_executor.parameters.Parameter`; ``SparsePauliOp`` cannot consume
+    SymPy, so symbolic entries are compiled to ``ParameterExpression`` here.
+
+    Args:
+        coeffs: The coefficients to convert.
+
+    Returns:
+        The coefficients in a form Qiskit accepts.
+    """
+    # Imported lazily: qc_executor.quantum_operator is imported before the qiskit
+    # subpackage in qc_executor/__init__.py, so a module-level import would cycle.
+    from .qiskit._sympy_bridge import to_qiskit_expr  # pylint: disable=import-outside-toplevel
+
+    return [to_qiskit_expr(coeff) for coeff in coeffs]
+
+
 class QuantumOperator(QuantumOperatorBase):
     """Quantum operator backed by a Qiskit SparsePauliOp."""
 
@@ -29,7 +49,8 @@ class QuantumOperator(QuantumOperatorBase):
         if _native_operator is not None:
             self._qiskit_operator: SparsePauliOp = _native_operator
         elif paulis is not None:
-            self._qiskit_operator = SparsePauliOp(paulis, coeffs=cast(Any, coeffs))
+            native_coeffs = None if coeffs is None else _coeffs(coeffs)
+            self._qiskit_operator = SparsePauliOp(paulis, coeffs=cast(Any, native_coeffs))
         elif num_qubits is not None:
             self._qiskit_operator = SparsePauliOp.from_list([("I" * num_qubits, 0.0)])
         else:
@@ -146,7 +167,7 @@ class QuantumOperator(QuantumOperatorBase):
             coeff = 1.0
 
         self._qiskit_operator = SparsePauliOp.from_list(
-            self._qiskit_operator.to_list() + [(pauli, coeff)]
+            self._qiskit_operator.to_list() + [(pauli, _coeffs([coeff])[0])]
         )
         return self
 

@@ -1,9 +1,12 @@
 import numpy as np
 import pytest
+
+# This wrapper is still built on Qiskit objects, so these unit tests construct
+# Qiskit parameters directly instead of the framework-independent types.
+from qiskit.circuit import ParameterVector as Parameters
 from qiskit.quantum_info import SparsePauliOp
 
 from qc_executor import QuantumOperator
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit import QiskitOperator
 
 

@@ -93,7 +93,7 @@ class TestPauliPropagationOperatorConversion:
         assert converted.symmetry.name == "permutation"
 
     def test_from_quantum_operator_with_generic_operator(self):
-        op = QuantumOperator(["Z"], [Parameter(sp.Symbol("theta"), 0)])
+        op = QuantumOperator(["Z"], [Parameter("theta", 0)])
 
         converted = PauliPropagationOperator.from_quantum_operator(op)
 

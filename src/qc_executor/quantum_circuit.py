@@ -5,10 +5,30 @@ from __future__ import annotations
 from typing import List
 
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase
+from .parameters import Parameter, sort_parameters
 from .utils.qiskit_hash_functions import _circuit_key
+
+
+def _angle(angle):
+    """Convert a symbolic angle to Qiskit's parameter representation.
+
+    Gate angles are supplied as plain numbers or as SymPy expressions built from
+    :class:`~qc_executor.parameters.Parameter`.  Qiskit cannot consume SymPy, so
+    symbolic angles are compiled to ``ParameterExpression`` here.
+
+    Args:
+        angle: A number or SymPy expression.
+
+    Returns:
+        The angle in a form Qiskit accepts.
+    """
+    # Imported lazily: qc_executor.quantum_circuit is imported before the qiskit
+    # subpackage in qc_executor/__init__.py, so a module-level import would cycle.
+    from .qiskit._sympy_bridge import to_qiskit_expr  # pylint: disable=import-outside-toplevel
+
+    return to_qiskit_expr(angle)
 
 
 class QuantumCircuit(QuantumCircuitBase):
@@ -43,9 +63,13 @@ class QuantumCircuit(QuantumCircuitBase):
         return self._qiskit_circuit.num_qubits
 
     @property
-    def parameters(self) -> List[ParameterVectorElement]:
-        """Return the free trainable parameters in the circuit."""
-        return list(self._qiskit_circuit.parameters)
+    def parameters(self) -> List[Parameter]:
+        """Return the free trainable parameters in the circuit.
+
+        Parameters are reported in the framework-independent representation and
+        sorted by ``(vector_name, index)``, so ``x[9]`` precedes ``x[10]``.
+        """
+        return sort_parameters(Parameter(param.name) for param in self._qiskit_circuit.parameters)
 
     @property
     def num_parameters(self) -> int:
@@ -83,11 +107,11 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def p(self, qubits: int | List[int], angle: float):
         """Add P gates"""
-        self._qiskit_circuit.p(angle, qubits)
+        self._qiskit_circuit.p(_angle(angle), qubits)
 
     def cp(self, control_qubit: int, target_qubit: int, angle: float):
         """Add CP gates"""
-        self._qiskit_circuit.cp(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.cp(_angle(angle), control_qubit, target_qubit)
 
     def x(self, qubits: int | List[int]):
         """Add X gates"""
@@ -103,15 +127,15 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def rx(self, qubits: int | List[int], angle: float):
         """Add RX gates"""
-        self._qiskit_circuit.rx(angle, qubits)
+        self._qiskit_circuit.rx(_angle(angle), qubits)
 
     def ry(self, qubits: int | List[int], angle: float):
         """Add RY gates"""
-        self._qiskit_circuit.ry(angle, qubits)
+        self._qiskit_circuit.ry(_angle(angle), qubits)
 
     def rz(self, qubits: int | List[int], angle: float):
         """Add RZ gates"""
-        self._qiskit_circuit.rz(angle, qubits)
+        self._qiskit_circuit.rz(_angle(angle), qubits)
 
     def cx(self, control_qubit: int, target_qubit: int):
         """Add CNOT gates"""
@@ -143,31 +167,31 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def crx(self, control_qubit: int, target_qubit: int, angle: float):
         """Add CRX gates"""
-        self._qiskit_circuit.crx(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.crx(_angle(angle), control_qubit, target_qubit)
 
     def cry(self, control_qubit: int, target_qubit: int, angle: float):
         """Add CRY gates"""
-        self._qiskit_circuit.cry(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.cry(_angle(angle), control_qubit, target_qubit)
 
     def crz(self, control_qubit: int, target_qubit: int, angle: float):
         """Add CRZ gates"""
-        self._qiskit_circuit.crz(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.crz(_angle(angle), control_qubit, target_qubit)
 
     def rxx(self, control_qubit: int, target_qubit: int, angle: float):
         """Add RXX gates"""
-        self._qiskit_circuit.rxx(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.rxx(_angle(angle), control_qubit, target_qubit)
 
     def ryy(self, control_qubit: int, target_qubit: int, angle: float):
         """Add RYY gates"""
-        self._qiskit_circuit.ryy(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.ryy(_angle(angle), control_qubit, target_qubit)
 
     def rzz(self, control_qubit: int, target_qubit: int, angle: float):
         """Add RZZ gates"""
-        self._qiskit_circuit.rzz(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.rzz(_angle(angle), control_qubit, target_qubit)
 
     def rzx(self, control_qubit: int, target_qubit: int, angle: float):
         """Add RZX gates"""
-        self._qiskit_circuit.rzx(angle, control_qubit, target_qubit)
+        self._qiskit_circuit.rzx(_angle(angle), control_qubit, target_qubit)
 
     def swap(self, qubit1: int, qubit2: int):
         """Add SWAP gates"""
@@ -195,9 +219,13 @@ class QuantumCircuit(QuantumCircuitBase):
         """Change parameters in the circuit.
 
         Args:
-            parameters (np.array): parameters to assign to the circuit
+            parameters (dict): Values to assign, keyed either by
+                :class:`~qc_executor.parameters.Parameter` or by the Qiskit
+                parameter object itself.
         """
-        self._qiskit_circuit.assign_parameters(parameters, inplace=True)
+        self._qiskit_circuit.assign_parameters(
+            {_angle(key): value for key, value in parameters.items()}, inplace=True
+        )
 
     def invert(self) -> "QuantumCircuit":
         """Invert the circuit."""

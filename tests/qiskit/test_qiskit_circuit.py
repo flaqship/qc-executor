@@ -2,8 +2,11 @@ import numpy as np
 import pytest
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
+# This wrapper is still built on Qiskit objects, so these unit tests construct
+# Qiskit parameters directly instead of the framework-independent types.
+from qiskit.circuit import ParameterVector as Parameters
+
 from qc_executor import QuantumCircuit
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import QiskitExecutor
 
@@ -371,7 +374,9 @@ class TestQiskitCircuit:
         qc = _make_parametrized_circuit(2, "a")
         qiskit_circ = QiskitCircuit(qc)
 
-        original_parameters = set(qc.parameters)
+        # bind_parameters returns a Qiskit circuit, so compare against the
+        # native parameter objects rather than the framework-independent ones.
+        original_parameters = set(qc.qiskit_circuit.parameters)
         original_str = str(qc)
 
         ret = qiskit_circ.bind_parameters(param_values)

@@ -2,11 +2,15 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+
+# This wrapper is still built on Qiskit objects, so these unit tests construct
+# Qiskit parameters directly instead of the framework-independent types.
+from qiskit.circuit import ParameterVector as Parameters
+from qiskit.circuit.parametervector import ParameterVectorElement as Parameter
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 
 from qc_executor import QuantumCircuit
-from qc_executor.parameters import Parameter, Parameters
 from qc_executor.qulacs import QulacsCircuit
 from qc_executor.qulacs.qulacs_executor import QulacsExecutor
 

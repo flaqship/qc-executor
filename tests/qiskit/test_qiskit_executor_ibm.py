@@ -8,13 +8,16 @@ needed.
 import numpy as np
 import pytest
 from qiskit import primitives as qiskit_primitives
+
+# This wrapper is still built on Qiskit objects, so these unit tests construct
+# Qiskit parameters directly instead of the framework-independent types.
+from qiskit.circuit import ParameterVector as Parameters
 from qiskit.circuit import QuantumCircuit as QiskitQC
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 from qiskit.providers import Backend
 from qiskit_ibm_runtime import Batch, Session
 
 from qc_executor import Executor, QuantumCircuit
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit import qiskit_executor as qiskit_executor_module
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import (

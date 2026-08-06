@@ -1451,6 +1451,25 @@ class QiskitExecutor(ExecutorBase):
         statevectors = np.array(statevectors)
         return statevectors[0] if len(raw_circuits) == 1 else statevectors
 
+    def _to_native_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
+        """Wrap a circuit as a QiskitCircuit without targeting the device.
+
+        Deliberately skips the ISA transpilation that :meth:`_transpile_circuit`
+        performs.  ISA transpilation maps the circuit onto the backend's physical
+        qubits and has to happen together with applying the resulting layout to
+        the observable, which :meth:`_convert_to_optree` does; doing it here
+        instead would leave a 5-qubit circuit paired with a 2-qubit observable.
+        It would also break ``statevector``, which is defined as a local
+        computation on the logical circuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The circuit to wrap.
+
+        Returns:
+            QiskitCircuit: The circuit in native form, untargeted.
+        """
+        return QiskitCircuit(circuit)
+
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
 
@@ -1470,7 +1489,7 @@ class QiskitExecutor(ExecutorBase):
             return QiskitCircuit.from_qiskit(isa_circuit)
         return qc
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:
+    def _transpile_operator(self, operator: QuantumOperatorBase, **_options) -> QiskitOperator:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:

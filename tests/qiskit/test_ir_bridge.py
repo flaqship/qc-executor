@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.quantum_info import Operator
 
 from qc_executor import QuantumCircuit
@@ -46,8 +47,6 @@ class TestGateEmission:
         ir.append(OpCode.H, (0,))
         ir.append(OpCode.CX, (0, 1))
         ir.append(OpCode.RZ, (1,), (0.7,))
-
-        from qiskit import QuantumCircuit as QiskitQuantumCircuit
 
         reference = QiskitQuantumCircuit(2)
         reference.h(0)
@@ -134,8 +133,6 @@ class TestParameters:
 
 def _rx_reference(angle: float):
     """Build a one-qubit Qiskit circuit with a single RX rotation."""
-    from qiskit import QuantumCircuit as QiskitQuantumCircuit
-
     circuit = QiskitQuantumCircuit(1)
     circuit.rx(angle, 0)
     return circuit

@@ -37,7 +37,7 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return circuit
 
-    def _transpile_operator(self, operator):
+    def _transpile_operator(self, operator, **_options):
         """Mock implementation."""
         return operator
 

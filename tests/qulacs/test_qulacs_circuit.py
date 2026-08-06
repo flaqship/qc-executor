@@ -6,7 +6,7 @@ from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 
 from qc_executor import QuantumCircuit
-from qc_executor.parameters import Parameter, Parameters
+from qc_executor.parameters import Parameters
 from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
 from qc_executor.qulacs import QulacsCircuit
 from qc_executor.qulacs.qulacs_executor import QulacsExecutor

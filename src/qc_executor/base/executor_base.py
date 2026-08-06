@@ -50,8 +50,10 @@ class ExecutorBase(ABC):
             in each in-memory cache. ``None`` means unlimited.
     """
 
-    _native_circuit_class = None
-    _native_operator_class = None
+    #: The circuit type this backend executes natively, if any.
+    _native_circuit_class: type | None = None
+    #: The operator type this backend executes natively, if any.
+    _native_operator_class: type | None = None
 
     # ========================================================================
     # Initialization & Configuration
@@ -241,6 +243,66 @@ class ExecutorBase(ABC):
         return normalize_values(**parameters)
 
     # ========================================================================
+    # Input coercion
+    # ========================================================================
+
+    def _to_native_circuit(self, circuit):
+        """Convert a single circuit to this backend's native type.
+
+        This is a *type* conversion only.  Backends whose
+        :meth:`transpile_circuit` also targets a specific device — for example
+        mapping onto a machine's qubit count — override this so that the device
+        step stays out of the coercion path, where it would desynchronise the
+        circuit from its observable.
+
+        Args:
+            circuit: A single circuit.
+
+        Returns:
+            The circuit in native form.
+        """
+        return self.transpile_circuit(circuit)
+
+    def _coerce_circuit(self, circuit):
+        """Return ``circuit`` in this backend's native form.
+
+        Circuits already native to this backend pass through untouched;
+        anything else is converted.  This is what lets the public methods accept
+        a generic circuit or a native one interchangeably.
+
+        Args:
+            circuit: A single circuit or a list of them.
+
+        Returns:
+            The circuit(s) in native form.
+        """
+        if isinstance(circuit, list):
+            return [self._coerce_circuit(item) for item in circuit]
+        # pylint: disable=isinstance-second-argument-not-valid-type
+        native_class = self._native_circuit_class
+        if native_class is not None and isinstance(circuit, native_class):
+            return circuit
+        return self._to_native_circuit(circuit)
+
+    def _coerce_operator(self, operator, **options):
+        """Return ``operator`` in this backend's native form.
+
+        Args:
+            operator: A single operator or a list of them.
+            ``**options``: Backend-specific transpilation options.
+
+        Returns:
+            The operator(s) in native form.
+        """
+        if isinstance(operator, list):
+            return [self._coerce_operator(item, **options) for item in operator]
+        # pylint: disable=isinstance-second-argument-not-valid-type
+        native_class = self._native_operator_class
+        if native_class is not None and isinstance(operator, native_class) and not options:
+            return operator
+        return self.transpile_operator(operator, **options)
+
+    # ========================================================================
     # Public API – Core Quantum Operations
     # ========================================================================
 
@@ -269,6 +331,10 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Computing expectation value")
         parameters = self._normalize_parameter_values(**parameters)
+        # Coerce before keying so a generic input and its native equivalent
+        # share one cache entry.
+        circuit = self._coerce_circuit(circuit)
+        observable = self._coerce_operator(observable)
         if self._result_cache is not None:
             key = self._make_result_key("expectation_value", circuit, observable, **parameters)
             if key in self._result_cache:
@@ -319,6 +385,8 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Computing expectation value derivatives")
         parameters = self._normalize_parameter_values(**parameters)
+        circuit = self._coerce_circuit(circuit)
+        observable = self._coerce_operator(observable)
         if self._result_cache is not None:
             key = self._make_result_key(
                 "expectation_value_derivatives", circuit, observable, derivative, **parameters
@@ -364,6 +432,7 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Sampling circuit (shots=%s)", self._shots)
         parameters = self._normalize_parameter_values(**parameters)
+        circuit = self._coerce_circuit(circuit)
         if self._result_cache is not None:
             # Include shots in the key so that changing shots invalidates cached samples.
             key = self._make_result_key("sample", circuit, self._shots, **parameters)
@@ -401,6 +470,7 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Computing statevector")
         parameters = self._normalize_parameter_values(**parameters)
+        circuit = self._coerce_circuit(circuit)
         if self._result_cache is not None:
             key = self._make_result_key("statevector", circuit, **parameters)
             if key in self._result_cache:
@@ -464,16 +534,19 @@ class ExecutorBase(ABC):
         raise NotImplementedError
 
     @overload
-    def transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase: ...
+    def transpile_operator(
+        self, operator: QuantumOperatorBase, **options: Any
+    ) -> QuantumOperatorBase: ...
 
     @overload
     def transpile_operator(
-        self, operator: List[QuantumOperatorBase]
+        self, operator: List[QuantumOperatorBase], **options: Any
     ) -> List[QuantumOperatorBase]: ...
 
     def transpile_operator(
         self,
         operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        **options: Any,
     ) -> QuantumOperatorBase | List[QuantumOperatorBase]:
         """
         Transpile the operator for execution on this executor's backend.
@@ -485,6 +558,9 @@ class ExecutorBase(ABC):
         Args:
             operator (QuantumOperatorBase | List[QuantumOperatorBase]): The
                 quantum operator or a list of operators to transpile.
+            ``**options``: Backend-specific transpilation options, forwarded to
+                :meth:`_transpile_operator`.  The Pauli-propagation backend uses
+                this for ``symmetry_strategy``.
 
         Returns:
             QuantumOperatorBase | List[QuantumOperatorBase]: The transpiled
@@ -492,32 +568,36 @@ class ExecutorBase(ABC):
         """
         self._logger.info("Transpiling operator")
         if isinstance(operator, list):
-            return [self._transpile_operator_cached(operator) for operator in operator]
-        return self._transpile_operator_cached(operator)
+            return [self._transpile_operator_cached(item, **options) for item in operator]
+        return self._transpile_operator_cached(operator, **options)
 
-    def _transpile_operator_cached(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator_cached(
+        self, operator: QuantumOperatorBase, **options: Any
+    ) -> QuantumOperatorBase:
         """Transpile a single observable, consulting the result cache if enabled."""
         if self._result_cache is not None:
-            key = self._make_result_key("transpile_operator", operator)
+            key = self._make_result_key("transpile_operator", operator, **options)
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for transpile_operator")
                 return self._result_cache[key]
-            result = self._transpile_operator(operator)
+            result = self._transpile_operator(operator, **options)
             self._result_cache[key] = result
             return result
-        return self._transpile_operator(operator)
+        return self._transpile_operator(operator, **options)
 
     @abstractmethod
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator(
+        self, operator: QuantumOperatorBase, **options: Any
+    ) -> QuantumOperatorBase:
         """Abstract implementation of operator transpilation.
 
-        Subclasses override this to convert generic QuantumOperator to
-        backend-native types. For backends supporting symmetry (e.g.,
-        Pauli Propagation), the symmetry_strategy parameter allows
-        assigning a symmetry strategy to the operator.
+        Subclasses override this to convert a generic operator into their
+        backend-native type.
 
         Args:
             operator (QuantumOperatorBase): The operator to transpile.
+            ``**options``: Backend-specific options.  A backend that accepts
+                none should still declare ``**options`` and ignore them.
 
         Returns:
             QuantumOperatorBase: The transpiled operator in backend-native format.

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 import warnings
-from typing import TYPE_CHECKING, Dict, List, overload
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
 import sympy as sp
@@ -879,100 +879,27 @@ class PauliPropagationExecutor(ExecutorBase):
         """
         return PauliPropagationCircuit.from_quantum_circuit(circuit)
 
-    @overload
-    def transpile_operator(
+    def _transpile_operator(
         self,
         operator: QuantumOperatorBase,
-    ) -> PauliPropagationOperator: ...
-
-    @overload
-    def transpile_operator(  # pylint: disable=arguments-differ
-        self,
-        operator: QuantumOperatorBase,
-        symmetry_strategy: SymmetryStrategy,
-    ) -> PauliPropagationOperator: ...
-
-    @overload
-    def transpile_operator(
-        self,
-        operator: List[QuantumOperatorBase],
-    ) -> List[PauliPropagationOperator]: ...
-
-    @overload
-    def transpile_operator(  # pylint: disable=arguments-differ
-        self,
-        operator: List[QuantumOperatorBase],
-        symmetry_strategy: SymmetryStrategy,
-    ) -> List[PauliPropagationOperator]: ...
-
-    def transpile_operator(
-        self,
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationOperator | List[PauliPropagationOperator]:
-        """
-        Transpile the operator for execution on Pauli Propagation backend.
+        **_options: Any,
+    ) -> PauliPropagationOperator:
+        """Transpile an operator into the native Pauli-propagation format.
 
-        Accepts both native PauliPropagationOperator and generic QuantumOperator types.
-        When a list of operators is provided, each operator is transpiled and cached individually.
+        Accepts native and generic operators alike.  ``symmetry_strategy``
+        reaches this method through the base class's ``**options`` forwarding,
+        so ``transpile_operator(op, symmetry_strategy=...)`` works without this
+        backend having to widen the public signature.
 
         Args:
-            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The
-                quantum operator or a list of operators to transpile.
-            symmetry_strategy (SymmetryStrategy | None): Strategy for symmetry handling.
-                If provided, takes precedence over executor-level default.
+            operator (QuantumOperatorBase): Operator to transpile.
+            symmetry_strategy (SymmetryStrategy | None): Strategy to assign.
+                Takes precedence over the executor-level default when given.
+            ``**_options``: Ignored; accepted so unrelated options do not fail.
 
         Returns:
-            PauliPropagationOperator | List[PauliPropagationOperator]: The
-                transpiled operator(s) in native format.
-        """
-        self._logger.info("Transpiling operator")
-        if isinstance(operator, list):
-            return [
-                self._transpile_operator_cached(operator, symmetry_strategy)
-                for operator in operator
-            ]
-        return self._transpile_operator_cached(operator, symmetry_strategy)
-
-    def _transpile_operator_cached(
-        self,
-        operator: QuantumOperatorBase,
-        symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationOperator:
-        if self._result_cache is not None:
-            key = self._make_result_key("transpile_operator", operator, symmetry_strategy)
-            if key in self._result_cache:
-                self._logger.debug("Result cache hit for transpile_operator")
-                return self._result_cache[key]
-            result = self._transpile_operator_with_symmetry(operator, symmetry_strategy)
-            self._result_cache[key] = result
-            return result
-        return self._transpile_operator_with_symmetry(operator, symmetry_strategy)
-
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> PauliPropagationOperator:
-        return self._transpile_operator_with_symmetry(operator)
-
-    def _transpile_operator_with_symmetry(
-        self,
-        operator: QuantumOperatorBase,
-        symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationOperator:
-        """Transpile an operator to PauliPropagationOperator format.
-
-        Accepts both native PauliPropagationOperator and generic QuantumOperator types.
-        If symmetry_strategy is provided, it takes precedence and is assigned to the
-        operator. Otherwise, falls back to the executor's default symmetry_strategy.
-
-        Args:
-            operator (QuantumOperatorBase): Operator to transpile (native or generic)
-            symmetry_strategy (object | None): Symmetry strategy to assign. If None,
-                uses executor-level default (self.symmetry_strategy)
-
-        Returns:
-            PauliPropagationOperator: Transpiled operator in native format
-
-        Raises:
-            TypeError: If operator type is not supported
+            PauliPropagationOperator: The transpiled operator.
         """
         effective_symmetry = (
             symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy

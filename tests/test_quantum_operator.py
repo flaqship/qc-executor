@@ -10,6 +10,7 @@ import sympy as sp
 
 from qc_executor import QuantumOperator
 from qc_executor.parameters import Parameters
+from qc_executor.qiskit._ir_bridge import sparse_pauli_op_to_pauli_ir
 
 #: Single-qubit Pauli matrices, for building dense references.
 _PAULI = {
@@ -302,8 +303,6 @@ class TestQiskitBridge:
         assert native.paulis.to_labels() == ["IZ"]
 
     def test_round_trip_through_qiskit(self):
-        from qc_executor.qiskit._ir_bridge import sparse_pauli_op_to_pauli_ir
-
         operator = QuantumOperator(["XYZ", "ZII"], [1.5, -0.5])
 
         restored = sparse_pauli_op_to_pauli_ir(operator.qiskit_operator)

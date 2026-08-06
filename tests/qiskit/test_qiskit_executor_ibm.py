@@ -15,7 +15,6 @@ from qiskit.providers import Backend
 from qiskit_ibm_runtime import Batch, Session
 
 from qc_executor import Executor, QuantumCircuit
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit import qiskit_executor as qiskit_executor_module
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import (

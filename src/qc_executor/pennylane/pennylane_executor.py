@@ -685,7 +685,9 @@ class PennyLaneExecutor(ExecutorBase):
             self._native_circuit_class.from_quantum_circuit(cast(QuantumCircuit, circuit)),
         )
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator(
+        self, operator: QuantumOperatorBase, **_options
+    ) -> QuantumOperatorBase:
         """Transpile a generic QuantumOperator to a PennyLane QuantumOperator."""
         if isinstance(operator, self._native_operator_class):
             return operator

@@ -672,7 +672,9 @@ class QulacsExecutor(ExecutorBase):
             self._native_circuit_class.from_quantum_circuit(cast(QuantumCircuit, circuit)),
         )
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator(
+        self, operator: QuantumOperatorBase, **_options
+    ) -> QuantumOperatorBase:
         """Transpile a generic QuantumOperator to a Qulacs QuantumOperator.
 
         Args:

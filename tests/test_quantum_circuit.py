@@ -134,7 +134,8 @@ class TestQuantumCircuitPauliEvolution:
 
         circuit.pauli_evolution(operator, 0.5)
 
-        ((name, qubit, angle),) = circuit.ops
+        assert len(circuit.ops) == 1
+        name, qubit, angle = circuit.ops[0]
         assert (name, qubit) == ("rz", 0)
         assert angle.free_symbols == {theta[0]}
         # angle == 2 * coeff * parameter, so theta[0] = 2.0 gives 2.0
@@ -148,7 +149,8 @@ class TestQuantumCircuitPauliEvolution:
 
         circuit.pauli_evolution(operator, theta[0])
 
-        ((_, _, angle),) = circuit.ops
+        assert len(circuit.ops) == 1
+        angle = circuit.ops[0][2]
         assert float(angle.subs({theta[0]: 3.0})) == pytest.approx(3.0)
 
     def test_pauli_evolution_rejects_multi_term_operator(self):
@@ -229,7 +231,8 @@ class TestQuantumCircuitControlledPauliEvolution:
 
         circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
 
-        ((name, control, target, angle),) = circuit.ops
+        assert len(circuit.ops) == 1
+        name, control, target, angle = circuit.ops[0]
         assert (name, control, target) == ("crz", 1, 0)
         assert float(angle.subs({theta[0]: 2.0})) == pytest.approx(2.0)
 
@@ -241,7 +244,8 @@ class TestQuantumCircuitControlledPauliEvolution:
 
         circuit.controlled_pauli_evolution(operator, 0.25, control_qubit=0)
 
-        ((name, qubit, angle),) = circuit.ops
+        assert len(circuit.ops) == 1
+        name, qubit, angle = circuit.ops[0]
         assert (name, qubit) == ("rz", 0)
         assert float(angle.subs({theta[0]: 4.0})) == pytest.approx(-1.0)
 

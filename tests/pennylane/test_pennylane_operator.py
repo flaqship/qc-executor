@@ -336,8 +336,8 @@ class TestBuildPennylaneObservable:
 
     def test_single_op_with_params(self):
         """build_pennylane_observable returns a valid function for a parametric operator."""
-        theta_vec = Parameters("theta", 1)
-        sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[QiskitParameterVector("theta", 1)[0], 0.5])
+        theta_vec = QiskitParameterVector("theta", 1)
+        sparse_op = SparsePauliOp(["ZZ", "XX"], coeffs=[theta_vec[0], 0.5])
         op_base = _make_quantum_operator_base(sparse_op)
         pl_op = PennyLaneOperator(op_base)
 

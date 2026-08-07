@@ -13,9 +13,10 @@ need lowering.
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 from typing import Callable, Dict, FrozenSet, List
 
-from .circuit_ir import CircuitIR, Instruction
+from .circuit_ir import CircuitIR, Condition, Instruction
 from .gate_set import GATE_DEFS, OpCode
 
 __all__ = ["UnsupportedGateError", "DECOMPOSITIONS", "decompose_ir"]
@@ -276,9 +277,51 @@ DECOMPOSITIONS[OpCode.P] = lambda i: [_op(OpCode.RZ, i.qubits[0], params=i.param
 #: Instructions that every backend must tolerate structurally.
 _ALWAYS_ALLOWED: FrozenSet[OpCode] = frozenset({OpCode.BARRIER})
 
+#: Non-unitary opcodes, which have no decomposition into gates.  They get their
+#: own message because "no decomposition rule is registered" would suggest one
+#: could be written, and none can.
+_NON_UNITARY: Dict[OpCode, str] = {
+    OpCode.MEASURE: "mid-circuit measurement",
+    OpCode.RESET: "mid-circuit reset",
+}
+
+
+def _unsupported(opcode: OpCode) -> UnsupportedGateError:
+    """Build the error for an instruction the target cannot execute."""
+    described = _NON_UNITARY.get(opcode)
+    if described is not None:
+        return UnsupportedGateError(f"{described} is not supported by this backend")
+    return UnsupportedGateError(
+        f"'{GATE_DEFS[opcode].name}' is not supported by this backend and no "
+        "decomposition rule is registered for it"
+    )
+
+
+def _inherit_condition(instruction: Instruction, condition: "Condition | None") -> Instruction:
+    """Carry a lowered gate's classical condition onto its replacement.
+
+    Replacements implement one conditioned gate, so gating each of them on the
+    same value is equivalent: either the whole sequence runs or none of it does.
+    Without this a conditioned gate that needed lowering lost its condition and
+    was applied unconditionally.
+
+    Args:
+        instruction: A replacement produced by a rewrite rule.
+        condition: The condition on the instruction being replaced, if any.
+
+    Returns:
+        The replacement, conditioned if it was not already.
+    """
+    if condition is None or instruction.condition is not None:
+        return instruction
+    return replace(instruction, condition=condition)
+
 
 def decompose_ir(ir: CircuitIR, supported: FrozenSet[OpCode], *, max_passes: int = 8) -> CircuitIR:
     """Rewrite ``ir`` so it uses only ``supported`` opcodes.
+
+    A classical condition survives lowering: every gate a rule emits inherits
+    the condition of the gate it replaces.
 
     Args:
         ir: The circuit to lower.
@@ -309,12 +352,9 @@ def decompose_ir(ir: CircuitIR, supported: FrozenSet[OpCode], *, max_passes: int
 
             rule = DECOMPOSITIONS.get(instruction.opcode)
             if rule is None:
-                raise UnsupportedGateError(
-                    f"'{GATE_DEFS[instruction.opcode].name}' is not supported by this "
-                    "backend and no decomposition rule is registered for it"
-                )
+                raise _unsupported(instruction.opcode)
             for replacement in rule(instruction):
-                _append(rewritten, replacement)
+                _append(rewritten, _inherit_condition(replacement, instruction.condition))
             changed = True
 
         current = rewritten

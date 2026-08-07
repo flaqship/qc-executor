@@ -87,6 +87,11 @@ class QulacsCircuit:
         return self._num_qubits
 
     @property
+    def ir(self) -> CircuitIR:
+        """The lowered instruction store this circuit was compiled from."""
+        return self._ir
+
+    @property
     def qulacs_circuit(self) -> Optional[Callable]:
         """Qulacs circuit that can be called with parameters"""
         return self._qulacs_circuit

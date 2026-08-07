@@ -61,6 +61,11 @@ class PennyLaneCircuit:
         return self._num_qubits
 
     @property
+    def ir(self) -> CircuitIR:
+        """The lowered instruction store this circuit was compiled from."""
+        return self._ir
+
+    @property
     def pennylane_circuit(self) -> Optional[Callable]:
         """PennyLane circuit that can be called with parameters"""
         if self._pennylane_circuit is None:

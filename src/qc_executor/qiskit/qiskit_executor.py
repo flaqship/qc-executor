@@ -181,6 +181,64 @@ def _convert_counts_endianness(counts: dict) -> dict:
     return result
 
 
+def _databin_fields(data) -> List[str]:
+    """List the register names a V2 sampler result carries.
+
+    ``DataBin`` grew its mapping interface partway through Qiskit's 1.x line, so
+    the public accessor is tried first, the generated ``_FIELDS`` second (which
+    is what Qiskit 1.0 offers) and a plain attribute scan last.
+
+    Args:
+        data: The ``DataBin`` from one PUB result.
+
+    Returns:
+        The candidate field names.
+    """
+    if hasattr(data, "keys"):
+        return list(data.keys())
+    fields = [name for name in getattr(data, "_FIELDS", ()) if not name.startswith("_")]
+    return fields or [name for name in dir(data) if not name.startswith("_")]
+
+
+def _counts_register(data, pub_index: int):
+    """Find the bit array holding shot outcomes in a V2 sampler result.
+
+    The register is named after the circuit's classical register, so it is
+    ``meas`` only for circuits this executor measured itself via
+    ``measure_all``.  A circuit carrying its own mid-circuit measurements brings
+    its own register, and hard-coding ``meas`` made those unsamplable.
+
+    Args:
+        data: The ``DataBin`` from one PUB result.
+        pub_index: Index of the PUB, for the error message.
+
+    Returns:
+        The ``BitArray`` to read counts from.
+
+    Raises:
+        ValueError: If no single register can be identified.
+    """
+    candidates = [
+        name for name in _databin_fields(data) if hasattr(getattr(data, name, None), "get_counts")
+    ]
+    if len(candidates) == 1:
+        return getattr(data, candidates[0])
+    # measure_all names its register 'meas', so prefer it when a circuit also
+    # carries registers of its own.
+    if "meas" in candidates:
+        return getattr(data, "meas")
+    if not candidates:
+        raise ValueError(
+            f"Unsupported sampler result format at pub index {pub_index}: no "
+            f"classical register with counts was returned (got {type(data)!r})."
+        )
+    raise ValueError(
+        f"Cannot extract counts at pub index {pub_index}: the circuit has "
+        f"several classical registers ({', '.join(sorted(candidates))}) and no "
+        "'meas' register to read. Use a single classical register."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Lazy-loaded helpers for optional dependencies
 # ---------------------------------------------------------------------------
@@ -1166,14 +1224,13 @@ class QiskitExecutor(ExecutorBase):
                 counts_list = []
                 for i, pub in enumerate(pubs):
                     data = getattr(pub, "data", None)
-                    meas = getattr(data, "meas", None) if data is not None else None
-                    if meas is None or not hasattr(meas, "get_counts"):
+                    if data is None:
                         raise ValueError(
                             f"Unsupported sampler result format at pub index {i}: "
-                            f"'data.meas.get_counts()' is not available "
-                            f"(got type {type(pub)!r})."
+                            f"no 'data' attribute (got type {type(pub)!r})."
                         )
-                    counts_list.append(_convert_counts_endianness(meas.get_counts()))
+                    register = _counts_register(data, i)
+                    counts_list.append(_convert_counts_endianness(register.get_counts()))
                 return counts_list
 
         # --- Qiskit 1.x / V1 primitives ---

@@ -8,7 +8,11 @@ from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameter, Parameters
 from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
-from qc_executor.qiskit.qiskit_executor import QiskitExecutor
+from qc_executor.qiskit.qiskit_executor import (
+    QiskitExecutor,
+    _counts_register,
+    _databin_fields,
+)
 from qc_executor.qiskit.qiskit_operator import QiskitOperator
 from qc_executor.quantum_operator import QuantumOperator
 
@@ -688,6 +692,47 @@ class TestExecutorInternalHelpers:
         v1_counts = executor._extract_counts(_FakeV1Result(), n_qubits=2)
         assert v1_counts == [{"10": 1, "01": 3}]
 
+    def test_extract_counts_reads_a_register_that_is_not_called_meas(self):
+        """A circuit with its own measurements brings its own register name.
+
+        ``measure_all`` names its register ``meas``; a circuit carrying
+        mid-circuit measurements names it after its own classical register, and
+        hard-coding ``meas`` made those results unreadable.
+        """
+        executor = QiskitExecutor()
+
+        class _FakeBits:
+            def get_counts(self):
+                return {"01": 3}
+
+        class _FakeData:
+            def keys(self):
+                return ["c"]
+
+            c = _FakeBits()
+
+        class _FakePub:
+            data = _FakeData()
+
+        class _FakeResult:
+            def __iter__(self):
+                return iter([_FakePub()])
+
+        assert executor._extract_counts(_FakeResult()) == [{"10": 3}]
+
+    def test_extract_counts_rejects_a_pub_without_data(self):
+        executor = QiskitExecutor()
+
+        class _FakePub:
+            data = None
+
+        class _FakeResult:
+            def __iter__(self):
+                return iter([_FakePub()])
+
+        with pytest.raises(ValueError, match="no 'data' attribute"):
+            executor._extract_counts(_FakeResult())
+
     def test_expectation_value_supports_lists_of_circuits_and_operators(self):
         """Batched circuits/operators should return the full circuit/operator grid."""
         qc0 = _build_circuit(1, [])
@@ -793,3 +838,55 @@ class TestQubitOrdering:
         # With q0 leftmost: |01> means q0=0, q1=1
         # Computational basis: 0*2^1 + 1*2^0 = 1 → index 1
         assert np.isclose(abs(sv[1]), 1.0, atol=1e-5), f"Expected amplitude at index 1; got {sv}"
+
+
+class TestCountsRegisterResolution:
+    """Which classical register a V2 sampler result should be read from.
+
+    ``DataBin`` names each field after a classical register, so ``meas`` only
+    appears when this executor added the measurements itself via
+    ``measure_all``.
+    """
+
+    class _Bits:
+        """Stands in for a ``BitArray``."""
+
+        def get_counts(self):
+            return {"0": 1}
+
+    @staticmethod
+    def _data(**attributes):
+        """Build a stand-in ``DataBin`` exposing the given register names."""
+        names = list(attributes)
+        return type("Data", (), {"keys": lambda self: names, **attributes})()
+
+    def test_a_single_register_is_used_whatever_its_name(self):
+        bits = self._Bits()
+
+        assert _counts_register(self._data(creg=bits), 0) is bits
+
+    def test_meas_wins_when_several_registers_are_present(self):
+        meas = self._Bits()
+
+        assert _counts_register(self._data(meas=meas, c=self._Bits()), 0) is meas
+
+    def test_several_registers_without_meas_is_an_error(self):
+        data = self._data(a=self._Bits(), b=self._Bits())
+
+        with pytest.raises(ValueError, match="several classical registers"):
+            _counts_register(data, 0)
+
+    def test_no_register_at_all_is_an_error(self):
+        with pytest.raises(ValueError, match="no classical register with counts"):
+            _counts_register(self._data(), 3)
+
+    def test_fields_come_from_the_qiskit_1_0_dataclass_shape(self):
+        """Qiskit 1.0's DataBin predates the mapping interface."""
+        data = type("Data", (), {"_FIELDS": ("c",), "c": self._Bits()})()
+
+        assert _databin_fields(data) == ["c"]
+
+    def test_fields_fall_back_to_a_plain_attribute_scan(self):
+        data = type("Data", (), {"c": self._Bits()})()
+
+        assert _databin_fields(data) == ["c"]

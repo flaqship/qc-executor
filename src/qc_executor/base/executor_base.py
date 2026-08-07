@@ -11,8 +11,13 @@ from typing import Any, List, overload
 import numpy as np
 
 from .circuit_base import QuantumCircuitBase
+from .gate_set import OpCode
 from .operator_base import QuantumOperatorBase
 from .parameters_base import normalize_values
+
+#: Non-unitary opcodes that make a statevector ill defined.  Both collapse the
+#: state randomly, so the "statevector" would be one sample from a mixture.
+_STOCHASTIC_OPCODES = {OpCode.MEASURE: "mid-circuit measurement", OpCode.RESET: "reset"}
 
 
 class _BoundedCache(OrderedDict):
@@ -469,6 +474,7 @@ class ExecutorBase(ABC):
             np.ndarray: The statevector of the circuit(s).
         """
         self._logger.info("Computing statevector")
+        self._reject_stochastic_circuit(circuit)
         parameters = self._normalize_parameter_values(**parameters)
         circuit = self._coerce_circuit(circuit)
         if self._result_cache is not None:
@@ -480,6 +486,38 @@ class ExecutorBase(ABC):
             self._result_cache[key] = result
             return result
         return self._statevector(circuit, **parameters)
+
+    @staticmethod
+    def _reject_stochastic_circuit(
+        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
+    ) -> None:
+        """Refuse to return a statevector for a circuit that collapses its state.
+
+        A mid-circuit measurement or a reset turns the final state into one
+        sample from a mixture, so simulators that accept such circuits return a
+        different vector on each call.  Reporting that as *the* statevector is
+        wrong, and caching it makes the wrongness stick, so this is an error
+        rather than a warning.
+
+        Args:
+            circuit: The circuit, or circuits, about to be simulated.
+
+        Raises:
+            NotImplementedError: If any circuit measures or resets a qubit.
+        """
+        for one in circuit if isinstance(circuit, list) else [circuit]:
+            ir = getattr(one, "ir", None)
+            if ir is None:
+                continue
+            for opcode, _, _ in ir.iter_ops():
+                described = _STOCHASTIC_OPCODES.get(OpCode(opcode))
+                if described is not None:
+                    raise NotImplementedError(
+                        f"statevector is not defined for a circuit containing a "
+                        f"{described}: the state collapses randomly, so the result "
+                        f"would be one sample from a mixture rather than a state. "
+                        f"Use sample() or expectation_value() instead."
+                    )
 
     @abstractmethod
     def _statevector(

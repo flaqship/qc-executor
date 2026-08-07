@@ -140,8 +140,22 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         return [self._to_gate(instruction) for instruction in lowered]
 
     def _to_gate(self, instruction: Instruction) -> Gate | LayerBarrier:
-        """Translate one instruction into an engine gate."""
+        """Translate one instruction into an engine gate.
+
+        Raises:
+            NotImplementedError: For classically conditioned instructions, which
+                the Heisenberg picture cannot express.
+        """
         opcode = instruction.opcode
+        if instruction.condition is not None:
+            # Without this the gate would be applied unconditionally, which is a
+            # wrong answer rather than a missing feature.
+            raise NotImplementedError(
+                "Classically conditioned gates are not supported by the "
+                "Pauli-propagation backend: it propagates operators in the "
+                "Heisenberg picture, where no measurement outcome exists to "
+                f"condition '{instruction.name}' on."
+            )
         if opcode is OpCode.BARRIER:
             return LayerBarrier()
 

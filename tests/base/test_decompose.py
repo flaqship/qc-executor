@@ -33,10 +33,18 @@ class TestPassThrough:
 
 class TestUnsupported:
     def test_missing_rule_reports_the_gate(self):
-        ir = CircuitIR(2)
-        ir.append(OpCode.ECR, (0, 1))
+        """Measurement has no unitary decomposition, so it cannot be lowered."""
+        ir = CircuitIR(1, num_clbits=1)
+        ir.append(OpCode.MEASURE, (0,), (), (0,))
 
-        with pytest.raises(UnsupportedGateError, match="'ecr' is not supported"):
+        with pytest.raises(UnsupportedGateError, match="'measure' is not supported"):
+            decompose_ir(ir, frozenset({OpCode.CX}))
+
+    def test_reset_also_has_no_decomposition(self):
+        ir = CircuitIR(1)
+        ir.append(OpCode.RESET, (0,))
+
+        with pytest.raises(UnsupportedGateError, match="'reset' is not supported"):
             decompose_ir(ir, frozenset({OpCode.CX}))
 
     def test_error_is_a_not_implemented_error(self):

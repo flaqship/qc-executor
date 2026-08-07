@@ -189,13 +189,20 @@ class PennyLaneOperator:
                         ]
                         expval_list.append(qml.expval(qml.Hamiltonian(coeff_list, obs)))
                     else:
-                        # In case no parameters are present in the observable
-                        # Calculate the expectation value of sum of the observables
-                        # since this is more compatible with hardware backends
+                        # No free parameters, but the coefficients are still
+                        # weights: an unweighted qml.sum here silently returned
+                        # the value for all-ones coefficients.
                         if len(self._pennylane_words[i]) == 0:
                             expval_list.append(0.0)
                         else:
-                            expval_list.append(qml.expval(qml.sum(*self._pennylane_words[i])))
+                            expval_list.append(
+                                qml.expval(
+                                    qml.Hamiltonian(
+                                        list(self._pennylane_operator_param_functions[i]),
+                                        self._pennylane_words[i],
+                                    )
+                                )
+                            )
                 return pnp.stack(tuple(expval_list))
             if len(obs_param_list) > 0:
                 coeff_list = [
@@ -203,11 +210,15 @@ class PennyLaneOperator:
                     for coeff in self._pennylane_operator_param_functions
                 ]
                 return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
-            # In case no parameters are present in the observable
-            # Calculate the expectation value of sum of the observables
-            # since this is more compatible with hardware backends
+            # No free parameters, but the coefficients are still weights: an
+            # unweighted qml.sum here silently returned the value for all-ones
+            # coefficients.
             if len(self._pennylane_words) == 0:
                 return 0.0
-            return qml.expval(qml.sum(*self._pennylane_words))
+            return qml.expval(
+                qml.Hamiltonian(
+                    list(self._pennylane_operator_param_functions), self._pennylane_words
+                )
+            )
 
         return pennylane_observable

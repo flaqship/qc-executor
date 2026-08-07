@@ -17,6 +17,8 @@ import pytest
 from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
 
 from qc_executor import QuantumCircuit
+from qc_executor.base.circuit_ir import Condition, Instruction
+from qc_executor.base.gate_set import OpCode
 from qc_executor.parameters import Parameters
 from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
@@ -410,37 +412,21 @@ class TestPennyLanePropertiesAndMethods:
         assert result == "result"
 
     def test_no_condition_returns_none(self):
-        """Test that _get_gate_condition returns None for gates without conditions."""
-        qc = QiskitQuantumCircuit(1)
-        qc.h(0)
-        gate_op = qc.data[0]
-
-        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)  # ohne __init__
-        result = pl_circuit._get_gate_condition(qc, gate_op)
-
-        assert result is None
+        """An unconditional instruction has no condition."""
+        assert PennyLaneCircuit._get_gate_condition(Instruction(OpCode.H, (0,))) is None
 
     def test_single_clbit_condition(self):
-        """Test that _get_gate_condition correctly identifies a single clbit condition."""
-        qc = QiskitQuantumCircuit(1, 1)
-        qc = _build_conditioned_gate(qc, "h", 0, qc.clbits[0], 1)
-        gate_op = qc.data[-1]
+        """A one-bit condition reports the bit index directly."""
+        instruction = Instruction(OpCode.H, (0,), condition=Condition((0,), 1))
 
-        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
-        result = pl_circuit._get_gate_condition(qc, gate_op)
-
-        assert result == (0, 1)
+        assert PennyLaneCircuit._get_gate_condition(instruction) == (0, 1)
 
     def test_multi_clbit_condition(self):
-        """Test that _get_gate_condition correctly identifies a multi-clbit condition."""
-        qc = QiskitQuantumCircuit(1, 2)
-        qc = _build_conditioned_gate(qc, "h", 0, qc.cregs[0], 2)
-        gate_op = qc.data[-1]
+        """A multi-bit condition reports the list of bit indices."""
+        instruction = Instruction(OpCode.H, (0,), condition=Condition((0, 1), 2))
 
-        pl_circuit = PennyLaneCircuit.__new__(PennyLaneCircuit)
-        result = pl_circuit._get_gate_condition(qc, gate_op)
+        bit_indices, val = PennyLaneCircuit._get_gate_condition(instruction)
 
-        bit_indices, val = result
         assert bit_indices == [0, 1]
         assert val == 2
 

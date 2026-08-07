@@ -426,10 +426,10 @@ class CircuitIR:
         """
         if qubit_map is None:
             qubit_map = range(other.num_qubits)
-        if len(qubit_map) < other.num_qubits:
+        if len(qubit_map) != other.num_qubits:
             raise ValueError(
-                f"qubit_map has {len(qubit_map)} entries but the appended circuit "
-                f"has {other.num_qubits} qubits"
+                f"Length of qubits mapping must match the appended circuit: got "
+                f"{len(qubit_map)} entries for {other.num_qubits} qubit(s)"
             )
         if clbit_map is None:
             clbit_map = range(other.num_clbits)

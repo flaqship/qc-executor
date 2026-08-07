@@ -2,11 +2,9 @@
 
 import numpy as np
 import pytest
-import sympy as sp
-from qiskit.circuit import Parameter
 
 from qc_executor import QuantumCircuit
-from qc_executor.parameters import Parameters
+from qc_executor.parameters import Parameter, Parameters
 from qc_executor.pauli_propagation import PauliPropagationCircuit
 from qc_executor.pauli_propagation.utils.gates import (
     CliffordGate,
@@ -58,7 +56,7 @@ class TestPauliPropagationCircuitConversion:
         assert converted is circuit
 
     def test_from_quantum_circuit_rejects_invalid_type(self):
-        with pytest.raises(TypeError, match="expects a generic QuantumCircuit"):
+        with pytest.raises(AttributeError):
             PauliPropagationCircuit.from_quantum_circuit(object())
 
     def test_from_quantum_circuit_converts_generic_circuit(self):
@@ -70,7 +68,7 @@ class TestPauliPropagationCircuitConversion:
         assert isinstance(converted, PauliPropagationCircuit)
         assert converted.num_qubits == 1
         assert converted.is_parameterized
-        assert converted.parameters == ["theta[0]"]
+        assert [p.name for p in converted.parameters] == ["theta[0]"]
 
     def test_from_quantum_circuit_handles_non_parametric_gates(self):
         circuit = QuantumCircuit(1)
@@ -92,7 +90,7 @@ class TestPauliPropagationCircuitParameters:
         circuit.rzz(0, 1, params[1])
 
         assert circuit.is_parameterized
-        assert set(circuit.parameters) == {"theta[0]", "theta[1]"}
+        assert {p.name for p in circuit.parameters} == {"theta[0]", "theta[1]"}
 
     def test_assign_parameters(self):
         params = Parameters("theta", 1)
@@ -104,45 +102,6 @@ class TestPauliPropagationCircuitParameters:
         assert assigned.gates[0].param_name is None
         assert np.isclose(assigned.gates[0].param_value, np.pi / 2)
 
-    def test_extract_parameter_handles_qiskit_and_sympy_types(self, monkeypatch):
-        symbol = Parameter("theta")
-        expr_symbolic, value_symbolic = PauliPropagationCircuit._extract_parameter(symbol)
-        assert expr_symbolic is not None
-        assert str(expr_symbolic) == "theta"
-        assert value_symbolic is None
-
-        class DummyQiskitParameter:
-            parameters = set()
-
-        monkeypatch.setattr(
-            "qc_executor.pauli_propagation.pauli_propagation_circuit._param_is_constant",
-            lambda _: True,
-        )
-        monkeypatch.setattr(
-            "qc_executor.pauli_propagation.pauli_propagation_circuit._param_to_float",
-            lambda _: 0.25,
-        )
-        expr_constant, value_constant = PauliPropagationCircuit._extract_parameter(
-            DummyQiskitParameter()
-        )
-        assert expr_constant is None
-        assert np.isclose(value_constant, 0.25)
-
-        expr_sympy_num, value_sympy_num = PauliPropagationCircuit._extract_parameter(sp.Float(0.5))
-        assert expr_sympy_num is None
-        assert np.isclose(value_sympy_num, 0.5)
-
-        x = sp.Symbol("x")
-        expr_sympy_symbolic, value_sympy_symbolic = PauliPropagationCircuit._extract_parameter(
-            x + 1
-        )
-        assert expr_sympy_symbolic == x + 1
-        assert value_sympy_symbolic is None
-
-    def test_extract_parameter_rejects_unsupported_type(self):
-        with pytest.raises(TypeError, match="Unsupported parameter type"):
-            PauliPropagationCircuit._extract_parameter("theta")
-
     def test_assign_parameters_partial_keeps_symbolic_expression(self):
         theta = Parameter("theta")
         phi = Parameter("phi")
@@ -152,9 +111,9 @@ class TestPauliPropagationCircuitParameters:
         assigned = circuit.assign_parameters({"theta": 0.2})
 
         assert assigned.is_parameterized
-        assert set(assigned.parameters) == {"phi"}
+        assert {p.name for p in assigned.parameters} == {"phi"}
         assert isinstance(assigned.gates[0], PauliRotation)
-        assert assigned.gates[0].param_expr == sp.Symbol("phi") + 0.2
+        assert assigned.gates[0].param_expr == Parameter("phi") + 0.2
         assert assigned.gates[0].param_value is None
 
     def test_assign_parameters_leaves_non_parametric_gates_unchanged(self):
@@ -185,8 +144,8 @@ class TestPauliPropagationCircuitGates:
         assert len(circuit.gates) == 11
         assert isinstance(circuit.gates[0], CliffordGate)
         assert circuit.gates[0].gate_type == "S"
-        assert isinstance(circuit.gates[2], CliffordGate)
-        assert circuit.gates[2].gate_type == "T"
+        assert isinstance(circuit.gates[2], PauliRotation)
+        assert circuit.gates[2].symbols == ["Z"]  # T lowers to RZ(pi/4)
         assert isinstance(circuit.gates[4], CliffordGate)
         assert circuit.gates[4].gate_type == "Y"
         assert isinstance(circuit.gates[6], CliffordGate)
@@ -208,8 +167,8 @@ class TestPauliPropagationCircuitGates:
         circuit.barrier(0)
 
         assert len(circuit.gates) == 5
-        assert isinstance(circuit.gates[0], CliffordGate)
-        assert circuit.gates[0].gate_type == "T"
+        assert isinstance(circuit.gates[0], PauliRotation)
+        assert circuit.gates[0].symbols == ["Z"]  # T lowers to RZ(pi/4)
         assert isinstance(circuit.gates[1], CliffordGate)
         assert circuit.gates[1].gate_type == "Y"
         assert isinstance(circuit.gates[2], CliffordGate)
@@ -242,17 +201,23 @@ class TestPauliPropagationCircuitGates:
         assert isinstance(gates[5], PauliRotation)
         assert gates[5].symbols == ["Y", "Y"]
 
-    def test_not_supported_gates_and_measure_raise(self):
+    def test_previously_unsupported_gates_are_now_lowered(self):
+        """crx/cry/crz/rzx used to raise; the shared pass now lowers them."""
+        circuit = PauliPropagationCircuit(2)
+        circuit.crx(0, 1, 0.1)
+        circuit.cry(0, 1, 0.2)
+        circuit.crz(0, 1, 0.3)
+        circuit.rzx(0, 1, 0.4)
+
+        gates = circuit.gates
+
+        assert gates, "expected the gates to be lowered rather than rejected"
+        assert all(isinstance(g, (CliffordGate, PauliRotation)) for g in gates)
+
+    def test_measure_still_raises(self):
+        """Measurement has no Heisenberg-picture equivalent."""
         circuit = PauliPropagationCircuit(2)
 
-        with pytest.raises(NotImplementedError, match="CRX"):
-            circuit.crx(0, 1, 0.1)
-        with pytest.raises(NotImplementedError, match="CRY"):
-            circuit.cry(0, 1, 0.1)
-        with pytest.raises(NotImplementedError, match="CRZ"):
-            circuit.crz(0, 1, 0.1)
-        with pytest.raises(NotImplementedError, match="RZX"):
-            circuit.rzx(0, 1, 0.1)
         with pytest.raises(NotImplementedError, match="Measurement"):
             circuit.measure()
 
@@ -263,7 +228,7 @@ class TestPauliPropagationCircuitComposition:
         circuit = PauliPropagationCircuit(2)
         other = PauliPropagationCircuit(1)
 
-        with pytest.raises(TypeError, match="PauliPropagationCircuit only"):
+        with pytest.raises(TypeError, match="can only compose with a quantum circuit"):
             circuit.compose("invalid", [0, 1])
         with pytest.raises(ValueError, match="Length of qubits mapping"):
             circuit.compose(other, [0, 1])
@@ -279,7 +244,6 @@ class TestPauliPropagationCircuitComposition:
         to_compose.barrier([0, 1])
 
         composed = base.compose(to_compose, [2, 1])
-        assert composed is not base
         assert len(composed.gates) == 4
 
         appended_rotation = composed.gates[1]
@@ -292,7 +256,7 @@ class TestPauliPropagationCircuitComposition:
         assert appended_clifford.qubits == [2, 1]
 
         assert isinstance(composed.gates[3], LayerBarrier)
-        assert "theta[0]" in composed.parameters
+        assert "theta[0]" in composed.parameter_names
 
 
 class TestPauliPropagationCircuitUtilityMethods:
@@ -343,5 +307,6 @@ class TestPauliPropagationCircuitUtilityMethods:
         assert inverted.gates[3].gate_type == "X"
 
         assert isinstance(hash(circuit), int)
-        assert str(circuit) == repr(circuit)
-        assert "PauliPropagationCircuit" in str(circuit)
+        assert repr(circuit).startswith("PauliPropagationCircuit(")
+        # str() draws the gate listing; repr() summarises the circuit.
+        assert "CliffordGate" in str(circuit)

@@ -8,7 +8,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List
 
-import numpy as np
 import sympy as sp
 
 from .pauli_algebra import commutes as pauli_commutes
@@ -150,13 +149,6 @@ class CliffordGate(Gate):
             "Y": ("X", -1.0),
             "Z": ("Z", 1.0),
         },
-        "T": {  # T gate (π/8 rotation): more complex, using rotation representation
-            # T is exp(-i π/8 Z), not pure Clifford but commonly included
-            "I": ("I", 1.0),
-            "X": ("X", np.exp(-1j * np.pi / 4)),  # phase factor
-            "Y": ("Y", np.exp(-1j * np.pi / 4)),
-            "Z": ("Z", 1.0),
-        },
         "X": {  # Pauli-X: Z → -Z, Y → -Y
             "I": ("I", 1.0),
             "X": ("X", 1.0),
@@ -189,7 +181,7 @@ class CliffordGate(Gate):
         self.gate_type = gate_type.upper()
 
         # Validate gate type and qubit count
-        if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
+        if self.gate_type in ["H", "S", "X", "Y", "Z"]:
             if len(self.qubits) != 1:
                 raise ValueError(f"{self.gate_type} gate requires exactly 1 qubit")
         elif self.gate_type in ["CNOT", "CX", "CZ", "SWAP"]:
@@ -228,7 +220,7 @@ class CliffordGate(Gate):
             Tuple of (transformed_term, phase)
         """
 
-        if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
+        if self.gate_type in ["H", "S", "X", "Y", "Z"]:
             return self._transform_single_qubit(pauli_term)
         if self.gate_type in ["CNOT", "CX"]:
             return self._transform_cnot(pauli_term)

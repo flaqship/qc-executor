@@ -17,10 +17,10 @@ from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import NoSymmetry
 from .utils.gates import CliffordGate, LayerBarrier, PauliRotation
+from .utils.parameter_binding import bind_parameters
 from .utils.pauli_algebra import term_to_string
 from .utils.pauli_types import PauliSum
 from .utils.propagation import propagate
-from .utils.qiskit_converter import bind_parameters
 from .utils.state_overlap import overlap_with_zero
 from .utils.truncation import TruncationStats, truncate_combined
 
@@ -398,13 +398,15 @@ class PauliPropagationExecutor(ExecutorBase):
             native_observable = observable
         else:
             native_observable = self._transpile_operator(observable)
-        observable_params = set(native_observable.parameters)
+        # Parameters are compared and looked up by name here, so take the name
+        # keys rather than the Parameter objects.
+        observable_params = set(native_observable.parameter_symbols)
 
         if isinstance(circuit, PauliPropagationCircuit):
             native_circuit = circuit
         else:
             native_circuit = PauliPropagationCircuit.from_quantum_circuit(circuit)
-        circuit_params = set(native_circuit.parameters)
+        circuit_params = set(native_circuit.parameter_symbols)
         uses_indexed_names = observable_params | circuit_params
         bound_circuit = native_circuit.assign_parameters(normalized_parameter_values)
 

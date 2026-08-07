@@ -187,14 +187,15 @@ class TestCliffordGate:
         assert new_term == zii_term
         assert np.isclose(phase, 1.0)
 
-    def test_t_gate_transforms_x_with_complex_phase(self):
-        """T: X → X with exp(-iπ/4) phase."""
-        t = CliffordGate("T", 0, nqubits=1)
-        x_term = string_to_term("X", 1)
+    def test_t_gate_is_rejected_as_non_clifford(self):
+        """T is not Clifford: conjugating X by it yields (X+Y)/sqrt(2), a sum.
 
-        new_term, phase = t.transform_pauli_term(x_term)
-        assert new_term == x_term
-        assert np.isclose(phase, np.exp(-1j * np.pi / 4))
+        The engine's single-Pauli rule could not express that and silently
+        produced a phase on X instead, so T is no longer accepted here.  The
+        circuit lowers it to RZ(pi/4), which the rotation path handles exactly.
+        """
+        with pytest.raises(ValueError, match="Unknown Clifford gate type"):
+            CliffordGate("T", 0, nqubits=1)
 
     def test_init_accepts_cx_alias(self):
         """CX alias is normalized and accepted."""

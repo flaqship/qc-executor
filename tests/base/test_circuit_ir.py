@@ -319,12 +319,13 @@ class TestStructure:
 
         assert left[0].condition == Condition((1,), 1)
 
-    def test_extend_rejects_a_short_qubit_map(self):
+    @pytest.mark.parametrize("qubit_map", [[0], [0, 1, 0]], ids=["too_short", "too_long"])
+    def test_extend_requires_an_exact_length_qubit_map(self, qubit_map):
         left, right = CircuitIR(2), CircuitIR(2)
         right.append(OpCode.H, (0,))
 
-        with pytest.raises(ValueError, match="qubit_map has 1 entries"):
-            left.extend(right, qubit_map=[0])
+        with pytest.raises(ValueError, match="Length of qubits mapping must match"):
+            left.extend(right, qubit_map=qubit_map)
 
     def test_inverse_reverses_and_adjoints(self):
         ir = CircuitIR(1)

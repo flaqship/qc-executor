@@ -215,6 +215,24 @@ class TestPauliPropagationOperatorAlgebra:
 
         assert remapped.paulis == ["IZ"]
 
+    def test_apply_layout_accepts_a_sequence(self):
+        """The base class contract is a sequence; this backend took only a dict."""
+        observable = PauliPropagationOperator(["ZII", "IXI"], [1.0, 0.5])
+
+        remapped = observable.apply_layout([2, 1, 0])
+
+        assert remapped.paulis == ["IIZ", "IXI"]
+
+    def test_a_sequence_layout_agrees_with_the_generic_operator(self):
+        from qc_executor import QuantumOperator  # noqa: PLC0415
+
+        labels, coeffs, layout = ["ZII", "IXI"], [1.0, 0.5], [2, 0, 1]
+
+        native = PauliPropagationOperator(labels, coeffs).apply_layout(layout)
+        generic = QuantumOperator(labels, coeffs).apply_layout(layout)
+
+        assert native.paulis == generic.paulis
+
     def test_apply_layout_keeps_parametric_mapping(self):
         theta = sp.Symbol("theta")
         observable = PauliPropagationOperator(["ZI"], [theta])

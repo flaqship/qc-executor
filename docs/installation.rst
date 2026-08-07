@@ -2,9 +2,10 @@ Installation
 ============
 
 QC Executor is a lightweight abstraction layer with a **plugin-based backend
-architecture**. The core package is small and only depends on Qiskit (used as
-the common intermediate representation). Simulator/hardware backends are
-installed on demand through optional dependency groups (*extras*).
+architecture**. The core package depends on no quantum framework at all — its
+circuits, operators and parameters are built on a columnar instruction store and
+SymPy. Every backend, Qiskit included, is installed on demand through an
+optional dependency group (*extra*).
 
 .. contents:: On this page
    :local:
@@ -17,14 +18,12 @@ Requirements
 * **Python** 3.10, 3.11, 3.12 or 3.13
 * Core runtime dependencies (installed automatically):
 
-  * ``qiskit >= 1.0`` — common intermediate representation for circuits/operators
   * ``numpy >= 1.20``
   * ``sympy >= 1.8`` — symbolic parameter expressions
-  * ``dill >= 0.3.4`` — serialization
-  * ``mapomatic >= 0.10`` — layout selection for hardware backends
 
-Backend-specific libraries (PennyLane, Qulacs, Qiskit Aer, IBM Runtime) are
-**not** pulled in by the core install — see :ref:`backend-extras` below.
+That is the whole list. No quantum framework is imported by ``import
+qc_executor``; backends resolve on first use and are ``None`` when their extra
+is absent. See :ref:`backend-extras` below.
 
 
 Install from PyPI
@@ -36,8 +35,9 @@ The released package is published as **qc-executor**:
 
    pip install qc-executor
 
-This installs the core package with the Qiskit statevector backend available
-out of the box.
+This installs the core package: you can build circuits, operators and parameter
+expressions, and run them on the pure-Python ``pauli_propagation`` backend. Add
+an extra for any other backend.
 
 
 Install from GitHub
@@ -102,28 +102,31 @@ Each simulator/hardware backend is shipped as a plugin and enabled through an
    * - Backend name
      - Install command
      - Description
-   * - ``qiskit``
+   * - ``pauli_propagation``
      - *(core install)*
-     - Statevector simulation via Qiskit. Always available.
+     - Heisenberg-picture Pauli propagation for sparse observables. Pure Python,
+       so it needs no extra.
+   * - ``qiskit``
+     - ``pip install "qc-executor[qiskit]"``
+     - Statevector simulation via Qiskit.
    * - ``qiskit`` (full)
      - ``pip install "qc-executor[qiskit-full]"``
-     - Adds the Aer simulator and IBM Quantum Runtime for hardware execution.
+     - Adds the Aer simulator and IBM Quantum Runtime. Needed for shot-based
+       sampling and for dynamic circuits: the local Qiskit primitives reject
+       circuits containing measurements or control flow.
    * - ``pennylane``
      - ``pip install "qc-executor[pennylane]"``
      - Simulation and automatic differentiation via PennyLane devices.
    * - ``qulacs``
      - ``pip install "qc-executor[qulacs]"``
      - Fast C++ statevector simulation via Qulacs.
-   * - ``pauli_propagation``
-     - ``pip install "qc-executor[pauli_propagation]"``
-     - Heisenberg-picture Pauli propagation for sparse observables (pure Python).
 
 Install several backends at once, or all of them:
 
 .. code-block:: bash
 
    # Multiple specific backends
-   pip install "qc-executor[pennylane,qulacs,pauli_propagation]"
+   pip install "qc-executor[qiskit,pennylane,qulacs]"
 
    # Everything
    pip install "qc-executor[all]"
@@ -150,7 +153,8 @@ This has two practical consequences:
 
 * **You never import backend classes directly.** Selecting a backend by name
   (``Executor.create("qiskit")``) is enough; the matching plugin is loaded
-  lazily and only if its dependencies are installed.
+  lazily and only if its dependencies are installed. Asking for a backend whose
+  extra is missing raises ``ValueError`` naming the extra to install.
 * **Adding a backend does not require changing the core.** A third-party
   package can ship its own executor and expose it under the
   ``qc_executor.backends`` entry-point group.

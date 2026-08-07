@@ -1,14 +1,18 @@
 Qiskit backend
 ==============
 
-The Qiskit backend (:class:`~qc_executor.qiskit.QiskitExecutor`)
-is available with the core installation for statevector simulation, and with the
-``qiskit-full`` extra for the Aer simulator and IBM Quantum hardware.
+The Qiskit backend (:class:`~qc_executor.qiskit.QiskitExecutor`) needs the
+``qiskit`` extra for statevector simulation, or ``qiskit-full`` for the Aer
+simulator and IBM Quantum hardware.
 
 .. code-block:: bash
 
-   pip install qc-executor               # statevector simulation
+   pip install "qc-executor[qiskit]"       # statevector simulation
    pip install "qc-executor[qiskit-full]"  # + Aer + IBM Runtime
+
+``qiskit-full`` is also what you need for **dynamic circuits**: the local Qiskit
+primitives reject circuits containing measurements or control flow, so
+mid-circuit measurement and classical conditioning require Aer.
 
 Basic usage
 -----------

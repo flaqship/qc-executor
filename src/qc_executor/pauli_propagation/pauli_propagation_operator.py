@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Tuple, overload
+from typing import TYPE_CHECKING, Dict, List, Mapping, Sequence, Tuple, overload
 
 import numpy as np
 import sympy as sp
@@ -256,8 +256,27 @@ class PauliPropagationOperator(QuantumOperatorBase):
         )
 
     def apply_layout(
-        self, layout: Dict[int, int], num_qubits: int | None = None
+        self, layout: "Sequence[int] | Mapping[int, int]", num_qubits: int | None = None
     ) -> "PauliPropagationOperator":
+        """Move each qubit onto a new position.
+
+        Args:
+            layout: ``layout[i]`` is the target position of source qubit ``i``.
+                A mapping is also accepted, in which case qubits it omits stay
+                where they are.
+            num_qubits: Accepted for interface parity; this backend keeps its
+                own width.
+
+        Returns:
+            The relocated operator.
+        """
+        # A sequence is the shared contract; this backend used to take only a
+        # mapping, so a caller written against the base class failed here.
+        positions = (
+            dict(layout)
+            if isinstance(layout, Mapping)
+            else {source: target for source, target in enumerate(layout)}
+        )
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
         term_mapping: Dict[int, int] = {}
 
@@ -265,7 +284,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
             remapped_term = 0
             for source_idx in range(self._num_qubits):
                 symbol = get_pauli(term, source_idx, self._num_qubits)
-                target_idx = layout.get(source_idx, source_idx)
+                target_idx = positions.get(source_idx, source_idx)
                 remapped_term = set_pauli(remapped_term, target_idx, symbol, self._num_qubits)
 
             term_mapping[term] = remapped_term

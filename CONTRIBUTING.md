@@ -71,14 +71,72 @@ def expectation_value(circuit, observable, **parameters):
 
 ## Adding a New Backend
 
-1. Create a new subpackage under `src/qc_executor/<backend>/`
-2. Implement `<Backend>Circuit`, `<Backend>Operator`, and `<Backend>Executor`
-   by subclassing the base classes in `src/qc_executor/base/`
-3. Add tests under `tests/<backend>/`
-4. Add an example notebook under `examples/<backend>/`
+Circuits and operators are held in a framework-independent representation:
+`CircuitIR`, a columnar instruction store, and `PauliIR`, a symplectic sparse
+Pauli operator. A backend does not parse anything or walk another framework's
+data structures — it declares what it can execute and compiles the store.
 
-When the plugin architecture is implemented, register the executor via the
-`qc_executor.backends` entry point in `pyproject.toml`.
+### 1. Declare your gate set
+
+```python
+from qc_executor.base.gate_set import OpCode
+
+_SUPPORTED = frozenset({OpCode.H, OpCode.X, OpCode.CX, OpCode.RX, OpCode.RY, OpCode.RZ})
+```
+
+Anything outside it is rewritten into it by `qc_executor.base.decompose`, so you
+only implement the gates you actually have. Everything bottoms out in
+`{RX, RY, RZ, P, CX}`; if your backend covers those, it covers the whole API.
+
+### 2. Compile the store
+
+```python
+class MyBackendCircuit:
+    @classmethod
+    def supported_opcodes(cls):
+        return _SUPPORTED
+
+    def __init__(self, circuit):
+        for instruction in decompose_ir(circuit.ir, _SUPPORTED):
+            ...   # instruction.opcode, .qubits, .params, .clbits, .condition
+```
+
+Points worth knowing:
+
+- **Angles are numbers or SymPy expressions.** Differentiate them with
+  `sympy.diff` and evaluate them with `sympy.lambdify`.
+- **Qubit `q` is character `q` of a Pauli label** and index `q` of the
+  symplectic `z`/`x` arrays. If your framework orders qubits the other way,
+  convert at the boundary and test it — a reversal that looks right when
+  comparing label strings can still produce the wrong sign.
+- **Raise `NotImplementedError` for what you cannot express**, including
+  `instruction.condition` if you have no classical control. Silently ignoring a
+  condition applies the gate on every shot, which returns wrong numbers rather
+  than failing. Coverage excludes `raise NotImplementedError`, so these cost
+  nothing.
+
+### 3. Register and test
+
+1. Create the subpackage under `src/qc_executor/<backend>/`.
+2. Add an entry to `[project.optional-dependencies]` and to
+   `[project.entry-points."qc_executor.backends"]` in `pyproject.toml`.
+   Registration happens on import, and the factory loads the entry point on
+   demand — so a missing dependency degrades to a clear error, never a crash.
+3. Add tests under `tests/<backend>/` and an example notebook under
+   `examples/<backend>/`.
+
+### Verifying a backend
+
+Cross-check against an independent reference rather than against another
+backend's implementation. The most productive check has been an expectation
+value on an entangled state with an observable spanning **X, Y and Z terms with
+distinct coefficients** — all-ones coefficients hide a dropped weight, and a
+Z-only observable hides a wrong conjugation phase. Both bugs have shipped in
+this repository behind exactly those blind spots.
+
+Gradients should be checked against finite differences on a composite symbolic
+angle such as `sympy.sin(x[0]) * p[0]`, which exercises the chain rule rather
+than just the parameter-shift rule.
 
 ## Changelog
 

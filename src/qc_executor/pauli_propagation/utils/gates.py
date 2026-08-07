@@ -8,10 +8,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List
 
+import numpy as np
 import sympy as sp
 
 from .pauli_algebra import commutes as pauli_commutes
-from .pauli_algebra import get_pauli, int_to_symbol, set_pauli, symbol_to_int
+from .pauli_algebra import get_pauli, int_to_symbol, low_mask, set_pauli, symbol_to_int
 
 
 class Gate(ABC):
@@ -101,6 +102,17 @@ class PauliRotation(Gate):
             pauli_int = symbol_to_int(symbol)
             self.generator_term = set_pauli(self.generator_term, qubit, pauli_int, nqubits)
 
+        # Precomputed symplectic components of the generator for the
+        # propagation hot loop (see pauli_algebra module docstring):
+        # generator_z/generator_x are the per-qubit Z/X component words and
+        # generator_phase_count is popcount(x & z), the generator's constant
+        # contribution to the Pauli-product phase exponent.
+        mask = low_mask(nqubits)
+        gen = self.generator_term
+        self.generator_z = (gen >> 1) & mask
+        self.generator_x = (gen ^ (gen >> 1)) & mask
+        self.generator_phase_count = (self.generator_x & self.generator_z).bit_count()
+
     def commutes_with(self, pauli_term: int) -> bool:
         """Check if this rotation commutes with a Pauli term.
 
@@ -134,7 +146,8 @@ class CliffordGate(Gate):
     Supported gates: H, S, T, X, Y, Z, CNOT, CZ, SWAP
     """
 
-    # Transformation rules for single-qubit Clifford gates
+    # Transformation rules for single-qubit Clifford gates in the
+    # Heisenberg picture: input_pauli P → U† P U
     # Format: gate_name → {input_pauli → (output_pauli, phase)}
     SINGLE_QUBIT_RULES = {
         "H": {  # Hadamard: X ↔ Z, Y → -Y
@@ -143,10 +156,19 @@ class CliffordGate(Gate):
             "Y": ("Y", -1.0),
             "Z": ("X", 1.0),
         },
-        "S": {  # Phase gate: X → Y, Y → -X, Z → Z
+        "S": {  # Phase gate: S†XS = -Y, S†YS = X, Z → Z
             "I": ("I", 1.0),
-            "X": ("Y", 1.0),
-            "Y": ("X", -1.0),
+            "X": ("Y", -1.0),
+            "Y": ("X", 1.0),
+            "Z": ("Z", 1.0),
+        },
+        "T": {  # T gate: NOT Clifford (T†XT = (X+Y)/√2 is no single Pauli).
+            # Legacy approximate rule kept only for direct CliffordGate("T")
+            # construction; the circuit builder and Qiskit converter now
+            # produce the exact PauliRotation(Z, π/4) instead.
+            "I": ("I", 1.0),
+            "X": ("X", np.exp(-1j * np.pi / 4)),  # phase factor
+            "Y": ("Y", np.exp(-1j * np.pi / 4)),
             "Z": ("Z", 1.0),
         },
         "X": {  # Pauli-X: Z → -Z, Y → -Y
@@ -169,6 +191,51 @@ class CliffordGate(Gate):
         },
     }
 
+    # Heisenberg transformation rules for two-qubit Clifford gates:
+    # (p_a, p_b) → (p_a', p_b', phase) with Paulis encoded I=0, X=1, Y=2, Z=3.
+    # Derived from the generator maps and verified against exact matrix
+    # conjugation U† (P_a ⊗ P_b) U (see tests).
+    # CNOT (a=control, b=target): X_c → X_c X_t, Z_c → Z_c, X_t → X_t,
+    # Z_t → Z_c Z_t; CZ: X_i → X_i Z_j, Z_i → Z_i.
+    TWO_QUBIT_RULES = {
+        "CNOT": {
+            (0, 0): (0, 0, 1.0),
+            (0, 1): (0, 1, 1.0),
+            (0, 2): (3, 2, 1.0),
+            (0, 3): (3, 3, 1.0),
+            (1, 0): (1, 1, 1.0),
+            (1, 1): (1, 0, 1.0),
+            (1, 2): (2, 3, 1.0),
+            (1, 3): (2, 2, -1.0),
+            (2, 0): (2, 1, 1.0),
+            (2, 1): (2, 0, 1.0),
+            (2, 2): (1, 3, -1.0),
+            (2, 3): (1, 2, 1.0),
+            (3, 0): (3, 0, 1.0),
+            (3, 1): (3, 1, 1.0),
+            (3, 2): (0, 2, 1.0),
+            (3, 3): (0, 3, 1.0),
+        },
+        "CZ": {
+            (0, 0): (0, 0, 1.0),
+            (0, 1): (3, 1, 1.0),
+            (0, 2): (3, 2, 1.0),
+            (0, 3): (0, 3, 1.0),
+            (1, 0): (1, 3, 1.0),
+            (1, 1): (2, 2, 1.0),
+            (1, 2): (2, 1, -1.0),
+            (1, 3): (1, 0, 1.0),
+            (2, 0): (2, 3, 1.0),
+            (2, 1): (1, 2, -1.0),
+            (2, 2): (1, 1, 1.0),
+            (2, 3): (2, 0, 1.0),
+            (3, 0): (3, 0, 1.0),
+            (3, 1): (0, 1, 1.0),
+            (3, 2): (0, 2, 1.0),
+            (3, 3): (3, 3, 1.0),
+        },
+    }
+
     def __init__(self, gate_type: str, qubits: int | List[int], nqubits: int):
         """Initialize a Clifford gate.
 
@@ -181,7 +248,7 @@ class CliffordGate(Gate):
         self.gate_type = gate_type.upper()
 
         # Validate gate type and qubit count
-        if self.gate_type in ["H", "S", "X", "Y", "Z"]:
+        if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
             if len(self.qubits) != 1:
                 raise ValueError(f"{self.gate_type} gate requires exactly 1 qubit")
         elif self.gate_type in ["CNOT", "CX", "CZ", "SWAP"]:
@@ -189,6 +256,13 @@ class CliffordGate(Gate):
                 raise ValueError(f"{self.gate_type} gate requires exactly 2 qubits")
         else:
             raise ValueError(f"Unknown Clifford gate type: {self.gate_type}")
+
+        # Lazily built lookup table for transform_pauli_term:
+        # (clear_mask, shifts, replacement_bits, phases). Built on first use
+        # from the per-case transform methods so behavior stays identical.
+        self._transform_table = None
+        # Numpy view of the same table for the vectorized array engine
+        self._transform_table_np = None
 
     def commutes_with(self, pauli_term: int) -> bool:
         """Clifford gates generally don't commute with arbitrary Paulis.
@@ -213,22 +287,88 @@ class CliffordGate(Gate):
 
         Uses the Heisenberg picture: U† P U
 
+        Uses a lookup table over the gate's own qubit slots (4 entries for
+        single-qubit gates, 16 for two-qubit gates), generated once from the
+        per-case transform methods.
+
         Args:
             pauli_term: Bit-encoded Pauli term
 
         Returns:
             Tuple of (transformed_term, phase)
         """
+        table = self._transform_table
+        if table is None:
+            table = self._build_transform_table()
 
-        if self.gate_type in ["H", "S", "X", "Y", "Z"]:
-            return self._transform_single_qubit(pauli_term)
-        if self.gate_type in ["CNOT", "CX"]:
-            return self._transform_cnot(pauli_term)
-        if self.gate_type == "CZ":
-            return self._transform_cz(pauli_term)
-        if self.gate_type == "SWAP":
-            return self._transform_swap(pauli_term)
-        raise ValueError(f"Transformation not implemented for {self.gate_type}")
+        clear_mask, shifts, replacement_bits, phases = table
+        pauli_term = int(pauli_term)
+        if len(shifts) == 1:
+            idx = (pauli_term >> shifts[0]) & 0b11
+        else:
+            idx = ((pauli_term >> shifts[0]) & 0b11) | (((pauli_term >> shifts[1]) & 0b11) << 2)
+
+        return (pauli_term & clear_mask) | replacement_bits[idx], phases[idx]
+
+    def _build_transform_table(self):
+        """Build the transform lookup table from the per-case methods.
+
+        The per-case methods only read and write the gate's own qubit slots,
+        so probing them with every local Pauli combination captures the full
+        transformation (behavior-preserving by construction).
+        """
+        if self.gate_type in ["H", "S", "T", "X", "Y", "Z"]:
+            transform = self._transform_single_qubit
+            shifts = (2 * self.qubits[0],)
+            local_terms = [p << shifts[0] for p in range(4)]
+            clear_mask = ~(0b11 << shifts[0])
+        else:
+            if self.gate_type in ["CNOT", "CX"]:
+                transform = self._transform_cnot
+            elif self.gate_type == "CZ":
+                transform = self._transform_cz
+            elif self.gate_type == "SWAP":
+                transform = self._transform_swap
+            else:
+                raise ValueError(f"Transformation not implemented for {self.gate_type}")
+            shifts = (2 * self.qubits[0], 2 * self.qubits[1])
+            local_terms = [
+                (p_a << shifts[0]) | (p_b << shifts[1]) for p_b in range(4) for p_a in range(4)
+            ]
+            clear_mask = ~((0b11 << shifts[0]) | (0b11 << shifts[1]))
+
+        replacement_bits = []
+        phases = []
+        for probe in local_terms:
+            new_term, phase = transform(probe)
+            replacement_bits.append(int(new_term))
+            phases.append(complex(phase))
+
+        self._transform_table = (clear_mask, shifts, replacement_bits, phases)
+        return self._transform_table
+
+    def transform_table_numpy(self):
+        """Return the transform table in numpy form for the array engine.
+
+        Requires nqubits <= 32 so all bit patterns fit in uint64 (the array
+        engine enforces this before calling).
+
+        Returns:
+            Tuple of (uint64 clear mask, shifts, uint64 replacement-bits
+            array, complex128 phase array)
+        """
+        if self._transform_table_np is None:
+            table = self._transform_table
+            if table is None:
+                table = self._build_transform_table()
+            clear_mask, shifts, replacement_bits, phases = table
+            self._transform_table_np = (
+                np.uint64(clear_mask & 0xFFFFFFFFFFFFFFFF),
+                shifts,
+                np.array(replacement_bits, dtype=np.uint64),
+                np.array(phases, dtype=np.complex128),
+            )
+        return self._transform_table_np
 
     def _transform_single_qubit(self, pauli_term: int):
         """Transform single-qubit Clifford gate."""
@@ -245,110 +385,29 @@ class CliffordGate(Gate):
         return new_term, complex(phase)
 
     def _transform_cnot(self, pauli_term: int):
-        """Transform CNOT gate: control=qubits[0], target=qubits[1]
+        """Transform through CNOT: control=qubits[0], target=qubits[1].
 
-        CNOT transformation rules (in Heisenberg picture):
-        - I_c I_t → I_c I_t
-        - I_c X_t → I_c X_t
-        - I_c Y_t → Z_c Y_t
-        - I_c Z_t → Z_c Z_t
-        - X_c I_t → X_c X_t
-        - X_c X_t → X_c I_t
-        - X_c Y_t → Y_c Z_t
-        - X_c Z_t → Y_c Y_t
-        - Y_c I_t → Y_c X_t
-        - Y_c X_t → Y_c I_t
-        - Y_c Y_t → X_c Z_t
-        - Y_c Z_t → -X_c Y_t
-        - Z_c I_t → Z_c I_t
-        - Z_c X_t → Z_c X_t
-        - Z_c Y_t → I_c Y_t
-        - Z_c Z_t → I_c Z_t
+        Uses the TWO_QUBIT_RULES table (Heisenberg picture, U† P U).
         """
-        control = self.qubits[0]
-        target = self.qubits[1]
-
-        p_c = get_pauli(pauli_term, control, self.nqubits)
-        p_t = get_pauli(pauli_term, target, self.nqubits)
-
-        # CNOT transformation table: (p_c, p_t) → (p_c', p_t', phase)
-        # Using XOR-based rules for CNOT
-        new_term = pauli_term
-        phase = 1.0
-
-        # Simplified rules using XOR logic:
-        # Control: X_c → X_c X_t (XOR with target X)
-        # Target: Z_t → Z_c Z_t (XOR with control Z)
-        if p_c == 1:  # Control is X
-            # XOR target with X
-            p_t_new = p_t ^ 1  # Toggle X bit
-            new_term = set_pauli(new_term, target, p_t_new, self.nqubits)
-            # Phase adjustment for Y
-            if p_t == 2:  # Y → Z: -i phase, but CNOT is real, check rules
-                phase *= (-1) ** ((p_c == 2 or p_t == 2) and p_c * p_t != 0)
-
-        if p_t == 3:  # Target is Z
-            # Z_t acts on control
-            if p_c == 0:  # I_c Z_t → Z_c Z_t
-                new_term = set_pauli(new_term, control, 3, self.nqubits)
-            elif p_c == 1:  # X_c Z_t → Y_c Y_t (with phase)
-                new_term = set_pauli(new_term, control, 2, self.nqubits)
-                new_term = set_pauli(new_term, target, 2, self.nqubits)
-            elif p_c == 2:  # Y_c Z_t → -X_c Y_t
-                new_term = set_pauli(new_term, control, 1, self.nqubits)
-                new_term = set_pauli(new_term, target, 2, self.nqubits)
-                phase = -1.0
-            # p_c == 3: Z_c Z_t → I_c Z_t
-            elif p_c == 3:
-                new_term = set_pauli(new_term, control, 0, self.nqubits)
-
-        elif p_t == 2:  # Target is Y
-            # Y_t = iXZ, needs special handling
-            if p_c == 0:  # I_c Y_t → Z_c Y_t
-                new_term = set_pauli(new_term, control, 3, self.nqubits)
-            elif p_c == 1:  # X_c Y_t → Y_c Z_t
-                new_term = set_pauli(new_term, control, 2, self.nqubits)
-                new_term = set_pauli(new_term, target, 3, self.nqubits)
-            elif p_c == 2:  # Y_c Y_t → X_c Z_t
-                new_term = set_pauli(new_term, control, 1, self.nqubits)
-                new_term = set_pauli(new_term, target, 3, self.nqubits)
-            elif p_c == 3:  # Z_c Y_t → I_c Y_t
-                new_term = set_pauli(new_term, control, 0, self.nqubits)
-
-        elif p_t == 1:  # Target is X
-            if p_c == 1:  # X_c X_t → X_c I_t
-                new_term = set_pauli(new_term, target, 0, self.nqubits)
-            elif p_c == 2:  # Y_c X_t → Y_c I_t
-                new_term = set_pauli(new_term, target, 0, self.nqubits)
-
-        return new_term, complex(phase)
+        return self._transform_two_qubit_rules("CNOT", pauli_term)
 
     def _transform_cz(self, pauli_term: int):
-        """Transform CZ gate.
+        """Transform through CZ (symmetric in its two qubits).
 
-        CZ is symmetric: both qubits are control/target.
-        CZ transformation: X_i → X_i Z_j, Z → Z (identity on Z)
+        Uses the TWO_QUBIT_RULES table (Heisenberg picture, U† P U).
         """
-        q0, q1 = self.qubits[0], self.qubits[1]
-        p0 = get_pauli(pauli_term, q0, self.nqubits)
-        p1 = get_pauli(pauli_term, q1, self.nqubits)
+        return self._transform_two_qubit_rules("CZ", pauli_term)
 
-        new_term = pauli_term
-        phase = 1.0
+    def _transform_two_qubit_rules(self, rule_name: str, pauli_term: int):
+        """Apply a TWO_QUBIT_RULES entry to the gate's qubit pair."""
+        qubit_a, qubit_b = self.qubits[0], self.qubits[1]
+        p_a = get_pauli(pauli_term, qubit_a, self.nqubits)
+        p_b = get_pauli(pauli_term, qubit_b, self.nqubits)
 
-        # X_0 → X_0 Z_1 and X_1 → X_1 Z_0
-        if p0 == 1:  # X on q0
-            p1_new = p1 ^ 3 if p1 != 3 else 0  # Toggle Z
-            new_term = set_pauli(new_term, q1, p1_new if p1 == 0 else (p1 ^ 3) % 4, self.nqubits)
+        new_a, new_b, phase = self.TWO_QUBIT_RULES[rule_name][(p_a, p_b)]
 
-        if p1 == 1:  # X on q1
-            p0_new = p0 ^ 3 if p0 != 3 else 0
-            new_term = set_pauli(new_term, q0, p0_new if p0 == 0 else (p0 ^ 3) % 4, self.nqubits)
-
-        # Handle Y (which has both X and Z components)
-        # This needs careful phase tracking
-        # For simplicity, using composition rules
-
+        new_term = set_pauli(pauli_term, qubit_a, new_a, self.nqubits)
+        new_term = set_pauli(new_term, qubit_b, new_b, self.nqubits)
         return new_term, complex(phase)
 
     def _transform_swap(self, pauli_term: int):

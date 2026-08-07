@@ -5,9 +5,11 @@ Implements quantum circuit execution using Heisenberg picture (Pauli propagation
 
 from __future__ import annotations
 
+import os
 import re
 import warnings
-from typing import TYPE_CHECKING, Any, Dict, List
+from concurrent.futures import ProcessPoolExecutor
+from typing import TYPE_CHECKING, Any, Dict, List, overload
 
 import numpy as np
 import sympy as sp
@@ -17,10 +19,11 @@ from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import NoSymmetry
 from .utils.gates import CliffordGate, LayerBarrier, PauliRotation
+from .utils.parallel import expectation_task, expectation_task_star
 from .utils.parameter_binding import bind_parameters
 from .utils.pauli_algebra import term_to_string
 from .utils.pauli_types import PauliSum
-from .utils.propagation import propagate
+from .utils.propagation import batch_propagate
 from .utils.state_overlap import overlap_with_zero
 from .utils.truncation import TruncationStats, truncate_combined
 
@@ -190,6 +193,12 @@ class PauliPropagationExecutor(ExecutorBase):
         truncate_threshold: Coefficient threshold for automatic truncation (None = no truncation)
         max_weight: Maximum Pauli weight for truncation (None = no weight limit)
         symmetry_strategy: Strategy for Pauli symmetry merging (None = no merging)
+        n_jobs: Number of worker processes for independent expectation-value
+            evaluations (multiple circuits x observables, parameter-shift
+            gradients). 1 (default) runs serially; -1 uses all CPU cores.
+            Process startup on Windows (spawn) costs roughly 100 ms per
+            worker plus import time, so parallelism pays off only for
+            workloads with many or expensive independent evaluations.
     """
 
     _native_circuit_class = PauliPropagationCircuit
@@ -207,6 +216,7 @@ class PauliPropagationExecutor(ExecutorBase):
         truncate_threshold: float | None = None,
         max_weight: int | None = None,
         symmetry_strategy: SymmetryStrategy | None = None,
+        n_jobs: int = 1,
     ):
         super().__init__(
             shots=shots,
@@ -222,6 +232,9 @@ class PauliPropagationExecutor(ExecutorBase):
         self.symmetry_strategy = (
             symmetry_strategy if symmetry_strategy is not None else NoSymmetry()
         )
+        if not isinstance(n_jobs, int) or n_jobs == 0 or n_jobs < -1:
+            raise ValueError(f"n_jobs must be a positive integer or -1, got {n_jobs!r}")
+        self.n_jobs = n_jobs
 
         # Statistics tracking
         self.last_truncation_stats: TruncationStats | None = None
@@ -263,15 +276,111 @@ class PauliPropagationExecutor(ExecutorBase):
                     "PauliPropagationExecutor expects PauliPropagationOperator inputs only."
                 )
 
-        results = []
-        for circ in circuits:
-            for obs in observables:
-                exp_val = self._compute_single_expectation(circ, obs, parameters)
-                results.append(exp_val)
+        # Normalize parameters once (from list format x=[0.1] to indexed x[0]=0.1)
+        normalized_params = _normalize_parameters(parameters)
+
+        ntasks = len(circuits) * len(observables)
+        if self.n_jobs != 1 and ntasks > 1:
+            outcomes = self._parallel_expectations(circuits, observables, normalized_params)
+        else:
+            outcomes = []
+            for circ in circuits:
+                outcomes.extend(
+                    self._batch_expectations_for_circuit(circ, observables, normalized_params)
+                )
+
+        do_truncate = self.truncate_threshold is not None or self.max_weight is not None
+        if do_truncate and outcomes:
+            # Same semantics as computing pair-by-pair: keep the last stats
+            self.last_truncation_stats = outcomes[-1][1]
+
+        results = [value for value, _ in outcomes]
 
         if is_single_circuit and is_single_observable:
             return float(results[0].real)
         return np.array([r.real for r in results])
+
+    def _resolved_n_jobs(self) -> int:
+        """Return the effective worker count (-1 means all CPU cores)."""
+        if self.n_jobs == -1:
+            return os.cpu_count() or 1
+        return self.n_jobs
+
+    def _parallel_expectations(self, circuits, observables, normalized_params):
+        """Evaluate all circuit x observable pairs in worker processes.
+
+        Task order (and therefore result order) is circuit-major, matching
+        the serial path.
+        """
+        task_args = [
+            (
+                circ,
+                obs,
+                normalized_params,
+                self.truncate_threshold,
+                self.max_weight,
+                self.symmetry_strategy,
+            )
+            for circ in circuits
+            for obs in observables
+        ]
+        max_workers = min(self._resolved_n_jobs(), len(task_args))
+        chunksize = max(1, len(task_args) // (4 * max_workers))
+        # Per-call pool: simpler lifecycle than a cached pool and safe with
+        # Windows spawn (workers re-import the package per call)
+        with ProcessPoolExecutor(max_workers=max_workers) as pool:
+            return list(pool.map(expectation_task_star, task_args, chunksize=chunksize))
+
+    def _batch_expectations_for_circuit(self, circuit, observables, normalized_params):
+        """Evaluate all observables for one circuit, sharing per-circuit work.
+
+        Binds parameters once and uses batch_propagate so layer splitting and
+        parameter resolution are not repeated per observable.
+
+        Returns:
+            List of (complex expectation value, TruncationStats or None),
+            one per observable, in input order
+        """
+        gates = circuit.gates
+        bound_params = bind_parameters(gates, normalized_params)
+
+        psums = []
+        for observable in observables:
+            effective_observable = observable
+            if observable.is_parametrized:
+                effective_observable = observable.assign_parameters(normalized_params)
+
+            # pauli_sum returns a copy, so mutating its symmetry is side-effect free
+            psum = effective_observable.pauli_sum
+
+            # Use observable-level symmetry when explicitly configured.
+            # Fall back to executor-level symmetry otherwise.
+            if not psum.has_active_symmetry:
+                psum.symmetry = self.symmetry_strategy
+            psums.append(psum)
+
+        propagated_list = batch_propagate(
+            gates,
+            psums,
+            bound_params,
+            max_weight=self.max_weight,
+            truncate_threshold=self.truncate_threshold,
+        )
+
+        do_truncate = self.truncate_threshold is not None or self.max_weight is not None
+        outcomes = []
+        for propagated in propagated_list:
+            stats = None
+            if do_truncate:
+                # Final truncation pass (cheap cleanup; keeps the stats)
+                propagated, stats = truncate_combined(
+                    propagated,
+                    min_coeff=self.truncate_threshold if self.truncate_threshold else 1e-15,
+                    max_weight=self.max_weight,
+                    inplace=True,
+                )
+            outcomes.append((overlap_with_zero(propagated), stats))
+        return outcomes
 
     def _compute_single_expectation(
         self,
@@ -281,58 +390,29 @@ class PauliPropagationExecutor(ExecutorBase):
     ) -> complex:
         """Compute expectation value for a single circuit and observable.
 
+        Thin wrapper around utils.parallel.expectation_task (the shared
+        serial/parallel code path).
+
         Args:
-            circuit: Quantum circuit (raw Qiskit type)
+            circuit: Quantum circuit
             observable: Quantum observable
             parameters: Parameter binding dictionary (can be in list or indexed format)
 
         Returns:
             Complex expectation value
         """
-        gates = circuit.gates
-
-        # Normalize parameters from list format (x=[0.1]) to indexed format (x[0]=0.1)
         normalized_params = _normalize_parameters(parameters)
-
-        # Bind parameters if needed (bind_parameters expects gates list, not circuit)
-        bound_params = bind_parameters(gates, normalized_params)
-
-        # Assign parameters to observable if it has parametric coefficients
-        effective_observable = observable
-        if observable.is_parametrized:
-            effective_observable = observable.assign_parameters(normalized_params)
-
-        propagated_observable = effective_observable.pauli_sum
-
-        # Use observable-level symmetry when explicitly configured.
-        # Fall back to executor-level symmetry otherwise.
-        if not propagated_observable.has_active_symmetry:
-            propagated_observable.symmetry = self.symmetry_strategy
-
-        # Propagate observable through circuit (Heisenberg picture)
-        # Pass truncation params so terms are pruned during propagation
-        propagated = propagate(
-            gates,
-            propagated_observable,
-            bound_params,
-            max_weight=self.max_weight,
-            truncate_threshold=self.truncate_threshold,
+        value, stats = expectation_task(
+            circuit,
+            observable,
+            normalized_params,
+            self.truncate_threshold,
+            self.max_weight,
+            self.symmetry_strategy,
         )
-
-        # Final truncation pass (cheap cleanup)
-        if self.truncate_threshold is not None or self.max_weight is not None:
-            propagated, stats = truncate_combined(
-                propagated,
-                min_coeff=self.truncate_threshold if self.truncate_threshold else 1e-15,
-                max_weight=self.max_weight,
-                inplace=True,
-            )
+        if stats is not None:
             self.last_truncation_stats = stats
-
-        # Compute overlap with |0> state
-        expectation = overlap_with_zero(propagated)
-
-        return expectation
+        return value
 
     def _expectation_value_derivatives(
         self,
@@ -415,8 +495,18 @@ class PauliPropagationExecutor(ExecutorBase):
         observable_parametric_coeffs = native_observable.parametric_coeffs
         circuit_symbols = native_circuit.parameter_symbols
 
-        # Compute gradients for each derivative parameter
-        result_dict = {}
+        # Two-pass gradient computation: the first pass walks parameters and
+        # gates collecting every needed expectation evaluation; the second
+        # evaluates them in two batched expectation_value calls (which also
+        # benefit from batch propagation and, if enabled, n_jobs parallelism)
+        # and accumulates the contributions.
+        gradient_lists: Dict[str, List[float]] = {}
+        # (param_name, value_index, dcoeff/dparam, single-term observable)
+        obs_jobs = []
+        # (param_name, value_index, dangle/dparam); the plus/minus shifted
+        # circuits are appended pairwise to shifted_circuits
+        circ_jobs = []
+        shifted_circuits = []
 
         for param_name in param_names:
             # Normalize the param name (handle indexed format)
@@ -447,7 +537,7 @@ class PauliPropagationExecutor(ExecutorBase):
             else:
                 raise ValueError(f"Parameter '{param_name}' not found in provided values")
 
-            gradients_for_param = []
+            gradient_lists[param_name] = [0.0] * len(param_values_list)
 
             # Classify parameter location
             # For base_name, check if any parameter starts with it (handles indexed params)
@@ -466,8 +556,6 @@ class PauliPropagationExecutor(ExecutorBase):
                 )
 
             for idx, _param_value in enumerate(param_values_list):
-                gradient = 0.0
-
                 # For indexed parameters, use the full indexed name
                 # For base parameters with multiple values, construct the indexed name
                 effective_param_name = param_name
@@ -518,13 +606,11 @@ class PauliPropagationExecutor(ExecutorBase):
                                     num_qubits=native_observable.num_qubits,
                                 )
 
-                                # Compute expectation of this Pauli term
-                                term_exp = self.expectation_value(
-                                    native_circuit, single_term_obs, **parameter_values
+                                # Defer <Pauli> to the batched evaluation;
+                                # contribution is (dcoeff/dparam) * <Pauli>
+                                obs_jobs.append(
+                                    (param_name, idx, coeff_deriv_value, single_term_obs)
                                 )
-
-                                # Add contribution: (dcoeff/dparam) * <Pauli>
-                                gradient += coeff_deriv_value * term_exp
 
                 # === CIRCUIT CONTRIBUTION ===
                 if in_circuit:
@@ -583,19 +669,35 @@ class PauliPropagationExecutor(ExecutorBase):
                                 ),
                             )
 
-                            exp_plus = self.expectation_value(
-                                shifted_plus_circuit, native_observable, **parameter_values
-                            )
-                            exp_minus = self.expectation_value(
-                                shifted_minus_circuit, native_observable, **parameter_values
-                            )
+                            # Defer the shifted evaluations to the batched call
+                            shifted_circuits.append(shifted_plus_circuit)
+                            shifted_circuits.append(shifted_minus_circuit)
+                            circ_jobs.append((param_name, idx, angle_derivative_value))
 
-                            gate_gradient = (exp_plus - exp_minus) / 2.0
-                            gradient += angle_derivative_value * gate_gradient
+        # Second pass: evaluate all collected jobs in two batched calls
+        if obs_jobs:
+            obs_values = self.expectation_value(
+                native_circuit, [job[3] for job in obs_jobs], **parameter_values
+            )
+            obs_values = np.atleast_1d(np.asarray(obs_values, dtype=float))
+            for (param_name, idx, coeff_deriv_value, _), term_exp in zip(obs_jobs, obs_values):
+                # Contribution: (dcoeff/dparam) * <Pauli>
+                gradient_lists[param_name][idx] += coeff_deriv_value * float(term_exp)
 
-                gradients_for_param.append(gradient)
+        if circ_jobs:
+            circ_values = self.expectation_value(
+                shifted_circuits, native_observable, **parameter_values
+            )
+            circ_values = np.atleast_1d(np.asarray(circ_values, dtype=float))
+            for job_index, (param_name, idx, angle_derivative_value) in enumerate(circ_jobs):
+                exp_plus = float(circ_values[2 * job_index])
+                exp_minus = float(circ_values[2 * job_index + 1])
+                gate_gradient = (exp_plus - exp_minus) / 2.0
+                gradient_lists[param_name][idx] += angle_derivative_value * gate_gradient
 
-            # Store gradient(s) for this parameter
+        # Store gradient(s) for each parameter (same shapes as before)
+        result_dict = {}
+        for param_name, gradients_for_param in gradient_lists.items():
             if len(gradients_for_param) == 1:
                 result_dict[param_name] = np.array([gradients_for_param[0]])
             else:

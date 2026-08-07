@@ -144,6 +144,52 @@ class TestGatesGainedFromLowering:
         assert all(isinstance(g, (CliffordGate, PauliRotation, LayerBarrier)) for g in gates)
 
 
+class TestLoweredGatesMatchAStatevectorBackend:
+    """Gates reached only via lowering must agree with an exact simulation.
+
+    This was held back when the engine's Heisenberg transforms still had the
+    bugs fixed on perf/pauli-propagation; that work is now merged.
+    """
+
+    @pytest.mark.parametrize(
+        "name, build",
+        [
+            ("cy", lambda c: c.cy(0, 1)),
+            ("cs", lambda c: c.cs(0, 1)),
+            ("csx", lambda c: c.csx(0, 1)),
+            ("cp", lambda c: c.cp(0, 1, 0.4)),
+            ("crx", lambda c: c.crx(0, 1, 0.4)),
+            ("cry", lambda c: c.cry(0, 1, 0.4)),
+            ("crz", lambda c: c.crz(0, 1, 0.4)),
+            ("rzx", lambda c: c.rzx(0, 1, 0.4)),
+            ("ecr", lambda c: c.ecr(0, 1)),
+            ("iswap", lambda c: c.iswap(0, 1)),
+            ("ch", lambda c: c.ch(0, 1)),
+            ("u", lambda c: c.u(0, 0.1, 0.2, 0.3)),
+            ("sx", lambda c: c.sx(0)),
+            ("ccx", lambda c: c.ccx(0, 1, 2)),
+            ("cswap", lambda c: c.cswap(0, 1, 2)),
+        ],
+    )
+    def test_gate_matches_qiskit(self, name, build):
+        assert name  # keeps the parametrize id meaningful
+        circuit = QuantumCircuit(3)
+        circuit.h(0)
+        circuit.ry(1, 0.3)
+        circuit.rx(2, 0.2)
+        build(circuit)
+        # Spans Z, X and Y so a wrong Pauli-conjugation phase cannot hide.
+        observable = QuantumOperator(
+            ["ZII", "IZI", "IIZ", "XII", "IXI", "YII"], [1.0, 0.7, 0.5, 0.3, 0.2, 0.1]
+        )
+
+        result = float(
+            np.real(Executor.create("pauli_propagation").expectation_value(circuit, observable))
+        )
+
+        assert result == pytest.approx(_reference(circuit, observable), abs=1e-8)
+
+
 class TestParameters:
     def test_parameters_are_the_shared_parameter_type(self):
         theta = Parameters("theta", 2)

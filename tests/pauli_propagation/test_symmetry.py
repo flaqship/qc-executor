@@ -533,3 +533,31 @@ class TestSymmetryIdentity:
         cache = {PermutationSymmetry(): "hit"}
 
         assert cache[PermutationSymmetry()] == "hit"
+
+
+class TestPermutationSymmetryCrossCheck:
+    """Randomized cross-check of the popcount-based canonical form."""
+
+    @staticmethod
+    def _ref_canonical(term, nqubits):
+        """Original per-qubit-loop implementation (frozen reference)."""
+        counts = [0, 0, 0, 0]
+        for q in range(nqubits):
+            counts[(term >> (2 * q)) & 0x3] += 1
+        canonical = 0
+        bit_pos = 0
+        for pauli_type in range(4):
+            for _ in range(counts[pauli_type]):
+                canonical |= pauli_type << (2 * bit_pos)
+                bit_pos += 1
+        return canonical
+
+    def test_matches_reference_implementation(self):
+        sym = PermutationSymmetry()
+        rng = random.Random(7)
+        for _ in range(500):
+            nqubits = rng.choice([1, 2, 3, 5, 8, 16, 31, 32, 33, 48, 70])
+            term = rng.getrandbits(2 * nqubits)
+            assert sym.canonical_representative(term, nqubits) == self._ref_canonical(
+                term, nqubits
+            ), (term, nqubits)

@@ -167,6 +167,10 @@ class PermutationSymmetry(SymmetryStrategy):
         The canonical form is reconstructed from the multiset of local Pauli
         symbols in sorted order ``I < X < Y < Z``.
 
+        Uses whole-word popcounts to count Pauli types and repeated-pattern
+        arithmetic to reconstruct the sorted form, so the cost is O(1) word
+        operations instead of a per-qubit Python loop.
+
         Args:
             term: Pauli term encoded as integer (2 bits per qubit, little-endian).
             nqubits: Number of qubits.
@@ -174,27 +178,27 @@ class PermutationSymmetry(SymmetryStrategy):
         Returns:
             Canonical representative as integer.
         """
-        # Step 1: Count occurrences of each Pauli type
-        # Index: 0=I, 1=X, 2=Y, 3=Z
-        counts = [0, 0, 0, 0]
+        # Step 1: Count occurrences of each Pauli type via the low/high bit
+        # planes of the 2-bit encoding (X=01, Y=10, Z=11).
+        term = int(term)
+        mask = ((1 << (2 * nqubits)) - 1) // 3  # 0b0101...01, one per qubit
+        low = term & mask
+        high = (term >> 1) & mask
 
-        for q in range(nqubits):
-            # Extract Pauli for qubit q using bit manipulation
-            # Shift right to bring qubit q's bits to position 0-1, then mask
-            pauli = (term >> (2 * q)) & 0x3
-            counts[pauli] += 1
+        n_z = (low & high).bit_count()
+        n_x = (low & ~high & mask).bit_count()
+        n_y = (high & ~low & mask).bit_count()
+        n_i = nqubits - n_x - n_y - n_z
 
-        # Step 2: Reconstruct canonical term with Paulis in sorted order
-        # Place all I's first, then all X's, then all Y's, then all Z's
-        canonical = 0
-        bit_pos = 0  # Current qubit position being written
+        # Step 2: Reconstruct with I's first, then X's, Y's, Z's. A run of k
+        # identical Paulis p is p * 0b0101...01 (k pairs) = p * (4^k - 1) / 3.
+        run_x = ((1 << (2 * n_x)) - 1) // 3
+        run_y = ((1 << (2 * n_y)) - 1) // 3
+        run_z = ((1 << (2 * n_z)) - 1) // 3
 
-        for pauli_type in range(4):  # 0=I, 1=X, 2=Y, 3=Z (ascending order)
-            for _ in range(counts[pauli_type]):
-                # Place this Pauli at bit_pos using bit manipulation
-                # Shift pauli_type left to position 2*bit_pos, then OR into canonical
-                canonical |= pauli_type << (2 * bit_pos)
-                bit_pos += 1
+        canonical = run_x << (2 * n_i)
+        canonical |= (2 * run_y) << (2 * (n_i + n_x))
+        canonical |= (3 * run_z) << (2 * (n_i + n_x + n_y))
 
         return canonical
 

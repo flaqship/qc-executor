@@ -46,15 +46,74 @@ class TestImportIsolation:
         modules = _top_level_modules_after_import()
         assert "qc_executor" in modules
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "qiskit is still a core dependency; the qiskit backend is imported eagerly by "
-            "qc_executor/__init__.py. Remove this marker once qiskit becomes an optional extra."
-        ),
-    )
-    def test_importing_qc_executor_does_not_import_qiskit(self):
-        assert "qiskit" not in _top_level_modules_after_import()
+    @pytest.mark.parametrize("framework", ["qiskit", "pennylane", "qulacs"])
+    def test_importing_qc_executor_does_not_import_a_framework(self, framework):
+        """The headline property: the core package is framework independent.
+
+        Backends resolve through the module ``__getattr__``, so none of them --
+        Qiskit included -- is imported until something asks for it.
+        """
+        assert framework not in _top_level_modules_after_import()
+
+    def test_a_backend_is_still_reachable_by_attribute(self):
+        """Laziness must not make the backends unreachable."""
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys, qc_executor; "
+                "assert 'qiskit' not in sys.modules; "
+                "assert qc_executor.qiskit is not None; "
+                "assert 'qiskit' in sys.modules; "
+                "print('ok')",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.strip() == "ok"
+
+    def test_an_unknown_attribute_still_raises(self):
+        import qc_executor  # noqa: PLC0415
+
+        with pytest.raises(AttributeError, match="no attribute 'not_a_backend'"):
+            _ = qc_executor.not_a_backend
+
+    def test_the_resolved_backend_is_cached(self, monkeypatch):
+        """A resolved backend lands in the module globals, so ``__getattr__`` runs once.
+
+        By the time the suite runs, importing a backend's submodule has already
+        bound it on the package, so the attribute has to be removed to reach the
+        lazy path at all.
+        """
+        import qc_executor  # noqa: PLC0415
+
+        monkeypatch.delattr(qc_executor, "pauli_propagation", raising=False)
+
+        resolved = qc_executor.pauli_propagation
+
+        assert resolved is not None
+        assert qc_executor.__dict__["pauli_propagation"] is resolved
+
+    def test_a_backend_whose_dependency_is_missing_resolves_to_none(self, monkeypatch):
+        """Not installing an extra is not an error; the attribute is just ``None``."""
+        import importlib  # noqa: PLC0415
+
+        import qc_executor  # noqa: PLC0415
+
+        def refuse(name, package=None):
+            raise ImportError(f"No module named {name!r}")
+
+        monkeypatch.delattr(qc_executor, "qulacs", raising=False)
+        monkeypatch.setattr(importlib, "import_module", refuse)
+
+        assert qc_executor.qulacs is None
+
+    def test_dir_lists_the_backends(self):
+        import qc_executor  # noqa: PLC0415
+
+        assert {"qiskit", "pennylane", "qulacs", "pauli_propagation"} <= set(dir(qc_executor))
 
     @pytest.mark.parametrize("plugin", ["pennylane", "qulacs", "pauli_propagation"])
     def test_a_backend_plugin_does_not_import_qiskit(self, plugin):

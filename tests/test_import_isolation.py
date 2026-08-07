@@ -56,6 +56,30 @@ class TestImportIsolation:
     def test_importing_qc_executor_does_not_import_qiskit(self):
         assert "qiskit" not in _top_level_modules_after_import()
 
+    @pytest.mark.parametrize("plugin", ["pennylane", "qulacs", "pauli_propagation"])
+    def test_a_backend_plugin_does_not_import_qiskit(self, plugin):
+        """No plugin but the Qiskit one may reach for Qiskit.
+
+        Every non-Qiskit backend used to build its circuit by transpiling a
+        Qiskit one and its operator by reading a ``SparsePauliOp``, so all three
+        pulled Qiskit in.  Source is scanned rather than ``sys.modules``
+        inspected because importing any submodule runs the package ``__init__``,
+        which still imports the Qiskit backend eagerly.
+        """
+        import pathlib  # noqa: PLC0415
+
+        import qc_executor  # noqa: PLC0415
+
+        root = pathlib.Path(qc_executor.__file__).parent / plugin
+        offenders = {
+            f"{path.relative_to(root)}:{number}": line.strip()
+            for path in sorted(root.rglob("*.py"))
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+            if line.startswith(("import qiskit", "from qiskit"))
+        }
+
+        assert not offenders, f"{plugin} still imports qiskit: {offenders}"
+
     def test_missing_optional_backends_degrade_gracefully(self):
         """Backends whose extra is absent must be ``None``, not an ImportError."""
         completed = subprocess.run(

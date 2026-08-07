@@ -9,9 +9,8 @@ from qiskit.circuit import Clbit, QuantumCircuit
 from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
 
 # pylint: disable=cyclic-import
-from ...utils.data_preprocessing import ensure_complex_coeffs
-from ...utils.decompose_to_std import decompose_to_std
-from ...utils.qiskit_compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0
+from .._compat import QISKIT_SMALLER_1_2, QISKIT_SMALLER_2_0, ensure_complex_coeffs
+from .._decompose import decompose_to_std
 from .optree import (
     OpTreeCircuit,
     OpTreeContainer,

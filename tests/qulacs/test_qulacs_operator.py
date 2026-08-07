@@ -4,7 +4,6 @@ from qulacs import GeneralQuantumOperator, PauliOperator  # pylint: disable=no-n
 
 from qc_executor import QuantumOperator
 from qc_executor.parameters import Parameters
-from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
 from qc_executor.qulacs import QulacsOperator
 
 
@@ -31,12 +30,14 @@ class TestQulacsOperatorProperties:
         assert qulacs_op.multiple_operators is True
         assert qulacs_op.num_qubits == 1
 
-    def test_hash_property_returns_string(self):
-        """Test that hash property returns a string representation."""
-        op = QuantumOperator(["Z"], [1.0])
-        qulacs_op = QulacsOperator(op)
+    def test_hash_is_derived_from_the_operator_content(self):
+        """The cache key comes from the representation's fingerprint."""
+        same = QulacsOperator(QuantumOperator(["Z"], [1.0]))
+        also_same = QulacsOperator(QuantumOperator(["Z"], [1.0]))
+        different = QulacsOperator(QuantumOperator(["Z"], [2.0]))
 
-        assert isinstance(qulacs_op.hash, str)
+        assert same.hash == also_same.hash
+        assert same.hash != different.hash
 
 
 class TestQulacsOperatorInitialization:
@@ -52,12 +53,10 @@ class TestQulacsOperatorInitialization:
         with pytest.raises(ValueError, match="Unsupported operator type"):
             QulacsOperator([op, object()])
 
-    def test_build_operator_instructions_invalid_type_raises(self):
-        """Test build function validation for invalid input type."""
-        qulacs_op = QulacsOperator(QuantumOperator(["Z"], [1.0]))
-
+    def test_init_empty_list_raises(self):
+        """An empty list has no width to report."""
         with pytest.raises(ValueError, match="Unsupported operator type"):
-            qulacs_op.build_operator_instructions(object())
+            QulacsOperator([])
 
 
 class TestQulacsOperatorBuildInstructions:
@@ -80,8 +79,7 @@ class TestQulacsOperatorBuildInstructions:
 
         assert "x" in qulacs_op.parameter_names
         assert qulacs_op.parameter_dimensions["x"] == 2
-        assert to_qiskit_expr(x[0]) in qulacs_op._free_parameters
-        assert to_qiskit_expr(x[1]) in qulacs_op._free_parameters
+        assert qulacs_op._free_parameters == {x[0], x[1]}
 
     def test_build_instructions_multiple_operator_objects(self):
         """Test instruction build with a list of operators."""
@@ -117,7 +115,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op = QuantumOperator(["Z", "X"], [x[0], 2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
-        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new(to_qiskit_expr(x[0]))
+        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new(x[0])
         jacobians = jacobian_func([0.5, 0.25])
 
         assert isinstance(jacobians, list)
@@ -132,9 +130,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op = QuantumOperator(["Z"], [2.0 * x[0] + x[1] * x[0]])
         qulacs_op = QulacsOperator(op)
 
-        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new(
-            [to_qiskit_expr(x[0]), to_qiskit_expr(x[1])]
-        )
+        jacobian_func = qulacs_op.get_gradient_outer_jacobian_operators_new([x[0], x[1]])
         jacobians = jacobian_func([0.5, 0.25])
 
         assert len(jacobians) == 1
@@ -161,7 +157,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op = QuantumOperator(["Z", "X"], [x[0], x[1]])
         qulacs_op = QulacsOperator(op)
 
-        operators_func = qulacs_op.get_operators_for_gradient(to_qiskit_expr(x[0]))
+        operators_func = qulacs_op.get_operators_for_gradient(x[0])
         gradient_operators = operators_func()
 
         assert isinstance(gradient_operators, list)
@@ -189,7 +185,7 @@ class TestQulacsOperatorRuntimeFunctions:
         op2 = QuantumOperator(["X"], [1.0])
         qulacs_op = QulacsOperator([op1, op2])
 
-        operators_func = qulacs_op.get_operators_for_gradient([to_qiskit_expr(x[0])])
+        operators_func = qulacs_op.get_operators_for_gradient([x[0]])
         gradient_operators = operators_func()
 
         assert len(gradient_operators) == 2

@@ -1,43 +1,63 @@
-"""PennyLane operator conversion utilities for Qiskit-based quantum operators."""
+"""PennyLane operator conversion from the shared sparse Pauli representation.
+
+This wrapper used to hold a Qiskit ``SparsePauliOp``, read its labels and turn
+its ``ParameterExpression`` coefficients into callables.  It now compiles the
+framework-independent representation directly, which removes Qiskit from this
+backend.
+
+Labels need no reversal any more.  Qiskit renders qubit 0 rightmost, so the old
+code reversed every label before handing it to ``string_to_pauli_word``; both
+sides now read qubit 0 leftmost.
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, cast
+from typing import Any, Callable, Dict, List, Sequence, Tuple, cast
 
 import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
+import sympy as sp
 from pennylane import pauli
-from qiskit.circuit import ParameterExpression
-from qiskit.quantum_info import SparsePauliOp
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
-from ..utils.qiskit_compat import _param_is_constant, _param_to_sympy
+from ..base.operator_ir import PauliIR
+from ..parameters import Parameter, sort_parameters
 from ._sympy_interface import _get_sympy_interface
-
-if TYPE_CHECKING:
-    from ..quantum_operator import QuantumOperator
 
 
 def _resolve_coefficient(coeff, symbol_tuple, printer, modules):
-    """Convert a Qiskit operator coefficient to a float or PennyLane-compatible callable."""
-    if isinstance(coeff, ParameterExpression):
-        if not _param_is_constant(coeff):
-            symbol_expr = _param_to_sympy(coeff)
-            return lambdify(symbol_tuple, symbol_expr, modules=modules, printer=printer)
-        coeff = complex(coeff)
-    if np.imag(coeff) != 0:
+    """Convert one coefficient to a float or a PennyLane-compatible callable.
+
+    Args:
+        coeff: The coefficient, a number or a SymPy expression.
+        symbol_tuple: Symbols the callable takes, in argument order.
+        printer: SymPy printer targeting PennyLane's autograd numpy.
+        modules: Module list for :func:`sympy.lambdify`.
+
+    Returns:
+        A float for a constant coefficient, else a callable of the symbols.
+
+    Raises:
+        ValueError: If a constant coefficient has an imaginary part.
+    """
+    if isinstance(coeff, sp.Basic) and coeff.free_symbols:
+        return lambdify(symbol_tuple, coeff, modules=modules, printer=printer)
+    value = complex(coeff)
+    if value.imag != 0:
         raise ValueError("Imaginary part of operator coefficient is not supported")
-    return float(np.real(coeff))
+    return float(value.real)
 
 
 class PennyLaneOperator:
     """Convert generic quantum operators to PennyLane-native operators.
 
     Args:
-        operator (QuantumOperatorBase | list[QuantumOperatorBase]):
-            Operator definition(s) to convert.
+        operator: The operator, or a list of operators to evaluate together.
+
+    Raises:
+        ValueError: If the argument is not an operator or a list of operators.
     """
 
     @classmethod
@@ -51,25 +71,31 @@ class PennyLaneOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = cast("QuantumOperator", operator).qiskit_operator
-            self._num_qubits = self._qiskit_operator.num_qubits
+            self._islist = False
+            self._irs: List[PauliIR] = [operator.ir]
         elif isinstance(operator, list):
-            if all(isinstance(op, QuantumOperatorBase) for op in operator):
-                self._qiskit_operator = [
-                    cast("QuantumOperator", op).qiskit_operator for op in operator
-                ]
-            else:
+            if not all(isinstance(op, QuantumOperatorBase) for op in operator):
                 raise ValueError("Unsupported operator type")
-            self._num_qubits = self._qiskit_operator[0].num_qubits
+            if not operator:
+                raise ValueError("Unsupported operator type")
+            self._islist = True
+            self._irs = [cast(QuantumOperatorBase, op).ir for op in operator]
         else:
             raise ValueError("Unsupported operator type")
 
-        self._pennylane_operator_param_functions = []
-        self._pennylane_operator_parameters = []
-        self._pennylane_words = []
-        self._pennylane_operator_parameter_dimensions = {}
+        self._num_qubits = self._irs[0].num_qubits
 
-        self.build_operator_instructions(self._qiskit_operator)
+        self._pennylane_operator_param_functions: List[Any] = []
+        self._pennylane_operator_parameters: List[str] = []
+        self._pennylane_words: List[Any] = []
+        self._pennylane_operator_parameter_dimensions: Dict[str, int] = {}
+
+        self.build_operator_instructions(self._irs)
+
+    @property
+    def num_qubits(self) -> int:
+        """Number of qubits the operator acts on."""
+        return self._num_qubits
 
     @property
     def parameter_names(self) -> list:
@@ -82,96 +108,85 @@ class PennyLaneOperator:
         return self._pennylane_operator_parameter_dimensions
 
     @property
-    def hash(self) -> int:
-        """Hashable object of the circuit and operator for caching"""
-        return hash(str(self._qiskit_operator))
+    def hash(self) -> bytes:
+        """Hashable object of the operator for caching"""
+        return b"".join(ir.fingerprint() for ir in self._irs)
 
-    def build_operator_instructions(self, operator: List[SparsePauliOp] | SparsePauliOp):
-        """
-        Function to build the instructions for the PennyLane operator from the Qiskit operator.
-
-        This functions converts the Qiskit SparsePauli and parameter expressions to PennyLane
-        compatible Pauli words and functions.
+    def build_operator_instructions(self, operators: Sequence[PauliIR]) -> None:
+        """Compile the representation into PennyLane Pauli words and coefficient callables.
 
         Args:
-            operator (List[SparsePauliOp] | SparsePauliOp): Qiskit operator to convert
-                                                                    to PennyLane
-
-        Returns:
-            Tuple with lists of PennyLane operator parameter functions, PennyLane Pauli words,
-            PennyLane operator parameters and PennyLane operator parameter dimensions
+            operators: One representation per observable to evaluate.
         """
-
         self._pennylane_operator_param_functions = []
         self._pennylane_operator_parameters = []
         self._pennylane_words = []
         self._pennylane_operator_parameter_dimensions = {}
 
-        islist = True
-        if not isinstance(operator, list):
-            islist = False
-            operator = [operator]
-
-        def sort_parameters_after_index(parameter_vector):
-            index_list = [p.index for p in parameter_vector]
-            argsort_list = np.argsort(index_list)
-            return [parameter_vector[i] for i in argsort_list]
+        for ir in operators:
+            for parameter in sort_parameters(ir.free_parameters):
+                name = parameter.vector_name
+                if name not in self._pennylane_operator_parameters:
+                    self._pennylane_operator_parameters.append(name)
+                    self._pennylane_operator_parameter_dimensions[name] = 1
+                else:
+                    self._pennylane_operator_parameter_dimensions[name] += 1
 
         printer, modules = _get_sympy_interface()
 
-        for op in operator:
-            for param in op.parameters:
-                if param.vector.name not in self._pennylane_operator_parameters:
-                    self._pennylane_operator_parameters.append(param.vector.name)
-                    self._pennylane_operator_parameter_dimensions[param.vector.name] = 1
-                else:
-                    self._pennylane_operator_parameter_dimensions[param.vector.name] += 1
-
-        # Handle operator parameter expressions and convert them to compatible python functions
-
-        symbol_tuple = tuple(
-            sum(
-                [
-                    [_param_to_sympy(p) for p in sort_parameters_after_index(op.parameters)]
-                    for op in operator
-                ],
-                [],
-            )
+        # One symbol slot per parameter occurrence, in the same order the
+        # dimensions above were counted, so the executor's flattened argument
+        # list lines up with what the lambdified callables expect.
+        symbol_tuple: Tuple[Parameter, ...] = tuple(
+            parameter for ir in operators for parameter in sort_parameters(ir.free_parameters)
         )
 
-        self._pennylane_operator_param_functions = []
-        for op in operator:
-            coeffs = op.coeffs if op.coeffs is not None else []
+        for ir in operators:
             self._pennylane_operator_param_functions.append(
-                [_resolve_coefficient(coeff, symbol_tuple, printer, modules) for coeff in coeffs]
+                [
+                    _resolve_coefficient(coeff, symbol_tuple, printer, modules)
+                    for coeff in ir.coeffs
+                ]
             )
-
-        # Convert Pauli strings into PennyLane Pauli words.  Qiskit renders
-        # qubit 0 rightmost while string_to_pauli_word reads it leftmost, so the
-        # label is reversed here.
-        for op in operator:
+            # Qubit 0 is leftmost on both sides, so the label passes through.
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(p[::-1]) for p in op.paulis.to_labels()]
+                [pauli.string_to_pauli_word(label) for label in ir.to_labels()]
             )
 
-        if not islist:
+        if not self._islist:
             self._pennylane_operator_param_functions = self._pennylane_operator_param_functions[0]
             self._pennylane_words = self._pennylane_words[0]
 
-    def build_pennylane_observable(self):
-        """
-        Function to build the PennyLane circuit from the Qiskit circuit and observable.
+    def _observable(self, coeff_functions, words, obs_param_list):
+        """Build one weighted observable from its coefficients and Pauli words.
 
-        The functions returns a callable PennyLane circuit that can be called with parameters.
-        The PennyLane circuit is built from the instructions previously generated from the Qiskit
-        circuit and observable.
+        Coefficients are weights, not decoration: an unweighted ``qml.sum`` here
+        silently returned the value for all-ones coefficients.
+
+        Args:
+            coeff_functions: Floats or callables, one per word.
+            words: The PennyLane Pauli words.
+            obs_param_list: Flattened parameter values for the callables.
 
         Returns:
-            Callable PennyLane circuit
+            The measurement process, or ``0.0`` for an empty operator.
+        """
+        if len(words) == 0:
+            return 0.0
+        coeffs = [
+            coeff(*obs_param_list) if callable(coeff) else coeff for coeff in coeff_functions
+        ]
+        return qml.expval(qml.Hamiltonian(coeffs, words))
+
+    def build_pennylane_observable(self) -> Callable:
+        """Return a callable that measures this observable inside a QNode.
+
+        Returns:
+            A callable taking one sequence of values per operator parameter.
         """
 
         def pennylane_observable(*args):
-            """PennyLane circuit that can be called with parameters"""
+            """PennyLane observable that can be called with parameters"""
 
             # Collects the args values connected to the observable parameters
             obs_param_list = sum(
@@ -179,46 +194,17 @@ class PennyLaneOperator:
                 [],
             )
 
-            if isinstance(self._qiskit_operator, list):
-                expval_list = []
-                for i, obs in enumerate(self._pennylane_words):
-                    if len(obs_param_list) > 0:
-                        coeff_list = [
-                            coeff(*obs_param_list) if callable(coeff) else coeff
-                            for coeff in self._pennylane_operator_param_functions[i]
-                        ]
-                        expval_list.append(qml.expval(qml.Hamiltonian(coeff_list, obs)))
-                    else:
-                        # No free parameters, but the coefficients are still
-                        # weights: an unweighted qml.sum here silently returned
-                        # the value for all-ones coefficients.
-                        if len(self._pennylane_words[i]) == 0:
-                            expval_list.append(0.0)
-                        else:
-                            expval_list.append(
-                                qml.expval(
-                                    qml.Hamiltonian(
-                                        list(self._pennylane_operator_param_functions[i]),
-                                        self._pennylane_words[i],
-                                    )
-                                )
-                            )
-                return pnp.stack(tuple(expval_list))
-            if len(obs_param_list) > 0:
-                coeff_list = [
-                    coeff(*obs_param_list) if callable(coeff) else coeff
-                    for coeff in self._pennylane_operator_param_functions
-                ]
-                return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
-            # No free parameters, but the coefficients are still weights: an
-            # unweighted qml.sum here silently returned the value for all-ones
-            # coefficients.
-            if len(self._pennylane_words) == 0:
-                return 0.0
-            return qml.expval(
-                qml.Hamiltonian(
-                    list(self._pennylane_operator_param_functions), self._pennylane_words
+            if self._islist:
+                return pnp.stack(
+                    tuple(
+                        self._observable(
+                            self._pennylane_operator_param_functions[i], words, obs_param_list
+                        )
+                        for i, words in enumerate(self._pennylane_words)
+                    )
                 )
+            return self._observable(
+                self._pennylane_operator_param_functions, self._pennylane_words, obs_param_list
             )
 
         return pennylane_observable

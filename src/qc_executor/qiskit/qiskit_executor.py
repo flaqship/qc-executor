@@ -16,6 +16,14 @@ from qiskit.quantum_info import Statevector
 from qc_executor.base.circuit_base import QuantumCircuitBase
 from qc_executor.base.executor_base import ExecutorBase
 from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.qiskit._compat import (
+    QISKIT_RUNTIME_AVAILABLE,
+    QISKIT_RUNTIME_SMALLER_0_21,
+    QISKIT_RUNTIME_SMALLER_0_23,
+    QISKIT_RUNTIME_SMALLER_0_28,
+    QISKIT_SMALLER_1_2,
+    QISKIT_SMALLER_2_0,
+)
 from qc_executor.qiskit.optree import OpTreeDerivative, OpTreeEvaluate
 from qc_executor.qiskit.optree.optree import (
     OpTreeCircuit,
@@ -25,14 +33,6 @@ from qc_executor.qiskit.optree.optree import (
 )
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_operator import QiskitOperator
-from qc_executor.utils.qiskit_compat import (
-    QISKIT_RUNTIME_AVAILABLE,
-    QISKIT_RUNTIME_SMALLER_0_21,
-    QISKIT_RUNTIME_SMALLER_0_23,
-    QISKIT_RUNTIME_SMALLER_0_28,
-    QISKIT_SMALLER_1_2,
-    QISKIT_SMALLER_2_0,
-)
 
 logger = logging.getLogger(__name__)
 

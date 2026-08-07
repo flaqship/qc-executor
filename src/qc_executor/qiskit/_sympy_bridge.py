@@ -19,7 +19,7 @@ import sympy as sp
 from qiskit.circuit import ParameterVector
 
 from ..parameters import Parameter, canonicalize
-from ..utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
+from ._compat import _param_is_constant, _param_to_float, _param_to_sympy
 
 __all__ = [
     "UnsupportedExpressionError",

@@ -1,23 +1,63 @@
-"""Qulacs operator implementation for quantum expectation value computation."""
+"""Qulacs operator implementation for quantum expectation value computation.
+
+This wrapper used to hold a Qiskit ``SparsePauliOp`` and read its labels,
+coefficients and parameter expressions.  It now compiles the shared sparse Pauli
+representation directly, which is what removes Qiskit from this backend.
+
+Two consequences of owning the representation:
+
+* Labels need no reversal.  Qiskit renders qubit 0 rightmost, so the old code
+  reversed every label before building the Qulacs term string; both sides now
+  index character ``i`` as qubit ``i``.
+* Coefficient derivatives come from :func:`sympy.diff` rather than
+  ``ParameterExpression.gradient``, so the fallback chain the Qiskit path needed
+  when ``gradient`` refused an expression is gone.
+"""
 
 from __future__ import annotations
 
-from typing import Any, List, cast
+from typing import Any, Callable, Dict, List, Sequence, Tuple, cast
 
 import numpy as np
 import sympy as sp
-from qiskit.circuit import ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
-from qiskit.quantum_info import SparsePauliOp
 from qulacs import GeneralQuantumOperator, PauliOperator  # pylint: disable=no-name-in-module
 from sympy import lambdify
 
 from ..base import QuantumOperatorBase
-from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
+from ..base.operator_ir import PauliIR
+from ..parameters import Parameter, sort_parameters
+
+
+def _pauli_term(label: str) -> str:
+    """Render a Pauli label as the term string Qulacs parses.
+
+    Qubit ``q`` is character ``q`` of the label, matching the Qulacs term
+    string, so no reversal happens here.
+
+    Args:
+        label: A Pauli label such as ``"ZI"``.
+
+    Returns:
+        The Qulacs term string, e.g. ``"Z 0 I 1 "``.
+    """
+    return " ".join(f"{pauli} {qubit}" for qubit, pauli in enumerate(label)) + " "
+
+
+def _as_number(coeff: Any) -> complex | float:
+    """Reduce a numeric coefficient, dropping a negligible imaginary part."""
+    value = np.real_if_close(complex(coeff))
+    return float(value.real) if not np.iscomplexobj(value) else complex(value)
 
 
 class QulacsOperator:
-    """Qulacs native operator wrapper for expectation value and gradient computation."""
+    """Qulacs native operator wrapper for expectation value and gradient computation.
+
+    Args:
+        operator: The operator, or a list of operators to evaluate together.
+
+    Raises:
+        ValueError: If the argument is not an operator or a list of operators.
+    """
 
     @classmethod
     def from_quantum_operator(
@@ -32,26 +72,30 @@ class QulacsOperator:
     ) -> None:
 
         if isinstance(operator, QuantumOperatorBase):
-            self._qiskit_operator = cast(Any, operator).qiskit_operator
-            self._num_qubits = self._qiskit_operator.num_qubits
+            self.multiple_operators = False
+            self._irs: List[PauliIR] = [operator.ir]
         elif isinstance(operator, list):
-            if all(isinstance(obs, QuantumOperatorBase) for obs in operator):
-                self._qiskit_operator = [cast(Any, obs).qiskit_operator for obs in operator]
-            else:
+            if not all(isinstance(obs, QuantumOperatorBase) for obs in operator):
                 raise ValueError("Unsupported operator type")
-            self._num_qubits = self._qiskit_operator[0].num_qubits
+            if not operator:
+                raise ValueError("Unsupported operator type")
+            self.multiple_operators = True
+            self._irs = [cast(QuantumOperatorBase, obs).ir for obs in operator]
         else:
             raise ValueError("Unsupported operator type")
 
-        self.new_operators = []
-        self.new_operators_coeff = []
-        self.new_operators_coeff_grad = []
-        self.new_operators_used_parameters = []
-        self._qulacs_op_parameters = {}
-        self._free_parameters = set()
-        self.build_operator_instructions(self._qiskit_operator)
+        self._num_qubits = self._irs[0].num_qubits
 
-        self._outer_jacobi_obs_cache = {}
+        self.new_operators: List[List[str]] = []
+        self.new_operators_coeff: List[List[Callable]] = []
+        self.new_operators_coeff_grad: List[List[List[Callable]]] = []
+        self.new_operators_used_parameters: List[List[List[Parameter]]] = []
+        self._qulacs_op_parameters: Dict[str, int] = {}
+        self._free_parameters: set = set()
+        self._symbol_tuple_obs: Tuple[Parameter, ...] = ()
+        self.build_operator_instructions(self._irs)
+
+        self._outer_jacobi_obs_cache: dict = {}
 
     @property
     def num_qubits(self) -> int:
@@ -69,140 +113,89 @@ class QulacsOperator:
         return self._qulacs_op_parameters
 
     @property
-    def hash(self) -> str:
-        """Hashable object of the circuit and operator for caching"""
-        return str(self._qiskit_operator)
+    def hash(self) -> bytes:
+        """Hashable object of the operator for caching."""
+        return b"".join(ir.fingerprint() for ir in self._irs)
 
     @property
     def free_parameters(self) -> set:
         """Return the set of free (non-bound) parameters in the operator."""
         return self._free_parameters
 
-    def _build_coeff_functions(self, c):
-        """Build coefficient function and gradient functions for a single operator term.
+    def _build_coeff_functions(self, coeff: Any) -> Tuple[Any, List[Callable], List[Parameter]]:
+        """Build the value and derivative callables for one term's coefficient.
 
         Args:
-            c: The coefficient, which may be a ParameterVectorElement,
-               ParameterExpression, or a plain numeric value.
+            coeff: The coefficient, a number or a SymPy expression.
 
         Returns:
-            Tuple of (coeff_func, grad_funcs, used_params).
+            Tuple of ``(coeff_func, grad_funcs, used_parameters)``.  A constant
+            coefficient yields a zero derivative and no used parameters.
         """
-        if isinstance(c, ParameterVectorElement):
-            self._free_parameters.add(c)
-            return lambdify(self._symbol_tuple_obs, _param_to_sympy(c)), [lambda *arg: 1.0], [c]
-
-        if isinstance(c, ParameterExpression):
-            coeff_func = lambdify(self._symbol_tuple_obs, _param_to_sympy(c))
-            grad_funcs = []
-            used_params = []
-            for param_element in _param_free_symbols(c):
-                self._free_parameters.add(param_element)
-                used_params.append(param_element)
-                try:
-                    param_grad = c.gradient(param_element)
-                except (
-                    TypeError,
-                    ValueError,
-                    AttributeError,
-                    NotImplementedError,
-                ):
-                    c_sym = _param_to_sympy(c)
-                    p_sym = _param_to_sympy(param_element)
-                    param_grad = c_sym.diff(p_sym)
-                if isinstance(param_grad, complex) and param_grad.imag == 0:
-                    param_grad = param_grad.real
-                if isinstance(param_grad, (float, complex)):
-                    grad_funcs.append(lambda *arg, param_grad=param_grad: param_grad)
-                elif isinstance(param_grad, sp.Basic):
-                    grad_funcs.append(lambdify(self._symbol_tuple_obs, param_grad))
+        if isinstance(coeff, sp.Basic) and coeff.free_symbols:
+            coeff_func = lambdify(self._symbol_tuple_obs, coeff)
+            grad_funcs: List[Callable] = []
+            used_parameters: List[Parameter] = []
+            for parameter in sort_parameters(
+                s for s in coeff.free_symbols if isinstance(s, Parameter)
+            ):
+                self._free_parameters.add(parameter)
+                used_parameters.append(parameter)
+                derivative = sp.diff(coeff, parameter)
+                if derivative.free_symbols:
+                    grad_funcs.append(lambdify(self._symbol_tuple_obs, derivative))
                 else:
-                    grad_funcs.append(
-                        lambdify(self._symbol_tuple_obs, _param_to_sympy(param_grad))
-                    )
-            return coeff_func, grad_funcs, used_params
+                    # Call-by-value so the closure keeps this term's constant.
+                    value = _as_number(derivative)
+                    grad_funcs.append(lambda *_args, value=value: value)
+            return coeff_func, grad_funcs, used_parameters
 
-        return lambda *arg, c=c: c, [lambda *arg: 0.0], []
+        constant = _as_number(coeff)
+        return (lambda *_args, constant=constant: constant), [lambda *_args: 0.0], []
 
-    def build_operator_instructions(self, operator: List[SparsePauliOp] | SparsePauliOp):
-        """
-        Function to build the instructions for the Qulacs operator from the Qiskit operator.
-
-        This functions converts the Qiskit SparsePauli and parameter expressions to Qulacs
-        compatible Pauli words and functions.
+    def build_operator_instructions(self, operators: Sequence[PauliIR]) -> None:
+        """Compile the sparse Pauli representation into Qulacs terms and callables.
 
         Args:
-            operator (List[SparsePauliOp] | SparsePauliOp): Qiskit operator to convert
-                                                                    to Qulacs
-
-        Returns:
-            Tuple with lists of Qulacs operator parameter functions, Qulacs Pauli words,
-            Qulacs operator parameters and Qulacs operator parameter dimensions
+            operators: One representation per observable to evaluate.
         """
-
-        self.multiple_operators = False
-        if isinstance(operator, SparsePauliOp):
-            operator = [operator]
-        elif isinstance(operator, list):
-            self.multiple_operators = True
-        else:
-            raise ValueError("Unsupported operator type")
-
-        self._symbol_tuple_obs = tuple()
-
         self._qulacs_op_parameters = {}
+        for ir in operators:
+            for parameter in sort_parameters(ir.free_parameters):
+                name = parameter.vector_name
+                self._qulacs_op_parameters[name] = self._qulacs_op_parameters.get(name, 0) + 1
 
-        for op in operator:
-            for param in op.parameters:
-                name = param.vector.name
-                if name not in self._qulacs_op_parameters:
-                    self._qulacs_op_parameters[name] = 1
-                else:
-                    self._qulacs_op_parameters[name] += 1
-
+        # One symbol slot per parameter occurrence, in the same order the
+        # dimensions above were counted, so the executor's flattened argument
+        # list lines up with what the lambdified callables expect.
         self._symbol_tuple_obs = tuple(
-            sum(
-                [
-                    [
-                        _param_to_sympy(p)
-                        for p in sorted(op.parameters, key=lambda param: param.index)
-                    ]
-                    for op in operator
-                ],
-                [],
-            )
+            parameter for ir in operators for parameter in sort_parameters(ir.free_parameters)
         )
 
-        # new version
         self.new_operators = []
         self.new_operators_coeff = []
         self.new_operators_coeff_grad = []
         self.new_operators_used_parameters = []
-        for op in operator:
 
-            # Qiskit renders qubit 0 rightmost; the Qulacs term string built
-            # below indexes character i as qubit i, so the label is reversed.
-            paulis = [str(p)[::-1] for p in op.paulis]
-            coeff = list(np.real_if_close(np.asarray(cast(Any, op.coeffs))))
+        for ir in operators:
+            terms: List[str] = []
+            coeff_funcs: List[Callable] = []
+            grad_funcs: List[List[Callable]] = []
+            used_parameters: List[List[Parameter]] = []
 
-            new_operator = []
-            new_operators_coeff = []
-            new_operators_coeff_grad = []
-            new_operators_used_parameters = []
-            for c, p in zip(coeff, paulis):
-                string = " ".join(f"{p_} {i}" for i, p_ in enumerate(p)) + " "
-                coeff_func, grad_funcs, used_params = self._build_coeff_functions(c)
-                new_operator.append(string)
-                new_operators_coeff.append(coeff_func)
-                new_operators_coeff_grad.append(grad_funcs)
-                new_operators_used_parameters.append(used_params)
+            for label, coeff in zip(ir.to_labels(), ir.coeffs):
+                coeff_func, term_grads, term_parameters = self._build_coeff_functions(coeff)
+                terms.append(_pauli_term(label))
+                coeff_funcs.append(coeff_func)
+                grad_funcs.append(term_grads)
+                used_parameters.append(term_parameters)
 
-            self.new_operators.append(new_operator)
-            self.new_operators_coeff.append(new_operators_coeff)
-            self.new_operators_coeff_grad.append(new_operators_coeff_grad)
-            self.new_operators_used_parameters.append(new_operators_used_parameters)
+            self.new_operators.append(terms)
+            self.new_operators_coeff.append(coeff_funcs)
+            self.new_operators_coeff_grad.append(grad_funcs)
+            self.new_operators_used_parameters.append(used_parameters)
 
-    def get_operator_func(self):
+    def get_operator_func(self) -> Callable:
         """Returns the Qulacs operator function for the operator depending on parameters."""
 
         def operator_func(*args):
@@ -210,8 +203,8 @@ class QulacsOperator:
             list_operators = []
             for i, operator in enumerate(self.new_operators):
                 new_operator = GeneralQuantumOperator(self.num_qubits)
-                for j, op in enumerate(operator):
-                    new_operator.add_operator(self.new_operators_coeff[i][j](*args), op)
+                for j, term in enumerate(operator):
+                    new_operator.add_operator(self.new_operators_coeff[i][j](*args), term)
                 list_operators.append(new_operator)
 
             return list_operators
@@ -220,8 +213,8 @@ class QulacsOperator:
 
     def get_gradient_outer_jacobian_operators_new(
         self,
-        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
-    ):
+        gradient_parameters: "Parameter | List[Parameter] | None" = None,
+    ) -> Callable:
         """Returns the outer jacobian needed for the chain rule in circuit derivatives.
 
         Qulacs does not support multiple parameters and parameter expressions,
@@ -229,11 +222,11 @@ class QulacsOperator:
         parameter expression.
 
         Args:
-            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None):
+            gradient_parameters (Parameter | List[Parameter] | None):
                 Parameters to calculate the gradient for.
         """
 
-        if isinstance(gradient_parameters, ParameterVectorElement):
+        if isinstance(gradient_parameters, Parameter):
             gradient_parameters = [gradient_parameters]
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
         gradient_param_dict = {p: i for i, p in enumerate(gradient_parameters)}
@@ -270,11 +263,11 @@ class QulacsOperator:
 
     def get_operators_for_gradient(
         self,
-        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
-    ):
+        gradient_parameters: "Parameter | List[Parameter] | None" = None,
+    ) -> Callable:
         """Returns the Qulacs operator function for the operators depending on parameters."""
 
-        if isinstance(gradient_parameters, ParameterVectorElement):
+        if isinstance(gradient_parameters, Parameter):
             gradient_parameters = [gradient_parameters]
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
 

@@ -9,7 +9,7 @@ from qiskit.circuit import ParameterExpression, QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
 # pylint: disable=cyclic-import
-from ...utils.qiskit_hash_functions import _circuit_key, _observable_key
+from .._hash import _circuit_key, _observable_key
 
 
 class OpTreeElementBase:  # pylint: disable=too-few-public-methods

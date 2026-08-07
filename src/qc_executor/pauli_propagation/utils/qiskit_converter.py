@@ -244,7 +244,7 @@ def _convert_single_gate(gate_op, qubits: List[int], nqubits: int) -> Gate | Non
     # T is not a Clifford gate (T†XT is no single Pauli); it equals RZ(π/4)
     # up to a global phase, which cancels in Heisenberg conjugation
     if gate_name == "T":
-        return PauliRotation(["Z"], qubits[0], nqubits, param_value=0.7853981633974483)
+        return PauliRotation(["Z"], qubits[0], nqubits, param_value=np.pi / 4)
 
     # Clifford gates (non-parametric)
     if gate_name in ["H", "S", "X", "Y", "Z"]:

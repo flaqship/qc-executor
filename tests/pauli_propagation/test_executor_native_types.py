@@ -86,18 +86,19 @@ class TestPauliPropagationExecutorNativeTypes:
 
         captured = {}
 
-        def fake_propagate(_gates, obs, _params, **_kwargs):
-            captured["symmetry_name"] = obs.symmetry.name
-            return obs
+        def fake_batch_propagate(_gates, psums, _params, **_kwargs):
+            captured["symmetry_names"] = [psum.symmetry.name for psum in psums]
+            return psums
 
         monkeypatch.setattr(
-            "qc_executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+            "qc_executor.pauli_propagation.pauli_propagation_executor.batch_propagate",
+            fake_batch_propagate,
         )
 
         value = executor.expectation_value(circuit, observable)
 
         assert np.isclose(value, 1.0)
-        assert captured["symmetry_name"] == "permutation"
+        assert captured["symmetry_names"] == ["permutation"]
 
     def test_executor_falls_back_to_executor_symmetry(self, monkeypatch):
         circuit = PauliPropagationCircuit(1)
@@ -106,15 +107,16 @@ class TestPauliPropagationExecutorNativeTypes:
 
         captured = {}
 
-        def fake_propagate(_gates, obs, _params, **_kwargs):
-            captured["symmetry_name"] = obs.symmetry.name
-            return obs
+        def fake_batch_propagate(_gates, psums, _params, **_kwargs):
+            captured["symmetry_names"] = [psum.symmetry.name for psum in psums]
+            return psums
 
         monkeypatch.setattr(
-            "qc_executor.pauli_propagation.pauli_propagation_executor.propagate", fake_propagate
+            "qc_executor.pauli_propagation.pauli_propagation_executor.batch_propagate",
+            fake_batch_propagate,
         )
 
         value = executor.expectation_value(circuit, observable)
 
         assert np.isclose(value, 1.0)
-        assert captured["symmetry_name"] == "permutation"
+        assert captured["symmetry_names"] == ["permutation"]

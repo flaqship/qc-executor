@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Sequence
 
+import numpy as np
 import sympy as sp
 
 from qc_executor.base.circuit_base import QuantumCircuitBase
@@ -157,15 +158,15 @@ class PauliPropagationCircuit(QuantumCircuitBase):
             self._gates.append(CliffordGate("S", qubit, self._num_qubits))
 
     def sdag(self, qubits: int | List[int]):
-        self.rz(qubits, -1.5707963267948966)
+        self.rz(qubits, -np.pi / 2)
 
     def t(self, qubits: int | List[int]):
-        qubit_list = [qubits] if isinstance(qubits, int) else qubits
-        for qubit in qubit_list:
-            self._gates.append(CliffordGate("T", qubit, self._num_qubits))
+        # T equals RZ(π/4) up to a global phase, which cancels in Heisenberg
+        # conjugation; the rotation is exact (T is not a Clifford gate)
+        self.rz(qubits, np.pi / 4)
 
     def tdag(self, qubits: int | List[int]):
-        self.rz(qubits, -0.7853981633974483)
+        self.rz(qubits, -np.pi / 4)
 
     def p(self, qubits: int | List[int], angle: float):
         self.rz(qubits, angle)

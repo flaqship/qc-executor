@@ -185,8 +185,10 @@ class TestPauliPropagationCircuitGates:
         assert len(circuit.gates) == 11
         assert isinstance(circuit.gates[0], CliffordGate)
         assert circuit.gates[0].gate_type == "S"
-        assert isinstance(circuit.gates[2], CliffordGate)
-        assert circuit.gates[2].gate_type == "T"
+        # t() produces the exact RZ(π/4) rotation (T is not Clifford)
+        assert isinstance(circuit.gates[2], PauliRotation)
+        assert circuit.gates[2].symbols == ["Z"]
+        assert np.isclose(circuit.gates[2].param_value, np.pi / 4)
         assert isinstance(circuit.gates[4], CliffordGate)
         assert circuit.gates[4].gate_type == "Y"
         assert isinstance(circuit.gates[6], CliffordGate)
@@ -208,8 +210,10 @@ class TestPauliPropagationCircuitGates:
         circuit.barrier(0)
 
         assert len(circuit.gates) == 5
-        assert isinstance(circuit.gates[0], CliffordGate)
-        assert circuit.gates[0].gate_type == "T"
+        # t() produces the exact RZ(π/4) rotation (T is not Clifford)
+        assert isinstance(circuit.gates[0], PauliRotation)
+        assert circuit.gates[0].symbols == ["Z"]
+        assert np.isclose(circuit.gates[0].param_value, np.pi / 4)
         assert isinstance(circuit.gates[1], CliffordGate)
         assert circuit.gates[1].gate_type == "Y"
         assert isinstance(circuit.gates[2], CliffordGate)

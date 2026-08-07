@@ -9,6 +9,17 @@ Encoding scheme: 2 bits per qubit
 Internal encoding stays little-endian by qubit index, i.e. qubit 0 occupies
 the least-significant two bits. The public string representation uses standard
 mathematical convention: qubit 0 is the leftmost character.
+
+Symplectic decomposition (used by the whole-word fast paths):
+    With the low-bit mask M = 0b0101...01 (one pair per qubit), a term t
+    decomposes into per-qubit component words
+        z = (t >> 1) & M   (set where the qubit carries Y or Z)
+        x = (t ^ (t >> 1)) & M   (set where the qubit carries X or Y)
+    so that each qubit's Pauli is X^x Z^z up to the phase convention
+    P(x, z) = i^(x*z) X^x Z^z (which makes Y = iXZ). In this encoding the
+    Pauli product's result term is simply term1 ^ term2; only the phase needs
+    popcount bookkeeping. This turns all per-qubit loops into O(1) whole-word
+    integer operations (int.bit_count is available on Python >= 3.10).
 """
 
 # The lazy import of pauli_types in pauli_sum_multiply is intentional.
@@ -16,6 +27,7 @@ mathematical convention: qubit 0 is the leftmost character.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Tuple
 
 import numpy as np
@@ -23,6 +35,15 @@ import numpy as np
 # Pauli symbol to integer mapping
 SYMBOL_TO_INT = {"I": 0, "X": 1, "Y": 2, "Z": 3}
 INT_TO_SYMBOL = {0: "I", 1: "X", 2: "Y", 3: "Z"}
+
+# Powers of i, indexed by exponent mod 4
+_PHASE_TABLE = (1.0 + 0.0j, 1j, -1.0 + 0.0j, -1j)
+
+
+@lru_cache(maxsize=None)
+def low_mask(nqubits: int) -> int:
+    """Return the mask 0b0101...01 with one low bit per qubit pair."""
+    return ((1 << (2 * nqubits)) - 1) // 3
 
 
 def get_uint_type(nqubits: int):
@@ -166,11 +187,8 @@ def count_weight(term: int, nqubits: int) -> int:
     Returns:
         Weight (number of non-I Paulis)
     """
-    weight = 0
-    for i in range(nqubits):
-        if get_pauli(term, i, nqubits) != 0:  # 0 = I
-            weight += 1
-    return weight
+    term = int(term)  # ensure Python int semantics (bit_count, no overflow)
+    return ((term | (term >> 1)) & low_mask(nqubits)).bit_count()
 
 
 def pauli_multiply(term1: int, term2: int, nqubits: int) -> Tuple[int, complex]:
@@ -190,20 +208,26 @@ def pauli_multiply(term1: int, term2: int, nqubits: int) -> Tuple[int, complex]:
     Returns:
         Tuple of (result_term, phase) where phase is complex (±1, ±i)
     """
-    result_term = 0
-    phase = 1.0 + 0.0j
+    # In this encoding the result term is simply the XOR of both words.
+    # The phase follows from P(x, z) = i^(x*z) X^x Z^z per qubit:
+    # P(a) * P(b) = i^(x1*z1 + x2*z2 + 2*z1*x2 - x3*z3) P(a+b), summed over
+    # qubits via popcounts (see module docstring).
+    term1 = int(term1)  # ensure Python int semantics (bit_count, no overflow)
+    term2 = int(term2)
+    mask = low_mask(nqubits)
+    z1 = (term1 >> 1) & mask
+    x1 = (term1 ^ (term1 >> 1)) & mask
+    z2 = (term2 >> 1) & mask
+    x2 = (term2 ^ (term2 >> 1)) & mask
 
-    for i in range(nqubits):
-        p1 = get_pauli(term1, i, nqubits)
-        p2 = get_pauli(term2, i, nqubits)
+    k = (
+        (x1 & z1).bit_count()
+        + (x2 & z2).bit_count()
+        + 2 * (z1 & x2).bit_count()
+        - ((x1 ^ x2) & (z1 ^ z2)).bit_count()
+    ) & 3
 
-        # Compute product using multiplication table
-        p_result, p_phase = _multiply_single_pauli(p1, p2)
-
-        result_term = set_pauli(result_term, i, p_result, nqubits)
-        phase *= p_phase
-
-    return result_term, phase
+    return term1 ^ term2, _PHASE_TABLE[k]
 
 
 def _multiply_single_pauli(p1: int, p2: int) -> Tuple[int, complex]:
@@ -249,18 +273,17 @@ def commutes(term1: int, term2: int, nqubits: int) -> bool:
     Returns:
         True if operators commute, False if they anticommute
     """
-    anticommute_count = 0
+    # Symplectic form: parity of popcount(x1&z2 ^ z1&x2) over the qubit-
+    # component words (commute iff even number of anticommuting positions).
+    term1 = int(term1)  # ensure Python int semantics (bit_count, no overflow)
+    term2 = int(term2)
+    mask = low_mask(nqubits)
+    z1 = (term1 >> 1) & mask
+    x1 = (term1 ^ (term1 >> 1)) & mask
+    z2 = (term2 >> 1) & mask
+    x2 = (term2 ^ (term2 >> 1)) & mask
 
-    for i in range(nqubits):
-        p1 = get_pauli(term1, i, nqubits)
-        p2 = get_pauli(term2, i, nqubits)
-
-        # They anticommute at this position if both are non-identity and different
-        if p1 != 0 and p2 != 0 and p1 != p2:
-            anticommute_count += 1
-
-    # Commute if even number of anticommuting positions
-    return anticommute_count % 2 == 0
+    return ((x1 & z2) ^ (z1 & x2)).bit_count() & 1 == 0
 
 
 def pauli_sum_product(psum1, psum2):
@@ -314,11 +337,8 @@ def contains_x_or_y(term: int, nqubits: int) -> bool:
     Returns:
         True if term contains at least one X or Y operator, False otherwise
     """
-    for i in range(nqubits):
-        pauli = get_pauli(term, i, nqubits)
-        if pauli in (1, 2):  # X=1, Y=2
-            return True
-    return False
+    term = int(term)  # ensure Python int semantics (bit_count, no overflow)
+    return ((term ^ (term >> 1)) & low_mask(nqubits)) != 0
 
 
 def count_xy(term: int, nqubits: int) -> int:
@@ -331,12 +351,8 @@ def count_xy(term: int, nqubits: int) -> int:
     Returns:
         Count of X and Y operators (excludes I and Z)
     """
-    count = 0
-    for i in range(nqubits):
-        pauli = get_pauli(term, i, nqubits)
-        if pauli in (1, 2):  # X=1, Y=2
-            count += 1
-    return count
+    term = int(term)  # ensure Python int semantics (bit_count, no overflow)
+    return ((term ^ (term >> 1)) & low_mask(nqubits)).bit_count()
 
 
 def pauli_to_matrix(term: int, nqubits: int) -> np.ndarray:

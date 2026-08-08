@@ -90,16 +90,31 @@ only implement the gates you actually have. Everything bottoms out in
 
 ### 2. Compile the store
 
+Subclass the shared bases and implement two hooks. Everything else — the gate
+methods, parameter handling, composition, inversion, hashing — is inherited, so
+your circuit type is buildable and comparable like any other.
+
 ```python
-class MyBackendCircuit:
+class MyBackendCircuit(QuantumCircuitBase):
     @classmethod
     def supported_opcodes(cls):
         return _SUPPORTED
 
-    def __init__(self, circuit):
-        for instruction in decompose_ir(circuit.ir, _SUPPORTED):
+    def _build_native(self):
+        for instruction in self._lowered_ir():
             ...   # instruction.opcode, .qubits, .params, .clbits, .condition
+
+
+class MyBackendOperator(QuantumOperatorBase):
+    def _build_native(self):
+        for label, coeff in zip(self.ir.to_labels(), self.ir.coeffs):
+            ...
 ```
+
+`_build_native` is lazy and re-runs when the instructions change, so never
+compile in `__init__` — the circuit can still be appended to. Anything derived
+from the parameters (names, dimensions) should come from the instruction store
+rather than from the compiled artifact, so it answers without forcing a build.
 
 Points worth knowing:
 

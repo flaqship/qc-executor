@@ -15,6 +15,33 @@ below.
 
 ### Added
 
+- **One interface for generic and native types.** Every backend's circuit class
+  is a `QuantumCircuitBase` and every backend's operator class is a
+  `QuantumOperatorBase`, so a circuit can be built gate-by-gate directly in a
+  native type and gives the same answer as the generic one:
+
+  ```python
+  from qc_executor.qulacs import QulacsCircuit
+
+  circuit = QulacsCircuit(3)      # was: convert from a QuantumCircuit only
+  circuit.h(0)
+  circuit.crz(1, 2, 2 * x[0])
+  ```
+
+  The native operators consequently gained the whole operator algebra --
+  `compose`, `adjoint`, `transpose`, `conjugate`, `simplify`, `append`,
+  `apply_layout`, `group_commuting`, `assign_parameters`, `paulis`, `coeffs`,
+  `parameters`, `fingerprint` and content equality -- none of which they had.
+- **Derivatives over several observables** on every backend. Previously only
+  Qiskit supported it; PennyLane and Qulacs refused explicitly and Pauli
+  propagation raised a `TypeError` from its converter.
+
+  ```python
+  executor.expectation_value_derivatives(circuit, [obs_a, obs_b], "x", x=[0.6])
+  ```
+- `ObservableBatch`, with a backend subclass per plugin, holding several native
+  observables to evaluate against one circuit. PennyLane measures them in one
+  QNode and differentiates once; Qulacs builds one operator list per observable.
 - Mid-circuit measurement, qubit reset and classical conditioning:
   `measure(qubits, clbits)`, `measure_all()`, `reset(qubits)` and a
   `with circuit.if_(clbits, value):` block. Supported on Qiskit and PennyLane;
@@ -45,6 +72,21 @@ below.
   written against the base class failed on it. Mappings are still accepted.
 - A missing optional backend is no longer a `UserWarning`. The `ValueError` from
   `Executor.create` still names the extra to install.
+- **`assign_parameters` is pure.** It bound in place and returned `self`, which
+  made the bound circuit and the original the same object.
+- **Native circuit and operator constructors take the base signature.** Use
+  `from_quantum_circuit` / `from_quantum_operator` to convert:
+  `QulacsCircuit(qc)` becomes `QulacsCircuit.from_quantum_circuit(qc)`.
+- **`circuit.ir` is the circuit as written**, on every class. Two backends
+  previously exposed the *lowered* store; lowering now happens on the way to the
+  native representation.
+- Circuit equality requires the same type. A `QulacsCircuit` and a
+  `QuantumCircuit` holding identical instructions are no longer equal.
+- The `hash` property is gone from every native circuit and operator (it was an
+  `int` on some and `bytes` on others); `fingerprint()` and `__hash__` replace it.
+- `PennyLaneOperator` and `QulacsOperator` no longer accept a *list* of
+  operators. Pass a list to the executor as before, or use the backend's
+  `ObservableBatch` subclass directly.
 
 ### Removed
 
@@ -73,6 +115,14 @@ below.
 - **Sampling failed for any circuit with its own measurements.** Counts were read
   from a hard-coded `meas` register, which only exists for circuits the executor
   measured itself.
+- **`PauliPropagationOperator` reported on a placeholder representation.** Its
+  terms live in a bit-packed store, but `fingerprint()`, `ir`, `__len__` and
+  `is_hermitian` were inherited and read an all-identity placeholder: any two
+  operators of the same width had the same fingerprint, `len(op)` was always 1,
+  and a non-Hermitian operator reported `is_hermitian is True`.
+- **Converting a circuit could alias the original.** The lowering pass returns
+  its input unchanged when nothing needs rewriting, so a converted circuit often
+  shared the instruction store it was converted from.
 - `statevector()` now refuses circuits containing a measurement or reset. Qiskit
   simulates a reset by drawing an outcome, so repeated calls returned *different*
   vectors for the same circuit and the result cache froze whichever came first.
@@ -152,7 +202,37 @@ circuit.measure(0, 0)        # qubit 0 into classical bit 0
 circuit.measure([0, 1])      # allocates classical bits automatically
 ```
 
-### 5. `compose` no longer mutates
+### 5. Convert with `from_quantum_circuit`, build with the constructor
+
+Native constructors now take `(num_qubits, num_clbits=0)` like any circuit:
+
+```python
+# Before
+native = QulacsCircuit(generic_circuit)
+
+# After -- converting
+native = QulacsCircuit.from_quantum_circuit(generic_circuit)
+
+# After -- building directly, which was not previously possible
+native = QulacsCircuit(2)
+native.h(0)
+```
+
+The same applies to operators: `QulacsOperator(generic_op)` becomes
+`QulacsOperator.from_quantum_operator(generic_op)`, and
+`QulacsOperator(["ZI"], [1.0])` builds one directly.
+
+### 6. `assign_parameters` returns a new circuit
+
+```python
+# Before: bound in place, returned self
+circuit.assign_parameters({x[0]: 0.5})
+
+# After
+bound = circuit.assign_parameters({x[0]: 0.5})   # circuit is unchanged
+```
+
+### 7. `compose` no longer mutates
 
 ```python
 # Before: a was modified in place
@@ -162,7 +242,7 @@ a.compose(b)
 a = a.compose(b)
 ```
 
-### 6. Moved modules
+### 8. Moved modules
 
 These were internal, but they moved into the Qiskit plugin because only that
 plugin speaks Qiskit:
@@ -174,7 +254,7 @@ plugin speaks Qiskit:
 | `qc_executor.utils.qiskit_hash_functions` | `qc_executor.qiskit._hash` |
 | `qc_executor.utils.data_preprocessing.ensure_complex_coeffs` | `qc_executor.qiskit._compat.ensure_complex_coeffs` |
 
-### 7. Escape hatches
+### 9. Escape hatches
 
 The generic types can still produce Qiskit objects when the extra is installed:
 

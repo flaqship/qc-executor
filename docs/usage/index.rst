@@ -198,6 +198,21 @@ Qiskit's own convention, since nothing about it was written by this package.
 Working with native circuits and operators
 ------------------------------------------
 
+Every backend's circuit type is a ``QuantumCircuitBase`` and every backend's
+operator type is a ``QuantumOperatorBase``, so the same API works on both. You
+can build straight into a native type:
+
+.. code-block:: python
+
+   from qc_executor.qulacs import QulacsCircuit, QulacsOperator
+
+   circuit = QulacsCircuit(3)
+   circuit.h(0)
+   circuit.crz(1, 2, 2 * x[0])       # lowered on the way to Qulacs
+
+   observable = QulacsOperator(["ZII", "IZI"], [1.0, 0.5])
+   observable = observable.apply_layout([2, 0, 1])   # the shared algebra
+
 Every evaluation method accepts a generic object *or* a backend-native one. A
 generic object is translated; a native one is used directly, so nothing is
 converted twice:
@@ -215,6 +230,30 @@ converted twice:
 
 Translation is cached, so repeatedly passing the same generic circuit costs the
 conversion only once.
+
+
+Several observables at once
+---------------------------
+
+Pass a list wherever one observable is accepted; the result gains a leading axis
+over the observables. This works for values *and* gradients on every backend:
+
+.. code-block:: python
+
+   observables = [
+       QuantumOperator(["ZI"], [1.0]),
+       QuantumOperator(["IZ"], [0.5]),
+   ]
+
+   values = executor.expectation_value(qc, observables, x=[0.6])
+   grads = executor.expectation_value_derivatives(qc, observables, "x", x=[0.6])
+
+Where a backend can evaluate the set in one pass it does: PennyLane measures
+them in a single QNode and differentiates it once, rather than looping.
+
+Several *circuits* are supported for expectation values everywhere, but for
+derivatives only on the Qiskit backend; the others raise ``NotImplementedError``
+rather than returning the first circuit's gradient.
 
 
 Mid-circuit measurement and classical control

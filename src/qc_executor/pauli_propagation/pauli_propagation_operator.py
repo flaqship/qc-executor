@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import TYPE_CHECKING, Dict, List, Mapping, Sequence, Tuple, overload
 
 import numpy as np
 import sympy as sp
 
 from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.base.operator_ir import PauliIR
 
 from .symmetry import CompositeSymmetry, NoSymmetry
 from .utils.pauli_algebra import (
@@ -395,6 +397,34 @@ class PauliPropagationOperator(QuantumOperatorBase):
             else ()
         )
         return (self.num_qubits, terms_signature, symmetry_signature, parametric_signature)
+
+    @property
+    def ir(self) -> "PauliIR":
+        """The sparse Pauli representation, materialised from the term store.
+
+        This backend keeps its terms in a bit-packed ``PauliSum`` rather than
+        in a :class:`~qc_executor.base.operator_ir.PauliIR`, so the base's
+        store is a placeholder and this builds the real thing on demand.
+        """
+        return PauliIR.from_labels(self.paulis, self.coeffs, self.num_qubits)
+
+    def fingerprint(self) -> bytes:
+        """Return a stable digest of the operator's content.
+
+        Derived from the term store, not the base's placeholder: inheriting
+        that gave every operator of the same width the same fingerprint.
+        """
+        return hashlib.blake2b(
+            repr(self._canonical_signature()).encode("utf-8"), digest_size=32
+        ).digest()
+
+    @property
+    def is_hermitian(self) -> bool:
+        """Whether every numeric coefficient is real."""
+        return self.is_real
+
+    def __len__(self) -> int:
+        return self.num_paulis
 
     def __hash__(self):
         return hash(self._canonical_signature())

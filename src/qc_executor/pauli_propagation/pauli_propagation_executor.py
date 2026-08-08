@@ -442,6 +442,24 @@ class PauliPropagationExecutor(ExecutorBase):
             If multiple params requested: dict mapping param names to gradient arrays
         """
         # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
+        if isinstance(circuit, list):
+            raise NotImplementedError(
+                "Derivatives for multiple circuits are not supported. "
+                "Please call expectation_value_derivatives with a single circuit."
+            )
+        if isinstance(observable, list):
+            # Nothing here batches over observables -- the two-pass walk below
+            # is per operator -- so the gradients are stacked instead.  This
+            # used to leak a TypeError out of the operator converter.
+            return _stack_derivatives(
+                [
+                    self._expectation_value_derivatives(
+                        circuit, single, *derivative_params, **parameter_values
+                    )
+                    for single in observable
+                ]
+            )
+
         # Convert derivative params to string names (base parameter names without indices)
         param_names = []
         for p in derivative_params:
@@ -1033,3 +1051,18 @@ class PauliPropagationExecutor(ExecutorBase):
     def get_accepted_backend_aliases(cls) -> List[str]:
         """Return string aliases accepted by this executor in ``Executor.create``."""
         return []
+
+
+def _stack_derivatives(results: list):
+    """Stack one derivative result per observable into a single result.
+
+    Args:
+        results: One result per observable, all of the same shape.
+
+    Returns:
+        An array with observables along the leading axis, or -- when several
+        derivatives were requested -- a dict of such arrays.
+    """
+    if results and isinstance(results[0], dict):
+        return {key: np.stack([r[key] for r in results]) for key in results[0]}
+    return np.stack([np.asarray(r) for r in results])

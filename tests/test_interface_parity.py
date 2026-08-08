@@ -271,3 +271,156 @@ class TestAdoptedQiskitCircuits:
 
         assert adopted != derived
         assert derived != adopted
+
+
+@pytest.mark.parametrize("backend", INSTALLED_BACKENDS)
+class TestNativeOperatorsShareTheInterface:
+    """The same promise for operators: one base class, one algebra."""
+
+    @staticmethod
+    def _native_operator_class(backend: str) -> type:
+        return Executor.create(backend)._native_operator_class
+
+    def test_the_native_class_is_a_quantum_operator(self, backend):
+        from qc_executor.base.operator_base import QuantumOperatorBase  # noqa: PLC0415
+
+        assert issubclass(self._native_operator_class(backend), QuantumOperatorBase)
+
+    @pytest.mark.parametrize("operation", ["adjoint", "transpose", "conjugate", "simplify"])
+    def test_unary_algebra_matches_the_generic_operator(self, backend, operation):
+        """None of these existed on three of the four native types."""
+        labels, coeffs = ["ZI", "IY"], [1.0, 0.5j]
+        native_class = self._native_operator_class(backend)
+
+        native = getattr(
+            native_class.from_quantum_operator(QuantumOperator(labels, coeffs)), operation
+        )()
+        generic = getattr(QuantumOperator(labels, coeffs), operation)()
+
+        # As a set: a sum of Pauli terms has no inherent order, and the
+        # Pauli-propagation term store does not preserve one.
+        assert set(native.paulis) == set(generic.paulis)
+
+    def test_apply_layout_matches_the_generic_operator(self, backend):
+        labels, coeffs, layout = ["ZII", "IXI"], [1.0, 0.5], [2, 0, 1]
+        native_class = self._native_operator_class(backend)
+
+        native = native_class.from_quantum_operator(QuantumOperator(labels, coeffs)).apply_layout(
+            layout
+        )
+        generic = QuantumOperator(labels, coeffs).apply_layout(layout)
+
+        assert native.paulis == generic.paulis
+
+    def test_the_fingerprint_distinguishes_different_operators(self, backend):
+        """A shared fingerprint would make two observables collide in a cache."""
+        native_class = self._native_operator_class(backend)
+
+        first = native_class.from_quantum_operator(QuantumOperator(["ZI"], [1.0]))
+        second = native_class.from_quantum_operator(QuantumOperator(["XY"], [2.0]))
+
+        assert first.fingerprint() != second.fingerprint()
+
+    def test_an_operator_reports_its_own_terms(self, backend):
+        native_class = self._native_operator_class(backend)
+
+        operator = native_class.from_quantum_operator(QuantumOperator(["ZI", "IX"], [1.0, 0.5]))
+
+        assert operator.paulis == ["ZI", "IX"]
+        assert len(operator) == 2
+        assert operator.ir.to_labels() == ["ZI", "IX"]
+
+    def test_a_non_hermitian_operator_says_so(self, backend):
+        native_class = self._native_operator_class(backend)
+
+        operator = native_class.from_quantum_operator(QuantumOperator(["ZI"], [1.0 + 2.0j]))
+
+        assert operator.is_hermitian is False
+
+
+#: Distinct coefficients spanning X, Y and Z: all-ones would hide a dropped weight.
+_OBSERVABLE_SET = [
+    QuantumOperator(["ZI"], [1.0]),
+    QuantumOperator(["IZ"], [0.5]),
+    QuantumOperator(["XI", "IY"], [0.3, -0.2]),
+]
+
+
+@pytest.mark.parametrize("backend", INSTALLED_BACKENDS)
+class TestMultipleObservables:
+    """Several observables against one circuit, for values *and* gradients.
+
+    Values worked everywhere; gradients worked only on Qiskit -- PennyLane and
+    Qulacs refused explicitly and Pauli propagation leaked a TypeError out of
+    its operator converter.  The reference is always the loop over singles.
+    """
+
+    @staticmethod
+    def _circuit(x: Parameters) -> QuantumCircuit:
+        circuit = QuantumCircuit(2)
+        circuit.h(0)
+        circuit.ry(1, x[0])
+        circuit.cx(0, 1)
+        return circuit
+
+    def test_expectation_values_match_the_loop(self, backend):
+        x = Parameters("x", 1)
+        executor = Executor.create(backend)
+        circuit = self._circuit(x)
+
+        batched = np.real(
+            np.asarray(executor.expectation_value(circuit, _OBSERVABLE_SET, x=[0.6])).reshape(-1)
+        )
+        singly = [
+            float(np.real(executor.expectation_value(circuit, op, x=[0.6])))
+            for op in _OBSERVABLE_SET
+        ]
+
+        assert batched == pytest.approx(singly, abs=1e-8)
+
+    def test_derivatives_match_the_loop(self, backend):
+        x = Parameters("x", 1)
+        executor = Executor.create(backend)
+        circuit = self._circuit(x)
+
+        batched = np.real(
+            np.asarray(
+                executor.expectation_value_derivatives(circuit, _OBSERVABLE_SET, "x", x=[0.6])
+            ).reshape(-1)
+        )
+        singly = [
+            float(
+                np.real(
+                    np.asarray(
+                        executor.expectation_value_derivatives(circuit, op, "x", x=[0.6])
+                    ).reshape(-1)[0]
+                )
+            )
+            for op in _OBSERVABLE_SET
+        ]
+
+        assert batched == pytest.approx(singly, abs=1e-8)
+
+    def test_transpile_operator_maps_over_the_list(self, backend):
+        executor = Executor.create(backend)
+
+        transpiled = executor.transpile_operator(_OBSERVABLE_SET)
+
+        assert len(transpiled) == len(_OBSERVABLE_SET)
+        assert all(isinstance(op, executor._native_operator_class) for op in transpiled)
+
+    def test_several_circuits_are_refused_where_unsupported(self, backend):
+        """Each circuit would need its own evaluation; refuse rather than guess.
+
+        Qiskit's OpTree does handle several circuits, so only the three
+        backends that cannot are checked.
+        """
+        if backend == "qiskit":
+            pytest.skip("the Qiskit backend supports derivatives over several circuits")
+        x = Parameters("x", 1)
+        circuit = self._circuit(x)
+
+        with pytest.raises(NotImplementedError, match="multiple circuits"):
+            Executor.create(backend).expectation_value_derivatives(
+                [circuit, circuit], _OBSERVABLE_SET[0], "x", x=[0.6]
+            )

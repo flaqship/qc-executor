@@ -782,7 +782,7 @@ class TestExecutorInternalHelpers:
         wrapped_operator = executor._transpile_operator(generic_operator)
         assert wrapped_operator.qiskit_operator == generic_operator.qiskit_operator
 
-        native_operator = QiskitOperator(generic_operator)
+        native_operator = QiskitOperator.from_quantum_operator(generic_operator)
         assert executor._transpile_operator(native_operator) is native_operator
 
 

@@ -20,7 +20,7 @@ from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
-from .pennylane_operator import PennyLaneOperator
+from .pennylane_operator import PennyLaneObservableBatch, PennyLaneOperator
 
 
 def _remove_brackets(s: str) -> str:
@@ -274,7 +274,7 @@ class PennyLaneExecutor(ExecutorBase):
                 pennylane_operators.append(self._operator_cache[op])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
-                pennylane_operator = PennyLaneOperator(op)
+                pennylane_operator = PennyLaneOperator.from_quantum_operator(op)
                 self._operator_cache[op] = pennylane_operator
                 pennylane_operators.append(pennylane_operator)
 
@@ -486,17 +486,17 @@ class PennyLaneExecutor(ExecutorBase):
         pennylane_circuits, _ = self._preprocess_circuits(circuit)
         pennylane_observables, _ = self._preprocess_operators(observable)
 
-        # Derivatives for multiple circuits or observables are not implemented. Raise an
-        # explicit error instead of silently dropping all but the first element, which
-        # would otherwise return a plausible but wrong result.
-        if len(pennylane_circuits) > 1 or len(pennylane_observables) > 1:
+        # Several observables are measured together in one QNode and
+        # differentiated once.  Several circuits are not: each would need its
+        # own QNode, so refuse rather than silently returning the first one's
+        # gradient.
+        if len(pennylane_circuits) > 1:
             raise NotImplementedError(
-                "Derivatives for multiple circuits or observables are not supported. "
-                "Please call expectation_value_derivatives with a single circuit and "
-                "a single observable."
+                "Derivatives for multiple circuits are not supported. "
+                "Please call expectation_value_derivatives with a single circuit."
             )
         pennylane_circuit = pennylane_circuits[0]
-        pennylane_observable = pennylane_observables[0]
+        pennylane_observable = PennyLaneObservableBatch(pennylane_observables)
 
         circuit_parameters, _, _ = self._collect_named_params(pennylane_circuit, parameter_values)
         observable_parameters, _, _ = self._collect_named_params(

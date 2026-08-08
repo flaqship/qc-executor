@@ -450,18 +450,33 @@ class TestPennylaneErrorHandling:
         operator = QuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
+        with pytest.raises(NotImplementedError, match="multiple circuits"):
             executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1])
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
+    def test_derivatives_over_multiple_observables(self):
+        """Several observables are measured in one QNode and differentiated once.
+
+        Each entry must equal the gradient that observable gives on its own.
+        """
         x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        first = QuantumOperator(["Z"], [1.0])
+        second = QuantumOperator(["X"], [0.5])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1])
+        batched = np.asarray(
+            executor.expectation_value_derivatives(qc, [first, second], "x", x=[0.4])
+        ).reshape(-1)
+        singly = [
+            float(
+                np.asarray(executor.expectation_value_derivatives(qc, op, "x", x=[0.4])).reshape(
+                    -1
+                )[0]
+            )
+            for op in (first, second)
+        ]
+
+        assert batched == pytest.approx(singly, abs=1e-8)
 
     def test_device_kwargs_raises(self):
         with pytest.raises(TypeError, match="'device' is not a supported argument"):

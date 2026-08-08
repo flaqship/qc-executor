@@ -1,29 +1,29 @@
-"""PennyLane operator conversion from the shared sparse Pauli representation.
+"""PennyLane operator, compiled from the shared sparse Pauli representation.
 
-This wrapper used to hold a Qiskit ``SparsePauliOp``, read its labels and turn
-its ``ParameterExpression`` coefficients into callables.  It now compiles the
-framework-independent representation directly, which removes Qiskit from this
-backend.
+This wrapper used to hold a Qiskit ``SparsePauliOp``; it now compiles the
+framework-independent representation directly, which is what removed Qiskit
+from this backend.  Labels need no reversal any more: qubit 0 is leftmost on
+both sides.
 
-Labels need no reversal any more.  Qiskit renders qubit 0 rightmost, so the old
-code reversed every label before handing it to ``string_to_pauli_word``; both
-sides now read qubit 0 leftmost.
+It is one observable.  Evaluating several against one circuit is
+:class:`PennyLaneObservableBatch` below, whose stacked measurement is what makes
+a multi-observable gradient one differentiation rather than a loop.
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 
-import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
 import sympy as sp
 from pennylane import pauli
 from sympy import lambdify
 
-from ..base import QuantumOperatorBase
+from ..base.observable_batch import ObservableBatch
+from ..base.operator_base import QuantumOperatorBase
 from ..base.operator_ir import PauliIR
-from ..parameters import Parameter, sort_parameters
+from ..parameters import Parameter
 from ._sympy_interface import _get_sympy_interface
 
 
@@ -50,133 +50,107 @@ def _resolve_coefficient(coeff, symbol_tuple, printer, modules):
     return float(value.real)
 
 
-class PennyLaneOperator:
-    """Convert generic quantum operators to PennyLane-native operators.
+class PennyLaneOperator(QuantumOperatorBase):
+    """An observable that compiles to a PennyLane measurement.
+
+    Built like any other operator -- ``PennyLaneOperator(["ZI"], [1.0])`` -- or
+    converted from an existing one with :meth:`from_quantum_operator`.
+    Compilation is lazy, so the inherited algebra (:meth:`compose`,
+    :meth:`adjoint`, :meth:`apply_layout`, ...) works without paying for it.
 
     Args:
-        operator: The operator, or a list of operators to evaluate together.
-
-    Raises:
-        ValueError: If the argument is not an operator or a list of operators.
+        paulis: Pauli labels, qubit 0 leftmost.
+        coeffs: One coefficient per label.
+        num_qubits: Width, required only when no labels are given.
+        _ir: Adopt this representation instead of building one.
     """
-
-    @classmethod
-    def from_quantum_operator(cls, operator: QuantumOperatorBase) -> "PennyLaneOperator":
-        """Create a PennyLane native operator from a generic operator."""
-        return cls(operator)
 
     def __init__(
         self,
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
+        paulis: "Sequence[str] | None" = None,
+        coeffs: "Sequence[Any] | None" = None,
+        num_qubits: "int | None" = None,
+        *,
+        _ir: "PauliIR | None" = None,
     ) -> None:
-
-        if isinstance(operator, QuantumOperatorBase):
-            self._islist = False
-            self._irs: List[PauliIR] = [operator.ir]
-        elif isinstance(operator, list):
-            if not all(isinstance(op, QuantumOperatorBase) for op in operator):
-                raise ValueError("Unsupported operator type")
-            if not operator:
-                raise ValueError("Unsupported operator type")
-            self._islist = True
-            self._irs = [cast(QuantumOperatorBase, op).ir for op in operator]
-        else:
-            raise ValueError("Unsupported operator type")
-
-        self._num_qubits = self._irs[0].num_qubits
-
-        self._pennylane_operator_param_functions: List[Any] = []
-        self._pennylane_operator_parameters: List[str] = []
+        super().__init__(paulis, coeffs, num_qubits, _ir=_ir)
         self._pennylane_words: List[Any] = []
-        self._pennylane_operator_parameter_dimensions: Dict[str, int] = {}
+        self._coeff_functions: List[Any] = []
+        self._compiled = False
 
-        self.build_operator_instructions(self._irs)
+    # ------------------------------------------------------------------
+    # Compilation
+    # ------------------------------------------------------------------
+
+    def _build_native(self) -> Callable:
+        """Compile the representation into a PennyLane observable callable."""
+        return self.build_pennylane_observable()
+
+    def _ensure_compiled(self) -> None:
+        """Compile the Pauli words and coefficient callables, once."""
+        if self._compiled:
+            return
+        printer, modules = _get_sympy_interface()
+        symbol_tuple: Tuple[Parameter, ...] = tuple(self.parameters)
+        self._coeff_functions = [
+            _resolve_coefficient(coeff, symbol_tuple, printer, modules)
+            for coeff in self._ir.coeffs
+        ]
+        # Qubit 0 is leftmost on both sides, so the label passes through.
+        self._pennylane_words = [
+            pauli.string_to_pauli_word(label) for label in self._ir.to_labels()
+        ]
+        self._compiled = True
+
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
 
     @property
-    def num_qubits(self) -> int:
-        """Number of qubits the operator acts on."""
-        return self._num_qubits
+    def parameter_dimensions(self) -> Dict[str, int]:
+        """Number of parameter occurrences, keyed by vector name."""
+        dimensions: Dict[str, int] = {}
+        for parameter in self.parameters:
+            dimensions[parameter.vector_name] = dimensions.get(parameter.vector_name, 0) + 1
+        return dimensions
 
     @property
     def parameter_names(self) -> list:
         """List of operator parameter names"""
-        return self._pennylane_operator_parameters
+        return list(self.parameter_dimensions)
 
     @property
-    def parameter_dimensions(self) -> dict:
-        """Dictionary with the dimension of each operator parameter"""
-        return self._pennylane_operator_parameter_dimensions
+    def free_parameters(self) -> set:
+        """Return the set of free (non-bound) parameters in the operator."""
+        return set(self._ir.free_parameters)
 
     @property
-    def hash(self) -> bytes:
-        """Hashable object of the operator for caching"""
-        return b"".join(ir.fingerprint() for ir in self._irs)
+    def pennylane_words(self) -> List[Any]:
+        """The compiled PennyLane Pauli words."""
+        self._ensure_compiled()
+        return self._pennylane_words
 
-    def build_operator_instructions(self, operators: Sequence[PauliIR]) -> None:
-        """Compile the representation into PennyLane Pauli words and coefficient callables.
+    # ------------------------------------------------------------------
+    # Evaluation
+    # ------------------------------------------------------------------
 
-        Args:
-            operators: One representation per observable to evaluate.
-        """
-        self._pennylane_operator_param_functions = []
-        self._pennylane_operator_parameters = []
-        self._pennylane_words = []
-        self._pennylane_operator_parameter_dimensions = {}
+    def measurement(self, values: Sequence):
+        """Build the PennyLane measurement for one set of parameter values.
 
-        for ir in operators:
-            for parameter in sort_parameters(ir.free_parameters):
-                name = parameter.vector_name
-                if name not in self._pennylane_operator_parameters:
-                    self._pennylane_operator_parameters.append(name)
-                    self._pennylane_operator_parameter_dimensions[name] = 1
-                else:
-                    self._pennylane_operator_parameter_dimensions[name] += 1
-
-        printer, modules = _get_sympy_interface()
-
-        # One symbol slot per parameter occurrence, in the same order the
-        # dimensions above were counted, so the executor's flattened argument
-        # list lines up with what the lambdified callables expect.
-        symbol_tuple: Tuple[Parameter, ...] = tuple(
-            parameter for ir in operators for parameter in sort_parameters(ir.free_parameters)
-        )
-
-        for ir in operators:
-            self._pennylane_operator_param_functions.append(
-                [
-                    _resolve_coefficient(coeff, symbol_tuple, printer, modules)
-                    for coeff in ir.coeffs
-                ]
-            )
-            # Qubit 0 is leftmost on both sides, so the label passes through.
-            self._pennylane_words.append(
-                [pauli.string_to_pauli_word(label) for label in ir.to_labels()]
-            )
-
-        if not self._islist:
-            self._pennylane_operator_param_functions = self._pennylane_operator_param_functions[0]
-            self._pennylane_words = self._pennylane_words[0]
-
-    def _observable(self, coeff_functions, words, obs_param_list):
-        """Build one weighted observable from its coefficients and Pauli words.
-
-        Coefficients are weights, not decoration: an unweighted ``qml.sum`` here
-        silently returned the value for all-ones coefficients.
+        Coefficients are weights, not decoration: an unweighted ``qml.sum``
+        here silently returned the value for all-ones coefficients.
 
         Args:
-            coeff_functions: Floats or callables, one per word.
-            words: The PennyLane Pauli words.
-            obs_param_list: Flattened parameter values for the callables.
+            values: Values for this operator's parameters, in order.
 
         Returns:
             The measurement process, or ``0.0`` for an empty operator.
         """
-        if len(words) == 0:
+        self._ensure_compiled()
+        if len(self._pennylane_words) == 0:
             return 0.0
-        coeffs = [
-            coeff(*obs_param_list) if callable(coeff) else coeff for coeff in coeff_functions
-        ]
-        return qml.expval(qml.Hamiltonian(coeffs, words))
+        coeffs = [coeff(*values) if callable(coeff) else coeff for coeff in self._coeff_functions]
+        return qml.expval(qml.Hamiltonian(coeffs, self._pennylane_words))
 
     def build_pennylane_observable(self) -> Callable:
         """Return a callable that measures this observable inside a QNode.
@@ -187,24 +161,36 @@ class PennyLaneOperator:
 
         def pennylane_observable(*args):
             """PennyLane observable that can be called with parameters"""
+            values = _flatten(args, len(self.parameter_names))
+            return self.measurement(values)
 
-            # Collects the args values connected to the observable parameters
-            obs_param_list = sum(
-                [list(args[i]) for i in range(len(self._pennylane_operator_parameters))],
-                [],
-            )
+        return pennylane_observable
 
-            if self._islist:
-                return pnp.stack(
-                    tuple(
-                        self._observable(
-                            self._pennylane_operator_param_functions[i], words, obs_param_list
-                        )
-                        for i, words in enumerate(self._pennylane_words)
-                    )
-                )
-            return self._observable(
-                self._pennylane_operator_param_functions, self._pennylane_words, obs_param_list
+    def _rebuild(self, ir: PauliIR) -> "PennyLaneOperator":
+        """Wrap a new representation in this operator's type."""
+        return type(self)(_ir=ir)
+
+
+class PennyLaneObservableBatch(ObservableBatch):
+    """Several PennyLane observables measured in one QNode.
+
+    Returning them stacked is what lets a multi-observable gradient be a single
+    differentiation of one QNode rather than a loop over the set.
+    """
+
+    def build_pennylane_observable(self) -> Callable:
+        """Return a callable measuring every observable, stacked."""
+
+        def pennylane_observable(*args):
+            values = _flatten(args, len(self.parameter_names))
+            slices = self.split_arguments(values)
+            return pnp.stack(
+                tuple(operator.measurement(slice_) for operator, slice_ in zip(self, slices))
             )
 
         return pennylane_observable
+
+
+def _flatten(args: Sequence, count: int) -> List:
+    """Flatten the first ``count`` positional argument groups into one list."""
+    return sum([list(args[i]) for i in range(count)], [])

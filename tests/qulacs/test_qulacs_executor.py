@@ -124,7 +124,7 @@ class TestQulacsExecutorPreprocessingAndTranspile:
         """Test circuit transpilation for both native and generic inputs."""
         executor = QulacsExecutor()
         generic = _build_circuit(1, [("h", [0])])
-        native = QulacsCircuit(generic)
+        native = QulacsCircuit.from_quantum_circuit(generic)
 
         transpiled_generic = executor.transpile_circuit(generic)
         transpiled_native = executor.transpile_circuit(native)

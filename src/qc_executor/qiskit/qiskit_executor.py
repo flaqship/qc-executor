@@ -1525,7 +1525,7 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             QiskitCircuit: The circuit in native form, untargeted.
         """
-        return QiskitCircuit(circuit)
+        return QiskitCircuit.from_quantum_circuit(circuit)
 
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
@@ -1540,7 +1540,7 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             QiskitCircuit: The corresponding QiskitCircuit.
         """
-        qc = QiskitCircuit(circuit)
+        qc = QiskitCircuit.from_quantum_circuit(circuit)
         isa_circuit = self._isa_transpile_qiskit_circuit(qc.qiskit_circuit)
         if isa_circuit is not qc.qiskit_circuit:
             return QiskitCircuit.from_qiskit(isa_circuit)

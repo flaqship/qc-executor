@@ -10,11 +10,10 @@ from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
 from sympy import lambdify
 
+from ..base.circuit_base import QuantumCircuitBase
 from ..base.circuit_ir import CircuitIR
-from ..base.decompose import decompose_ir
 from ..base.gate_set import GATE_DEFS, OpCode
 from ..parameters import Parameter, sort_parameters
-from ..quantum_circuit import QuantumCircuit
 from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict
 
 #: Opcodes Qulacs executes directly, taken from the gate tables below.  Anything
@@ -43,13 +42,20 @@ _SUPPORTED = frozenset(
 )
 
 
-class QulacsCircuit:
-    """Wrapper class that compiles a circuit IR into a Qulacs-compatible circuit."""
+class QulacsCircuit(QuantumCircuitBase):
+    """A quantum circuit that compiles to Qulacs.
 
-    @classmethod
-    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "QulacsCircuit":
-        """Create a Qulacs native circuit from a generic circuit."""
-        return cls(circuit)
+    Built like any other circuit -- ``QulacsCircuit(2)`` then ``circuit.h(0)``
+    -- or converted from an existing one with :meth:`from_quantum_circuit`.
+    Compilation into Qulacs operations is lazy and re-runs whenever the
+    instruction store changes.
+
+    Args:
+        num_qubits: Number of qubits in the circuit.
+        num_clbits: Number of classical bits.  Qulacs cannot execute
+            mid-circuit measurement, so these exist only for interface parity.
+        _ir: Adopt this instruction store instead of starting empty.
+    """
 
     @classmethod
     def supported_opcodes(cls) -> frozenset:
@@ -58,38 +64,40 @@ class QulacsCircuit:
 
     def __init__(
         self,
-        circuit: QuantumCircuit,
+        num_qubits: int = 0,
+        num_clbits: int = 0,
+        *,
+        _ir: "CircuitIR | None" = None,
     ) -> None:
-        # Lower to the supported basis instead of transpiling through Qiskit.
-        self._ir: CircuitIR = decompose_ir(circuit.ir, _SUPPORTED)
-        self._num_qubits = self._ir.num_qubits
+        super().__init__(num_qubits, num_clbits, _ir=_ir)
 
         self._operation_list = []
         self._qubit_list = []
         self._func_list = []
         self._func_grad_list = []
-        self._free_parameters = set()
         self._used_parameters = []
-        self._qulacs_gates_parameters = {}
-        self._symbol_tuple_circuit = tuple()
-        self._rebuild_circuit_func = True
-        self._circuit_func = None
-        self._num_clbits = self._ir.num_clbits
-        self._build_circuit_instructions(self._ir)
+        self._compiled_revision = -1
 
         self._circuit_func_cache = {}
         self._outer_jacobi_circuit_cache = {}
         self._qulacs_circuit = None
 
-    @property
-    def num_qubits(self) -> int:
-        """Number of qubits of the circuit"""
-        return self._num_qubits
+    # ------------------------------------------------------------------
+    # Compilation
+    # ------------------------------------------------------------------
 
-    @property
-    def ir(self) -> CircuitIR:
-        """The lowered instruction store this circuit was compiled from."""
-        return self._ir
+    def _ensure_compiled(self) -> None:
+        """Compile the instruction store into Qulacs operations, once per revision."""
+        if self._compiled_revision != self._ir.revision:
+            self._build_circuit_instructions(self._lowered_ir())
+            self._compiled_revision = self._ir.revision
+            self._circuit_func_cache = {}
+            self._outer_jacobi_circuit_cache = {}
+            self._qulacs_circuit = None
+
+    def _build_native(self) -> Callable:
+        """Compile the instruction store into the callable Qulacs circuit."""
+        return self.get_circuit_func()
 
     @property
     def qulacs_circuit(self) -> Optional[Callable]:
@@ -99,27 +107,40 @@ class QulacsCircuit:
     @property
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
-        return list(self._qulacs_gates_parameters.keys())
+        return list(self.parameter_dimensions)
 
     @property
     def parameter_dimensions(self) -> dict:
-        """Dictionary with the dimension of each circuit parameter"""
-        return self._qulacs_gates_parameters
+        """Dictionary with the dimension of each circuit parameter.
+
+        Derived from the instruction store rather than from the compiled
+        operations, so it answers without forcing compilation.  Lowering does
+        not change which parameters appear, only which gates carry them.
+        """
+        dimensions: dict = {}
+        for parameter in self.parameters:
+            dimensions[parameter.vector_name] = dimensions.get(parameter.vector_name, 0) + 1
+        return dimensions
+
+    @property
+    def _symbol_tuple_circuit(self) -> tuple:
+        """Symbols the lambdified angle callables accept, in argument order.
+
+        Derived rather than stored so an angle can be lambdified before the
+        circuit has been compiled, and so this order is by construction the
+        same one :attr:`parameter_dimensions` reports.
+        """
+        return tuple(self.parameters)
 
     @property
     def circuit_arguments(self) -> dict:
         """Dictionary of all circuit and observable parameters names"""
-        return self._qulacs_gates_parameters
-
-    @property
-    def hash(self) -> int:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(self._ir)
+        return self.parameter_dimensions
 
     @property
     def free_parameters(self) -> set:
         """Return the set of free (non-bound) parameters in the circuit."""
-        return self._free_parameters
+        return set(self._ir.free_parameters)
 
     def get_qulacs_circuit(self) -> Callable:
         """Builds and returns the Qulacs circuit as callable function"""
@@ -130,9 +151,6 @@ class QulacsCircuit:
         if self._qulacs_circuit is None:
             self._qulacs_circuit = self.get_circuit_func()
         return self._qulacs_circuit(*args, **kwargs)
-
-    def __hash__(self):
-        return hash(self._ir.fingerprint())
 
     def _add_parameter_expression(self, angle: Any) -> Any:
         """
@@ -168,7 +186,6 @@ class QulacsCircuit:
             for param_element in sort_parameters(
                 s for s in angle.free_symbols if isinstance(s, Parameter)
             ):
-                self._free_parameters.add(param_element)
                 used_parameters.append(param_element)
                 derivative = sp.diff(angle, param_element)
                 if derivative.free_symbols:
@@ -347,16 +364,6 @@ class QulacsCircuit:
         self._qubit_list = []
         self._func_list = []
         self._func_grad_list = []
-        self._free_parameters = set()
-        self._qulacs_gates_parameters = {}
-        self._symbol_tuple_circuit = tuple()
-
-        for param in sort_parameters(ir.free_parameters):
-            name = param.vector_name
-            self._qulacs_gates_parameters[name] = self._qulacs_gates_parameters.get(name, 0) + 1
-
-        self._symbol_tuple_circuit = tuple(sort_parameters(ir.free_parameters))
-
         for instruction in ir:
             # Barriers are compiler directives with no effect on the statevector.
             if instruction.opcode is OpCode.BARRIER:
@@ -402,6 +409,7 @@ class QulacsCircuit:
 
     def get_circuit_func(self, gradient_param=None):
         """Returns the Qulacs circuit function for the circuit."""
+        self._ensure_compiled()
 
         if isinstance(gradient_param, Parameter):
             gradient_param = [gradient_param]
@@ -470,6 +478,7 @@ class QulacsCircuit:
             gradient_parameters (Parameter | List[Parameter] | None):
                 Parameters to calculate the gradient for
         """
+        self._ensure_compiled()
 
         if isinstance(gradient_parameters, Parameter):
             gradient_parameters = [gradient_parameters]

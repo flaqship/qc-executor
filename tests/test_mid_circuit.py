@@ -124,7 +124,7 @@ class TestQiskitMidCircuit:
     def test_measurement_and_conditions_reach_the_native_circuit(self):
         from qc_executor.qiskit.qiskit_circuit import QiskitCircuit  # noqa: PLC0415
 
-        native = QiskitCircuit(_teleportation(0.7)).qiskit_circuit
+        native = QiskitCircuit.from_quantum_circuit(_teleportation(0.7)).qiskit_circuit
         names = [instruction.operation.name for instruction in native.data]
 
         assert names.count("measure") == 2
@@ -137,7 +137,7 @@ class TestQiskitMidCircuit:
         circuit.x(0)
         circuit.reset(0)
 
-        native = QiskitCircuit(circuit).qiskit_circuit
+        native = QiskitCircuit.from_quantum_circuit(circuit).qiskit_circuit
 
         assert [instruction.operation.name for instruction in native.data] == ["x", "reset"]
 
@@ -340,4 +340,6 @@ class TestStatevectorRejectsCollapse:
         circuit.measure(0, 0)
 
         with pytest.raises(NotImplementedError, match="statevector is not defined"):
-            Executor.create("pennylane").statevector(PennyLaneCircuit(circuit))
+            Executor.create("pennylane").statevector(
+                PennyLaneCircuit.from_quantum_circuit(circuit)
+            )

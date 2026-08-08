@@ -112,7 +112,7 @@ class QulacsExecutor(ExecutorBase):
                 qulacs_circuits.append(self._circuit_cache[circ])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
-                qulacs_circuit = QulacsCircuit(cast(QuantumCircuit, circ))
+                qulacs_circuit = QulacsCircuit.from_quantum_circuit(cast(QuantumCircuit, circ))
                 self._circuit_cache[circ] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
 

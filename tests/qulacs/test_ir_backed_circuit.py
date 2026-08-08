@@ -68,11 +68,20 @@ class TestLowering:
     def test_the_compiled_circuit_uses_only_supported_opcodes(self):
         circuit = _entangled(LOWERED_GATES["crz"])
 
-        native = QulacsCircuit(circuit)
+        native = QulacsCircuit.from_quantum_circuit(circuit)
 
         assert {
-            OpCode(op) for op, _, _ in native._ir.iter_ops()
+            OpCode(op) for op, _, _ in native._lowered_ir().iter_ops()
         } <= QulacsCircuit.supported_opcodes()
+
+    def test_the_instruction_store_keeps_the_circuit_as_written(self):
+        """``ir`` is the source circuit; lowering happens on the way to Qulacs."""
+        circuit = _entangled(LOWERED_GATES["crz"])
+
+        native = QulacsCircuit.from_quantum_circuit(circuit)
+
+        assert OpCode.CRZ in {OpCode(op) for op, _, _ in native.ir.iter_ops()}
+        assert OpCode.CRZ not in QulacsCircuit.supported_opcodes()
 
     def test_barriers_are_skipped(self):
         circuit = QuantumCircuit(2)
@@ -80,7 +89,8 @@ class TestLowering:
         circuit.barrier()
         circuit.cx(0, 1)
 
-        native = QulacsCircuit(circuit)
+        native = QulacsCircuit.from_quantum_circuit(circuit)
+        native._ensure_compiled()
 
         assert native._operation_list == ["h", "cx"]
 
@@ -92,7 +102,7 @@ class TestSymbolicAngles:
         circuit.rx(0, x[0])
         circuit.ry(1, 2 * x[1])
 
-        native = QulacsCircuit(circuit)
+        native = QulacsCircuit.from_quantum_circuit(circuit)
 
         assert native.free_parameters == {x[0], x[1]}
         assert native.parameter_dimensions == {"x": 2}
@@ -136,7 +146,8 @@ class TestSymbolicAngles:
         circuit = QuantumCircuit(1)
         circuit.rx(0, 3 * x[0])
 
-        native = QulacsCircuit(circuit)
+        native = QulacsCircuit.from_quantum_circuit(circuit)
+        native._ensure_compiled()
 
         assert native._func_grad_list[0][0]() == pytest.approx(-3.0)
 

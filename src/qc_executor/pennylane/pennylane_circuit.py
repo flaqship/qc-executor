@@ -8,11 +8,10 @@ import pennylane as qml
 import sympy as sp
 from sympy import lambdify
 
+from ..base.circuit_base import QuantumCircuitBase
 from ..base.circuit_ir import CircuitIR, Instruction
-from ..base.decompose import decompose_ir
 from ..base.gate_set import GATE_DEFS, OPCODE_BY_NAME, OpCode
 from ..parameters import sort_parameters
-from ..quantum_circuit import QuantumCircuit
 from ._sympy_interface import _get_sympy_interface
 from .pennylane_gates import qiskit_pennylane_gate_dict
 
@@ -24,50 +23,64 @@ _SUPPORTED = frozenset(
 ) | {OpCode.BARRIER}
 
 
-class PennyLaneCircuit:
-    """PennyLane circuit representation converted from a generic QuantumCircuit."""
+class PennyLaneCircuit(QuantumCircuitBase):
+    """A quantum circuit that compiles to PennyLane.
+
+    Built like any other circuit -- ``PennyLaneCircuit(2)`` then
+    ``circuit.h(0)`` -- or converted from an existing one with
+    :meth:`from_quantum_circuit`.  Compilation into PennyLane operations is
+    lazy and re-runs whenever the instruction store changes.
+
+    Args:
+        num_qubits: Number of qubits in the circuit.
+        num_clbits: Number of classical bits, for mid-circuit measurement.
+        _ir: Adopt this instruction store instead of starting empty.
+    """
 
     @classmethod
-    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "PennyLaneCircuit":
-        """Create a PennyLane native circuit from a generic circuit."""
-        return cls(circuit)
+    def supported_opcodes(cls) -> frozenset:
+        """Return the opcodes PennyLane executes directly.
+
+        Without this the base default (the whole gate set) would apply and the
+        lowering pass would silently stop rewriting anything.
+        """
+        return _SUPPORTED
 
     def __init__(
         self,
-        circuit: QuantumCircuit,
+        num_qubits: int = 0,
+        num_clbits: int = 0,
+        *,
+        _ir: "CircuitIR | None" = None,
     ) -> None:
-
-        # Lower to the supported basis instead of transpiling through Qiskit.
-        self._ir: CircuitIR = decompose_ir(circuit.ir, _SUPPORTED)
-        self._num_qubits = self._ir.num_qubits
-        self._num_clbits = self._ir.num_clbits
+        super().__init__(num_qubits, num_clbits, _ir=_ir)
 
         self._pennylane_gates = []
         self._pennylane_gates_param_function = []
         self._pennylane_gates_wires = []
         self._pennylane_conditions = []
-        self._pennylane_gates_parameters = []
-        self._pennylane_gates_parameters_dimensions = {}
         self._pennylane_circuit = None
+        self._compiled_revision = -1
 
-        # Build circuit instructions for the pennylane circuit from the qiskit circuit
-        self._build_circuit_instructions(self._ir)
+    # ------------------------------------------------------------------
+    # Compilation
+    # ------------------------------------------------------------------
 
-        # self._pennylane_circuit = self.build_pennylane_circuit()
+    def _ensure_compiled(self) -> None:
+        """Compile the instruction store into PennyLane operations, once per revision."""
+        if self._compiled_revision != self._ir.revision:
+            self._build_circuit_instructions(self._lowered_ir())
+            self._compiled_revision = self._ir.revision
+            self._pennylane_circuit = None
 
-    @property
-    def num_qubits(self) -> int:
-        """Number of qubits in the circuit"""
-        return self._num_qubits
-
-    @property
-    def ir(self) -> CircuitIR:
-        """The lowered instruction store this circuit was compiled from."""
-        return self._ir
+    def _build_native(self) -> Callable:
+        """Compile the instruction store into the callable PennyLane circuit."""
+        return self.build_pennylane_circuit()
 
     @property
     def pennylane_circuit(self) -> Optional[Callable]:
         """PennyLane circuit that can be called with parameters"""
+        self._ensure_compiled()
         if self._pennylane_circuit is None:
             self._pennylane_circuit = self.build_pennylane_circuit()
         return self._pennylane_circuit
@@ -75,17 +88,20 @@ class PennyLaneCircuit:
     @property
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
-        return self._pennylane_gates_parameters
+        return list(self.parameter_dimensions)
 
     @property
     def parameter_dimensions(self) -> dict:
-        """Dictionary with the dimension of each circuit parameter"""
-        return self._pennylane_gates_parameters_dimensions
+        """Dictionary with the dimension of each circuit parameter.
 
-    @property
-    def hash(self) -> int:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(self._ir.fingerprint())
+        Derived from the instruction store rather than from the compiled
+        operations, so it answers without forcing compilation.  Lowering does
+        not change which parameters appear, only which gates carry them.
+        """
+        dimensions: dict = {}
+        for parameter in self.parameters:
+            dimensions[parameter.vector_name] = dimensions.get(parameter.vector_name, 0) + 1
+        return dimensions
 
     def __call__(self, *args, **kwargs):
         return self.pennylane_circuit(*args, **kwargs)
@@ -144,19 +160,10 @@ class PennyLaneCircuit:
         self._pennylane_gates_param_function = []
         self._pennylane_gates_wires = []
         self._pennylane_conditions = []
-        self._pennylane_gates_parameters = []
-        self._pennylane_gates_parameters_dimensions = {}
 
-        parameters = sort_parameters(ir.free_parameters)
-        symbol_tuple = tuple(parameters)
-
-        for param in parameters:
-            name = param.vector_name
-            if name not in self._pennylane_gates_parameters:
-                self._pennylane_gates_parameters.append(name)
-                self._pennylane_gates_parameters_dimensions[name] = 1
-            else:
-                self._pennylane_gates_parameters_dimensions[name] += 1
+        # Same order parameter_dimensions counts in, so the executor's
+        # flattened argument list lines up with the lambdified callables.
+        symbol_tuple = tuple(sort_parameters(ir.free_parameters))
 
         printer, modules = _get_sympy_interface()
 
@@ -210,26 +217,22 @@ class PennyLaneCircuit:
                 cond_fn(wires=wires)
 
     def build_pennylane_circuit(self):
-        """
-        Function to build the PennyLane circuit from the Qiskit circuit and observable.
+        """Return a callable PennyLane circuit built from the instruction store.
 
-        The functions returns a callable PennyLane circuit that can be called with parameters.
-        The PennyLane circuit is built from the instructions previously generated from the Qiskit
-        circuit and observable.
+        Compiles the store first if it has changed since the last call.
 
         Returns:
             Callable PennyLane circuit
         """
+        self._ensure_compiled()
 
         def pennylane_circuit(*args):
             """PennyLane circuit that can be called with parameters"""
 
-            measurements: list = [0] * self._num_clbits
+            measurements: list = [0] * self.num_clbits
 
             # Collects the args values connected to the circuit parameters
-            circ_param_list = sum(
-                [list(args[i]) for i in range(len(self._pennylane_gates_parameters))], []
-            )
+            circ_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
 
             # Loop through all penny lane gates
             for i, circuit_gate in enumerate(self._pennylane_gates):

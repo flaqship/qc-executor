@@ -41,18 +41,18 @@ class TestPennyLaneCircuit:
     def test_empty_circuit(self):
         """Test conversion of an empty circuit."""
         qc = QuantumCircuit(2)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         assert plc.num_qubits == 2
         assert len(plc.parameter_names) == 0
-        assert isinstance(plc.hash, int)
+        assert isinstance(plc.fingerprint(), bytes)
 
     def test_single_hadamard_gate(self):
         """Test circuit with a single Hadamard gate."""
         qc = QuantumCircuit(1)
         qc.h(0)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 1
         assert len(plc.parameter_names) == 0
 
@@ -62,7 +62,7 @@ class TestPennyLaneCircuit:
         qc.h(0)
         qc.cx(0, 1)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 2
         assert len(plc.parameter_names) == 0
 
@@ -72,7 +72,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         getattr(qc, gate_name)(0)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 1
         assert len(plc.parameter_names) == 0
 
@@ -90,7 +90,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(num_qubits)
         getattr(qc, gate_name)(0, 1)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == num_qubits
         assert len(plc.parameter_names) == 0
 
@@ -102,7 +102,7 @@ class TestPennyLaneCircuit:
         qc.cx(1, 2)
         qc.cx(2, 3)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 4
 
     # Parametric Gates Tests
@@ -122,7 +122,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         getattr(qc, gate_name)(0, theta)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 1
         # Float parameters are not tracked as parameters
         assert len(plc.parameter_names) == 0
@@ -140,7 +140,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(2)
         getattr(qc, gate_name)(0, 1, theta)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 2
         assert len(plc.parameter_names) == 0
 
@@ -150,7 +150,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.p(0, theta)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 1
         assert len(plc.parameter_names) == 0
 
@@ -160,7 +160,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(2)
         qc.cp(0, 1, theta)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 2
         assert len(plc.parameter_names) == 0
 
@@ -172,7 +172,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0])
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
         assert plc.parameter_dimensions["x"] == 1
 
@@ -184,7 +184,7 @@ class TestPennyLaneCircuit:
         qc.ry(1, x[1])
         qc.rz(2, x[2])
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
         assert plc.parameter_dimensions["x"] == 3
 
@@ -197,7 +197,7 @@ class TestPennyLaneCircuit:
         qc.ry(1, x[1])
         qc.rz(2, y[0])
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
         assert "y" in plc.parameter_names
         assert plc.parameter_dimensions["x"] == 2
@@ -211,7 +211,7 @@ class TestPennyLaneCircuit:
         qc.cry(0, 1, theta[1])
         qc.crz(0, 1, theta[2])
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "theta" in plc.parameter_names
         assert plc.parameter_dimensions["theta"] == 3
 
@@ -223,7 +223,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0])
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
 
     def test_parameter_arithmetic_addition(self):
@@ -232,7 +232,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] + 0.5)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
 
     def test_parameter_arithmetic_subtraction(self):
@@ -241,7 +241,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] - 0.2)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
 
     def test_parameter_arithmetic_division(self):
@@ -250,7 +250,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] / 2)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
 
     def test_parameter_multiplication_between_vectors(self):
@@ -261,7 +261,7 @@ class TestPennyLaneCircuit:
         qc.h(0)
         qc.crx(0, 1, x[0] * y[0])
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
         assert "y" in plc.parameter_names
 
@@ -271,7 +271,7 @@ class TestPennyLaneCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0] - 1)
 
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert "x" in plc.parameter_names
 
 
@@ -280,7 +280,7 @@ class TestPennyLanePropertiesAndMethods:
     def test_num_qubits_property(self):
         """Test that num_qubits property returns correct value."""
         qc = QuantumCircuit(5)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
         assert plc.num_qubits == 5
 
     def test_parameter_names_property_empty(self):
@@ -288,7 +288,7 @@ class TestPennyLanePropertiesAndMethods:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         assert isinstance(plc.parameter_names, list)
         assert len(plc.parameter_names) == 0
@@ -301,7 +301,7 @@ class TestPennyLanePropertiesAndMethods:
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(0, y[0])
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         assert "x" in plc.parameter_names
         assert "y" in plc.parameter_names
@@ -313,30 +313,30 @@ class TestPennyLanePropertiesAndMethods:
         qc.rx(0, x[0])
         qc.rx(1, x[1])
         qc.rx(2, x[2])
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         assert isinstance(plc.parameter_dimensions, dict)
         assert plc.parameter_dimensions["x"] == 3
 
     def test_hash_property(self):
-        """Test that hash property returns a valid integer."""
+        """Circuits hash by content, through the shared fingerprint."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
-        hash_value = plc.hash
-        assert isinstance(hash_value, int)
+        assert isinstance(hash(plc), int)
+        assert hash(plc) == hash(PennyLaneCircuit.from_quantum_circuit(qc))
 
     def test_hash_consistency(self):
         """Test that hash remains consistent for the same circuit."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
-        hash1 = plc.hash
-        hash2 = plc.hash
+        hash1 = plc.fingerprint()
+        hash2 = plc.fingerprint()
         assert hash1 == hash2
 
     def test_build_pennylane_circuit_method(self):
@@ -344,7 +344,7 @@ class TestPennyLanePropertiesAndMethods:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(pennylane_circuit)
@@ -361,8 +361,8 @@ class TestPennyLanePropertiesAndMethods:
         qc_barrier.cx(0, 1)
         qc_barrier.barrier(0)
 
-        plc_plain = PennyLaneCircuit(qc_plain)
-        plc_barrier = PennyLaneCircuit(qc_barrier)
+        plc_plain = PennyLaneCircuit.from_quantum_circuit(qc_plain)
+        plc_barrier = PennyLaneCircuit.from_quantum_circuit(qc_barrier)
 
         # The barrier circuit must yield the same gates as the plain one, and the
         # internal parallel lists must stay aligned (no leftover entries).
@@ -375,7 +375,7 @@ class TestPennyLanePropertiesAndMethods:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         pennylane_circuit = plc.pennylane_circuit
         assert callable(pennylane_circuit)
@@ -386,7 +386,7 @@ class TestPennyLanePropertiesAndMethods:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        plc = PennyLaneCircuit.from_quantum_circuit(qc)
 
         plc._pennylane_circuit = plc.build_pennylane_circuit()
         assert callable(plc)
@@ -394,7 +394,7 @@ class TestPennyLanePropertiesAndMethods:
     def test_call_forwards_args_and_kwargs(self):
         """Test that calling PennyLaneCircuit forwards args and kwargs to the internal circuit."""
         qc = QuantumCircuit(1)
-        pl_circuit = PennyLaneCircuit(qc)
+        pl_circuit = PennyLaneCircuit.from_quantum_circuit(qc)
 
         called_with = {}
 
@@ -403,6 +403,9 @@ class TestPennyLanePropertiesAndMethods:
             called_with["kwargs"] = kwargs
             return "result"
 
+        # Compile first: a recompile discards the cached callable, so the
+        # stand-in has to be installed after the store has been compiled.
+        pl_circuit._ensure_compiled()
         pl_circuit._pennylane_circuit = fake_pennylane_circuit
 
         result = pl_circuit([1, 2], foo="bar")

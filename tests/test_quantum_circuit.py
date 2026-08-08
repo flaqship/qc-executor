@@ -39,10 +39,12 @@ class TestQuantumCircuitBasics:
         assert circuit.num_parameters == 1
         assert circuit.parameters == [params[0]]
 
-        circuit.assign_parameters({"theta[0]": 0.5})
+        bound = circuit.assign_parameters({"theta[0]": 0.5})
 
-        assert not circuit.is_parameterized
-        assert circuit.num_parameters == 0
+        assert not bound.is_parameterized
+        assert bound.num_parameters == 0
+        # Binding is pure: the receiver still carries its parameter.
+        assert circuit.is_parameterized
 
     def test_cnot_is_alias_for_cx(self):
         circuit = SpyCircuit(2)
@@ -471,28 +473,28 @@ class TestQuantumCircuitParameters:
         circuit = QuantumCircuit(1)
         circuit.rx(0, theta[0])
 
-        circuit.assign_parameters({theta[0]: 0.5})
+        bound = circuit.assign_parameters({theta[0]: 0.5})
 
-        assert not circuit.is_parameterized
-        assert circuit[0].params == (0.5,)
+        assert not bound.is_parameterized
+        assert bound[0].params == (0.5,)
 
     def test_assign_parameters_accepts_names(self):
         theta = Parameters("theta", 1)
         circuit = QuantumCircuit(1)
         circuit.rx(0, theta[0])
 
-        circuit.assign_parameters({"theta[0]": 0.5})
+        bound = circuit.assign_parameters({"theta[0]": 0.5})
 
-        assert circuit[0].params == (0.5,)
+        assert bound[0].params == (0.5,)
 
     def test_partial_assignment_keeps_the_rest_symbolic(self):
         x = Parameters("x", 2)
         circuit = QuantumCircuit(1)
         circuit.rx(0, x[0] + x[1])
 
-        circuit.assign_parameters({x[0]: 1.0})
+        bound = circuit.assign_parameters({x[0]: 1.0})
 
-        assert circuit.parameters == [x[1]]
+        assert bound.parameters == [x[1]]
 
     def test_parameters_are_sorted_numerically(self):
         x = Parameters("x", 12)

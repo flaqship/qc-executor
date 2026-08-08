@@ -459,7 +459,7 @@ class TestQiskitExecutor:
 
         operator = QuantumOperator(["ZZ", "XX"], [0.5, 0.5], 2)
 
-        result = executor.expectation_value(QiskitCircuit(circuit), operator)
+        result = executor.expectation_value(QiskitCircuit.from_quantum_circuit(circuit), operator)
 
         assert np.allclose(result, 1.0)
 

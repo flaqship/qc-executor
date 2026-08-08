@@ -119,26 +119,36 @@ class QuantumCircuitBase(ABC):
     def from_quantum_circuit(cls, circuit: "QuantumCircuitBase") -> "QuantumCircuitBase":
         """Convert any circuit into this circuit type.
 
-        Instructions outside :meth:`supported_opcodes` are lowered first, so a
-        backend only ever sees gates it declared support for.
+        The instruction store is copied verbatim; lowering into
+        :meth:`supported_opcodes` happens in :meth:`_build_native`, so ``ir``
+        means "the circuit as written" on every class.  The copy matters
+        because the lowering pass returns its input unchanged when nothing
+        needs rewriting -- sharing the store would let a gate appended to the
+        converted circuit appear in the original.
 
         Args:
             circuit: The circuit to convert.
 
         Returns:
             ``circuit`` unchanged if it is already of this type, else a new
-            instance sharing its content.
+            instance holding a copy of its instructions.
         """
         if isinstance(circuit, cls):
             return circuit
+        return cls(circuit.num_qubits, circuit.num_clbits, _ir=circuit.ir.copy())
+
+    def _lowered_ir(self) -> CircuitIR:
+        """Return the instruction store rewritten into the supported gate set.
+
+        Backends call this at the top of :meth:`_build_native`.
+
+        Returns:
+            The lowered store, or the original when nothing needed rewriting.
+        """
         # Imported here because the decomposition pass builds on this class.
         from .decompose import decompose_ir  # pylint: disable=import-outside-toplevel
 
-        return cls(
-            circuit.num_qubits,
-            circuit.num_clbits,
-            _ir=decompose_ir(circuit.ir, cls.supported_opcodes()),
-        )
+        return decompose_ir(self._ir, self.supported_opcodes())
 
     # ------------------------------------------------------------------
     # Properties
@@ -663,21 +673,25 @@ class QuantumCircuitBase(ABC):
         return self
 
     def assign_parameters(self, parameters: Mapping[Any, float]) -> "QuantumCircuitBase":
-        """Substitute values for parameters, in place.
+        """Return a copy of this circuit with parameter values substituted.
+
+        This is pure: the receiver is unchanged.  It used to bind in place and
+        return ``self``, which made the bound circuit and the original the same
+        object -- that silently zeroed the Pauli-propagation gradients, because
+        the parameter-shift rule compares two bindings of one circuit.
 
         Args:
             parameters: Values keyed by :class:`~qc_executor.parameters.Parameter`
                 or by parameter name.
 
         Returns:
-            This circuit, to allow chaining.
+            A new circuit with the given parameters bound.
         """
         binding = {
             (key if isinstance(key, Parameter) else Parameter(str(key))): value
             for key, value in parameters.items()
         }
-        self._ir = self._ir.substitute(binding)
-        return self
+        return type(self)(self.num_qubits, self.num_clbits, _ir=self._ir.substitute(binding))
 
     def invert(self) -> "QuantumCircuitBase":
         """Return the adjoint of this circuit."""
@@ -727,7 +741,12 @@ class QuantumCircuitBase(ABC):
         return hash(self._ir.fingerprint())
 
     def __eq__(self, other: Any) -> bool:
-        return isinstance(other, QuantumCircuitBase) and self._ir == other.ir
+        # Same type, not just any circuit: a QulacsCircuit and a generic
+        # QuantumCircuit holding identical instructions are not
+        # interchangeable, and the executors key their conversion caches on
+        # the generic circuit, so cross-type equality would let a converted
+        # circuit collide with the one it was converted from.
+        return type(self) is type(other) and self._ir == other.ir
 
     def __str__(self) -> str:
         return self.draw()

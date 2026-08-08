@@ -237,23 +237,25 @@ class PennyLaneExecutor(ExecutorBase):
         multiple_circuits = isinstance(circuit, list)
         circuits: List[QuantumCircuitBase] = circuit if isinstance(circuit, list) else [circuit]
 
-        qulacs_circuits = []
+        pennylane_circuits = []
 
         # Check the cache for already converted circuits
         for circ in circuits:
             if isinstance(circ, self._native_circuit_class):
-                qulacs_circuits.append(circ)
+                pennylane_circuits.append(circ)
                 continue
             if circ in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
-                qulacs_circuits.append(self._circuit_cache[circ])
+                pennylane_circuits.append(self._circuit_cache[circ])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
-                qulacs_circuit = PennyLaneCircuit(cast(QuantumCircuit, circ))
-                self._circuit_cache[circ] = qulacs_circuit
-                qulacs_circuits.append(qulacs_circuit)
+                pennylane_circuit = PennyLaneCircuit.from_quantum_circuit(
+                    cast(QuantumCircuit, circ)
+                )
+                self._circuit_cache[circ] = pennylane_circuit
+                pennylane_circuits.append(pennylane_circuit)
 
-        return qulacs_circuits, multiple_circuits
+        return pennylane_circuits, multiple_circuits
 
     def _preprocess_operators(self, operator: QuantumOperatorBase | List[QuantumOperatorBase]):
 

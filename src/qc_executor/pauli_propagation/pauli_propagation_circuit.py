@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, FrozenSet, List, Sequence
+from typing import Any, Dict, FrozenSet, List, Sequence, cast
 
 import sympy as sp
 
 from qc_executor.base.circuit_base import QuantumCircuitBase
 from qc_executor.base.circuit_ir import CircuitIR, Instruction
-from qc_executor.base.decompose import decompose_ir
 from qc_executor.base.gate_set import GATE_DEFS, OpCode
 from qc_executor.parameters import Parameter
 
@@ -136,8 +135,7 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         """
         if self._gates_override is not None:
             return self._gates_override
-        lowered = decompose_ir(self._ir, self.supported_opcodes())
-        return [self._to_gate(instruction) for instruction in lowered]
+        return [self._to_gate(instruction) for instruction in self._lowered_ir()]
 
     def _to_gate(self, instruction: Instruction) -> Gate | LayerBarrier:
         """Translate one instruction into an engine gate.
@@ -247,9 +245,8 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def assign_parameters(self, parameters: Dict[Any, float]) -> "PauliPropagationCircuit":
         """Return a copy with values substituted for parameters.
 
-        This is pure, unlike the in-place base implementation.  The
-        parameter-shift rule compares the bound circuit against the unbound one
-        gate by gate, so binding must not consume the original.
+        Only the adopted-gate-list case needs this override; a circuit backed
+        by the instruction store binds through the base implementation.
 
         Args:
             parameters: Values keyed by :class:`~qc_executor.parameters.Parameter`
@@ -258,14 +255,13 @@ class PauliPropagationCircuit(QuantumCircuitBase):
         Returns:
             A new bound circuit; this one is untouched.
         """
+        if self._gates_override is None:
+            return cast("PauliPropagationCircuit", super().assign_parameters(parameters))
+
         binding = {
             (key if isinstance(key, Parameter) else Parameter(str(key))): value
             for key, value in parameters.items()
         }
-
-        if self._gates_override is None:
-            return type(self)(self.num_qubits, self.num_clbits, _ir=self._ir.substitute(binding))
-
         bound: List[Gate | LayerBarrier] = []
         for gate in self._gates_override:
             if isinstance(gate, PauliRotation) and gate.param_expr is not None:

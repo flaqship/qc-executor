@@ -67,7 +67,9 @@ class TestConditionalGates:
         with circuit.if_(0, 1):
             circuit.x(1)
 
-        native = PennyLaneCircuit(circuit)
+        native = PennyLaneCircuit.from_quantum_circuit(circuit)
+
+        native._ensure_compiled()
 
         assert (0, 1) in native._pennylane_conditions
 
@@ -93,7 +95,9 @@ class TestMidCircuitMeasurement:
         circuit.h(0)
         circuit.measure(0, 1)
 
-        native = PennyLaneCircuit(circuit)
+        native = PennyLaneCircuit.from_quantum_circuit(circuit)
+
+        native._ensure_compiled()
 
         assert ("measure", [1]) in native._pennylane_gates
 
@@ -134,7 +138,9 @@ class TestLowering:
         circuit.barrier()
         circuit.cx(0, 1)
 
-        native = PennyLaneCircuit(circuit)
+        native = PennyLaneCircuit.from_quantum_circuit(circuit)
+
+        native._ensure_compiled()
 
         assert len(native._pennylane_gates) == 2
 
@@ -146,7 +152,7 @@ class TestSymbolicAngles:
         circuit.rx(0, x[0])
         circuit.ry(1, 2 * x[1])
 
-        native = PennyLaneCircuit(circuit)
+        native = PennyLaneCircuit.from_quantum_circuit(circuit)
 
         assert native.parameter_names == ["x"]
         assert native.parameter_dimensions == {"x": 2}

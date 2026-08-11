@@ -21,6 +21,44 @@ class QuantumCircuit(QuantumCircuitBase):
         num_qubits (int): Number of qubits in the circuit
     """
 
+    _GATE_NAMES = frozenset(
+        {
+            "h",
+            "s",
+            "sdag",
+            "t",
+            "tdag",
+            "x",
+            "y",
+            "z",
+            "i",
+            "p",
+            "rx",
+            "ry",
+            "rz",
+            "u",
+            "cx",
+            "cy",
+            "cz",
+            "ch",
+            "cnot",
+            "ecr",
+            "swap",
+            "cswap",
+            "ccx",
+            "toffoli",
+            "cp",
+            "crx",
+            "cry",
+            "crz",
+            "rxx",
+            "ryy",
+            "rzz",
+            "rzx",
+            "cu",
+        }
+    )
+
     def __init__(self, num_qubits: int, _native_circuit: QiskitQuantumCircuit | None = None):
         super().__init__(num_qubits)
         self._qiskit_circuit: QiskitQuantumCircuit = (
@@ -46,6 +84,11 @@ class QuantumCircuit(QuantumCircuitBase):
             QuantumCircuit: The wrapping circuit.
         """
         return cls(circuit.num_qubits, _native_circuit=circuit)
+
+    @classmethod
+    def available_gates(cls) -> frozenset[str]:
+        """Return the set of gate-method names defined on this circuit class."""
+        return cls._GATE_NAMES
 
     @property
     def qiskit_circuit(self) -> QiskitQuantumCircuit:

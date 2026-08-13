@@ -21,14 +21,6 @@ from .operator_base import QuantumOperatorBase
 #: slightly different results per backend.
 _PROBABILITY_TOL = 1e-13
 
-#: Default bound for the in-memory caches. Sized for RDM-style workloads,
-#: which measure O(n_orbitals^4) distinct observables. Deliberately not
-#: ``None`` (unbounded): variational loops pass fresh parameters on every
-#: optimizer step, so each call adds an entry that is never hit again and an
-#: unbounded cache grows linearly with the iteration count (measured ~430 MB
-#: RSS after 20k ``expectation_value`` calls on an 8-qubit ansatz).
-_DEFAULT_MAX_CACHE_SIZE = 4096
-
 
 class _BoundedCache(OrderedDict):
     """An ordered dictionary that evicts the oldest entry when a size limit is reached.
@@ -62,14 +54,7 @@ class ExecutorBase(ABC):
             in memory.
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
-            in each in-memory cache. ``None`` selects the default bound of
-            4096 entries; an unbounded cache can only be requested by passing
-            a sufficiently large number.
-
-    .. todo::
-        ``None`` used to mean "unbounded" and now means "default bound", so
-        there is no longer a way to ask for an unbounded cache explicitly.
-        Decide whether to reintroduce one (for example ``max_cache_size=0``).
+            in each in-memory cache; ``None`` makes them unbounded.
     """
 
     _native_circuit_class = None
@@ -88,7 +73,7 @@ class ExecutorBase(ABC):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
     ):
         self._backend = backend
         self._shots = shots
@@ -96,9 +81,7 @@ class ExecutorBase(ABC):
         self._log_file = log_file
         self._caching = caching
         self._cache_dir = cache_dir
-        self._max_cache_size = (
-            _DEFAULT_MAX_CACHE_SIZE if max_cache_size is None else max_cache_size
-        )
+        self._max_cache_size = max_cache_size
 
         # Result cache – shared across all public interface methods (method name
         # is part of the key to prevent cross-method collisions).

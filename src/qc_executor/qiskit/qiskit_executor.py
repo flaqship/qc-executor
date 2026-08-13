@@ -445,7 +445,7 @@ class QiskitExecutor(ExecutorBase):
         caching (bool | None, optional): Whether to use in-memory caching.
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
-            in each in-memory cache.
+            in each in-memory cache; ``None`` makes them unbounded.
         execution_mode (str, optional): ``"job"`` (default), ``"session"``, or
             ``"batch"``.  Only relevant for real IBM Quantum backends.
             Use ``"session"`` for iterative algorithms (VQE, QAOA) and
@@ -475,7 +475,7 @@ class QiskitExecutor(ExecutorBase):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
         execution_mode: Literal["job", "session", "batch"] = "job",
         options: dict | None = None,
     ):

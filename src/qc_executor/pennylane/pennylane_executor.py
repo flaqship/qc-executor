@@ -52,7 +52,8 @@ class PennyLaneExecutor(ExecutorBase):
             ``"WARNING"`` / ``"ERROR"``). Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str): Directory for caching. Defaults to ``"cache"``.
-        max_cache_size (int, optional): Maximum cache entries. Defaults to None.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache; ``None`` makes them unbounded.
         **kwargs: Keyword arguments forwarded to :func:`pennylane.device`
             (only when *backend* is a ``str``).  Typical keys are ``config``
             and ``custom_decomps``.
@@ -110,7 +111,7 @@ class PennyLaneExecutor(ExecutorBase):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
         **kwargs,
     ):
 

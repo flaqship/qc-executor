@@ -285,6 +285,55 @@ class TestExecutorBaseCachingAndDelegation:
         assert captured["kwargs"]["max_cache_size"] == 9
 
 
+class ProbabilitiesExecutor(DummyExecutor):
+    """Dummy executor with a controllable statevector and counts distribution."""
+
+    def _statevector(self, circuit, **parameters):
+        self.last_statevector_parameters = parameters
+        # |amplitude|^2 gives probabilities 0.99, 0.01, 1e-6 and 0.0.
+        return np.array([np.sqrt(0.99), 0.1, 1e-3, 0.0])
+
+    def _sample(self, circuit, **parameters):
+        # Same distribution as the statevector above, as counts out of 1000001.
+        return {"00": 990_000, "01": 10_000, "10": 1, "11": 0}
+
+
+class TestExecutorBaseProbabilities:
+    def test_default_drops_only_exact_zeros(self):
+        ex = ProbabilitiesExecutor()
+
+        probabilities = ex.probabilities("c0")
+
+        assert set(probabilities) == {0, 1, 2}
+        assert probabilities[0] == pytest.approx(0.99)
+        assert probabilities[2] == pytest.approx(1e-6)
+
+    def test_cutoff_prunes_small_entries(self):
+        ex = ProbabilitiesExecutor()
+
+        probabilities = ex.probabilities("c0", cutoff=1e-3)
+
+        assert set(probabilities) == {0, 1}
+
+    def test_cutoff_applies_to_the_sampled_branch(self):
+        ex = ProbabilitiesExecutor(shots=1_000_001)
+
+        default = ex.probabilities("c0")
+        pruned = ex.probabilities("c0", cutoff=1e-3)
+
+        # The zero-count entry is pruned just like a vanishing amplitude is,
+        # so switching shots on or off reports the same set of entries.
+        assert set(default) == {0, 1, 2}
+        assert set(pruned) == {0, 1}
+
+    def test_cutoff_does_not_shadow_a_circuit_parameter(self):
+        ex = ProbabilitiesExecutor()
+
+        ex.probabilities("c0", cutoff=1e-3, x=[0.1])
+
+        assert ex.last_statevector_parameters == {"x": [0.1]}
+
+
 class TestExecutorBaseLoggingAndValidation:
     def test_invalid_log_level_raises(self):
         with pytest.raises(ValueError, match="Invalid log_level"):

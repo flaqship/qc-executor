@@ -15,12 +15,6 @@ from qiskit.circuit.parametervector import ParameterVectorElement
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
 
-#: Probabilities smaller than this threshold are omitted from results. Defined
-#: once here so that every backend prunes with the identical threshold —
-#: backends must not apply their own tolerances, or the same input would yield
-#: slightly different results per backend.
-_PROBABILITY_TOL = 1e-13
-
 
 class _BoundedCache(OrderedDict):
     """An ordered dictionary that evicts the oldest entry when a size limit is reached.
@@ -604,7 +598,9 @@ class ExecutorBase(ABC):
         """
         raise NotImplementedError
 
-    def probabilities(self, circuit: QuantumCircuitBase, **parameters) -> Dict[int, float]:
+    def probabilities(
+        self, circuit: QuantumCircuitBase, *, cutoff: float = 0.0, **parameters
+    ) -> Dict[int, float]:
         """Compute the measurement probabilities of a circuit.
 
         With ``shots=None`` the probabilities are exact (derived from the
@@ -612,13 +608,17 @@ class ExecutorBase(ABC):
 
         Args:
             circuit (QuantumCircuitBase): A single quantum circuit.
+            cutoff (float, optional): Only probabilities strictly greater
+                than this threshold are returned. The default of ``0.0``
+                omits exact zeros only, matching what the backends report
+                natively; pass a larger value to keep the result sparse for
+                many qubits.
             parameters: Values for the free parameters of the circuit given as
                 keyword arguments.
 
         Returns:
             Dict[int, float]: Mapping of basis-state index (big-endian
             ordering, qubit 0 = most significant bit) to probability.
-            Entries below ``1e-13`` are omitted.
 
         Raises:
             ValueError: If a list of circuits or multiple parameter sets are
@@ -632,7 +632,7 @@ class ExecutorBase(ABC):
             return {
                 index: float(value)
                 for index, value in enumerate(probability_values)
-                if value >= _PROBABILITY_TOL
+                if value > cutoff
             }
         counts = self.sample(circuit, **parameters)
         # unwrap the single-set case since some backends return one counts dict per parameter set.
@@ -641,7 +641,10 @@ class ExecutorBase(ABC):
                 raise ValueError("probabilities supports a single parameter set only")
             counts = counts[0]
         total = sum(counts.values())
-        return {int(str(bits), 2): count / total for bits, count in counts.items()}
+        # Prune with the same threshold as the exact branch, so that switching
+        # `shots` on or off does not change which entries are reported.
+        probabilities = ((int(str(bits), 2), count / total) for bits, count in counts.items())
+        return {index: value for index, value in probabilities if value > cutoff}
 
     # ========================================================================
     # Public API – Circuit/Operator Handling

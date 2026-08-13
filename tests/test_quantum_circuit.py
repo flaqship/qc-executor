@@ -43,6 +43,17 @@ class TestQuantumCircuitBasics:
         assert not circuit.is_parameterized
         assert circuit.num_parameters == 0
 
+    def test_parameter_vector_names_in_parameter_order(self):
+        circuit = QuantumCircuit(2)
+        x = ParameterVector("x", 2)
+        y = ParameterVector("y", 1)
+        circuit.rx(0, x[0])
+        circuit.ry(1, x[1])
+        circuit.rz(0, y[0])
+
+        # qiskit orders parameters alphabetically: x[0], x[1], y[0]
+        assert circuit.parameter_vector_names == ["x", "y"]
+
     def test_cnot_is_alias_for_cx(self):
         circuit = SpyCircuit(2)
 

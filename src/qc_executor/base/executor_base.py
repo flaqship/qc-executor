@@ -407,7 +407,7 @@ class ExecutorBase(ABC):
         Unlike :meth:`expectation_value` and :meth:`statevector`, this method
         requires a generic :class:`QuantumCircuitBase`; backend-native
         (transpiled) circuits are rejected because the parameter names are
-        read off ``circuit.parameters``.
+        read off ``circuit.parameter_vector_names``.
 
         .. todo::
             Decide whether backend-native circuits should be supported here
@@ -436,7 +436,7 @@ class ExecutorBase(ABC):
         observables = observable if multiple_observables else [observable]
 
         kwargs = self._normalize_parameter_values(**parameter_values)
-        vector_names = self._vector_names(circuit)
+        vector_names = circuit.parameter_vector_names
 
         gradients = [
             self._raw_gradient(circuit, operator, vector_names, kwargs) for operator in observables
@@ -446,19 +446,6 @@ class ExecutorBase(ABC):
         if parameters is not None:
             result = result[..., np.atleast_1d(parameters)]
         return result
-
-    @staticmethod
-    def _vector_names(circuit) -> List[str]:
-        """Return the unique parameter-vector names in parameter order."""
-        names: List[str] = []
-        for parameter in circuit.parameters:
-            if isinstance(parameter, ParameterVectorElement):
-                name = parameter.vector.name
-            else:
-                name = parameter.name
-            if name not in names:
-                names.append(name)
-        return names
 
     def _raw_gradient(
         self,

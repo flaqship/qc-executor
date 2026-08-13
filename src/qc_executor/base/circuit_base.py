@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from typing import List, Union
 
@@ -50,6 +51,26 @@ class QuantumCircuitBase(ABC):
     def is_parameterized(self) -> bool:
         """Check if the wavefunction is parameterized."""
         return len(self.parameters) > 0
+
+    @property
+    def parameter_vector_names(self) -> List[str]:
+        """Return the unique parameter-vector names in parameter order.
+
+        Standalone parameters contribute their plain name; string parameter
+        names of the form ``"theta[0]"`` are reduced to their vector name.
+        """
+        names: List[str] = []
+        for parameter in self.parameters:
+            if isinstance(parameter, ParameterVectorElement):
+                name = parameter.vector.name
+            elif isinstance(parameter, str):
+                match = re.match(r"^([a-zA-Z_]\w*)\[\d+\]$", parameter)
+                name = match.group(1) if match else parameter
+            else:
+                name = parameter.name
+            if name not in names:
+                names.append(name)
+        return names
 
     @abstractmethod
     def draw(self) -> str:

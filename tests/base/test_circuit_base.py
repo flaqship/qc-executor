@@ -1,5 +1,5 @@
 import pytest
-from qiskit.circuit import ParameterVector
+from qiskit.circuit import Parameter, ParameterVector
 
 from tests.test_utils import FakeOperator, SpyCircuit
 
@@ -18,6 +18,33 @@ class TestQuantumCircuitBasePropertiesAndAliases:
         circuit = SpyCircuit(2)
         circuit.cnot(0, 1)
         assert circuit.ops == [("cx", 0, 1)]
+
+    def test_parameter_vector_names_deduplicates_vector_elements(self):
+        circuit = SpyCircuit(1)
+        x = ParameterVector("x", 3)
+        circuit._free_parameters = {x[0], x[1], x[2]}
+
+        assert circuit.parameter_vector_names == ["x"]
+
+    def test_parameter_vector_names_from_string_parameters(self):
+        class StringParameterCircuit(SpyCircuit):
+            @property
+            def parameters(self):
+                return ["theta[0]", "theta[1]", "phi"]
+
+        circuit = StringParameterCircuit(1)
+
+        assert circuit.parameter_vector_names == ["theta", "phi"]
+
+    def test_parameter_vector_names_from_plain_parameters(self):
+        class PlainParameterCircuit(SpyCircuit):
+            @property
+            def parameters(self):
+                return [Parameter("alpha"), Parameter("beta")]
+
+        circuit = PlainParameterCircuit(1)
+
+        assert circuit.parameter_vector_names == ["alpha", "beta"]
 
 
 class TestPauliString:

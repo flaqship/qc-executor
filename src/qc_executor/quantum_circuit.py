@@ -59,12 +59,12 @@ class QuantumCircuit(QuantumCircuitBase):
         }
     )
 
-    def __init__(self, num_qubits: int, _native_circuit: QiskitQuantumCircuit | None = None):
+    def __init__(self, num_qubits: int, num_clbits: int = 0, _native_circuit: QiskitQuantumCircuit | None = None):
         super().__init__(num_qubits)
         self._qiskit_circuit: QiskitQuantumCircuit = (
             _native_circuit
             if _native_circuit is not None
-            else QiskitQuantumCircuit(self._num_qubits)
+            else QiskitQuantumCircuit(num_qubits, num_clbits)
         )
 
     @classmethod
@@ -117,6 +117,11 @@ class QuantumCircuit(QuantumCircuitBase):
     def num_qubits(self) -> int:
         """Return the number of qubits in the circuit."""
         return self._qiskit_circuit.num_qubits
+
+    @property
+    def num_clbits(self) -> int:
+        """Return the number of classical bits in the circuit."""
+        return self._qiskit_circuit.num_clbits
 
     @property
     def parameters(self) -> List[ParameterVectorElement]:
@@ -284,9 +289,27 @@ class QuantumCircuit(QuantumCircuitBase):
         else:
             self._qiskit_circuit.barrier(qubits)
 
-    def measure(self):
-        """Add measure gates"""
-        raise NotImplementedError
+    def measure(self, qubits: int | List[int], clbits: int | List[int]) -> None:
+        """Measure qubits into classical bits."""
+        self._qiskit_circuit.measure(qubits, clbits)
+
+    def if_test(self, clbit: int, value: int):
+        """Create a classical conditional block.
+
+        The returned context manager can be used as:
+
+            with qc.if_test(0, 1):
+                qc.x(0)
+        """
+        if clbit < 0 or clbit >= self.num_clbits:
+            raise ValueError(
+                f"Classical bit index {clbit} is out of range for "
+                f"a circuit with {self.num_clbits} classical bits."
+            )
+
+        return self._qiskit_circuit.if_test(
+            (self._qiskit_circuit.clbits[clbit], value)
+        )
 
     # pauli_string, pauli_evolution and controlled_pauli_evolution are
     # inherited from QuantumCircuitBase.
@@ -295,6 +318,7 @@ class QuantumCircuit(QuantumCircuitBase):
         self,
         qc: QuantumCircuitBase,
         qubits: List[int] | None = None,
+        clbits: List[int] | None = None,
         new_parameters: bool = True,
     ) -> "QuantumCircuit":
         """Compose another circuit into this one (always in place).
@@ -362,9 +386,9 @@ class QuantumCircuit(QuantumCircuitBase):
             other_assigned = other.assign_parameters(
                 dict(zip(other_params, other_target)), inplace=False
             )
-            own.compose(other_assigned, qubits, inplace=True)
+            own.compose(other_assigned, qubits=qubits, clbits=clbits, inplace=True)
         else:
-            own.compose(other, qubits, inplace=True)
+            own.compose(other, qubits=qubits, clbits=clbits, inplace=True)
         return self
 
     def assign_parameters(self, parameters: dict):
@@ -391,7 +415,7 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def copy(self) -> "QuantumCircuit":
         """Return a copy of the circuit."""
-        return self.__class__(self._num_qubits, self._qiskit_circuit.copy())
+        return self.__class__(self._num_qubits, self.num_clbits, self._qiskit_circuit.copy())
 
     def circuit_metrics(self) -> dict:
         """count number of gates in the circuit"""

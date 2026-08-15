@@ -6,7 +6,6 @@ from typing import List
 
 import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit import ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .base import QuantumCircuitBase
@@ -313,83 +312,6 @@ class QuantumCircuit(QuantumCircuitBase):
 
     # pauli_string, pauli_evolution and controlled_pauli_evolution are
     # inherited from QuantumCircuitBase.
-
-    def compose(
-        self,
-        qc: QuantumCircuitBase,
-        qubits: List[int] | None = None,
-        clbits: List[int] | None = None,
-        new_parameters: bool = True,
-    ) -> "QuantumCircuit":
-        """Compose another circuit into this one (always in place).
-
-        Parameters of both circuits are re-indexed into a single fresh
-        parameter vector so that repeatedly composing circuits that use
-        identically named parameter vectors never collides. The parameters of
-        ``self`` keep their positions; the parameters of ``qc`` are appended.
-
-        Args:
-            qc (QuantumCircuitBase): Circuit to compose with.
-            qubits (List[int] | None): Qubit indices of ``self`` that the
-                qubits of ``qc`` are mapped onto. Defaults to the identity
-                mapping, which requires equal qubit counts.
-            new_parameters (bool): If True (default), the parameters of ``qc``
-                are appended after the parameters of ``self``. If False, the
-                parameters of both circuits are merged positionally, i.e.
-                parameter ``i`` of ``qc`` becomes parameter ``i`` of ``self``.
-
-        Returns:
-            QuantumCircuit: This circuit, after composition.
-
-        Raises:
-            ValueError: If ``qc`` is not a compatible circuit or the qubit
-                mapping is invalid.
-        """
-        if not isinstance(qc, QuantumCircuit):
-            raise ValueError("QuantumCircuit can only compose with QuantumCircuit objects")
-
-        if qubits is None:
-            if self.num_qubits != qc.num_qubits:
-                raise ValueError(
-                    "When qubits=None, both circuits must have the same number of qubits "
-                    f"(got self.num_qubits={self.num_qubits}, qc.num_qubits={qc.num_qubits})."
-                )
-            qubits = list(range(qc.num_qubits))
-
-        if len(qubits) != qc.num_qubits:
-            raise ValueError(
-                f"Qubit mapping length must equal qc.num_qubits "
-                f"(got len(qubits)={len(qubits)}, qc.num_qubits={qc.num_qubits})."
-            )
-        if any(q < 0 or q >= self.num_qubits for q in qubits):
-            raise ValueError("Qubit mapping contains indexes out of range for the target circuit.")
-
-        own = self._qiskit_circuit
-        other = qc.qiskit_circuit
-
-        if own.parameters and other.parameters:
-            # TODO: Merging squashes both circuits into a single vector named
-            # after self's first parameter, so qc's parameters are renamed
-            # (e.g. "y[0]" becomes "x[1]") and keyword access via the old name
-            # stops working. Decide whether the original names should be kept.
-            own_params = list(own.parameters)
-            other_params = list(other.parameters)
-            first = own_params[0]
-            name = first.vector.name if isinstance(first, ParameterVectorElement) else first.name
-            if new_parameters:
-                merged = ParameterVector(name, len(own_params) + len(other_params))
-                other_target = merged[len(own_params) :]
-            else:
-                merged = ParameterVector(name, max(len(own_params), len(other_params)))
-                other_target = merged[: len(other_params)]
-            own.assign_parameters(dict(zip(own_params, merged[: len(own_params)])), inplace=True)
-            other_assigned = other.assign_parameters(
-                dict(zip(other_params, other_target)), inplace=False
-            )
-            own.compose(other_assigned, qubits=qubits, clbits=clbits, inplace=True)
-        else:
-            own.compose(other, qubits=qubits, clbits=clbits, inplace=True)
-        return self
 
     def assign_parameters(self, parameters: dict):
         """Change parameters in the circuit.

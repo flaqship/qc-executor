@@ -47,6 +47,45 @@ class TestQuantumCircuitBasePropertiesAndAliases:
         assert circuit.parameter_vector_names == ["alpha", "beta"]
 
 
+class RecordingComposeCircuit(SpyCircuit):
+    def _backend_specific_compose(self, qc, qubits, clbits, new_parameters):
+        self.compose_args = (qc, qubits, clbits, new_parameters)
+        return self
+
+
+class TestComposeValidation:
+    def test_identity_mapping_is_passed_to_the_backend(self):
+        circuit = RecordingComposeCircuit(2)
+        other = SpyCircuit(2)
+
+        assert circuit.compose(other) is circuit
+        assert circuit.compose_args == (other, [0, 1], None, True)
+
+    def test_non_circuit_argument_raises(self):
+        with pytest.raises(TypeError, match="expects a QuantumCircuitBase"):
+            RecordingComposeCircuit(1).compose("not-a-circuit", [0])
+
+    def test_identity_mapping_requires_equal_qubit_counts(self):
+        with pytest.raises(ValueError, match="same number of qubits"):
+            RecordingComposeCircuit(3).compose(SpyCircuit(2))
+
+    def test_mapping_length_must_match(self):
+        with pytest.raises(ValueError, match="Length of qubits mapping"):
+            RecordingComposeCircuit(2).compose(SpyCircuit(1), qubits=[0, 1])
+
+    def test_mapping_indices_must_be_in_range(self):
+        with pytest.raises(ValueError, match="out of range"):
+            RecordingComposeCircuit(2).compose(SpyCircuit(2), qubits=[0, 5])
+
+    def test_mapping_indices_must_be_unique(self):
+        with pytest.raises(ValueError, match="duplicate"):
+            RecordingComposeCircuit(2).compose(SpyCircuit(2), qubits=[1, 1])
+
+    def test_backend_without_compose_support_raises(self):
+        with pytest.raises(NotImplementedError):
+            SpyCircuit(1).compose(SpyCircuit(1))
+
+
 class TestPauliString:
     def test_pauli_string_applies_in_qubit_order(self):
         circuit = SpyCircuit(3)

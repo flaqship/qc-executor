@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List, Union
 
 import numpy as np
-from qiskit.circuit import ParameterExpression
+from qiskit.circuit import ParameterExpression, ParameterVector
 from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
 
@@ -557,23 +557,111 @@ class QuantumCircuitBase(ABC):
         self,
         qc: "QuantumCircuitBase",
         qubits: List[int] | None = None,
+        clbits: List[int] | None = None,
         new_parameters: bool = True,
     ) -> "QuantumCircuitBase":
-        """Compose another circuit into this one (in place).
+        """Compose another circuit into this one.
+
+        The qubit mapping is validated here; backends implement the actual
+        merging in :meth:`_backend_specific_compose`.
 
         Args:
             qc (QuantumCircuitBase): Circuit to compose with.
             qubits (List[int] | None): Qubit indices of ``self`` that the
                 qubits of ``qc`` are mapped onto. Defaults to the identity
                 mapping, which requires equal qubit counts.
+            clbits (List[int] | None): Classical-bit indices of ``self`` that
+                the classical bits of ``qc`` are mapped onto.
             new_parameters (bool): If True (default), the parameters of ``qc``
                 are appended after the parameters of ``self``. If False, the
                 parameters of both circuits are merged positionally.
 
         Returns:
-            QuantumCircuitBase: This circuit, after composition.
+            QuantumCircuitBase: This circuit, after in-place composition.
+
+        Raises:
+            TypeError: If ``qc`` is not a :class:`QuantumCircuitBase`.
+            ValueError: If the qubit mapping is invalid.
         """
-        raise NotImplementedError
+        if not isinstance(qc, QuantumCircuitBase):
+            raise TypeError(f"compose expects a QuantumCircuitBase, got {type(qc).__name__}")
+        if qubits is None:
+            if self.num_qubits != qc.num_qubits:
+                raise ValueError(
+                    "When qubits=None, both circuits must have the same number of qubits "
+                    f"(got self.num_qubits={self.num_qubits}, qc.num_qubits={qc.num_qubits})."
+                )
+            qubits = list(range(qc.num_qubits))
+        if len(qubits) != qc.num_qubits:
+            raise ValueError(
+                "Length of qubits mapping must match the composed circuit qubit count "
+                f"(got len(qubits)={len(qubits)}, qc.num_qubits={qc.num_qubits})."
+            )
+        if any(q < 0 or q >= self.num_qubits for q in qubits):
+            raise ValueError("Qubit mapping contains indexes out of range for the target circuit.")
+        if len(set(qubits)) != len(qubits):
+            raise ValueError("Qubit mapping contains duplicate indices.")
+        return self._backend_specific_compose(qc, qubits, clbits, new_parameters)
+
+    def _backend_specific_compose(
+        self,
+        qc: "QuantumCircuitBase",
+        qubits: List[int],
+        clbits: List[int] | None,
+        new_parameters: bool,
+    ) -> "QuantumCircuitBase":
+        """Merge ``qc`` into this circuit; ``qubits`` is validated and complete.
+
+        The default implementation merges in place via the shared qiskit
+        representation, so it works for every circuit type that exposes a
+        ``qiskit_circuit``. Parameters of both circuits are re-indexed into
+        a single fresh parameter vector so that repeatedly composing
+        circuits that use identically named parameter vectors never
+        collides: the parameters of ``self`` keep their positions and the
+        parameters of ``qc`` are appended (or merged positionally for
+        ``new_parameters=False``).
+
+        Raises:
+            NotImplementedError: If either circuit does not expose the
+                shared qiskit representation.
+        """
+        # TODO: This default merge is qiskit-specific because the abstraction
+        # layer has no framework-independent way to enumerate the operations
+        # of a circuit yet. Circuit types without a qiskit representation
+        # (currently PauliPropagationCircuit) therefore do not support
+        # compose. Once such a gate-level representation exists, reimplement
+        # the merge against it.
+        own = getattr(self, "qiskit_circuit", None)
+        other = getattr(qc, "qiskit_circuit", None)
+        if own is None or other is None:
+            raise NotImplementedError(
+                f"compose is not supported between {type(self).__name__} and "
+                f"{type(qc).__name__}: the circuits share no qiskit representation."
+            )
+
+        if own.parameters and other.parameters:
+            # TODO: Merging squashes both circuits into a single vector named
+            # after self's first parameter, so qc's parameters are renamed
+            # (e.g. "y[0]" becomes "x[1]") and keyword access via the old name
+            # stops working. Decide whether the original names should be kept.
+            own_params = list(own.parameters)
+            other_params = list(other.parameters)
+            first = own_params[0]
+            name = first.vector.name if isinstance(first, ParameterVectorElement) else first.name
+            if new_parameters:
+                merged = ParameterVector(name, len(own_params) + len(other_params))
+                other_target = merged[len(own_params) :]
+            else:
+                merged = ParameterVector(name, max(len(own_params), len(other_params)))
+                other_target = merged[: len(other_params)]
+            own.assign_parameters(dict(zip(own_params, merged[: len(own_params)])), inplace=True)
+            other_assigned = other.assign_parameters(
+                dict(zip(other_params, other_target)), inplace=False
+            )
+            own.compose(other_assigned, qubits=qubits, clbits=clbits, inplace=True)
+        else:
+            own.compose(other, qubits=qubits, clbits=clbits, inplace=True)
+        return self
 
     def fixate_parameters(self, parameters: np.ndarray) -> None:
         """Bind all free parameters, removing them from the circuit.

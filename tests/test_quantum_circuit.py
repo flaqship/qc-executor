@@ -321,11 +321,19 @@ class TestQuantumCircuitOperations:
         assert left._qiskit_circuit.count_ops().get("h", 0) == 1
         assert left._qiskit_circuit.count_ops().get("cx", 0) == 1
 
-    def test_compose_rejects_non_quantum_circuit(self):
+    def test_compose_rejects_non_circuit_objects(self):
         circuit = QuantumCircuit(1)
 
-        with pytest.raises(ValueError, match="can only compose with QuantumCircuit objects"):
+        with pytest.raises(TypeError, match="expects a QuantumCircuitBase"):
             circuit.compose("not-a-circuit", [0])
+
+    def test_compose_rejects_foreign_circuit_types(self):
+        from qc_executor.pauli_propagation import PauliPropagationCircuit
+
+        circuit = QuantumCircuit(1)
+
+        with pytest.raises(NotImplementedError, match="share no qiskit representation"):
+            circuit.compose(PauliPropagationCircuit(1), [0])
 
     def test_hash_str_and_repr(self):
         circuit = QuantumCircuit(1)

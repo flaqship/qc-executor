@@ -259,44 +259,25 @@ class TestPauliPropagationCircuitGates:
 
 class TestPauliPropagationCircuitComposition:
 
-    def test_compose_rejects_invalid_arguments(self):
-        circuit = PauliPropagationCircuit(2)
-        other = PauliPropagationCircuit(1)
+    def test_compose_is_not_supported(self):
+        """PP circuits share no qiskit representation, so the base merge rejects them."""
+        first = PauliPropagationCircuit(2)
+        second = PauliPropagationCircuit(2)
 
-        with pytest.raises(TypeError, match="PauliPropagationCircuit only"):
+        with pytest.raises(NotImplementedError, match="share no qiskit representation"):
+            first.compose(second)
+
+    def test_compose_still_validates_the_arguments(self):
+        circuit = PauliPropagationCircuit(2)
+
+        with pytest.raises(TypeError, match="expects a QuantumCircuitBase"):
             circuit.compose("invalid", [0, 1])
         with pytest.raises(ValueError, match="Length of qubits mapping"):
-            circuit.compose(other, [0, 1])
-
-    def test_compose_maps_all_gate_types(self):
-        params = Parameters("theta", 1)
-        base = PauliPropagationCircuit(3)
-        base.x(0)
-
-        to_compose = PauliPropagationCircuit(2)
-        to_compose.rz(0, params[0])
-        to_compose.cx(0, 1)
-        to_compose.barrier([0, 1])
-
-        composed = base.compose(to_compose, [2, 1])
-        assert composed is not base
-        assert len(composed.gates) == 4
-
-        appended_rotation = composed.gates[1]
-        assert isinstance(appended_rotation, PauliRotation)
-        assert appended_rotation.qubits == [2]
-        assert appended_rotation.param_name == "theta[0]"
-
-        appended_clifford = composed.gates[2]
-        assert isinstance(appended_clifford, CliffordGate)
-        assert appended_clifford.qubits == [2, 1]
-
-        assert isinstance(composed.gates[3], LayerBarrier)
-        assert "theta[0]" in composed.parameters
+            circuit.compose(PauliPropagationCircuit(1), [0, 1])
 
 
 class TestPauliPropagationCircuitUtilityMethods:
-    def test_copy_invert_compose_and_hash_ignore_unknown_gate_types(self):
+    def test_copy_invert_and_hash_ignore_unknown_gate_types(self):
         class DummyGate(Gate):
             def commutes_with(self, pauli_term: int) -> bool:
                 return False
@@ -312,10 +293,6 @@ class TestPauliPropagationCircuitUtilityMethods:
 
         inverted = source.invert()
         assert not inverted.gates
-
-        target = PauliPropagationCircuit(1)
-        composed = target.compose(source, [0])
-        assert not composed.gates
 
         assert isinstance(hash(source), int)
 

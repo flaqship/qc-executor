@@ -337,57 +337,6 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def measure(self):
         raise NotImplementedError("Measurement is not represented in PauliPropagationCircuit.")
 
-    def compose(
-        self,
-        qc: "QuantumCircuitBase",
-        qubits: List[int] | None = None,
-        new_parameters: bool = True,
-    ) -> "PauliPropagationCircuit":
-        if not isinstance(qc, PauliPropagationCircuit):
-            raise TypeError("compose currently supports PauliPropagationCircuit only.")
-        if qubits is None:
-            # Base contract: default to the identity mapping.
-            qubits = list(range(qc.num_qubits))
-        if len(qubits) != qc.num_qubits:
-            raise ValueError("Length of qubits mapping must match composed circuit qubit count.")
-        # TODO: new_parameters is accepted for signature compatibility with
-        # QuantumCircuitBase.compose but ignored here; decide whether
-        # PauliPropagationCircuit needs positional parameter merging.
-
-        merged_gates = [
-            cloned
-            for cloned in (_clone_gate(gate, self.num_qubits) for gate in self._gates)
-            if cloned is not None
-        ]
-        merged_parameters = dict(self._parameters)
-        qubit_map = dict(enumerate(qubits))
-
-        for gate in qc.gates:
-            if isinstance(gate, LayerBarrier):
-                merged_gates.append(LayerBarrier())
-                continue
-
-            remapped_qubits = [qubit_map[q] for q in gate.qubits]
-            if isinstance(gate, PauliRotation):
-                _record_symbols(gate.param_expr, merged_parameters)
-                merged_gates.append(
-                    PauliRotation(
-                        list(gate.symbols),
-                        _qubit_arg(remapped_qubits),
-                        self.num_qubits,
-                        param_expr=gate.param_expr,
-                        param_value=gate.param_value,
-                    )
-                )
-            elif isinstance(gate, CliffordGate):
-                merged_gates.append(
-                    CliffordGate(gate.gate_type, _qubit_arg(remapped_qubits), self.num_qubits)
-                )
-
-        return PauliPropagationCircuit(
-            self.num_qubits, gates=merged_gates, parameter_symbols=merged_parameters
-        )
-
     def assign_parameters(self, parameters: Dict[str, float]) -> "PauliPropagationCircuit":
         """Bind symbolic parameters to concrete values.
 

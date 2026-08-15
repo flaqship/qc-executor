@@ -445,25 +445,28 @@ class TestPennylaneErrorHandling:
         with pytest.raises(ValueError, match="Parameter 'y' not found"):
             executor.expectation_value_derivatives(qc, operator, x=[0.5])  # Missing y parameter
 
-    def test_derivatives_multiple_circuits_raises(self):
-        """Test that derivatives for multiple circuits raise NotImplementedError."""
+    def test_derivatives_list_inputs_are_expanded_by_the_base(self):
+        """List inputs are expanded combinatorially before reaching the plugin."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1])
+        single = np.asarray(
+            executor.expectation_value_derivatives(qc, operator, "x", x=[0.1]), dtype=float
+        )
+        per_circuit = np.asarray(
+            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1]), dtype=float
+        )
+        per_observable = np.asarray(
+            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1]),
+            dtype=float,
+        )
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
-        x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
-
-        executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1])
+        assert per_circuit.shape[0] == 2
+        assert per_observable.shape[0] == 2
+        np.testing.assert_allclose(per_circuit[0], single)
+        np.testing.assert_allclose(per_observable[1], single)
 
     def test_device_kwargs_raises(self):
         with pytest.raises(TypeError, match="'device' is not a supported argument"):

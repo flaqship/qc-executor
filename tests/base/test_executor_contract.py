@@ -148,18 +148,18 @@ def test_derivatives_use_numeric_parameter_order(executor):
     np.testing.assert_allclose(derivatives, expected, atol=1e-7)
 
 
-def test_gradient_matches_finite_differences(executor):
-    """Gradients must match a central finite-difference estimate."""
+def test_derivatives_match_finite_differences(executor):
+    """Full gradients via the vector name must match finite differences."""
     circuit = _ansatz()
     operator = SparsePauliOp(["ZZ", "XI"], [1.0, 0.5])
     values = [0.3, 0.8]
 
     gradient = np.asarray(
-        executor.expectation_value_gradient(
-            circuit, QuantumOperator(_native_operator=operator), theta=values
+        executor.expectation_value_derivatives(
+            circuit, QuantumOperator(_native_operator=operator), "theta", theta=values
         ),
         dtype=float,
-    )
+    ).reshape(-1)
     assert gradient.shape == (2,)
 
     step = 1e-6
@@ -172,8 +172,8 @@ def test_gradient_matches_finite_differences(executor):
         assert gradient[index] == pytest.approx(finite_difference, abs=1e-5)
 
 
-def test_gradient_ordering_with_many_parameters(executor):
-    """Gradients must be in numeric parameter order beyond 10 parameters."""
+def test_derivatives_ordering_with_many_parameters(executor):
+    """Derivatives must be in numeric parameter order beyond 10 parameters."""
     num_parameters = 13
     circuit = QuantumCircuit(num_parameters)
     theta = ParameterVector("theta", num_parameters)
@@ -183,57 +183,62 @@ def test_gradient_ordering_with_many_parameters(executor):
     values = np.linspace(0.1, 1.3, num_parameters)
 
     gradient = np.asarray(
-        executor.expectation_value_gradient(circuit, operator, theta=values), dtype=float
-    )
+        executor.expectation_value_derivatives(circuit, operator, "theta", theta=values),
+        dtype=float,
+    ).reshape(-1)
 
     product = np.prod(np.cos(values))
     expected = np.array([-np.sin(v) * product / np.cos(v) for v in values])
     np.testing.assert_allclose(gradient, expected, atol=1e-7)
 
 
-def test_gradient_parameter_subset(executor):
-    """The parameters argument must select gradient entries by index and order."""
-    circuit = _ansatz(num_parameters=4)
-    operator = QuantumOperator(["ZZ"], [1.0])
-    values = [0.1, 0.4, 0.7, 1.0]
-
-    full = np.asarray(
-        executor.expectation_value_gradient(circuit, operator, theta=values), dtype=float
-    )
-    subset = np.asarray(
-        executor.expectation_value_gradient(circuit, operator, parameters=[1, 3], theta=values),
-        dtype=float,
-    )
-    np.testing.assert_allclose(subset, full[[1, 3]], atol=1e-10)
-
-    # A single index returns a length-1 gradient
-    single = np.asarray(
-        executor.expectation_value_gradient(circuit, operator, parameters=2, theta=values),
-        dtype=float,
-    )
-    np.testing.assert_allclose(single, full[[2]], atol=1e-10)
-
-    # Reversed index order returns reversed entries
-    reordered = np.asarray(
-        executor.expectation_value_gradient(circuit, operator, parameters=[3, 1], theta=values),
-        dtype=float,
-    )
-    np.testing.assert_allclose(reordered, full[[3, 1]], atol=1e-10)
-
-
-def test_gradient_observable_list(executor):
-    """A list of observables must return one gradient row per observable."""
+def test_derivatives_observable_list(executor):
+    """A list of observables must return one derivative row per observable."""
     circuit = _ansatz()
     operator = QuantumOperator(["ZZ"], [1.0])
     scaled = QuantumOperator(["ZZ"], [4.0])
     values = [0.3, 0.8]
 
     gradient = np.asarray(
-        executor.expectation_value_gradient(circuit, [operator, scaled], theta=values),
+        executor.expectation_value_derivatives(circuit, [operator, scaled], "theta", theta=values),
+        dtype=float,
+    ).reshape(2, 2)
+    np.testing.assert_allclose(gradient[1], 4 * gradient[0], atol=1e-8)
+
+
+def test_derivatives_circuit_observable_cross_product(executor):
+    """Lists of circuits and observables must be evaluated combinatorially."""
+    first = _ansatz()
+    second = _ansatz(num_parameters=2)
+    second.rz(0, 0.4)
+    operator = QuantumOperator(["ZZ"], [1.0])
+    scaled = QuantumOperator(["ZZ"], [4.0])
+    values = [0.3, 0.8]
+
+    combined = np.asarray(
+        executor.expectation_value_derivatives(
+            [first, second], [operator, scaled], "theta", theta=values
+        ),
         dtype=float,
     )
-    assert gradient.shape == (2, 2)
-    np.testing.assert_allclose(gradient[1], 4 * gradient[0], atol=1e-8)
+    assert combined.shape[:2] == (2, 2)
+
+    for i, circuit in enumerate([first, second]):
+        for j, single_operator in enumerate([operator, scaled]):
+            reference = np.asarray(
+                executor.expectation_value_derivatives(
+                    circuit, single_operator, "theta", theta=values
+                ),
+                dtype=float,
+            )
+            np.testing.assert_allclose(combined[i, j], reference.reshape(combined[i, j].shape))
+
+    # A circuit list with a single observable adds only the circuit axis.
+    circuit_axis_only = np.asarray(
+        executor.expectation_value_derivatives([first, second], operator, "theta", theta=values),
+        dtype=float,
+    )
+    np.testing.assert_allclose(circuit_axis_only, combined[:, 0])
 
 
 def test_probabilities_bit_ordering(executor):

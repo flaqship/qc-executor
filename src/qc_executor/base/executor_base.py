@@ -7,10 +7,9 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, Dict, List, Sequence, overload
+from typing import Any, Dict, List, overload
 
 import numpy as np
-from qiskit.circuit.parametervector import ParameterVectorElement
 
 from .circuit_base import QuantumCircuitBase
 from .operator_base import QuantumOperatorBase
@@ -352,14 +351,18 @@ class ExecutorBase(ABC):
         parameters of the circuit.
 
         The return format and the ordering below are part of the public API;
-        :meth:`expectation_value_gradient` and downstream consumers rely on
-        both.
+        downstream consumers rely on both. The full gradient of a circuit is
+        obtained by supplying all of its parameter-vector names (see
+        :attr:`QuantumCircuitBase.parameter_vector_names`) as ``derivative``
+        arguments.
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
                 or a list of circuits.
             observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
-                observable or a list of observables.
+                observable or a list of observables. Lists of circuits and
+                observables are evaluated combinatorially: every circuit is
+                paired with every observable.
             derivative: The parameter(s) with respect to which the derivative is calculated.
             parameters: Additional values for the free parameters of the circuit(s) and
                 the observable(s) given as keyword arguments.
@@ -372,11 +375,17 @@ class ExecutorBase(ABC):
                 - dictionary mapping parameter names to gradient arrays if multiple
                   parameters are requested
 
+            A list input adds a leading axis per list: ``(n_circuits, ...)``
+            for a circuit list, ``(n_observables, ...)`` for an observable
+            list, and ``(n_circuits, n_observables, ...)`` for both.
+
             Entries within each parameter vector are ordered by numeric
             element index, i.e. ``theta[2]`` precedes ``theta[10]``.
         """
         self._logger.info("Computing expectation value derivatives")
         parameters = self._normalize_parameter_values(**parameters)
+
+        key = None
         if self._result_cache is not None:
             key = self._make_result_key(
                 "expectation_value_derivatives", circuit, observable, derivative, **parameters
@@ -384,107 +393,50 @@ class ExecutorBase(ABC):
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for expectation_value_derivatives")
                 return self._result_cache[key]
+
+        # Plugins only implement single-pair derivatives; list inputs are
+        # expanded combinatorially and the per-pair results are stacked with
+        # one leading axis per list input.
+        # TODO: Every circuit/observable pair is evaluated separately. Allow
+        # plugins to override this loop with native batching (e.g. qiskit
+        # Estimator PUBs, pennylane's qml.execute) where supported.
+        multiple_circuits = isinstance(circuit, (list, tuple))
+        multiple_observables = isinstance(observable, (list, tuple))
+        if not multiple_circuits and not multiple_observables:
             result = self._expectation_value_derivatives(
                 circuit, observable, *derivative, **parameters
             )
-            self._result_cache[key] = result
-            return result
-        return self._expectation_value_derivatives(circuit, observable, *derivative, **parameters)
-
-    def expectation_value_gradient(
-        self,
-        circuit: QuantumCircuitBase,
-        observable: QuantumOperatorBase | List[QuantumOperatorBase],
-        parameters: int | Sequence[int] | None = None,
-        **parameter_values,
-    ) -> np.ndarray:
-        """Compute the gradient of expectation values w.r.t. all circuit parameters.
-
-        The gradient is returned as a flat array in numeric parameter-index
-        order (grouped by parameter vector, in circuit parameter order), so
-        that it lines up with a positional parameter vector.
-
-        Unlike :meth:`expectation_value` and :meth:`statevector`, this method
-        requires a generic :class:`QuantumCircuitBase`; backend-native
-        (transpiled) circuits are rejected because the parameter names are
-        read off ``circuit.parameter_vector_names``.
-
-        .. todo::
-            Decide whether backend-native circuits should be supported here
-            as well, so that all executor entry points accept the same inputs.
-
-        Args:
-            circuit (QuantumCircuitBase): A single quantum circuit.
-            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The
-                Hermitian observable or a list of observables.
-            parameters (int | Sequence[int] | None): Indices of the parameters
-                to return the gradient for. Default is all.
-            parameter_values: Values for the free parameters of the circuit
-                and the observable(s) given as keyword arguments.
-
-        Returns:
-            np.ndarray: Gradient array of shape ``(n_params,)`` for a single
-            observable and ``(n_obs, n_params)`` for a list of observables.
-
-        Raises:
-            ValueError: If a list of circuits is passed.
-        """
-        self._logger.info("Computing expectation value gradient")
-        if isinstance(circuit, list):
-            raise ValueError("expectation_value_gradient supports a single circuit only")
-        multiple_observables = isinstance(observable, (list, tuple))
-        observables = observable if multiple_observables else [observable]
-
-        kwargs = self._normalize_parameter_values(**parameter_values)
-        vector_names = circuit.parameter_vector_names
-
-        gradients = [
-            self._raw_gradient(circuit, operator, vector_names, kwargs) for operator in observables
-        ]
-        result = np.array(gradients if multiple_observables else gradients[0])
-
-        if parameters is not None:
-            result = result[..., np.atleast_1d(parameters)]
-        return result
-
-    def _raw_gradient(
-        self,
-        circuit,
-        operator,
-        vector_names: List[str],
-        kwargs: Dict[str, float],
-    ) -> np.ndarray:
-        """Compute the index-ordered gradient for a single operator.
-
-        Args:
-            circuit: A single executor-compatible circuit.
-            operator: A single coerced, Hermitian observable.
-            vector_names (List[str]): Parameter-vector names of the circuit.
-            kwargs (Dict[str, float]): Normalized keyword parameters.
-
-        Returns:
-            np.ndarray: The gradient, flat and in parameter-index order.
-        """
-        if not vector_names:
-            return np.array([])
-        raw = self.expectation_value_derivatives(circuit, operator, *vector_names, **kwargs)
-        if len(vector_names) == 1:
-            parts = {vector_names[0]: raw}
         else:
-            parts = raw
+            circuits = list(circuit) if multiple_circuits else [circuit]
+            observables = list(observable) if multiple_observables else [observable]
+            pair_results = [
+                [
+                    self._expectation_value_derivatives(c, o, *derivative, **parameters)
+                    for o in observables
+                ]
+                for c in circuits
+            ]
 
-        grouped: Dict[str, list] = {name: [] for name in vector_names}
-        for parameter in circuit.parameters:
-            if isinstance(parameter, ParameterVectorElement):
-                grouped[parameter.vector.name].append(parameter)
+            def collapse(nested) -> np.ndarray:
+                values = np.asarray(nested)
+                if not multiple_circuits:
+                    return values[0]
+                if not multiple_observables:
+                    return values[:, 0]
+                return values
+
+            if isinstance(pair_results[0][0], dict):
+                # Multiple derivative parameters: stack the per-pair dicts per name.
+                result = {
+                    name: collapse([[pair[name] for pair in row] for row in pair_results])
+                    for name in pair_results[0][0]
+                }
             else:
-                grouped[parameter.name].append(parameter)
+                result = collapse(pair_results)
 
-        full_gradient = []
-        for name in vector_names:
-            matched = grouped[name]
-            full_gradient.append(np.asarray(parts[name]).reshape(len(matched)))
-        return np.concatenate(full_gradient)
+        if self._result_cache is not None:
+            self._result_cache[key] = result
+        return result
 
     @abstractmethod
     def _expectation_value_derivatives(

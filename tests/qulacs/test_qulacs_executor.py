@@ -246,25 +246,27 @@ class TestQulacsExecutorDerivatives:
 
         assert isinstance(value, (float, np.ndarray))
 
-    def test_derivatives_multiple_circuits_raises(self):
-        """Test that derivatives for multiple circuits raise NotImplementedError."""
+    def test_derivatives_list_inputs_are_expanded_by_the_base(self):
+        """List inputs are expanded combinatorially before reaching the plugin."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1])
+        single = np.asarray(
+            executor.expectation_value_derivatives(qc, op, "x", x=[0.1]), dtype=float
+        )
+        per_circuit = np.asarray(
+            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1]), dtype=float
+        )
+        per_observable = np.asarray(
+            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1]), dtype=float
+        )
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
-        x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
-
-        executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1])
+        assert per_circuit.shape[0] == 2
+        assert per_observable.shape[0] == 2
+        np.testing.assert_allclose(per_circuit[0], single)
+        np.testing.assert_allclose(per_observable[1], single)
 
     def test_derivatives_higher_order_tuple_raises(self):
         """Test that higher-order derivative tuples are rejected."""

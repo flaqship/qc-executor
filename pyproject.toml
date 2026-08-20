@@ -7,15 +7,15 @@ name = "qc-executor"
 description = "Abstraction layer for quantum circuits and operators across multiple backends."
 readme = "README.md"
 authors = [
-    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
-    {name = "Jan Schnabel", email = "jan.schnabel@ipa.fraunhofer.de"},
-    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
-    {name = "Marco Roth", email = "marco.roth@ipa.fraunhofer.de"},
+    {name = "Dennis Kleinhans", email = "dennis.kleinhans@ipa.fraunhofer.de"},
+    {name = "Florian Wieland", email = "florian.wieland@ipa.fraunhofer.de"},
+    {name = "David Kreplin", email = "david.kreplin@hs-heilbronn.de"},
 ]
 maintainers = [
-    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
+    {name = "Chia-Tso Lai", email = "chia-tso.lai@ipa.fraunhofer.de"},
+    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
 ]
 license = {file = "LICENSE.txt"}
 classifiers = [
@@ -40,6 +40,12 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://flaqship.eu"
+Documentation = "https://flaqship.github.io/qc-executor/"
+Repository = "https://github.com/flaqship/qc-executor"
+Issues = "https://github.com/flaqship/qc-executor/issues"
 
 [project.optional-dependencies]
 pennylane = ["pennylane>=0.34.0"]
@@ -94,6 +100,9 @@ path = "src/qc_executor/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qc_executor"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "examples", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE.txt", "pyproject.toml"]
 
 [tool.black]
 line-length = 99

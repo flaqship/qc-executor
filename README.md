@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="QC Executor" src="docs/_static/logo_large.png" />
+  <img alt="QC Executor" src="https://raw.githubusercontent.com/flaqship/qc-executor/main/docs/_static/logo_large.png" />
 </p>
 
 # QC Executor
@@ -13,7 +13,7 @@ This library provides an abstraction for quantum circuits and operators that can
 QC Executor can be installed with only the backends you need. By default, only Qiskit (used as the common intermediate representation) is required:
 
 ```bash
-pip install git+https://github.com/flaqship/qc-executor.git
+pip install qc-executor
 ```
 
 ### Backend-Specific Installation
@@ -22,22 +22,22 @@ Install QC Executor with specific backends:
 
 ```bash
 # Install with PennyLane backend
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pennylane]
+pip install qc-executor[pennylane]
 
 # Install with Qulacs backend
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qulacs]
+pip install qc-executor[qulacs]
 
 # Install with full Qiskit support (Aer simulator and IBM Runtime)
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qiskit-full]
+pip install qc-executor[qiskit-full]
 
 # Install with Pauli Propagation backend
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pauli_propagation]
+pip install qc-executor[pauli_propagation]
 
 # Install with all backends
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[all]
+pip install qc-executor[all]
 
 # Install multiple specific backends
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pennylane,qulacs,pauli_propagation]
+pip install qc-executor[pennylane,qulacs,pauli_propagation]
 ```
 
 ## Usage

@@ -1,0 +1,70 @@
+name: Publish documentation
+
+# Builds the docs for each release tag (and the rolling "dev" build from main)
+# into its own version directory and publishes the whole set to GitHub Pages.
+# The flaQship theme regenerates versions.json + the root redirect on every
+# build, so the header version switcher always lists every published version.
+#
+# Prerequisite:
+#   * Settings -> Pages -> "Deploy from a branch" -> branch: gh-pages, folder: /
+# The switcher uses page-relative links, so no base-URL configuration is needed.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pull the already-published versions into ./site so the theme can
+      # regenerate versions.json across all of them. No-op on the first run.
+      - name: Fetch published site
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+        continue-on-error: true
+
+      - name: Drop fetched git metadata
+        run: rm -rf site/.git
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --group docs
+
+      - name: Determine version label
+        id: ver
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build this version
+        env:
+          FLAQSHIP_VERSION: ${{ steps.ver.outputs.version }}
+        run: uv run sphinx-build -b html docs "site/${{ steps.ver.outputs.version }}"
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          force_orphan: true

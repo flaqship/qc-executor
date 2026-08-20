@@ -27,6 +27,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      # TEMPORARY: remove once the theme install is confirmed working.
+      - name: Diagnose theme access
+        env:
+          PULL_THEME_TOKEN: ${{ secrets.PULL_THEME_TOKEN }}
+        run: |
+          if [ -z "$PULL_THEME_TOKEN" ]; then
+            echo "RESULT: secret is EMPTY - org secret is not reaching this repo"
+          else
+            echo "RESULT: secret present, length ${#PULL_THEME_TOKEN}"
+          fi
+          code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $PULL_THEME_TOKEN" https://api.github.com/repos/flaqship/flaqship-sphinx-theme)
+          echo "RESULT: theme repo API -> HTTP $code"
+
       - name: Authenticate to the private theme repository
         env:
           PULL_THEME_TOKEN: ${{ secrets.PULL_THEME_TOKEN }}

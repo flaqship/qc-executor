@@ -9,7 +9,7 @@ import os
 import re
 import warnings
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Dict, List, overload
+from typing import TYPE_CHECKING, Any, Dict, List, overload
 
 import numpy as np
 import sympy as sp
@@ -20,10 +20,10 @@ from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import NoSymmetry
 from .utils.gates import CliffordGate, LayerBarrier, PauliRotation
 from .utils.parallel import expectation_task, expectation_task_star
+from .utils.parameter_binding import bind_parameters
 from .utils.pauli_algebra import term_to_string
 from .utils.pauli_types import PauliSum
 from .utils.propagation import batch_propagate
-from .utils.qiskit_converter import bind_parameters
 from .utils.state_overlap import overlap_with_zero
 from .utils.truncation import TruncationStats, truncate_combined
 
@@ -442,6 +442,24 @@ class PauliPropagationExecutor(ExecutorBase):
             If multiple params requested: dict mapping param names to gradient arrays
         """
         # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
+        if isinstance(circuit, list):
+            raise NotImplementedError(
+                "Derivatives for multiple circuits are not supported. "
+                "Please call expectation_value_derivatives with a single circuit."
+            )
+        if isinstance(observable, list):
+            # Nothing here batches over observables -- the two-pass walk below
+            # is per operator -- so the gradients are stacked instead.  This
+            # used to leak a TypeError out of the operator converter.
+            return _stack_derivatives(
+                [
+                    self._expectation_value_derivatives(
+                        circuit, single, *derivative_params, **parameter_values
+                    )
+                    for single in observable
+                ]
+            )
+
         # Convert derivative params to string names (base parameter names without indices)
         param_names = []
         for p in derivative_params:
@@ -478,13 +496,15 @@ class PauliPropagationExecutor(ExecutorBase):
             native_observable = observable
         else:
             native_observable = self._transpile_operator(observable)
-        observable_params = set(native_observable.parameters)
+        # Parameters are compared and looked up by name here, so take the name
+        # keys rather than the Parameter objects.
+        observable_params = set(native_observable.parameter_symbols)
 
         if isinstance(circuit, PauliPropagationCircuit):
             native_circuit = circuit
         else:
             native_circuit = PauliPropagationCircuit.from_quantum_circuit(circuit)
-        circuit_params = set(native_circuit.parameters)
+        circuit_params = set(native_circuit.parameter_symbols)
         uses_indexed_names = observable_params | circuit_params
         bound_circuit = native_circuit.assign_parameters(normalized_parameter_values)
 
@@ -981,100 +1001,27 @@ class PauliPropagationExecutor(ExecutorBase):
         """
         return PauliPropagationCircuit.from_quantum_circuit(circuit)
 
-    @overload
-    def transpile_operator(
+    def _transpile_operator(
         self,
         operator: QuantumOperatorBase,
-    ) -> PauliPropagationOperator: ...
-
-    @overload
-    def transpile_operator(  # pylint: disable=arguments-differ
-        self,
-        operator: QuantumOperatorBase,
-        symmetry_strategy: SymmetryStrategy,
-    ) -> PauliPropagationOperator: ...
-
-    @overload
-    def transpile_operator(
-        self,
-        operator: List[QuantumOperatorBase],
-    ) -> List[PauliPropagationOperator]: ...
-
-    @overload
-    def transpile_operator(  # pylint: disable=arguments-differ
-        self,
-        operator: List[QuantumOperatorBase],
-        symmetry_strategy: SymmetryStrategy,
-    ) -> List[PauliPropagationOperator]: ...
-
-    def transpile_operator(
-        self,
-        operator: QuantumOperatorBase | List[QuantumOperatorBase],
         symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationOperator | List[PauliPropagationOperator]:
-        """
-        Transpile the operator for execution on Pauli Propagation backend.
+        **_options: Any,
+    ) -> PauliPropagationOperator:
+        """Transpile an operator into the native Pauli-propagation format.
 
-        Accepts both native PauliPropagationOperator and generic QuantumOperator types.
-        When a list of operators is provided, each operator is transpiled and cached individually.
+        Accepts native and generic operators alike.  ``symmetry_strategy``
+        reaches this method through the base class's ``**options`` forwarding,
+        so ``transpile_operator(op, symmetry_strategy=...)`` works without this
+        backend having to widen the public signature.
 
         Args:
-            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The
-                quantum operator or a list of operators to transpile.
-            symmetry_strategy (SymmetryStrategy | None): Strategy for symmetry handling.
-                If provided, takes precedence over executor-level default.
+            operator (QuantumOperatorBase): Operator to transpile.
+            symmetry_strategy (SymmetryStrategy | None): Strategy to assign.
+                Takes precedence over the executor-level default when given.
+            ``**_options``: Ignored; accepted so unrelated options do not fail.
 
         Returns:
-            PauliPropagationOperator | List[PauliPropagationOperator]: The
-                transpiled operator(s) in native format.
-        """
-        self._logger.info("Transpiling operator")
-        if isinstance(operator, list):
-            return [
-                self._transpile_operator_cached(operator, symmetry_strategy)
-                for operator in operator
-            ]
-        return self._transpile_operator_cached(operator, symmetry_strategy)
-
-    def _transpile_operator_cached(
-        self,
-        operator: QuantumOperatorBase,
-        symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationOperator:
-        if self._result_cache is not None:
-            key = self._make_result_key("transpile_operator", operator, symmetry_strategy)
-            if key in self._result_cache:
-                self._logger.debug("Result cache hit for transpile_operator")
-                return self._result_cache[key]
-            result = self._transpile_operator_with_symmetry(operator, symmetry_strategy)
-            self._result_cache[key] = result
-            return result
-        return self._transpile_operator_with_symmetry(operator, symmetry_strategy)
-
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> PauliPropagationOperator:
-        return self._transpile_operator_with_symmetry(operator)
-
-    def _transpile_operator_with_symmetry(
-        self,
-        operator: QuantumOperatorBase,
-        symmetry_strategy: SymmetryStrategy | None = None,
-    ) -> PauliPropagationOperator:
-        """Transpile an operator to PauliPropagationOperator format.
-
-        Accepts both native PauliPropagationOperator and generic QuantumOperator types.
-        If symmetry_strategy is provided, it takes precedence and is assigned to the
-        operator. Otherwise, falls back to the executor's default symmetry_strategy.
-
-        Args:
-            operator (QuantumOperatorBase): Operator to transpile (native or generic)
-            symmetry_strategy (object | None): Symmetry strategy to assign. If None,
-                uses executor-level default (self.symmetry_strategy)
-
-        Returns:
-            PauliPropagationOperator: Transpiled operator in native format
-
-        Raises:
-            TypeError: If operator type is not supported
+            PauliPropagationOperator: The transpiled operator.
         """
         effective_symmetry = (
             symmetry_strategy if symmetry_strategy is not None else self.symmetry_strategy
@@ -1104,3 +1051,18 @@ class PauliPropagationExecutor(ExecutorBase):
     def get_accepted_backend_aliases(cls) -> List[str]:
         """Return string aliases accepted by this executor in ``Executor.create``."""
         return []
+
+
+def _stack_derivatives(results: list):
+    """Stack one derivative result per observable into a single result.
+
+    Args:
+        results: One result per observable, all of the same shape.
+
+    Returns:
+        An array with observables along the leading axis, or -- when several
+        derivatives were requested -- a dict of such arrays.
+    """
+    if results and isinstance(results[0], dict):
+        return {key: np.stack([r[key] for r in results]) for key in results[0]}
+    return np.stack([np.asarray(r) for r in results])

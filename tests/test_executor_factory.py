@@ -37,7 +37,7 @@ class MockExecutor(ExecutorBase):
         """Mock implementation."""
         return circuit
 
-    def _transpile_operator(self, operator):
+    def _transpile_operator(self, operator, **_options):
         """Mock implementation."""
         return operator
 
@@ -140,8 +140,8 @@ class TestExecutorFactory:
         # No install hint for completely unknown backend names
         assert "pip install" not in error_msg
 
-    def test_create_qiskit_missing_message_uses_qiskit_full_extra(self):
-        """Test that qiskit backend install hint points to qiskit-full."""
+    def test_create_qiskit_missing_message_names_the_qiskit_extra(self):
+        """Qiskit is an optional extra now, and the minimal one is enough to create it."""
         original_registry = Executor._registry.copy()
         original_alias_map = Executor._backend_alias_map.copy()
         original_alias_registry_size = Executor._alias_registry_size
@@ -154,7 +154,7 @@ class TestExecutorFactory:
             with pytest.raises(ValueError) as exc_info:
                 Executor.create("qiskit")
 
-            assert "pip install qc-executor[qiskit-full]" in str(exc_info.value)
+            assert "pip install qc-executor[qiskit]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
             Executor._backend_alias_map = original_alias_map
@@ -222,7 +222,7 @@ class TestExecutorFactory:
             with pytest.raises(ValueError) as exc_info:
                 Executor.create("statevector")
 
-            assert "pip install qc-executor[qiskit-full]" in str(exc_info.value)
+            assert "pip install qc-executor[qiskit]" in str(exc_info.value)
         finally:
             Executor._registry = original_registry
             Executor._backend_alias_map = original_alias_map

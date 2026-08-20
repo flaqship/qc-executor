@@ -8,16 +8,15 @@ from itertools import product
 from typing import Any, List, Tuple, cast
 
 import numpy as np
-from qiskit.circuit import ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumState  # pylint: disable=no-name-in-module
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..parameters import Parameter, Parameters
 from ..quantum_circuit import QuantumCircuit
 from ..utils.data_preprocessing import adjust_features, to_tuple
 from .qulacs_circuit import QulacsCircuit
-from .qulacs_operator import QulacsOperator
+from .qulacs_operator import QulacsObservableBatch, QulacsOperator
 
 
 class QulacsExecutor(ExecutorBase):
@@ -113,7 +112,7 @@ class QulacsExecutor(ExecutorBase):
                 qulacs_circuits.append(self._circuit_cache[circ])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
-                qulacs_circuit = QulacsCircuit(cast(QuantumCircuit, circ))
+                qulacs_circuit = QulacsCircuit.from_quantum_circuit(cast(QuantumCircuit, circ))
                 self._circuit_cache[circ] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
 
@@ -149,7 +148,7 @@ class QulacsExecutor(ExecutorBase):
                 qulacs_operators.append(self._operator_cache[op])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
-                qulacs_operator = QulacsOperator(op)
+                qulacs_operator = QulacsOperator.from_quantum_operator(op)
                 self._operator_cache[op] = qulacs_operator
                 qulacs_operators.append(qulacs_operator)
 
@@ -235,9 +234,9 @@ class QulacsExecutor(ExecutorBase):
                     observable_parameter_tuples = product(*observable_parameters)
 
                     for obs in observable_parameter_tuples:
-                        qulacs_observable_object = qulacs_observable.get_operator_func()(
-                            *obs[0] if obs else ()
-                        )
+                        qulacs_observable_object = QulacsObservableBatch(
+                            [qulacs_observable]
+                        ).get_operator_func()(*obs[0] if obs else ())
                         # not sure about the [0] here, but it works for single observables
                         observable_values.append(
                             np.real_if_close(
@@ -276,7 +275,7 @@ class QulacsExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         observable: QuantumOperatorBase,
-        *values: str | ParameterVector | ParameterVectorElement | tuple,
+        *values: str | Parameters | Parameter | tuple,
         **parameter_values,
     ) -> float | np.ndarray | dict:
         """
@@ -287,7 +286,7 @@ class QulacsExecutor(ExecutorBase):
             observable (QuantumOperatorBase): The quantum observable.
             values: Values for which the derivatives are calculated. Can be strings (e.g.
                 "expectation_value" or the name of parameters), or
-                ParameterVectors, ParameterVectorElements. Tuples are used for higher
+                Parameters vectors and Parameter elements. Tuples are used for higher
                 order derivatives.
             parameter_values: Parameters to evaluate the circuit and observable given as
                 keyword arguments.
@@ -300,10 +299,10 @@ class QulacsExecutor(ExecutorBase):
 
         def evaluate_circuit_gradient(
             circuit: QulacsCircuit,
-            observable: QulacsOperator,
+            observable: QulacsObservableBatch,
             arguments_circuit,
             arguments_observable,
-            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+            parameters: Parameter | List[Parameter] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Circuits with the given parameters.
@@ -313,7 +312,7 @@ class QulacsExecutor(ExecutorBase):
 
             Args:
                 circuit (QulacsCircuit): Qulacs circuit to evaluate
-                observable (QulacsOperator): Qulacs observable to evaluate
+                observable (QulacsObservableBatch): Qulacs observables to evaluate
                 arguments_circuit: Arguments for the circuit
                 arguments_observable: Arguments for the observable
                 parameters (List[float]): List of circuit parameters wrt. the gradient is computed
@@ -326,7 +325,7 @@ class QulacsExecutor(ExecutorBase):
             observable_args = arguments_observable[0] if len(arguments_observable) > 0 else []
             qulacs_observable = observable.get_operator_func()(*observable_args)
 
-            if isinstance(parameters, ParameterVectorElement):
+            if isinstance(parameters, Parameter):
                 parameters = [parameters]
             parameters = list(parameters) if parameters is not None else []
 
@@ -345,17 +344,16 @@ class QulacsExecutor(ExecutorBase):
 
             values = np.real_if_close(param_values)
 
-            if not observable.multiple_operators:
+            if len(observable) == 1:
                 return values[0]
-
             return values
 
         def evaluate_observable_gradient(
             circuit: QulacsCircuit,
-            observable: QulacsOperator,
+            observable: QulacsObservableBatch,
             arguments_circuit,
             arguments_observable,
-            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+            parameters: Parameter | List[Parameter] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Observables with the given parameters.
@@ -365,7 +363,7 @@ class QulacsExecutor(ExecutorBase):
 
             Args:
                 circuit (QulacsCircuit): Qulacs circuit to evaluate
-                observable (QulacsOperator): Qulacs observable to evaluate
+                observable (QulacsObservableBatch): Qulacs observables to evaluate
                 arguments_circuit: Arguments for the circuit
                 arguments_observable: Arguments for the observable
                 parameters (List[float]): List of observable parameters wrt.
@@ -398,28 +396,26 @@ class QulacsExecutor(ExecutorBase):
 
             values = np.real_if_close(param_obs_values)
 
-            if not observable.multiple_operators:
+            if len(observable) == 1:
                 return values[0]
-
             return values
 
         def remove_brackets(s: str) -> str:
             return re.sub(r"\[.*?\]", "", s)
 
         qulacs_circuits, _ = self._preprocess_circuits(circuit)
-        qulacs_observables, _ = self._preprocess_operators(observable)
+        qulacs_observables, multiple_observables = self._preprocess_operators(observable)
 
-        # Derivatives for multiple circuits or observables are not implemented. Raise an
-        # explicit error instead of silently dropping all but the first element, which
-        # would otherwise return a plausible but wrong result.
-        if len(qulacs_circuits) > 1 or len(qulacs_observables) > 1:
+        # Several observables are evaluated together as a batch.  Several
+        # circuits are not: each would need its own state, so refuse rather
+        # than silently returning the first one's gradient.
+        if len(qulacs_circuits) > 1:
             raise NotImplementedError(
-                "Derivatives for multiple circuits or observables are not supported. "
-                "Please call expectation_value_derivatives with a single circuit and "
-                "a single observable."
+                "Derivatives for multiple circuits are not supported. "
+                "Please call expectation_value_derivatives with a single circuit."
             )
         qulacs_circuit = qulacs_circuits[0]
-        qulacs_observable = qulacs_observables[0]
+        qulacs_observable = QulacsObservableBatch(qulacs_observables)
 
         circuit_parameters = []
         multiple_circuit_parameters = []
@@ -481,7 +477,7 @@ class QulacsExecutor(ExecutorBase):
                         parameter_vector.append(param)
                     elif todo[0] == param.name:
                         parameter_vector.append(param)
-                elif isinstance(todo[0], ParameterVectorElement):
+                elif isinstance(todo[0], Parameter):
                     if param == todo[0]:
                         parameter_vector.append(param)
                 else:
@@ -500,7 +496,7 @@ class QulacsExecutor(ExecutorBase):
                         observable_vector.append(param)
                     elif todo[0] == param.name:
                         observable_vector.append(param)
-                elif isinstance(todo[0], ParameterVectorElement):
+                elif isinstance(todo[0], Parameter):
                     if param == todo[0]:
                         observable_vector.append(param)
                 else:
@@ -672,7 +668,9 @@ class QulacsExecutor(ExecutorBase):
             self._native_circuit_class.from_quantum_circuit(cast(QuantumCircuit, circuit)),
         )
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QuantumOperatorBase:
+    def _transpile_operator(
+        self, operator: QuantumOperatorBase, **_options
+    ) -> QuantumOperatorBase:
         """Transpile a generic QuantumOperator to a Qulacs QuantumOperator.
 
         Args:

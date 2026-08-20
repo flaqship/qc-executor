@@ -1,66 +1,86 @@
-"""Circuit module for converting Qiskit circuits to PennyLane native circuits."""
+"""PennyLane native circuit, compiled from the framework-independent circuit IR."""
 
 from __future__ import annotations
 
 from typing import Any, Callable, Optional, cast
 
 import pennylane as qml
-from qiskit import transpile
-from qiskit.circuit import Clbit, ParameterExpression
-from qiskit.circuit import QuantumCircuit as QiskitQuantumCircuit
+import sympy as sp
 from sympy import lambdify
 
-from ..quantum_circuit import QuantumCircuit
-from ..utils.decompose_to_std import decompose_to_std
-from ..utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to_sympy
+from ..base.circuit_base import QuantumCircuitBase
+from ..base.circuit_ir import CircuitIR, Instruction
+from ..base.gate_set import GATE_DEFS, OPCODE_BY_NAME, OpCode
+from ..parameters import sort_parameters
 from ._sympy_interface import _get_sympy_interface
-from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
+from .pennylane_gates import qiskit_pennylane_gate_dict
+
+#: Opcodes PennyLane executes directly, derived from its gate table.  PennyLane
+#: covers almost the whole gate set, so the shared lowering pass has little to
+#: do; it replaced the ``qiskit.transpile(target=pennylane_target)`` call.
+_SUPPORTED = frozenset(
+    OPCODE_BY_NAME[name] for name in qiskit_pennylane_gate_dict if name in OPCODE_BY_NAME
+) | {OpCode.BARRIER}
 
 
-class PennyLaneCircuit:
-    """PennyLane circuit representation converted from a generic QuantumCircuit."""
+class PennyLaneCircuit(QuantumCircuitBase):
+    """A quantum circuit that compiles to PennyLane.
+
+    Built like any other circuit -- ``PennyLaneCircuit(2)`` then
+    ``circuit.h(0)`` -- or converted from an existing one with
+    :meth:`from_quantum_circuit`.  Compilation into PennyLane operations is
+    lazy and re-runs whenever the instruction store changes.
+
+    Args:
+        num_qubits: Number of qubits in the circuit.
+        num_clbits: Number of classical bits, for mid-circuit measurement.
+        _ir: Adopt this instruction store instead of starting empty.
+    """
 
     @classmethod
-    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "PennyLaneCircuit":
-        """Create a PennyLane native circuit from a generic circuit."""
-        return cls(circuit)
+    def supported_opcodes(cls) -> frozenset:
+        """Return the opcodes PennyLane executes directly.
+
+        Without this the base default (the whole gate set) would apply and the
+        lowering pass would silently stop rewriting anything.
+        """
+        return _SUPPORTED
 
     def __init__(
         self,
-        circuit: QuantumCircuit,
+        num_qubits: int = 0,
+        num_clbits: int = 0,
+        *,
+        _ir: "CircuitIR | None" = None,
     ) -> None:
-
-        # Transpile circuit to supported basis gates and expand blocks automatically
-        self._qiskit_circuit = transpile(
-            decompose_to_std(circuit.qiskit_circuit),
-            target=pennylane_target,
-            optimization_level=0,
-        )
-
-        self._num_qubits = self._qiskit_circuit.num_qubits
-        self._num_clbits = self._qiskit_circuit.num_clbits
+        super().__init__(num_qubits, num_clbits, _ir=_ir)
 
         self._pennylane_gates = []
         self._pennylane_gates_param_function = []
         self._pennylane_gates_wires = []
         self._pennylane_conditions = []
-        self._pennylane_gates_parameters = []
-        self._pennylane_gates_parameters_dimensions = {}
         self._pennylane_circuit = None
+        self._compiled_revision = -1
 
-        # Build circuit instructions for the pennylane circuit from the qiskit circuit
-        self._build_circuit_instructions(self._qiskit_circuit)
+    # ------------------------------------------------------------------
+    # Compilation
+    # ------------------------------------------------------------------
 
-        # self._pennylane_circuit = self.build_pennylane_circuit()
+    def _ensure_compiled(self) -> None:
+        """Compile the instruction store into PennyLane operations, once per revision."""
+        if self._compiled_revision != self._ir.revision:
+            self._build_circuit_instructions(self._lowered_ir())
+            self._compiled_revision = self._ir.revision
+            self._pennylane_circuit = None
 
-    @property
-    def num_qubits(self) -> int:
-        """Number of qubits in the circuit"""
-        return self._num_qubits
+    def _build_native(self) -> Callable:
+        """Compile the instruction store into the callable PennyLane circuit."""
+        return self.build_pennylane_circuit()
 
     @property
     def pennylane_circuit(self) -> Optional[Callable]:
         """PennyLane circuit that can be called with parameters"""
+        self._ensure_compiled()
         if self._pennylane_circuit is None:
             self._pennylane_circuit = self.build_pennylane_circuit()
         return self._pennylane_circuit
@@ -68,124 +88,109 @@ class PennyLaneCircuit:
     @property
     def parameter_names(self) -> list:
         """List of circuit parameter names"""
-        return self._pennylane_gates_parameters
+        return list(self.parameter_dimensions)
 
     @property
     def parameter_dimensions(self) -> dict:
-        """Dictionary with the dimension of each circuit parameter"""
-        return self._pennylane_gates_parameters_dimensions
+        """Dictionary with the dimension of each circuit parameter.
 
-    @property
-    def hash(self) -> int:
-        """Hashable object of the circuit and observable for caching"""
-        return hash(str(self._qiskit_circuit))
+        Derived from the instruction store rather than from the compiled
+        operations, so it answers without forcing compilation.  Lowering does
+        not change which parameters appear, only which gates carry them.
+        """
+        dimensions: dict = {}
+        for parameter in self.parameters:
+            dimensions[parameter.vector_name] = dimensions.get(parameter.vector_name, 0) + 1
+        return dimensions
 
     def __call__(self, *args, **kwargs):
         return self.pennylane_circuit(*args, **kwargs)
 
-    def _get_gate_condition(self, circuit: QiskitQuantumCircuit, gate_operation: Any):
-        """Get the classical condition for a gate, or None if unconditional."""
-        if (
-            not hasattr(gate_operation.operation, "condition")
-            or gate_operation.operation.condition is None
-        ):
-            return None
-        classical_bits = gate_operation.operation.condition[0]
-        val = gate_operation.operation.condition[1]
-        if isinstance(classical_bits, Clbit):
-            bit_indices = circuit.find_bit(classical_bits).index
-        else:
-            bit_indices = [circuit.find_bit(b).index for b in classical_bits]
-        return (bit_indices, val)
+    @staticmethod
+    def _get_gate_condition(instruction: Instruction):
+        """Get the classical condition for an instruction, or None if unconditional.
 
-    def _get_gate_param_tuple(self, gate_operation, symbol_tuple, printer, modules):
-        """Build the parameter function tuple for a gate, or None if no parameters."""
-        if len(gate_operation.operation.params) < 1:
-            return None
-        param_tuple = ()
-        for param in gate_operation.operation.params:
-            if isinstance(param, ParameterExpression):
-                if _param_is_constant(param):
-                    param = _param_to_float(param)
-                else:
-                    symbol_expr = _param_to_sympy(param)
-                    f = lambdify(symbol_tuple, symbol_expr, modules=modules, printer=printer)
-                    param_tuple += (f,)
-            else:
-                param_tuple += (param,)
-        return param_tuple
-
-    def _build_circuit_instructions(self, circuit: QiskitQuantumCircuit) -> None:
-        """
-        Function to build the instructions for the PennyLane circuit from the Qiskit circuit.
-
-        This functions converts the Qiskit gates and parameter expressions to PennyLane compatible
-        gates and functions.
+        Reads the condition straight off the IR.  The previous implementation
+        looked for ``Instruction.condition``, which Qiskit removed in 2.0, so
+        conditional gates had silently stopped being applied.
 
         Args:
-            circuit (QuantumCircuit): Qiskit circuit to convert to PennyLane
+            instruction: The instruction to inspect.
 
         Returns:
-            Tuple with lists of PennyLane gates, PennyLane gate parameter functions,
-            PennyLane gate wires, PennyLane gate parameters and PennyLane gate parameter dimensions
+            ``(bit_indices, value)`` where ``bit_indices`` is an int for a
+            single classical bit and a list otherwise, or ``None``.
         """
+        condition = instruction.condition
+        if condition is None:
+            return None
+        bits = list(condition.clbits)
+        return (bits[0] if len(bits) == 1 else bits, condition.value)
 
+    @staticmethod
+    def _get_gate_param_tuple(instruction: Instruction, symbol_tuple, printer, modules):
+        """Build the parameter function tuple for a gate, or None if it has none.
+
+        Angles arrive as numbers or SymPy expressions; symbolic ones are
+        lambdified onto PennyLane's autograd-aware numpy.
+        """
+        if not instruction.params:
+            return None
+        param_tuple: tuple = ()
+        for param in instruction.params:
+            if isinstance(param, sp.Basic) and param.free_symbols:
+                param_tuple += (lambdify(symbol_tuple, param, modules=modules, printer=printer),)
+            else:
+                param_tuple += (float(param),)
+        return param_tuple
+
+    def _build_circuit_instructions(self, ir: CircuitIR) -> None:
+        """Build the PennyLane instruction lists from the circuit IR.
+
+        Walks the lowered instruction store directly; this used to iterate a
+        transpiled Qiskit circuit and look gates up by their Qiskit name.
+
+        Args:
+            ir: The lowered instruction store.
+
+        Raises:
+            NotImplementedError: For gates PennyLane cannot express.
+        """
         self._pennylane_gates = []
         self._pennylane_gates_param_function = []
         self._pennylane_gates_wires = []
         self._pennylane_conditions = []
-        self._pennylane_gates_parameters = []
-        self._pennylane_gates_parameters_dimensions = {}
 
-        symbol_tuple = tuple(_param_to_sympy(p) for p in circuit.parameters)
-
-        for param in circuit.parameters:
-            if param.vector.name not in self._pennylane_gates_parameters:
-                self._pennylane_gates_parameters.append(param.vector.name)
-                self._pennylane_gates_parameters_dimensions[param.vector.name] = 1
-            else:
-                self._pennylane_gates_parameters_dimensions[param.vector.name] += 1
+        # Same order parameter_dimensions counts in, so the executor's
+        # flattened argument list lines up with the lambdified callables.
+        symbol_tuple = tuple(sort_parameters(ir.free_parameters))
 
         printer, modules = _get_sympy_interface()
 
-        for gate_operation in circuit.data:
-            # Barriers are visualization/compiler directives with no effect on the
-            # statevector, so they are skipped during conversion.
-            if gate_operation.operation.name == "barrier":
+        for instruction in ir:
+            # Barriers are compiler directives with no effect on the statevector.
+            if instruction.opcode is OpCode.BARRIER:
                 continue
-            self._pennylane_conditions.append(self._get_gate_condition(circuit, gate_operation))
+
+            self._pennylane_conditions.append(self._get_gate_condition(instruction))
             self._pennylane_gates_param_function.append(
-                self._get_gate_param_tuple(gate_operation, symbol_tuple, printer, modules)
+                self._get_gate_param_tuple(instruction, symbol_tuple, printer, modules)
             )
 
-            if gate_operation.operation.name == "measure":
-                # Capture special case of measurement, that is stored in classical bits
-                # In the pennylane implementation, classical bits are introduced as an array
-                wires = [
-                    circuit.find_bit(gate_operation.qubits[i]).index
-                    for i in range(gate_operation.operation.num_qubits)
-                ]
-                clbits = [
-                    circuit.find_bit(gate_operation.clbits[i]).index
-                    for i in range(gate_operation.operation.num_clbits)
-                ]
-                self._pennylane_gates.append(("measure", clbits))
-                self._pennylane_gates_wires.append(wires)
-            else:
-                # All other gates
-                if gate_operation.operation.name not in qiskit_pennylane_gate_dict:
-                    raise NotImplementedError(
-                        f"Gate {gate_operation.operation.name} is unfortunatly not supported "
-                        "in sQUlearn's PennyLane backend."
-                    )
-                self._pennylane_gates.append(
-                    qiskit_pennylane_gate_dict[gate_operation.operation.name]
+            if instruction.opcode is OpCode.MEASURE:
+                # Measurement results are stored in a classical-bit array.
+                self._pennylane_gates.append(("measure", list(instruction.clbits)))
+                self._pennylane_gates_wires.append(list(instruction.qubits))
+                continue
+
+            name = GATE_DEFS[instruction.opcode].name
+            if name not in qiskit_pennylane_gate_dict:
+                raise NotImplementedError(
+                    f"Gate {name} is unfortunatly not supported "
+                    "in sQUlearn's PennyLane backend."
                 )
-                wires = [
-                    circuit.find_bit(gate_operation.qubits[i]).index
-                    for i in range(gate_operation.operation.num_qubits)
-                ]
-                self._pennylane_gates_wires.append(wires)
+            self._pennylane_gates.append(qiskit_pennylane_gate_dict[name])
+            self._pennylane_gates_wires.append(list(instruction.qubits))
 
     def _apply_conditional_gate(
         self, circuit_gate, evaluated_param, condition, measurements, wires
@@ -212,26 +217,22 @@ class PennyLaneCircuit:
                 cond_fn(wires=wires)
 
     def build_pennylane_circuit(self):
-        """
-        Function to build the PennyLane circuit from the Qiskit circuit and observable.
+        """Return a callable PennyLane circuit built from the instruction store.
 
-        The functions returns a callable PennyLane circuit that can be called with parameters.
-        The PennyLane circuit is built from the instructions previously generated from the Qiskit
-        circuit and observable.
+        Compiles the store first if it has changed since the last call.
 
         Returns:
             Callable PennyLane circuit
         """
+        self._ensure_compiled()
 
         def pennylane_circuit(*args):
             """PennyLane circuit that can be called with parameters"""
 
-            measurements: list = [0] * self._num_clbits
+            measurements: list = [0] * self.num_clbits
 
             # Collects the args values connected to the circuit parameters
-            circ_param_list = sum(
-                [list(args[i]) for i in range(len(self._pennylane_gates_parameters))], []
-            )
+            circ_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
 
             # Loop through all penny lane gates
             for i, circuit_gate in enumerate(self._pennylane_gates):

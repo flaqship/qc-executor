@@ -2,10 +2,13 @@ import numpy as np
 import pytest
 from packaging import version
 from qiskit import __version__ as qiskit_version
+
+# OpTree operates on Qiskit's own parameter objects, so these tests build
+# them directly rather than going through the framework-independent types.
+from qiskit.circuit import ParameterVector as Parameters
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit.optree import OpTree
 from qc_executor.qiskit.optree.optree import (
     OpTreeList,

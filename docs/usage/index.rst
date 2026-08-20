@@ -28,12 +28,18 @@ Every workflow uses three backend-independent objects from the package root:
 ``QuantumOperator``
     An observable expressed as a weighted sum of Pauli strings, e.g.
     ``QuantumOperator(["ZI", "IZ"], [1.0, 1.0])``. Coefficients may also be
-    symbolic.
+    symbolic. **Qubit** ``q`` **is character** ``q`` **of the label**, so
+    ``"ZI"`` acts with Z on qubit 0 — see :ref:`qubit-ordering`.
 
 ``Parameters``
     A named, indexable vector of free parameters used to build symbolic gate
     angles and observable coefficients. ``Parameters("x", 2)`` creates ``x[0]``
-    and ``x[1]``.
+    and ``x[1]``. Elements are SymPy symbols, so ``2 * x[0]``, ``p[0] * x[0]``
+    and ``sympy.sin(x[0])`` all work and stay differentiable.
+
+None of these depends on a quantum framework. ``import qc_executor`` pulls in
+nothing but NumPy and SymPy; a backend is imported the first time you ask for
+one.
 
 .. code-block:: python
 
@@ -167,6 +173,162 @@ Free parameters are supplied as keyword arguments, either in vector form
    grads = executor.expectation_value_derivatives(
        qc, observable, "x", "p", x=[0.1], p=[0.3]
    )
+
+
+.. _qubit-ordering:
+
+Qubit ordering
+--------------
+
+One convention holds throughout, for Pauli labels, statevectors and sample
+bitstrings alike: **qubit 0 comes first**.
+
+.. code-block:: python
+
+   QuantumOperator(["ZI"], [1.0])   # Z on qubit 0, identity on qubit 1
+   QuantumOperator(["IZ"], [1.0])   # identity on qubit 0, Z on qubit 1
+
+This is worth stating plainly because Qiskit itself renders labels the other way
+round, writing qubit 0 rightmost. ``QuantumOperator`` labels are translated on
+the way into the Qiskit backend, so the same label means the same thing on every
+backend. A raw ``SparsePauliOp`` handed straight to ``QiskitOperator`` keeps
+Qiskit's own convention, since nothing about it was written by this package.
+
+
+Working with native circuits and operators
+------------------------------------------
+
+Every backend's circuit type is a ``QuantumCircuitBase`` and every backend's
+operator type is a ``QuantumOperatorBase``, so the same API works on both. You
+can build straight into a native type:
+
+.. code-block:: python
+
+   from qc_executor.qulacs import QulacsCircuit, QulacsOperator
+
+   circuit = QulacsCircuit(3)
+   circuit.h(0)
+   circuit.crz(1, 2, 2 * x[0])       # lowered on the way to Qulacs
+
+   observable = QulacsOperator(["ZII", "IZI"], [1.0, 0.5])
+   observable = observable.apply_layout([2, 0, 1])   # the shared algebra
+
+Every evaluation method accepts a generic object *or* a backend-native one. A
+generic object is translated; a native one is used directly, so nothing is
+converted twice:
+
+.. code-block:: python
+
+   executor = Executor.create("pennylane")
+
+   native_circuit = executor.transpile_circuit(qc)
+   native_observable = executor.transpile_operator(observable)
+
+   # Both calls return the same value; the second skips translation.
+   executor.expectation_value(qc, observable, x=[0.1], p=[0.3])
+   executor.expectation_value(native_circuit, native_observable, x=[0.1], p=[0.3])
+
+Translation is cached, so repeatedly passing the same generic circuit costs the
+conversion only once.
+
+
+Several observables at once
+---------------------------
+
+Pass a list wherever one observable is accepted; the result gains a leading axis
+over the observables. This works for values *and* gradients on every backend:
+
+.. code-block:: python
+
+   observables = [
+       QuantumOperator(["ZI"], [1.0]),
+       QuantumOperator(["IZ"], [0.5]),
+   ]
+
+   values = executor.expectation_value(qc, observables, x=[0.6])
+   grads = executor.expectation_value_derivatives(qc, observables, "x", x=[0.6])
+
+Where a backend can evaluate the set in one pass it does: PennyLane measures
+them in a single QNode and differentiates it once, rather than looping.
+
+Several *circuits* are supported for expectation values everywhere, but for
+derivatives only on the Qiskit backend; the others raise ``NotImplementedError``
+rather than returning the first circuit's gradient.
+
+
+Mid-circuit measurement and classical control
+----------------------------------------------
+
+Circuits can measure a qubit partway through, reset one, and gate a later
+instruction on the outcome:
+
+.. code-block:: python
+
+   qc = QuantumCircuit(2, 1)     # 2 qubits, 1 classical bit
+   qc.h(0)
+   qc.measure(0, 0)              # qubit 0 into classical bit 0
+   with qc.if_(0, 1):            # only if classical bit 0 reads 1
+       qc.x(1)
+
+   qc.reset(0)                   # return qubit 0 to |0>
+
+``measure()`` allocates classical bits automatically when you do not name them,
+and ``measure_all()`` measures every qubit into its own bit.
+
+Backend support differs, and a backend that cannot express an operation raises
+``NotImplementedError`` rather than quietly ignoring it:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 24 24 24
+
+   * - Backend
+     - Measure
+     - Reset
+     - Condition
+   * - ``qiskit``
+     - yes
+     - yes
+     - yes
+   * - ``pennylane``
+     - yes
+     - yes
+     - yes
+   * - ``qulacs``
+     - raises
+     - raises
+     - raises
+   * - ``pauli_propagation``
+     - raises
+     - raises
+     - raises
+
+For Pauli propagation this is not a gap to be filled later: it propagates
+operators in the Heisenberg picture, where there is no measurement outcome to
+branch on.
+
+Two practical notes:
+
+* Qiskit's local primitives reject circuits containing measurements or control
+  flow, so dynamic circuits need the Aer simulator from the ``qiskit-full``
+  extra.
+* :meth:`statevector` refuses a circuit containing a measurement or a reset. Both
+  collapse the state at random, so the result would be one sample from a mixture
+  rather than a state. Use :meth:`sample` or :meth:`expectation_value` instead.
+
+
+Gate support and lowering
+--------------------------
+
+A backend declares the gates it executes natively, and anything else is
+rewritten into that set automatically. You can therefore use the full gate API
+regardless of backend — ``ccx``, ``cswap``, ``ecr``, ``iswap``, ``crx`` and the
+rest are lowered for backends that lack them. Global phase is dropped by the
+rewrite, which is why statevectors agree only up to a global phase.
+
+If a gate cannot be expressed at all, the backend raises
+``UnsupportedGateError`` (a subclass of ``NotImplementedError``).
+
 
 The pages that follow show a complete basic-usage example for each backend.
 They mirror the runnable notebooks in the ``examples/`` directory of the

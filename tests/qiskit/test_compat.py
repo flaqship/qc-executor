@@ -3,9 +3,11 @@ import importlib
 import sys
 from types import ModuleType
 
+import numpy as np
 import pytest
+from qiskit.quantum_info import SparsePauliOp
 
-import qc_executor.utils.qiskit_compat as qc
+import qc_executor.qiskit._compat as qc
 
 # Test data for Qiskit version testing
 QISKIT_VERSIONS = [
@@ -150,3 +152,37 @@ def test_qiskit_version_flags(monkeypatch, version_string, expected_flags):
     assert reloaded.QISKIT_SMALLER_2_0 is expected_flags["SMALLER_2_0"]
 
     importlib.reload(qc)
+
+
+class TestEnsureComplexCoeffs:
+    def test_casts_coeffs_for_affected_qiskit_versions(self, monkeypatch):
+        base_operator = SparsePauliOp(["Z"], coeffs=np.array([1.0], dtype=np.complex128))
+
+        class DummyOp:
+            def __init__(self, paulis):
+                self.paulis = paulis
+                self.coeffs = np.array([1.0], dtype=np.float64)
+
+        operator = DummyOp(base_operator.paulis)
+        monkeypatch.setattr(qc, "qiskit_version", "2.1.5")
+
+        result = qc.ensure_complex_coeffs(operator)
+
+        assert isinstance(result, SparsePauliOp)
+        assert result.coeffs.dtype == np.dtype("complex128")
+
+    def test_returns_same_operator_outside_affected_range(self, monkeypatch):
+        operator = SparsePauliOp(["Z"], coeffs=np.array([1.0], dtype=np.float64))
+        monkeypatch.setattr(qc, "qiskit_version", "2.2.0")
+
+        result = qc.ensure_complex_coeffs(operator)
+
+        assert result is operator
+
+    def test_returns_same_operator_when_already_complex(self, monkeypatch):
+        operator = SparsePauliOp(["Z"], coeffs=np.array([1.0 + 0j], dtype=np.complex128))
+        monkeypatch.setattr(qc, "qiskit_version", "2.1.1")
+
+        result = qc.ensure_complex_coeffs(operator)
+
+        assert result is operator

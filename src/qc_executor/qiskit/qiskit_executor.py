@@ -16,6 +16,14 @@ from qiskit.quantum_info import Statevector
 from qc_executor.base.circuit_base import QuantumCircuitBase
 from qc_executor.base.executor_base import ExecutorBase
 from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.qiskit._compat import (
+    QISKIT_RUNTIME_AVAILABLE,
+    QISKIT_RUNTIME_SMALLER_0_21,
+    QISKIT_RUNTIME_SMALLER_0_23,
+    QISKIT_RUNTIME_SMALLER_0_28,
+    QISKIT_SMALLER_1_2,
+    QISKIT_SMALLER_2_0,
+)
 from qc_executor.qiskit.optree import OpTreeDerivative, OpTreeEvaluate
 from qc_executor.qiskit.optree.optree import (
     OpTreeCircuit,
@@ -25,14 +33,6 @@ from qc_executor.qiskit.optree.optree import (
 )
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_operator import QiskitOperator
-from qc_executor.utils.qiskit_compat import (
-    QISKIT_RUNTIME_AVAILABLE,
-    QISKIT_RUNTIME_SMALLER_0_21,
-    QISKIT_RUNTIME_SMALLER_0_23,
-    QISKIT_RUNTIME_SMALLER_0_28,
-    QISKIT_SMALLER_1_2,
-    QISKIT_SMALLER_2_0,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +179,64 @@ def _convert_counts_endianness(counts: dict) -> dict:
         key = _reverse_bitstring(bitstring)
         result[key] = result.get(key, 0) + count
     return result
+
+
+def _databin_fields(data) -> List[str]:
+    """List the register names a V2 sampler result carries.
+
+    ``DataBin`` grew its mapping interface partway through Qiskit's 1.x line, so
+    the public accessor is tried first, the generated ``_FIELDS`` second (which
+    is what Qiskit 1.0 offers) and a plain attribute scan last.
+
+    Args:
+        data: The ``DataBin`` from one PUB result.
+
+    Returns:
+        The candidate field names.
+    """
+    if hasattr(data, "keys"):
+        return list(data.keys())
+    fields = [name for name in getattr(data, "_FIELDS", ()) if not name.startswith("_")]
+    return fields or [name for name in dir(data) if not name.startswith("_")]
+
+
+def _counts_register(data, pub_index: int):
+    """Find the bit array holding shot outcomes in a V2 sampler result.
+
+    The register is named after the circuit's classical register, so it is
+    ``meas`` only for circuits this executor measured itself via
+    ``measure_all``.  A circuit carrying its own mid-circuit measurements brings
+    its own register, and hard-coding ``meas`` made those unsamplable.
+
+    Args:
+        data: The ``DataBin`` from one PUB result.
+        pub_index: Index of the PUB, for the error message.
+
+    Returns:
+        The ``BitArray`` to read counts from.
+
+    Raises:
+        ValueError: If no single register can be identified.
+    """
+    candidates = [
+        name for name in _databin_fields(data) if hasattr(getattr(data, name, None), "get_counts")
+    ]
+    if len(candidates) == 1:
+        return getattr(data, candidates[0])
+    # measure_all names its register 'meas', so prefer it when a circuit also
+    # carries registers of its own.
+    if "meas" in candidates:
+        return getattr(data, "meas")
+    if not candidates:
+        raise ValueError(
+            f"Unsupported sampler result format at pub index {pub_index}: no "
+            f"classical register with counts was returned (got {type(data)!r})."
+        )
+    raise ValueError(
+        f"Cannot extract counts at pub index {pub_index}: the circuit has "
+        f"several classical registers ({', '.join(sorted(candidates))}) and no "
+        "'meas' register to read. Use a single classical register."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1166,14 +1224,13 @@ class QiskitExecutor(ExecutorBase):
                 counts_list = []
                 for i, pub in enumerate(pubs):
                     data = getattr(pub, "data", None)
-                    meas = getattr(data, "meas", None) if data is not None else None
-                    if meas is None or not hasattr(meas, "get_counts"):
+                    if data is None:
                         raise ValueError(
                             f"Unsupported sampler result format at pub index {i}: "
-                            f"'data.meas.get_counts()' is not available "
-                            f"(got type {type(pub)!r})."
+                            f"no 'data' attribute (got type {type(pub)!r})."
                         )
-                    counts_list.append(_convert_counts_endianness(meas.get_counts()))
+                    register = _counts_register(data, i)
+                    counts_list.append(_convert_counts_endianness(register.get_counts()))
                 return counts_list
 
         # --- Qiskit 1.x / V1 primitives ---
@@ -1451,6 +1508,25 @@ class QiskitExecutor(ExecutorBase):
         statevectors = np.array(statevectors)
         return statevectors[0] if len(raw_circuits) == 1 else statevectors
 
+    def _to_native_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
+        """Wrap a circuit as a QiskitCircuit without targeting the device.
+
+        Deliberately skips the ISA transpilation that :meth:`_transpile_circuit`
+        performs.  ISA transpilation maps the circuit onto the backend's physical
+        qubits and has to happen together with applying the resulting layout to
+        the observable, which :meth:`_convert_to_optree` does; doing it here
+        instead would leave a 5-qubit circuit paired with a 2-qubit observable.
+        It would also break ``statevector``, which is defined as a local
+        computation on the logical circuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The circuit to wrap.
+
+        Returns:
+            QiskitCircuit: The circuit in native form, untargeted.
+        """
+        return QiskitCircuit.from_quantum_circuit(circuit)
+
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
         """Transpile a generic QuantumCircuit to a Qiskit QuantumCircuit.
 
@@ -1464,13 +1540,13 @@ class QiskitExecutor(ExecutorBase):
         Returns:
             QiskitCircuit: The corresponding QiskitCircuit.
         """
-        qc = QiskitCircuit(circuit)
+        qc = QiskitCircuit.from_quantum_circuit(circuit)
         isa_circuit = self._isa_transpile_qiskit_circuit(qc.qiskit_circuit)
         if isa_circuit is not qc.qiskit_circuit:
             return QiskitCircuit.from_qiskit(isa_circuit)
         return qc
 
-    def _transpile_operator(self, operator: QuantumOperatorBase) -> QiskitOperator:
+    def _transpile_operator(self, operator: QuantumOperatorBase, **_options) -> QiskitOperator:
         """Transpile a generic QuantumOperator to a Qiskit QuantumOperator.
 
         Args:

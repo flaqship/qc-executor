@@ -450,18 +450,33 @@ class TestPennylaneErrorHandling:
         operator = QuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
+        with pytest.raises(NotImplementedError, match="multiple circuits"):
             executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1])
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
+    def test_derivatives_over_multiple_observables(self):
+        """Several observables are measured in one QNode and differentiated once.
+
+        Each entry must equal the gradient that observable gives on its own.
+        """
         x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        first = QuantumOperator(["Z"], [1.0])
+        second = QuantumOperator(["X"], [0.5])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1])
+        batched = np.asarray(
+            executor.expectation_value_derivatives(qc, [first, second], "x", x=[0.4])
+        ).reshape(-1)
+        singly = [
+            float(
+                np.asarray(executor.expectation_value_derivatives(qc, op, "x", x=[0.4])).reshape(
+                    -1
+                )[0]
+            )
+            for op in (first, second)
+        ]
+
+        assert batched == pytest.approx(singly, abs=1e-8)
 
     def test_device_kwargs_raises(self):
         with pytest.raises(TypeError, match="'device' is not a supported argument"):
@@ -663,12 +678,13 @@ class TestPennylaneResultCaching:
         executor = PennyLaneExecutor(caching=True)
         result1 = executor.expectation_value(qc, operator)
 
-        # Cache should contain one entry
-        assert len(executor._result_cache) == 1
+        # The cache also holds the converted circuit and observable, so compare
+        # against the size after the first call rather than a fixed count.
+        after_first = len(executor._result_cache)
 
         # Second call with same args must not add a new entry
         result2 = executor.expectation_value(qc, operator)
-        assert len(executor._result_cache) == 1
+        assert len(executor._result_cache) == after_first
 
         # Both calls must return the same value
         assert np.isclose(result1, result2, atol=1e-10)
@@ -679,10 +695,10 @@ class TestPennylaneResultCaching:
 
         executor = PennyLaneExecutor(caching=True)
         sv1 = executor.statevector(qc)
-        assert len(executor._result_cache) == 1
+        after_first = len(executor._result_cache)
 
         sv2 = executor.statevector(qc)
-        assert len(executor._result_cache) == 1
+        assert len(executor._result_cache) == after_first
 
         np.testing.assert_array_equal(sv1, sv2)
 
@@ -694,10 +710,12 @@ class TestPennylaneResultCaching:
 
         executor = PennyLaneExecutor(caching=True)
         executor.expectation_value(qc1, operator)
+        after_first = len(executor._result_cache)
         executor.expectation_value(qc2, operator)
 
-        # Two distinct circuits → two distinct cache entries
-        assert len(executor._result_cache) == 2
+        # A second, distinct circuit adds its own result entry (plus its
+        # converted circuit); the point is that it does not reuse the first.
+        assert len(executor._result_cache) > after_first
 
     def test_transpile_circuit_returns_pennylane_circuit(self):
         """Test that transpile_circuit converts a QuantumCircuit to a PennyLaneCircuit."""

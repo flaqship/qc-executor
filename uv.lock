@@ -1761,15 +1761,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mapomatic"
-version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "qiskit" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/25/11/3e72dda351bb9fda643ee0ba66fc9df86543cb2c191ae6ba8128a0720664/mapomatic-0.14.0.tar.gz", hash = "sha256:682154ba789638426b336127ccdfbb75c24e53bea5f5a061b7c8246fbb62f957", size = 17341, upload-time = "2025-08-07T13:52:27.323Z" }
-
-[[package]]
 name = "markdown-it-py"
 version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3161,18 +3152,17 @@ wheels = [
 name = "qc-executor"
 source = { editable = "." }
 dependencies = [
-    { name = "dill" },
-    { name = "mapomatic" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "qiskit" },
     { name = "sympy" },
 ]
 
 [package.optional-dependencies]
 all = [
+    { name = "packaging" },
     { name = "pennylane", version = "0.42.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pennylane", version = "0.44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "qiskit" },
     { name = "qiskit-aer" },
     { name = "qiskit-ibm-runtime" },
     { name = "qulacs" },
@@ -3181,7 +3171,13 @@ pennylane = [
     { name = "pennylane", version = "0.42.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pennylane", version = "0.44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
+qiskit = [
+    { name = "packaging" },
+    { name = "qiskit" },
+]
 qiskit-full = [
+    { name = "packaging" },
+    { name = "qiskit" },
     { name = "qiskit-aer" },
     { name = "qiskit-ibm-runtime" },
 ]
@@ -3221,12 +3217,15 @@ examples = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dill", specifier = ">=0.3.4" },
-    { name = "mapomatic", specifier = ">=0.10.0" },
     { name = "numpy", specifier = ">=1.20" },
+    { name = "packaging", marker = "extra == 'all'", specifier = ">=21.0" },
+    { name = "packaging", marker = "extra == 'qiskit'", specifier = ">=21.0" },
+    { name = "packaging", marker = "extra == 'qiskit-full'", specifier = ">=21.0" },
     { name = "pennylane", marker = "extra == 'all'", specifier = ">=0.34.0" },
     { name = "pennylane", marker = "extra == 'pennylane'", specifier = ">=0.34.0" },
-    { name = "qiskit", specifier = ">=1.0.0" },
+    { name = "qiskit", marker = "extra == 'all'", specifier = ">=1.0.0" },
+    { name = "qiskit", marker = "extra == 'qiskit'", specifier = ">=1.0.0" },
+    { name = "qiskit", marker = "extra == 'qiskit-full'", specifier = ">=1.0.0" },
     { name = "qiskit-aer", marker = "extra == 'all'", specifier = ">=0.12.0" },
     { name = "qiskit-aer", marker = "extra == 'qiskit-full'", specifier = ">=0.12.0" },
     { name = "qiskit-ibm-runtime", marker = "extra == 'all'", specifier = ">=0.18.0" },
@@ -3235,7 +3234,7 @@ requires-dist = [
     { name = "qulacs", marker = "extra == 'qulacs'", specifier = ">=0.6.4.1" },
     { name = "sympy", specifier = ">=1.8" },
 ]
-provides-extras = ["all", "pauli-propagation", "pennylane", "qiskit-full", "qulacs"]
+provides-extras = ["all", "pauli-propagation", "pennylane", "qiskit", "qiskit-full", "qulacs"]
 
 [package.metadata.requires-dev]
 dev = [

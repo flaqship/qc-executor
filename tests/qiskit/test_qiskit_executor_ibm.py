@@ -8,14 +8,21 @@ needed.
 import numpy as np
 import pytest
 from qiskit import primitives as qiskit_primitives
+from qiskit.circuit import ParameterVector as QiskitParameterVector
 from qiskit.circuit import QuantumCircuit as QiskitQC
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 from qiskit.providers import Backend
 from qiskit_ibm_runtime import Batch, Session
 
 from qc_executor import Executor, QuantumCircuit
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit import qiskit_executor as qiskit_executor_module
+from qc_executor.qiskit._compat import (
+    QISKIT_RUNTIME_AVAILABLE,
+    QISKIT_RUNTIME_SMALLER_0_21,
+    QISKIT_RUNTIME_SMALLER_0_23,
+    QISKIT_RUNTIME_SMALLER_0_28,
+    QISKIT_SMALLER_1_2,
+)
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import (
     QiskitExecutor,
@@ -24,13 +31,6 @@ from qc_executor.qiskit.qiskit_executor import (
     _resolve_backend_from_session_or_batch,
 )
 from qc_executor.quantum_operator import QuantumOperator
-from qc_executor.utils.qiskit_compat import (
-    QISKIT_RUNTIME_AVAILABLE,
-    QISKIT_RUNTIME_SMALLER_0_21,
-    QISKIT_RUNTIME_SMALLER_0_23,
-    QISKIT_RUNTIME_SMALLER_0_28,
-    QISKIT_SMALLER_1_2,
-)
 
 # Skip the entire module if qiskit-ibm-runtime is not installed
 qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
@@ -280,7 +280,8 @@ class TestQiskitCircuitFromQiskit:
         assert wrapper.num_qubits == 2
 
     def test_from_qiskit_with_parameters(self):
-        p = Parameters("p", 2)
+        # A raw Qiskit circuit takes Qiskit's own parameter objects.
+        p = QiskitParameterVector("p", 2)
         qc = QiskitQC(1)
         qc.rx(p[0], 0)
         qc.ry(p[1], 0)

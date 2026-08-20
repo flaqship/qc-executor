@@ -33,6 +33,45 @@ jobs:
       - name: Test with pytest
         run: uv run pytest tests/
 
+  core_isolation:
+    name: Core install without optional backends
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install without optional extras
+        run: uv sync --group dev
+
+      - name: Confirm no quantum framework was installed
+        run: |
+          uv pip list
+          ! uv pip list | grep -iE '^(qiskit|pennylane|qulacs) '
+
+      - name: Verify the core package imports and optional backends degrade gracefully
+        run: uv run pytest tests/test_import_isolation.py -v
+
+      # The isolation tests prove nothing got imported; this proves the package
+      # is still usable, using the one backend that is pure Python.
+      - name: Build and execute a circuit with no backend extra installed
+        run: |
+          uv run python -c "
+          from qc_executor import Executor, QuantumCircuit, QuantumOperator
+          from qc_executor.parameters import Parameters
+          x = Parameters('x', 2)
+          c = QuantumCircuit(3)
+          c.h(0); c.cx(0, 1); c.ry(1, x[0]); c.crz(1, 2, 2 * x[1]); c.ccx(0, 1, 2)
+          op = QuantumOperator(['ZII', 'IZI', 'XII'], [1.0, 0.5, 0.25])
+          ex = Executor.create('pauli_propagation')
+          print('expectation_value', ex.expectation_value(c, op, x=[0.7, 0.3]))
+          print('gradient', ex.expectation_value_derivatives(c, op, 'x', x=[0.7, 0.3]))
+          "
+
   coverage:
     name: Coverage Gate
     runs-on: ubuntu-latest

@@ -476,30 +476,6 @@ class PauliPropagationCircuit(QuantumCircuitBase):
     def to_qasm(self) -> str:
         raise NotImplementedError("QASM export is intentionally not supported for this datatype.")
 
-    def __hash__(self):
-        signature: Sequence[Any] = []
-        items: List[Any] = []
-        for gate in self._gates:
-            if isinstance(gate, LayerBarrier):
-                items.append(("BARRIER",))
-            elif isinstance(gate, CliffordGate):
-                items.append(("CLIFFORD", gate.gate_type, tuple(gate.qubits)))
-            elif isinstance(gate, PauliRotation):
-                # Convert sympy expression to string for hashing
-                param_repr = (
-                    str(gate.param_expr) if gate.param_expr is not None else gate.param_value
-                )
-                items.append(
-                    (
-                        "ROT",
-                        tuple(gate.symbols),
-                        tuple(gate.qubits),
-                        param_repr,
-                    )
-                )
-        signature = tuple(items)
-        return hash((self.num_qubits, signature))
-
     def __str__(self):
         return f"PauliPropagationCircuit(num_qubits={self.num_qubits}, gates={len(self._gates)})"
 

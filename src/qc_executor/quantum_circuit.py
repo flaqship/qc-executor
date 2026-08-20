@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import List
 
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
-from qiskit.circuit.parametervector import ParameterVectorElement
+
+from qc_executor.parameters import Parameter
 
 from .base import QuantumCircuitBase
 from .utils.qiskit_hash_functions import _circuit_key
@@ -43,7 +44,7 @@ class QuantumCircuit(QuantumCircuitBase):
         return self._qiskit_circuit.num_qubits
 
     @property
-    def parameters(self) -> List[ParameterVectorElement]:
+    def parameters(self) -> List[Parameter]:
         """Return the free trainable parameters in the circuit."""
         return list(self._qiskit_circuit.parameters)
 
@@ -59,7 +60,7 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def draw(self) -> str:
         """Returns printable string representation of the circuit."""
-        raise NotImplementedError
+        return self._qiskit_circuit.draw("text")
 
     def h(self, qubits: int | List[int]):
         """Add hadamard gates"""
@@ -219,8 +220,9 @@ class QuantumCircuit(QuantumCircuitBase):
         """Convert the circuit to a qasm string"""
         raise NotImplementedError
 
-    def __hash__(self):
-        return hash(_circuit_key(self._qiskit_circuit))
+    def _circuit_hash_key(self) -> tuple:
+        # Override with precise Qiskit-based key
+        return (_circuit_key(self._qiskit_circuit),)
 
     def __str__(self):
         return str(self._qiskit_circuit)

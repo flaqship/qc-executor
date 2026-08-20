@@ -9,9 +9,10 @@ from typing import Any, List, Tuple, cast
 
 import numpy as np
 from qiskit.circuit import ParameterVector
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumState  # pylint: disable=no-name-in-module
+
+from qc_executor.parameters import Parameter
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit
@@ -276,7 +277,7 @@ class QulacsExecutor(ExecutorBase):
         self,
         circuit: QuantumCircuitBase,
         observable: QuantumOperatorBase,
-        *values: str | ParameterVector | ParameterVectorElement | tuple,
+        *values: str | ParameterVector | Parameter | tuple,
         **parameter_values,
     ) -> float | np.ndarray | dict:
         """
@@ -303,7 +304,7 @@ class QulacsExecutor(ExecutorBase):
             observable: QulacsOperator,
             arguments_circuit,
             arguments_observable,
-            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+            parameters: Parameter | List[Parameter] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Circuits with the given parameters.
@@ -326,7 +327,7 @@ class QulacsExecutor(ExecutorBase):
             observable_args = arguments_observable[0] if len(arguments_observable) > 0 else []
             qulacs_observable = observable.get_operator_func()(*observable_args)
 
-            if isinstance(parameters, ParameterVectorElement):
+            if isinstance(parameters, Parameter):
                 parameters = [parameters]
             parameters = list(parameters) if parameters is not None else []
 
@@ -355,7 +356,7 @@ class QulacsExecutor(ExecutorBase):
             observable: QulacsOperator,
             arguments_circuit,
             arguments_observable,
-            parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+            parameters: Parameter | List[Parameter] | None = None,
         ) -> np.ndarray:
             """
             Function to evaluate the Qulacs Observables with the given parameters.
@@ -481,7 +482,7 @@ class QulacsExecutor(ExecutorBase):
                         parameter_vector.append(param)
                     elif todo[0] == param.name:
                         parameter_vector.append(param)
-                elif isinstance(todo[0], ParameterVectorElement):
+                elif isinstance(todo[0], Parameter):
                     if param == todo[0]:
                         parameter_vector.append(param)
                 else:
@@ -500,7 +501,7 @@ class QulacsExecutor(ExecutorBase):
                         observable_vector.append(param)
                     elif todo[0] == param.name:
                         observable_vector.append(param)
-                elif isinstance(todo[0], ParameterVectorElement):
+                elif isinstance(todo[0], Parameter):
                     if param == todo[0]:
                         observable_vector.append(param)
                 else:

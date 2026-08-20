@@ -7,10 +7,11 @@ from typing import Any, List, cast
 import numpy as np
 import sympy as sp
 from qiskit.circuit import ParameterExpression
-from qiskit.circuit.parametervector import ParameterVectorElement
 from qiskit.quantum_info import SparsePauliOp
 from qulacs import GeneralQuantumOperator, PauliOperator  # pylint: disable=no-name-in-module
 from sympy import lambdify
+
+from qc_executor.parameters import Parameter
 
 from ..base import QuantumOperatorBase
 from ..utils.qiskit_compat import _param_free_symbols, _param_to_sympy
@@ -82,13 +83,13 @@ class QulacsOperator:
         """Build coefficient function and gradient functions for a single operator term.
 
         Args:
-            c: The coefficient, which may be a ParameterVectorElement,
+            c: The coefficient, which may be a Parameter,
                ParameterExpression, or a plain numeric value.
 
         Returns:
             Tuple of (coeff_func, grad_funcs, used_params).
         """
-        if isinstance(c, ParameterVectorElement):
+        if isinstance(c, Parameter):
             self._free_parameters.add(c)
             return lambdify(self._symbol_tuple_obs, _param_to_sympy(c)), [lambda *arg: 1.0], [c]
 
@@ -218,7 +219,7 @@ class QulacsOperator:
 
     def get_gradient_outer_jacobian_operators_new(
         self,
-        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+        gradient_parameters: Parameter | List[Parameter] | None = None,
     ):
         """Returns the outer jacobian needed for the chain rule in circuit derivatives.
 
@@ -227,11 +228,11 @@ class QulacsOperator:
         parameter expression.
 
         Args:
-            gradient_parameters (ParameterVectorElement | List[ParameterVectorElement] | None):
+            gradient_parameters (Parameter | List[Parameter] | None):
                 Parameters to calculate the gradient for.
         """
 
-        if isinstance(gradient_parameters, ParameterVectorElement):
+        if isinstance(gradient_parameters, Parameter):
             gradient_parameters = [gradient_parameters]
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
         gradient_param_dict = {p: i for i, p in enumerate(gradient_parameters)}
@@ -268,11 +269,11 @@ class QulacsOperator:
 
     def get_operators_for_gradient(
         self,
-        gradient_parameters: ParameterVectorElement | List[ParameterVectorElement] | None = None,
+        gradient_parameters: Parameter | List[Parameter] | None = None,
     ):
         """Returns the Qulacs operator function for the operators depending on parameters."""
 
-        if isinstance(gradient_parameters, ParameterVectorElement):
+        if isinstance(gradient_parameters, Parameter):
             gradient_parameters = [gradient_parameters]
         gradient_parameters = list(gradient_parameters) if gradient_parameters is not None else []
 

@@ -43,7 +43,7 @@ class TestPennyLaneCircuit:
 
         assert plc.num_qubits == 2
         assert len(plc.parameter_names) == 0
-        assert isinstance(plc.hash, int)
+        assert isinstance(hash(plc), int)
 
     def test_single_hadamard_gate(self):
         """Test circuit with a single Hadamard gate."""
@@ -316,26 +316,46 @@ class TestPennyLanePropertiesAndMethods:
         assert isinstance(plc.parameter_dimensions, dict)
         assert plc.parameter_dimensions["x"] == 3
 
-    def test_hash_property(self):
-        """Test that hash property returns a valid integer."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+    def test_hash_and_equality(self):
+        """Test that different circuits have different hashes and are not equal."""
+        qc1 = QuantumCircuit(2)
+        qc1.h(0)
+        plc1 = PennyLaneCircuit(qc1)
 
-        hash_value = plc.hash
-        assert isinstance(hash_value, int)
+        qc2 = QuantumCircuit(2)
+        qc2.h(0)
+        plc2 = PennyLaneCircuit(qc2)
 
-    def test_hash_consistency(self):
-        """Test that hash remains consistent for the same circuit."""
-        qc = QuantumCircuit(2)
-        qc.h(0)
-        qc.cx(0, 1)
-        plc = PennyLaneCircuit(qc)
+        assert hash(plc1) == hash(plc2)
+        assert plc1 == plc2
+        assert plc1 == plc1
+        assert hash(plc1) == hash(plc1)
 
-        hash1 = plc.hash
-        hash2 = plc.hash
-        assert hash1 == hash2
+        # Different structure → different hash
+        qc3 = QuantumCircuit(2)
+        qc3.rx(0, 0.5)
+        plc3 = PennyLaneCircuit(qc3)
+        assert hash(plc1) != hash(plc3)
+        assert plc1 != plc3
+
+        # Different num_qubits → different
+        qc4 = QuantumCircuit(3)
+        qc4.h(0)
+        plc4 = PennyLaneCircuit(qc4)
+        assert plc1 != plc4
+
+        # circuit modification after hashing should change the hash
+        qc5 = QuantumCircuit(2)
+        qc5.h(0)
+        plc5 = PennyLaneCircuit(qc5)
+        h_before = hash(plc5)
+        qc5.cx(0, 1)
+        plc5 = PennyLaneCircuit(qc5)
+        assert hash(plc5) != h_before
+
+        # Comparison with non-circuit object
+        assert plc1 != "not a circuit"
+        assert plc1 != 42
 
     def test_build_pennylane_circuit_method(self):
         """Test that build_pennylane_circuit() returns callable."""

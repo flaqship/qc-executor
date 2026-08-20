@@ -445,3 +445,42 @@ class TestTranspileCircuitQulacs:
         assert isinstance(results, list)
         assert len(results) == 2
         assert all(isinstance(r, QulacsCircuit) for r in results)
+
+    def test_hash_and_equality(self):
+        circ1 = QuantumCircuit(2)
+        circ1.h(0)
+        circ2 = QuantumCircuit(2)
+        circ2.h(0)
+        qc1 = QulacsCircuit(circ1)
+        qc2 = QulacsCircuit(circ2)
+
+        assert hash(qc1) == hash(qc2)
+        assert qc1 == qc2
+        assert qc1 == qc1
+        assert hash(qc1) == hash(qc1)
+
+        # Different structure → different hash
+        circ3 = QuantumCircuit(2)
+        circ3.rx(0, 0.5)
+        qc3 = QulacsCircuit(circ3)
+        assert hash(qc1) != hash(qc3)
+        assert qc1 != qc3
+
+        # Different num_qubits → different
+        circ4 = QuantumCircuit(3)
+        circ4.h(0)
+        qc4 = QulacsCircuit(circ4)
+        assert qc1 != qc4
+
+        # circuit modification after hashing should change the hash
+        circ5 = QuantumCircuit(2)
+        circ5.h(0)
+        qc5 = QulacsCircuit(circ5)
+        h_before = hash(qc5)
+        circ5.cx(0, 1)
+        qc5 = QulacsCircuit(circ5)
+        assert hash(qc5) != h_before
+
+        # Comparison with non-circuit object
+        assert qc1 != "not a circuit"
+        assert qc1 != 42

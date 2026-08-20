@@ -323,7 +323,7 @@ class TestPauliPropagationCircuitUtilityMethods:
 
         assert isinstance(hash(source), int)
 
-    def test_invert_copy_hash_and_string_interfaces(self):
+    def test_circuit_metrics(self):
         theta = Parameter("theta")
         circuit = PauliPropagationCircuit(2)
         circuit.x(0)
@@ -331,21 +331,42 @@ class TestPauliPropagationCircuitUtilityMethods:
         circuit.rzz(0, 1, 0.3)
         circuit.barrier([0, 1])
 
-        copied = circuit.copy()
-        assert copied is not circuit
-        assert len(copied.gates) == len(circuit.gates)
-        assert isinstance(copied.gates[-1], LayerBarrier)
+        metrics = circuit.circuit_metrics()
+        assert metrics["num_qubits"] == 2
+        assert metrics["num_gates"] == 3
+        assert metrics["num_parameters"] == 1
 
-        inverted = circuit.invert()
-        assert len(inverted.gates) == 4
-        assert isinstance(inverted.gates[0], LayerBarrier)
-        assert isinstance(inverted.gates[1], PauliRotation)
-        assert np.isclose(inverted.gates[1].param_value, -0.3)
-        assert isinstance(inverted.gates[2], PauliRotation)
-        assert str(inverted.gates[2].param_expr) == "-theta"
-        assert isinstance(inverted.gates[3], CliffordGate)
-        assert inverted.gates[3].gate_type == "X"
+    def test_hash_and_equality(self):
+        circuit1 = PauliPropagationCircuit(2)
+        circuit1.h(0)
 
-        assert isinstance(hash(circuit), int)
-        assert str(circuit) == repr(circuit)
-        assert "PauliPropagationCircuit" in str(circuit)
+        circuit2 = PauliPropagationCircuit(2)
+        circuit2.h(0)
+
+        assert hash(circuit1) == hash(circuit2)
+        assert circuit1 == circuit2
+        assert circuit1 == circuit1
+        assert circuit1 == circuit1.copy()
+        assert hash(circuit1) == hash(circuit1.copy())
+
+        # Different structure -> different hash
+        circuit3 = PauliPropagationCircuit(2)
+        circuit3.rx(0, 0.5)
+        assert hash(circuit1) != hash(circuit3)
+        assert circuit1 != circuit3
+
+        # Different num_qubits -> different
+        circuit4 = PauliPropagationCircuit(3)
+        circuit4.h(0)
+        assert circuit1 != circuit4
+
+        # circuit modification after hashing should change the hash
+        circuit5 = PauliPropagationCircuit(2)
+        circuit5.h(0)
+        h_before = hash(circuit5)
+        circuit5.cx(0, 1)
+        assert hash(circuit5) != h_before
+
+        # Comparison with non-circuit object
+        assert circuit1 != "not a circuit"
+        assert circuit1 != 42

@@ -47,12 +47,18 @@ jobs:
 
       - name: Authenticate to the private theme repository
         env:
-          PULL_THEME_TOKEN: ${{ secrets.PULL_THEME_TOKEN }}
-          THEME_REPO: github.com/flaqship/flaqship-sphinx-theme
-        run: >-
-          git config --global
-          "url.https://x-access-token:${PULL_THEME_TOKEN}@${THEME_REPO}.insteadOf"
-          "https://${THEME_REPO}"
+          THEME_DEPLOY_KEY: ${{ secrets.THEME_DEPLOY_KEY }}
+          THEME_REPO: flaqship/flaqship-sphinx-theme
+        run: |
+          mkdir -p ~/.ssh
+          echo "$THEME_DEPLOY_KEY" > ~/.ssh/theme_key
+          chmod 600 ~/.ssh/theme_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          git config --global core.sshCommand "ssh -i ~/.ssh/theme_key -o IdentitiesOnly=yes"
+          # uv reads the https URL from uv.lock, so route just that one repo over SSH.
+          git config --global "url.git@github.com:$THEME_REPO.insteadOf" "https://github.com/$THEME_REPO"
+          git ls-remote "https://github.com/$THEME_REPO" HEAD > /dev/null
+          echo "theme repository reachable"
 
       - name: Install dependencies
         run: uv sync --all-extras --group docs

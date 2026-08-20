@@ -1,0 +1,47 @@
+name: Pylint check
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pylint:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Src: Run all checks on the source code
+          - name: source
+            path: src/qc_executor
+            args: ""
+          # Tests: Only disable the checks that are meaningless for test code
+          # (docstrings, pytest fixture shadowing, accessing internals under
+          # test, minimal mock/stub classes, and parallel per-backend tests).
+          - name: tests
+            path: tests
+            args: >-
+              --disable=missing-module-docstring,missing-class-docstring,missing-function-docstring,redefined-outer-name,protected-access,too-few-public-methods,duplicate-code
+
+    name: pylint (${{ matrix.name }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --group dev
+
+      - name: Run Pylint
+        run: uv run pylint ${{ matrix.path }} ${{ matrix.args }}

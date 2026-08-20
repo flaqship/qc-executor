@@ -1,0 +1,31 @@
+"""Qiskit backend for the executor framework."""
+
+# Register QiskitExecutor with the factory
+from qc_executor.factory import Executor
+
+from .qiskit_circuit import QiskitCircuit
+from .qiskit_operator import QiskitOperator
+
+try:
+    from .qiskit_executor import QiskitExecutor
+except ImportError as e:
+    import warnings
+
+    warnings.warn(
+        f"Qiskit executor backend not available: {e}. "
+        "Install with: pip install qc-executor[qiskit-full]",
+        UserWarning,
+    )
+
+    __all__ = [
+        "QiskitCircuit",
+        "QiskitOperator",
+    ]
+else:
+    Executor.register("qiskit")(QiskitExecutor)
+
+    __all__ = [
+        "QiskitCircuit",
+        "QiskitExecutor",
+        "QiskitOperator",
+    ]

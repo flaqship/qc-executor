@@ -163,3 +163,13 @@ cython_debug/
 
 # VSCode
 .vscode/
+
+# Claude
+CLAUDE.md
+.claude/settings.local.json
+
+# docs
+docs/_build/
+docs/api/generated/
+docs/index.html
+docs/versions.json

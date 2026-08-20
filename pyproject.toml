@@ -1,58 +1,157 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
 
 [project]
-name = "executor"
+name = "qc-executor"
+description = "Abstraction layer for quantum circuits and operators across multiple backends."
 readme = "README.md"
 authors = [
-    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
-    {name = "Jan Schnabel", email = "jan.schnabel@ipa.fraunhofer.de"},
-    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
-    {name = "Marco Roth", email = "marco.roth@ipa.fraunhofer.de"},
+    {name = "Dennis Kleinhans", email = "dennis.kleinhans@ipa.fraunhofer.de"},
+    {name = "Florian Wieland", email = "florian.wieland@ipa.fraunhofer.de"},
+    {name = "David Kreplin", email = "david.kreplin@hs-heilbronn.de"},
 ]
 maintainers = [
-    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
+    {name = "Chia-Tso Lai", email = "chia-tso.lai@ipa.fraunhofer.de"},
+    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
 ]
 license = {file = "LICENSE.txt"}
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-keywords = ["quantum", "circuit", "executor"]
+keywords = ["quantum", "circuit", "executor", "pennylane", "qiskit", "qulacs"]
 dependencies = [
     "dill>=0.3.4",
     "mapomatic>=0.10.0",
     "numpy>=1.20",
-    "pennylane>=0.34.0",
-    "qiskit>=0.45.0",
-    "qiskit-aer>=0.12.0",
-    "qiskit-algorithms>=0.3.0",
-    "qiskit-ibm-runtime>=0.18.0",
-    "qulacs>=0.6.4.1",
+    "qiskit>=1.0.0",
+    "sympy>=1.8",
 ]
-requires-python = ">=3.9,<3.13"
-dynamic = ["version", "description"]
+requires-python = ">=3.10"
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://flaqship.eu"
+Documentation = "https://flaqship.github.io/qc-executor/"
+Repository = "https://github.com/flaqship/qc-executor"
+Issues = "https://github.com/flaqship/qc-executor/issues"
 
 [project.optional-dependencies]
-dev = [
-    "black",
-    "flit",
-    "nbmake",
-    "pylint",
-    "pytest",
+pennylane = ["pennylane>=0.34.0"]
+qulacs = ["qulacs>=0.6.4.1"]
+qiskit-full = ["qiskit-aer>=0.12.0", "qiskit-ibm-runtime>=0.18.0"]
+pauli_propagation = []
+all = [
+    "pennylane>=0.34.0",
+    "qulacs>=0.6.4.1",
+    "qiskit-aer>=0.12.0",
+    "qiskit-ibm-runtime>=0.18.0",
 ]
 
+[project.entry-points."qc_executor.backends"]
+pennylane = "qc_executor.pennylane:PennyLaneExecutor"
+qiskit = "qc_executor.qiskit:QiskitExecutor"
+qulacs = "qc_executor.qulacs:QulacsExecutor"
+pauli_propagation = "qc_executor.pauli_propagation:PauliPropagationExecutor"
+
+[dependency-groups]
+dev = [
+    "black[jupyter]",
+    "pylint",
+    "pytest",
+    "pytest-cov",
+    "diff-cover",
+    "nbmake",
+]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-autodoc-typehints",
+    "myst-parser>=2.0",
+    "flaqship-sphinx-theme",
+]
+examples = [
+    "nbmake",
+    "jupyter",
+    "matplotlib",
+    "pylatexenc",
+    "qulacsvis>=0.7.6",
+    "scikit-learn>=1.7.2",
+]
+
+[tool.uv]
+managed = true
+
+[tool.uv.sources]
+flaqship-sphinx-theme = { git = "https://github.com/flaqship/flaqship-sphinx-theme.git" }
+
+[tool.hatch.version]
+path = "src/qc_executor/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qc_executor"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "examples", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE.txt", "pyproject.toml"]
+
 [tool.black]
-line-length=99
+line-length = 99
+
+[tool.isort]
+profile = "black"
+line_length = 99
 
 [tool.pylint]
-max-line-length=99
+max-line-length = 99
+
+[tool.pylint.format]
+max-module-lines = 2000
+
+[tool.pylint.design]
+max-attributes = 20
+max-args = 20
+max-positional-arguments = 20
+max-locals = 50
+max-public-methods = 50
+max-branches = 50
+max-returns = 20
+max-statements = 150
 
 [tool.pylint.main]
+fail-under = 9.9
 extension-pkg-allow-list = [
     "numpy",
+]
+
+[tool.pylint.classes]
+# Recognise pytest's setup_method/setup_class as valid places to define
+# instance/class attributes, alongside the usual dunder and unittest hooks.
+defining-attr-methods = [
+    "__init__",
+    "__new__",
+    "setUp",
+    "asyncSetUp",
+    "__post_init__",
+    "setup_method",
+    "setup_class",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "@abstractmethod",
 ]

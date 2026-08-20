@@ -1,4 +1,4 @@
-"""A library for quantum machine learning following the scikit-learn standard."""
+"""A plugin-based abstraction layer for various quantum frameworks."""
 
 import logging
 

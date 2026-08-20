@@ -13,6 +13,11 @@ concurrency:
 jobs:
   doc_checks:
     runs-on: ubuntu-latest
+    # The docs group pulls the private flaQship theme via a repository
+    # secret, and secrets are not exposed to pull requests from forks, so
+    # those runs would fail at `uv sync`. Skip them: a skipped job still
+    # reports a conclusion and satisfies a required status check.
+    if: github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +26,15 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
+
+      - name: Authenticate to the private theme repository
+        env:
+          PULL_THEME_TOKEN: ${{ secrets.PULL_THEME_TOKEN }}
+          THEME_REPO: github.com/flaqship/flaqship-sphinx-theme
+        run: >-
+          git config --global
+          "url.https://x-access-token:${PULL_THEME_TOKEN}@${THEME_REPO}.insteadOf"
+          "https://${THEME_REPO}"
 
       - name: Install dependencies
         run: uv sync --all-extras --group docs

@@ -45,6 +45,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Authenticate to the private theme repository
+        env:
+          PULL_THEME_TOKEN: ${{ secrets.PULL_THEME_TOKEN }}
+          THEME_REPO: github.com/flaqship/flaqship-sphinx-theme
+        run: >-
+          git config --global
+          "url.https://x-access-token:${PULL_THEME_TOKEN}@${THEME_REPO}.insteadOf"
+          "https://${THEME_REPO}"
+
       - name: Install dependencies
         run: uv sync --all-extras --group docs
 

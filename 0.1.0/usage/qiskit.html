@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qiskit backend</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="../_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="../_static/favicon.png"><script src="../_static/documentation_options.js?v=01f34227"></script><script src="../_static/doctools.js?v=fd6eb6e6"></script><script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="../index.html">
+    <img class="fq-logo fq-logo--light" src="../_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="../_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../../versions.json"
+           data-current-version="0.1.0"
+           data-pagename="usage/qiskit">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">0.1.0</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="../index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="../_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="../_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Usage Guide</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <section id="qiskit-backend">
+<h1>Qiskit backend<a class="headerlink" href="#qiskit-backend" title="Link to this heading">¶</a></h1>
+<p>The Qiskit backend (<a class="reference internal" href="../api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor" title="qc_executor.qiskit.QiskitExecutor"><code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitExecutor</span></code></a>)
+is available with the core installation for statevector simulation, and with the
+<code class="docutils literal notranslate"><span class="pre">qiskit-full</span></code> extra for the Aer simulator and IBM Quantum hardware.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>qc-executor<span class="w">               </span><span class="c1"># statevector simulation</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;qc-executor[qiskit-full]&quot;</span><span class="w">  </span><span class="c1"># + Aer + IBM Runtime</span>
+</pre></div>
+</div>
+<section id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor</span><span class="w"> </span><span class="kn">import</span> <span class="n">Executor</span><span class="p">,</span> <span class="n">QuantumCircuit</span><span class="p">,</span> <span class="n">QuantumOperator</span><span class="p">,</span> <span class="n">Parameters</span>
+
+<span class="c1"># 1. Build a parametrized circuit</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">ryy</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="c1"># 2. Build a parametrized observable</span>
+<span class="n">p_obs</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">(</span><span class="s2">&quot;p_obs&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">observable</span> <span class="o">=</span> <span class="n">QuantumOperator</span><span class="p">([</span><span class="s2">&quot;ZI&quot;</span><span class="p">,</span> <span class="s2">&quot;IZ&quot;</span><span class="p">],</span> <span class="p">[</span><span class="n">p_obs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">p_obs</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+
+<span class="c1"># 3. Create the executor and transpile to native types</span>
+<span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+<span class="n">qiskit_circuit</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">transpile_circuit</span><span class="p">(</span><span class="n">qc</span><span class="p">)</span>
+<span class="n">qiskit_observable</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">transpile_operator</span><span class="p">(</span><span class="n">observable</span><span class="p">)</span>
+
+<span class="c1"># 4. Expectation value</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">expectation_value</span><span class="p">(</span>
+    <span class="n">qiskit_circuit</span><span class="p">,</span>
+    <span class="n">qiskit_observable</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">],</span>
+    <span class="n">p</span><span class="o">=</span><span class="p">[</span><span class="mf">0.3</span><span class="p">],</span>
+    <span class="n">p_obs</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Expectation value:&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+
+<span class="c1"># 5. Gradients w.r.t. selected parameters</span>
+<span class="n">grads</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">expectation_value_derivatives</span><span class="p">(</span>
+    <span class="n">qiskit_circuit</span><span class="p">,</span>
+    <span class="n">qiskit_observable</span><span class="p">,</span>
+    <span class="s2">&quot;x&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;p&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;p_obs&quot;</span><span class="p">,</span>
+    <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">],</span>
+    <span class="n">p</span><span class="o">=</span><span class="p">[</span><span class="mf">0.3</span><span class="p">],</span>
+    <span class="n">p_obs</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">grads</span><span class="p">)</span>
+
+<span class="c1"># 6. Statevector and samples</span>
+<span class="n">executor</span><span class="o">.</span><span class="n">statevector</span><span class="p">(</span><span class="n">qiskit_circuit</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mf">0.8</span><span class="p">],</span> <span class="n">p</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">])</span>
+<span class="n">executor</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">qiskit_circuit</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mf">0.8</span><span class="p">],</span> <span class="n">p</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="selecting-a-backend">
+<h2>Selecting a backend<a class="headerlink" href="#selecting-a-backend" title="Link to this heading">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">backend</span></code> argument selects the execution target. It accepts the
+<code class="docutils literal notranslate"><span class="pre">&quot;statevector&quot;</span></code> (default) and <code class="docutils literal notranslate"><span class="pre">&quot;aer&quot;</span></code> string shortcuts, a Qiskit
+<code class="docutils literal notranslate"><span class="pre">Backend</span></code> / <code class="docutils literal notranslate"><span class="pre">BackendV2</span></code> instance (IBM hardware or a fake backend), a
+<code class="docutils literal notranslate"><span class="pre">Session</span></code> / <code class="docutils literal notranslate"><span class="pre">Batch</span></code>, or a pre-configured primitive:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Local Aer simulator</span>
+<span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;aer&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">4096</span><span class="p">)</span>
+
+<span class="c1"># Real / fake hardware — use the executor as a context manager so that</span>
+<span class="c1"># IBM Runtime sessions are always closed.</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime.fake_provider</span><span class="w"> </span><span class="kn">import</span> <span class="n">FakeManilaV2</span>
+
+<span class="k">with</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="n">FakeManilaV2</span><span class="p">(),</span> <span class="n">shots</span><span class="o">=</span><span class="mi">2048</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">expectation_value</span><span class="p">(</span><span class="n">qc</span><span class="p">,</span> <span class="n">observable</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">],</span> <span class="n">p</span><span class="o">=</span><span class="p">[</span><span class="mf">0.3</span><span class="p">],</span> <span class="n">p_obs</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>For iterative algorithms on IBM Quantum hardware, pass
+<code class="docutils literal notranslate"><span class="pre">execution_mode=&quot;session&quot;</span></code>; for independent parallel jobs use
+<code class="docutils literal notranslate"><span class="pre">execution_mode=&quot;batch&quot;</span></code>. See
+<a class="reference internal" href="../api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor" title="qc_executor.qiskit.QiskitExecutor"><code class="xref py py-class docutils literal notranslate"><span class="pre">QiskitExecutor</span></code></a> for the full list of
+constructor options.</p>
+</section>
+</section>
+
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="../_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="../_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link"
+         href="https://github.com/flaqship/qc-executor/blob/main/docs/usage/qiskit.rst"
+         target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+  <div class="fq-pagetoc-inner">
+    <p class="fq-pagetoc-title">On this page</p>
+    <ul>
+<li><a class="reference internal" href="#">Qiskit backend</a><ul>
+<li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li><a class="reference internal" href="#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+    </aside>
+  </div>
+</body>
+</html>

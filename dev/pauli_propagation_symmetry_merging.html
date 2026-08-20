@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pauli Propagation Symmetry Merging</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="_static/favicon.png"><script src="_static/documentation_options.js?v=01f34227"></script><script src="_static/doctools.js?v=fd6eb6e6"></script><script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="index.html">
+    <img class="fq-logo fq-logo--light" src="_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../versions.json"
+           data-current-version="dev"
+           data-pagename="pauli_propagation_symmetry_merging">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <section id="pauli-propagation-symmetry-merging">
+<h1>Pauli Propagation Symmetry Merging<a class="headerlink" href="#pauli-propagation-symmetry-merging" title="Link to this heading">¶</a></h1>
+<p>This page describes the symmetry merging feature in the Pauli Propagation executor, based on the paper <a class="reference external" href="https://arxiv.org/abs/2512.12094">Quantum Computing with Pauli-Based Computation Graphs</a>.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Symmetry merging automatically groups and merges equivalent Pauli terms during circuit propagation, reducing computational complexity and memory usage. When a <code class="docutils literal notranslate"><span class="pre">PauliSum</span></code> has an active symmetry strategy, equivalent terms are merged at each propagation step, preventing exponential term explosion.</p>
+<p>Barrier-aware layer semantics:</p>
+<ul class="simple">
+<li><p>If the circuit contains Qiskit <code class="docutils literal notranslate"><span class="pre">barrier</span></code> instructions, gates are grouped into layers between barriers.</p></li>
+<li><p>Symmetry merging and truncation are applied once per layer.</p></li>
+<li><p>If no barriers are present, the executor falls back to per-gate layers for backward compatibility.</p></li>
+</ul>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
+<section id="basic-usage">
+<h3>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PauliPropagationExecutor</span><span class="p">,</span>
+    <span class="n">PermutationSymmetry</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation.utils.pauli_types</span><span class="w"> </span><span class="kn">import</span> <span class="n">PauliSum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qiskit.quantum_info</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparsePauliOp</span>
+
+<span class="n">executor</span> <span class="o">=</span> <span class="n">PauliPropagationExecutor</span><span class="p">(</span>
+    <span class="n">symmetry_strategy</span><span class="o">=</span><span class="n">PermutationSymmetry</span><span class="p">()</span>
+<span class="p">)</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">h</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">cx</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">cx</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">cx</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+<span class="n">observable</span> <span class="o">=</span> <span class="n">SparsePauliOp</span><span class="o">.</span><span class="n">from_list</span><span class="p">([</span>
+    <span class="p">(</span><span class="s2">&quot;ZIII&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;IZII&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;IIZI&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+    <span class="p">(</span><span class="s2">&quot;IIIZ&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+<span class="p">])</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">expectation_value</span><span class="p">(</span><span class="n">qc</span><span class="p">,</span> <span class="n">observable</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="direct-integration-with-paulisum">
+<h3>Direct Integration with PauliSum<a class="headerlink" href="#direct-integration-with-paulisum" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation</span><span class="w"> </span><span class="kn">import</span> <span class="n">PermutationSymmetry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation.utils.pauli_types</span><span class="w"> </span><span class="kn">import</span> <span class="n">PauliSum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation.utils.propagation</span><span class="w"> </span><span class="kn">import</span> <span class="n">propagate</span>
+
+<span class="n">sym</span> <span class="o">=</span> <span class="n">PermutationSymmetry</span><span class="p">()</span>
+<span class="n">observable</span> <span class="o">=</span> <span class="n">PauliSum</span><span class="p">(</span><span class="n">nqubits</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">symmetry</span><span class="o">=</span><span class="n">sym</span><span class="p">)</span>
+
+<span class="n">observable</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="s2">&quot;ZIII&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="n">observable</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="s2">&quot;IZII&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="n">observable</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="s2">&quot;IIZI&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="n">observable</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="s2">&quot;IIIZ&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">propagate</span><span class="p">(</span><span class="n">gates</span><span class="p">,</span> <span class="n">observable</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="p">{})</span>
+</pre></div>
+</div>
+</section>
+<section id="barrier-controlled-merging-granularity">
+<h3>Barrier-Controlled Merging Granularity<a class="headerlink" href="#barrier-controlled-merging-granularity" title="Link to this heading">¶</a></h3>
+<p>Qiskit <code class="docutils literal notranslate"><span class="pre">barrier</span></code> instructions define explicit layer boundaries for symmetry merging.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit</span><span class="w"> </span><span class="kn">import</span> <span class="n">QuantumCircuit</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="n">QuantumCircuit</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">qc</span><span class="o">.</span><span class="n">ry</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+
+<span class="n">qc</span><span class="o">.</span><span class="n">rxx</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">rxx</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">rxx</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="n">qc</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+
+<span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">4</span><span class="p">):</span>
+    <span class="n">qc</span><span class="o">.</span><span class="n">rz</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example, propagation applies symmetry merging three times, once after each layer, not after every individual gate.</p>
+</section>
+</section>
+<section id="available-symmetry-strategies">
+<h2>Available Symmetry Strategies<a class="headerlink" href="#available-symmetry-strategies" title="Link to this heading">¶</a></h2>
+<section id="nosymmetry">
+<h3>NoSymmetry<a class="headerlink" href="#nosymmetry" title="Link to this heading">¶</a></h3>
+<p>Identity strategy that performs no merging. Used by default when no symmetry is specified.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation</span><span class="w"> </span><span class="kn">import</span> <span class="n">NoSymmetry</span><span class="p">,</span> <span class="n">PauliPropagationExecutor</span>
+
+<span class="n">executor</span> <span class="o">=</span> <span class="n">PauliPropagationExecutor</span><span class="p">(</span><span class="n">symmetry_strategy</span><span class="o">=</span><span class="n">NoSymmetry</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Performance: <code class="docutils literal notranslate"><span class="pre">O(1)</span></code> per canonical computation.</p>
+</section>
+<section id="permutationsymmetry">
+<h3>PermutationSymmetry<a class="headerlink" href="#permutationsymmetry" title="Link to this heading">¶</a></h3>
+<p>Qubit permutation symmetry <code class="docutils literal notranslate"><span class="pre">S_n</span></code> groups Pauli terms that differ only by qubit permutations. The canonical representative is the term with Paulis sorted lexicographically <code class="docutils literal notranslate"><span class="pre">I</span> <span class="pre">&lt;</span> <span class="pre">X</span> <span class="pre">&lt;</span> <span class="pre">Y</span> <span class="pre">&lt;</span> <span class="pre">Z</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation</span><span class="w"> </span><span class="kn">import</span> <span class="n">PermutationSymmetry</span><span class="p">,</span> <span class="n">PauliPropagationExecutor</span>
+
+<span class="n">executor</span> <span class="o">=</span> <span class="n">PauliPropagationExecutor</span><span class="p">(</span>
+    <span class="n">symmetry_strategy</span><span class="o">=</span><span class="n">PermutationSymmetry</span><span class="p">()</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Example: the terms <code class="docutils literal notranslate"><span class="pre">XXY</span></code>, <code class="docutils literal notranslate"><span class="pre">XYX</span></code>, and <code class="docutils literal notranslate"><span class="pre">YXX</span></code> all have the same multiset <code class="docutils literal notranslate"><span class="pre">{X,</span> <span class="pre">X,</span> <span class="pre">Y}</span></code> and merge into a single canonical term with summed coefficients.</p>
+<p>Performance: <code class="docutils literal notranslate"><span class="pre">O(n)</span></code> per canonical computation using bit manipulation.</p>
+<p>Typical use cases:</p>
+<ul class="simple">
+<li><p>Molecules with full permutation symmetry.</p></li>
+<li><p>Hamiltonians invariant under qubit relabeling.</p></li>
+<li><p>Ring or chain systems with translation symmetry.</p></li>
+</ul>
+</section>
+<section id="compositesymmetry">
+<h3>CompositeSymmetry<a class="headerlink" href="#compositesymmetry" title="Link to this heading">¶</a></h3>
+<p>Chains multiple symmetry strategies and applies each strategy in sequence.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSymmetry</span><span class="p">,</span> <span class="n">PermutationSymmetry</span>
+
+<span class="n">sym</span> <span class="o">=</span> <span class="n">CompositeSymmetry</span><span class="p">(</span>
+    <span class="n">PermutationSymmetry</span><span class="p">(),</span>
+<span class="p">)</span>
+
+<span class="n">executor</span> <span class="o">=</span> <span class="n">PauliPropagationExecutor</span><span class="p">(</span><span class="n">symmetry_strategy</span><span class="o">=</span><span class="n">sym</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Performance: <code class="docutils literal notranslate"><span class="pre">O(sum</span> <span class="pre">of</span> <span class="pre">individual</span> <span class="pre">strategy</span> <span class="pre">costs)</span></code>.</p>
+</section>
+</section>
+<section id="implementation-details">
+<h2>Implementation Details<a class="headerlink" href="#implementation-details" title="Link to this heading">¶</a></h2>
+<section id="merging-strategy">
+<h3>Merging Strategy<a class="headerlink" href="#merging-strategy" title="Link to this heading">¶</a></h3>
+<p>Symmetry merging occurs at two points:</p>
+<ol class="arabic simple">
+<li><p>Initial merging before propagation, which reduces the input observable size.</p></li>
+<li><p>Inline merging:</p>
+<ul class="simple">
+<li><p>With barriers: after each barrier-delimited layer.</p></li>
+<li><p>Without barriers: after each gate.</p></li>
+</ul>
+</li>
+</ol>
+<p>Truncation follows the same granularity as merging.</p>
+<p>Both merging steps happen automatically when <code class="docutils literal notranslate"><span class="pre">PauliSum.has_active_symmetry</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
+</section>
+<section id="algorithm-complexity">
+<h3>Algorithm Complexity<a class="headerlink" href="#algorithm-complexity" title="Link to this heading">¶</a></h3>
+<p>For a <code class="docutils literal notranslate"><span class="pre">PauliSum</span></code> with <code class="docutils literal notranslate"><span class="pre">T</span></code> terms on <code class="docutils literal notranslate"><span class="pre">n</span></code> qubits:</p>
+<ul class="simple">
+<li><p>Merging cost: <code class="docutils literal notranslate"><span class="pre">O(T</span> <span class="pre">x</span> <span class="pre">n)</span></code> per merging operation.</p></li>
+<li><p>Canonical computation: <code class="docutils literal notranslate"><span class="pre">O(n)</span></code> for <code class="docutils literal notranslate"><span class="pre">PermutationSymmetry</span></code>.</p></li>
+<li><p>Memory: <code class="docutils literal notranslate"><span class="pre">O(1)</span></code> additional working memory aside from the term map.</p></li>
+</ul>
+</section>
+<section id="when-to-use-symmetry-merging">
+<h3>When to Use Symmetry Merging<a class="headerlink" href="#when-to-use-symmetry-merging" title="Link to this heading">¶</a></h3>
+<p>Use symmetry merging when:</p>
+<ul class="simple">
+<li><p>Your system has known symmetries.</p></li>
+<li><p>You work with larger qubit counts.</p></li>
+<li><p>Deep circuits cause term explosion.</p></li>
+<li><p>Memory pressure matters.</p></li>
+</ul>
+<p>Avoid it when:</p>
+<ul class="simple">
+<li><p>There are very few terms and the overhead dominates.</p></li>
+<li><p>The system has no symmetry to exploit.</p></li>
+<li><p>The circuit is shallow and the term count stays small.</p></li>
+</ul>
+</section>
+</section>
+<section id="extending-with-custom-symmetries">
+<h2>Extending with Custom Symmetries<a class="headerlink" href="#extending-with-custom-symmetries" title="Link to this heading">¶</a></h2>
+<p>To implement a custom symmetry, subclass <code class="docutils literal notranslate"><span class="pre">SymmetryStrategy</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">qc_executor.pauli_propagation.symmetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymmetryStrategy</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyCustomSymmetry</span><span class="p">(</span><span class="n">SymmetryStrategy</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">canonical_representative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">term</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;my_custom_symmetry&quot;</span>
+</pre></div>
+</div>
+<p>Guidelines:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">canonical_representative()</span></code> must be deterministic.</p></li>
+<li><p>It should be fast, since propagation calls it frequently.</p></li>
+<li><p>All equivalent terms must map to the same canonical form.</p></li>
+<li><p>Use bit operations where possible.</p></li>
+</ul>
+</section>
+<section id="performance-tips">
+<h2>Performance Tips<a class="headerlink" href="#performance-tips" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p>Choose only symmetries that actually exist in your system.</p></li>
+<li><p>Combine symmetry merging with <code class="docutils literal notranslate"><span class="pre">truncate_threshold</span></code> or <code class="docutils literal notranslate"><span class="pre">max_weight</span></code> when needed.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">batch_propagate()</span></code> when multiple observables share the same circuit.</p></li>
+<li><p>Profile representative workloads instead of assuming a speedup.</p></li>
+</ol>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Quantum Computing with Pauli-Based Computation Graphs, arXiv:2512.12094v2.</p></li>
+<li><p><a class="reference external" href="https://github.com/cambridge-quantum/PauliPropagation.jl">PauliPropagation.jl</a>.</p></li>
+</ul>
+</section>
+<section id="api-pointers">
+<h2>API Pointers<a class="headerlink" href="#api-pointers" title="Link to this heading">¶</a></h2>
+<p>Useful entry points:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">qc_executor.pauli_propagation.symmetry</span></code> for the symmetry strategy classes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">qc_executor.pauli_propagation.utils.pauli_types</span></code> for <code class="docutils literal notranslate"><span class="pre">PauliSum</span></code> and <code class="docutils literal notranslate"><span class="pre">PauliString</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">qc_executor.pauli_propagation.utils.propagation</span></code> for low-level propagation helpers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">qc_executor.pauli_propagation</span></code> for the public executor, circuit, and operator types.</p></li>
+</ul>
+</section>
+</section>
+
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link"
+         href="https://github.com/flaqship/qc-executor/blob/main/docs/pauli_propagation_symmetry_merging.rst"
+         target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+  <div class="fq-pagetoc-inner">
+    <p class="fq-pagetoc-title">On this page</p>
+    <ul>
+<li><a class="reference internal" href="#">Pauli Propagation Symmetry Merging</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#quick-start">Quick Start</a><ul>
+<li><a class="reference internal" href="#basic-usage">Basic Usage</a></li>
+<li><a class="reference internal" href="#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li><a class="reference internal" href="#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li><a class="reference internal" href="#nosymmetry">NoSymmetry</a></li>
+<li><a class="reference internal" href="#permutationsymmetry">PermutationSymmetry</a></li>
+<li><a class="reference internal" href="#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#implementation-details">Implementation Details</a><ul>
+<li><a class="reference internal" href="#merging-strategy">Merging Strategy</a></li>
+<li><a class="reference internal" href="#algorithm-complexity">Algorithm Complexity</a></li>
+<li><a class="reference internal" href="#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li><a class="reference internal" href="#performance-tips">Performance Tips</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+<li><a class="reference internal" href="#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+    </aside>
+  </div>
+</body>
+</html>

@@ -1,0 +1,98 @@
+﻿pauli\_propagation
+==================
+
+.. module:: qc_executor.pauli_propagation
+
+
+
+Dependencies
+------------
+
+Included in the core package — no additional dependencies required.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Executor
+--------
+
+.. autoclass:: PauliPropagationExecutor
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+
+Native abstraction
+------------------
+
+Circuit
+~~~~~~~
+
+.. autoclass:: PauliPropagationCircuit
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+Operator
+~~~~~~~~
+
+.. autoclass:: PauliPropagationOperator
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+
+
+Other classes
+-------------
+
+.. autoclass:: SymmetryStrategy
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+.. autoclass:: NoSymmetry
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+.. autoclass:: PermutationSymmetry
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+.. autoclass:: CompositeSymmetry
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+

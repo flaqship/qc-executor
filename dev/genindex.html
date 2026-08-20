@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Index</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="_static/favicon.png"><script src="_static/documentation_options.js?v=01f34227"></script><script src="_static/doctools.js?v=fd6eb6e6"></script><script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="index.html">
+    <img class="fq-logo fq-logo--light" src="_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../versions.json"
+           data-current-version="dev"
+           data-pagename="genindex">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        
+
+<h1 id="index">Index</h1>
+
+<div class="genindex-jumpbox">
+ <a href="#A"><strong>A</strong></a>
+ | <a href="#B"><strong>B</strong></a>
+ | <a href="#C"><strong>C</strong></a>
+ | <a href="#D"><strong>D</strong></a>
+ | <a href="#E"><strong>E</strong></a>
+ | <a href="#F"><strong>F</strong></a>
+ | <a href="#G"><strong>G</strong></a>
+ | <a href="#H"><strong>H</strong></a>
+ | <a href="#I"><strong>I</strong></a>
+ | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
+ | <a href="#P"><strong>P</strong></a>
+ | <a href="#Q"><strong>Q</strong></a>
+ | <a href="#R"><strong>R</strong></a>
+ | <a href="#S"><strong>S</strong></a>
+ | <a href="#T"><strong>T</strong></a>
+ | <a href="#X"><strong>X</strong></a>
+ | <a href="#Y"><strong>Y</strong></a>
+ | <a href="#Z"><strong>Z</strong></a>
+ 
+</div>
+<h2 id="A">A</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.adjoint">adjoint() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.adjoint">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.append">append() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.append">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.apply_layout">apply_layout() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.apply_layout">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.assign_parameters">assign_parameters() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.assign_parameters">(qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.assign_parameters">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.factory.Executor.available_backends">available_backends() (qc_executor.factory.Executor class method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="B">B</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.barrier">barrier() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.barrier">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.bind_parameters">bind_parameters() (qc_executor.qiskit.QiskitCircuit method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.bind_parameters">(qc_executor.qiskit.QiskitOperator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator.build_operator_instructions">build_operator_instructions() (qc_executor.pennylane.PennyLaneOperator method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.build_operator_instructions">(qc_executor.qulacs.QulacsOperator method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.build_pennylane_circuit">build_pennylane_circuit() (qc_executor.pennylane.PennyLaneCircuit method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator.build_pennylane_observable">build_pennylane_observable() (qc_executor.pennylane.PennyLaneOperator method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="C">C</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.CompositeSymmetry.canonical_representative">canonical_representative() (qc_executor.pauli_propagation.CompositeSymmetry method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.NoSymmetry.canonical_representative">(qc_executor.pauli_propagation.NoSymmetry method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PermutationSymmetry.canonical_representative">(qc_executor.pauli_propagation.PermutationSymmetry method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.SymmetryStrategy.canonical_representative">(qc_executor.pauli_propagation.SymmetryStrategy method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.ccx">ccx() (qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.circuit_arguments">circuit_arguments (qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.circuit_metrics">circuit_metrics() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.circuit_metrics">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.close_session">close_session() (qc_executor.qiskit.QiskitExecutor method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.cnot">cnot() (qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.coeffs">coeffs (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.coeffs">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.compose">compose() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.compose">(qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.compose">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.compose">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.CompositeSymmetry">CompositeSymmetry (class in qc_executor.pauli_propagation)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.conjugate">conjugate() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.conjugate">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.copy">copy() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.copy">(qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.copy">(qc_executor.qiskit.QiskitCircuit method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.copy">(qc_executor.qiskit.QiskitOperator method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.copy">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.copy">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.cp">cp() (qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.factory.Executor.create">create() (qc_executor.factory.Executor class method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.crx">crx() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.crx">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.cry">cry() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.cry">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.crz">crz() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.crz">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.cx">cx() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.cx">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.cy">cy() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.cy">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.cz">cz() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.cz">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="D">D</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneExecutor.device_name">device_name (qc_executor.pennylane.PennyLaneExecutor property)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.draw">draw() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.draw">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="E">E</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.ecr">ecr() (qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.factory.Executor">Executor (class in qc_executor.factory)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase">ExecutorBase (class in qc_executor.base.executor_base)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.expectation_value">expectation_value() (qc_executor.base.executor_base.ExecutorBase method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.expectation_value_derivatives">expectation_value_derivatives() (qc_executor.base.executor_base.ExecutorBase method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="F">F</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.free_parameters">free_parameters (qc_executor.qiskit.QiskitCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.free_parameters">(qc_executor.qiskit.QiskitOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.free_parameters">(qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.free_parameters">(qc_executor.qulacs.QulacsOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.from_qasm">from_qasm() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.from_qasm">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.from_qiskit">from_qiskit() (qc_executor.qiskit.QiskitCircuit class method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.from_quantum_circuit">from_quantum_circuit() (qc_executor.pauli_propagation.PauliPropagationCircuit class method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.from_quantum_circuit">(qc_executor.pennylane.PennyLaneCircuit class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.from_quantum_circuit">(qc_executor.qiskit.QiskitCircuit class method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.from_quantum_circuit">(qc_executor.quantum_circuit.QuantumCircuit class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.from_quantum_circuit">(qc_executor.qulacs.QulacsCircuit class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.from_quantum_operator">from_quantum_operator() (qc_executor.pauli_propagation.PauliPropagationOperator class method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator.from_quantum_operator">(qc_executor.pennylane.PennyLaneOperator class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.from_quantum_operator">(qc_executor.qiskit.QiskitOperator class method)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.from_quantum_operator">(qc_executor.quantum_operator.QuantumOperator class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.from_quantum_operator">(qc_executor.qulacs.QulacsOperator class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.gates">gates (qc_executor.pauli_propagation.PauliPropagationCircuit property)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_aliases">get_accepted_backend_aliases() (qc_executor.base.executor_base.ExecutorBase class method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_aliases">(qc_executor.pauli_propagation.PauliPropagationExecutor class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneExecutor.get_accepted_backend_aliases">(qc_executor.pennylane.PennyLaneExecutor class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.get_accepted_backend_aliases">(qc_executor.qiskit.QiskitExecutor class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsExecutor.get_accepted_backend_aliases">(qc_executor.qulacs.QulacsExecutor class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_types">get_accepted_backend_types() (qc_executor.base.executor_base.ExecutorBase class method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_types">(qc_executor.pauli_propagation.PauliPropagationExecutor class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneExecutor.get_accepted_backend_types">(qc_executor.pennylane.PennyLaneExecutor class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.get_accepted_backend_types">(qc_executor.qiskit.QiskitExecutor class method)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsExecutor.get_accepted_backend_types">(qc_executor.qulacs.QulacsExecutor class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.get_circuit_func">get_circuit_func() (qc_executor.qulacs.QulacsCircuit method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.get_config">get_config() (qc_executor.base.executor_base.ExecutorBase method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.get_gradient_outer_jacobian">get_gradient_outer_jacobian() (qc_executor.qulacs.QulacsCircuit method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.get_gradient_outer_jacobian_operators_new">get_gradient_outer_jacobian_operators_new() (qc_executor.qulacs.QulacsOperator method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.get_operator_func">get_operator_func() (qc_executor.qulacs.QulacsOperator method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.get_operators_for_gradient">get_operators_for_gradient() (qc_executor.qulacs.QulacsOperator method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.get_qulacs_circuit">get_qulacs_circuit() (qc_executor.qulacs.QulacsCircuit method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.get_truncation_stats">get_truncation_stats() (qc_executor.pauli_propagation.PauliPropagationExecutor method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.group_commuting">group_commuting() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.group_commuting">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="H">H</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.h">h() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.h">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.has_active_symmetry">has_active_symmetry (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.hash">hash (qc_executor.pennylane.PennyLaneCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator.hash">(qc_executor.pennylane.PennyLaneOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.hash">(qc_executor.qiskit.QiskitCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.hash">(qc_executor.qiskit.QiskitOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.hash">(qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.hash">(qc_executor.qulacs.QulacsOperator property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="I">I</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.ibm_quantum">ibm_quantum (qc_executor.qiskit.QiskitExecutor property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.invert">invert() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.invert">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.is_imaginary">is_imaginary (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.is_imaginary">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.is_parameterized">is_parameterized (qc_executor.pauli_propagation.PauliPropagationCircuit property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.is_parameterized">(qc_executor.quantum_circuit.QuantumCircuit property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.is_parametrized">is_parametrized (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.is_parametrized">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.is_real">is_real (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.is_real">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.is_unitary">is_unitary (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.is_unitary">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.measure">measure() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.measure">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li>
+    module
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#module-qc_executor.pauli_propagation">qc_executor.pauli_propagation</a>
+</li>
+        <li><a href="api/generated/qc_executor.pennylane.html#module-qc_executor.pennylane">qc_executor.pennylane</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#module-qc_executor.qiskit">qc_executor.qiskit</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#module-qc_executor.qulacs">qc_executor.qulacs</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.CompositeSymmetry.name">name (qc_executor.pauli_propagation.CompositeSymmetry property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.NoSymmetry.name">(qc_executor.pauli_propagation.NoSymmetry property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PermutationSymmetry.name">(qc_executor.pauli_propagation.PermutationSymmetry property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.SymmetryStrategy.name">(qc_executor.pauli_propagation.SymmetryStrategy property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.NoSymmetry">NoSymmetry (class in qc_executor.pauli_propagation)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.num_parameters">num_parameters (qc_executor.pauli_propagation.PauliPropagationCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.num_parameters">(qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.num_parameters">(qc_executor.quantum_circuit.QuantumCircuit property)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.num_parameters">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.num_paulis">num_paulis (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.num_paulis">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.num_qubits">num_qubits (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.num_qubits">(qc_executor.pennylane.PennyLaneCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.num_qubits">(qc_executor.qiskit.QiskitCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.num_qubits">(qc_executor.qiskit.QiskitOperator property)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.num_qubits">(qc_executor.quantum_circuit.QuantumCircuit property)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.num_qubits">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.num_qubits">(qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.num_qubits">(qc_executor.qulacs.QulacsOperator property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="P">P</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.p">p() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.p">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.parameter_dimensions">parameter_dimensions (qc_executor.pennylane.PennyLaneCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator.parameter_dimensions">(qc_executor.pennylane.PennyLaneOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.parameter_dimensions">(qc_executor.qiskit.QiskitCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.parameter_dimensions">(qc_executor.qiskit.QiskitOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.parameter_dimensions">(qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.parameter_dimensions">(qc_executor.qulacs.QulacsOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.parameter_names">parameter_names (qc_executor.pennylane.PennyLaneCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator.parameter_names">(qc_executor.pennylane.PennyLaneOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.parameter_names">(qc_executor.qiskit.QiskitCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.parameter_names">(qc_executor.qiskit.QiskitOperator property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.parameter_names">(qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator.parameter_names">(qc_executor.qulacs.QulacsOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.parameter_symbols">parameter_symbols (qc_executor.pauli_propagation.PauliPropagationCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.parameter_symbols">(qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/index.html#qc_executor.parameters.Parameters">Parameters (in module qc_executor.parameters)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.parameters">parameters (qc_executor.pauli_propagation.PauliPropagationCircuit property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.parameters">(qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.parameters">(qc_executor.quantum_circuit.QuantumCircuit property)</a>
+</li>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.parameters">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.parametric_coeffs">parametric_coeffs (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.pauli_sum">pauli_sum (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit">PauliPropagationCircuit (class in qc_executor.pauli_propagation)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor">PauliPropagationExecutor (class in qc_executor.pauli_propagation)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator">PauliPropagationOperator (class in qc_executor.pauli_propagation)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.paulis">paulis (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.paulis">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit.pennylane_circuit">pennylane_circuit (qc_executor.pennylane.PennyLaneCircuit property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneCircuit">PennyLaneCircuit (class in qc_executor.pennylane)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneExecutor">PennyLaneExecutor (class in qc_executor.pennylane)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneOperator">PennyLaneOperator (class in qc_executor.pennylane)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PermutationSymmetry">PermutationSymmetry (class in qc_executor.pauli_propagation)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Q">Q</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    qc_executor.pauli_propagation
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#module-qc_executor.pauli_propagation">module</a>
+</li>
+      </ul></li>
+      <li>
+    qc_executor.pennylane
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pennylane.html#module-qc_executor.pennylane">module</a>
+</li>
+      </ul></li>
+      <li>
+    qc_executor.qiskit
+
+      <ul>
+        <li><a href="api/generated/qc_executor.qiskit.html#module-qc_executor.qiskit">module</a>
+</li>
+      </ul></li>
+      <li>
+    qc_executor.qulacs
+
+      <ul>
+        <li><a href="api/generated/qc_executor.qulacs.html#module-qc_executor.qulacs">module</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.qiskit_circuit">qiskit_circuit (qc_executor.qiskit.QiskitCircuit property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.qiskit_circuit">(qc_executor.quantum_circuit.QuantumCircuit property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator.qiskit_operator">qiskit_operator (qc_executor.qiskit.QiskitOperator property)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.qiskit_operator">(qc_executor.quantum_operator.QuantumOperator property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit">QiskitCircuit (class in qc_executor.qiskit)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor">QiskitExecutor (class in qc_executor.qiskit)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitOperator">QiskitOperator (class in qc_executor.qiskit)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit">QuantumCircuit (class in qc_executor.quantum_circuit)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator">QuantumOperator (class in qc_executor.quantum_operator)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit.qulacs_circuit">qulacs_circuit (qc_executor.qulacs.QulacsCircuit property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsCircuit">QulacsCircuit (class in qc_executor.qulacs)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsExecutor">QulacsExecutor (class in qc_executor.qulacs)</a>
+</li>
+      <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsOperator">QulacsOperator (class in qc_executor.qulacs)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/index.html#qc_executor.factory.Executor.register">register() (qc_executor.factory.Executor class method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.remote">remote (qc_executor.base.executor_base.ExecutorBase property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.remote">(qc_executor.pauli_propagation.PauliPropagationExecutor property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneExecutor.remote">(qc_executor.pennylane.PennyLaneExecutor property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.remote">(qc_executor.qiskit.QiskitExecutor property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsExecutor.remote">(qc_executor.qulacs.QulacsExecutor property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.replace_gate">replace_gate() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.rx">rx() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.rx">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.rxx">rxx() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.rxx">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.ry">ry() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.ry">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.ryy">ryy() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.ryy">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.rz">rz() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.rz">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.rzx">rzx() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.rzx">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.rzz">rzz() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.rzz">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="S">S</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.s">s() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.s">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.sample">sample() (qc_executor.base.executor_base.ExecutorBase method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.sdag">sdag() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.sdag">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.session">session (qc_executor.qiskit.QiskitExecutor property)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.shots">shots (qc_executor.base.executor_base.ExecutorBase property)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.shots">(qc_executor.pauli_propagation.PauliPropagationExecutor property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.pennylane.html#qc_executor.pennylane.PennyLaneExecutor.shots">(qc_executor.pennylane.PennyLaneExecutor property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitExecutor.shots">(qc_executor.qiskit.QiskitExecutor property)</a>
+</li>
+        <li><a href="api/generated/qc_executor.qulacs.html#qc_executor.qulacs.QulacsExecutor.shots">(qc_executor.qulacs.QulacsExecutor property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.simplify">simplify() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.simplify">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.statevector">statevector() (qc_executor.base.executor_base.ExecutorBase method)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.swap">swap() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.swap">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.switch_backend">switch_backend() (qc_executor.base.executor_base.ExecutorBase method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.factory.Executor.switch_backend">(qc_executor.factory.Executor class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.symmetry">symmetry (qc_executor.pauli_propagation.PauliPropagationOperator property)</a>
+</li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.SymmetryStrategy">SymmetryStrategy (class in qc_executor.pauli_propagation)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="T">T</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.t">t() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.t">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.tdag">tdag() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.tdag">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.to_qasm">to_qasm() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.to_qasm">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.toffoli">toffoli() (qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.transpile_circuit">transpile_circuit() (qc_executor.base.executor_base.ExecutorBase method)</a>
+</li>
+      <li><a href="api/index.html#qc_executor.base.executor_base.ExecutorBase.transpile_operator">transpile_operator() (qc_executor.base.executor_base.ExecutorBase method)</a>
+
+      <ul>
+        <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.transpile_operator">(qc_executor.pauli_propagation.PauliPropagationExecutor method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationOperator.transpose">transpose() (qc_executor.pauli_propagation.PauliPropagationOperator method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_operator.QuantumOperator.transpose">(qc_executor.quantum_operator.QuantumOperator method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="X">X</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.x">x() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.x">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Y">Y</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.y">y() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.y">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="Z">Z</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationCircuit.z">z() (qc_executor.pauli_propagation.PauliPropagationCircuit method)</a>
+
+      <ul>
+        <li><a href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit.z">(qc_executor.quantum_circuit.QuantumCircuit method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+
+
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+    </aside>
+  </div>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Installation</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="_static/favicon.png"><script src="_static/documentation_options.js?v=01f34227"></script><script src="_static/doctools.js?v=fd6eb6e6"></script><script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="index.html">
+    <img class="fq-logo fq-logo--light" src="_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../versions.json"
+           data-current-version="dev"
+           data-pagename="installation">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h1>
+<p>QC Executor is a lightweight abstraction layer with a <strong>plugin-based backend
+architecture</strong>. The core package is small and only depends on Qiskit (used as
+the common intermediate representation). Simulator/hardware backends are
+installed on demand through optional dependency groups (<em>extras</em>).</p>
+<nav class="contents local" id="on-this-page">
+<p class="topic-title">On this page</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#requirements" id="id1">Requirements</a></p></li>
+<li><p><a class="reference internal" href="#install-from-pypi" id="id2">Install from PyPI</a></p></li>
+<li><p><a class="reference internal" href="#install-from-github" id="id3">Install from GitHub</a></p></li>
+<li><p><a class="reference internal" href="#build-from-source" id="id4">Build from source</a></p></li>
+<li><p><a class="reference internal" href="#backends-and-optional-dependencies" id="id5">Backends and optional dependencies</a></p></li>
+<li><p><a class="reference internal" href="#the-plugin-architecture" id="id6">The plugin architecture</a></p></li>
+</ul>
+</nav>
+<section id="requirements">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink">Requirements</a><a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Python</strong> 3.10, 3.11, 3.12 or 3.13</p></li>
+<li><p>Core runtime dependencies (installed automatically):</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">qiskit</span> <span class="pre">&gt;=</span> <span class="pre">1.0</span></code> — common intermediate representation for circuits/operators</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">numpy</span> <span class="pre">&gt;=</span> <span class="pre">1.20</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sympy</span> <span class="pre">&gt;=</span> <span class="pre">1.8</span></code> — symbolic parameter expressions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dill</span> <span class="pre">&gt;=</span> <span class="pre">0.3.4</span></code> — serialization</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mapomatic</span> <span class="pre">&gt;=</span> <span class="pre">0.10</span></code> — layout selection for hardware backends</p></li>
+</ul>
+</li>
+</ul>
+<p>Backend-specific libraries (PennyLane, Qulacs, Qiskit Aer, IBM Runtime) are
+<strong>not</strong> pulled in by the core install — see <a class="reference internal" href="#backend-extras"><span class="std std-ref">Backends and optional dependencies</span></a> below.</p>
+</section>
+<section id="install-from-pypi">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Install from PyPI</a><a class="headerlink" href="#install-from-pypi" title="Link to this heading">¶</a></h2>
+<p>The released package is published as <strong>qc-executor</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>qc-executor
+</pre></div>
+</div>
+<p>This installs the core package with the Qiskit statevector backend available
+out of the box.</p>
+</section>
+<section id="install-from-github">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink">Install from GitHub</a><a class="headerlink" href="#install-from-github" title="Link to this heading">¶</a></h2>
+<p>To install the latest (unreleased) development version directly from the
+repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/flaqship/qc-executor.git
+</pre></div>
+</div>
+<p>You can pin to a specific branch, tag, or commit:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/flaqship/qc-executor.git@main&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="build-from-source">
+<h2><a class="toc-backref" href="#id4" role="doc-backlink">Build from source</a><a class="headerlink" href="#build-from-source" title="Link to this heading">¶</a></h2>
+<p>Clone the repository and install in editable mode. The project uses
+<a class="reference external" href="https://docs.astral.sh/uv/">uv</a> for environment and dependency management,
+but plain <code class="docutils literal notranslate"><span class="pre">pip</span></code> works as well.</p>
+<p>Using <code class="docutils literal notranslate"><span class="pre">uv</span></code> (recommended for development):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/flaqship/qc-executor.git
+<span class="nb">cd</span><span class="w"> </span>qc-executor
+uv<span class="w"> </span>sync<span class="w"> </span>--all-extras<span class="w"> </span>--group<span class="w"> </span>dev
+</pre></div>
+</div>
+<p>Using <code class="docutils literal notranslate"><span class="pre">pip</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/flaqship/qc-executor.git
+<span class="nb">cd</span><span class="w"> </span>qc-executor
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[all]&quot;</span>
+</pre></div>
+</div>
+<p>Run the test suite to verify the installation:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>tests/<span class="w">        </span><span class="c1"># or: pytest tests/</span>
+</pre></div>
+</div>
+</section>
+<section id="backends-and-optional-dependencies">
+<span id="backend-extras"></span><h2><a class="toc-backref" href="#id5" role="doc-backlink">Backends and optional dependencies</a><a class="headerlink" href="#backends-and-optional-dependencies" title="Link to this heading">¶</a></h2>
+<p>Each simulator/hardware backend is shipped as a plugin and enabled through an
+<em>extra</em>. Install only the backends you need:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 22.0%" />
+<col style="width: 28.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Backend name</p></th>
+<th class="head"><p>Install command</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">qiskit</span></code></p></td>
+<td><p><em>(core install)</em></p></td>
+<td><p>Statevector simulation via Qiskit. Always available.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qiskit</span></code> (full)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;qc-executor[qiskit-full]&quot;</span></code></p></td>
+<td><p>Adds the Aer simulator and IBM Quantum Runtime for hardware execution.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pennylane</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;qc-executor[pennylane]&quot;</span></code></p></td>
+<td><p>Simulation and automatic differentiation via PennyLane devices.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">qulacs</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;qc-executor[qulacs]&quot;</span></code></p></td>
+<td><p>Fast C++ statevector simulation via Qulacs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">pauli_propagation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;qc-executor[pauli_propagation]&quot;</span></code></p></td>
+<td><p>Heisenberg-picture Pauli propagation for sparse observables (pure Python).</p></td>
+</tr>
+</tbody>
+</table>
+<p>Install several backends at once, or all of them:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Multiple specific backends</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;qc-executor[pennylane,qulacs,pauli_propagation]&quot;</span>
+
+<span class="c1"># Everything</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;qc-executor[all]&quot;</span>
+</pre></div>
+</div>
+<p>When installing from GitHub, extras are appended with <code class="docutils literal notranslate"><span class="pre">#egg=</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pennylane]&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="the-plugin-architecture">
+<h2><a class="toc-backref" href="#id6" role="doc-backlink">The plugin architecture</a><a class="headerlink" href="#the-plugin-architecture" title="Link to this heading">¶</a></h2>
+<p>QC Executor discovers backends through Python <a class="reference external" href="https://packaging.python.org/en/latest/specifications/entry-points/">entry points</a> in the
+<code class="docutils literal notranslate"><span class="pre">qc_executor.backends</span></code> group. Each installed plugin registers itself with the
+<a class="reference internal" href="api/index.html#qc_executor.factory.Executor" title="qc_executor.factory.Executor"><code class="xref py py-class docutils literal notranslate"><span class="pre">Executor</span></code></a> factory the first time a backend is
+requested, so <a class="reference internal" href="api/index.html#qc_executor.factory.Executor.available_backends" title="qc_executor.factory.Executor.available_backends"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Executor.available_backends()</span></code></a> reflects exactly which
+backends are present in your environment.</p>
+<p>This has two practical consequences:</p>
+<ul class="simple">
+<li><p><strong>You never import backend classes directly.</strong> Selecting a backend by name
+(<code class="docutils literal notranslate"><span class="pre">Executor.create(&quot;qiskit&quot;)</span></code>) is enough; the matching plugin is loaded
+lazily and only if its dependencies are installed.</p></li>
+<li><p><strong>Adding a backend does not require changing the core.</strong> A third-party
+package can ship its own executor and expose it under the
+<code class="docutils literal notranslate"><span class="pre">qc_executor.backends</span></code> entry-point group.</p></li>
+</ul>
+<p>The entry points bundled with the package are declared in <code class="docutils literal notranslate"><span class="pre">pyproject.toml</span></code>:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[project.entry-points.</span><span class="s2">&quot;qc_executor.backends&quot;</span><span class="k">]</span>
+<span class="n">pennylane</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qc_executor.pennylane:PennyLaneExecutor&quot;</span>
+<span class="n">qiskit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qc_executor.qiskit:QiskitExecutor&quot;</span>
+<span class="n">qulacs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qc_executor.qulacs:QulacsExecutor&quot;</span>
+<span class="n">pauli_propagation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qc_executor.pauli_propagation:PauliPropagationExecutor&quot;</span>
+</pre></div>
+</div>
+<p>To contribute a new backend, implement a subclass of
+<a class="reference internal" href="api/index.html#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a> and register it either via
+the <code class="docutils literal notranslate"><span class="pre">&#64;Executor.register(&quot;&lt;name&gt;&quot;)</span></code> decorator or by exposing it under the
+<code class="docutils literal notranslate"><span class="pre">qc_executor.backends</span></code> entry-point group. See <a class="reference internal" href="usage/index.html"><span class="doc">Usage Guide</span></a> for the
+methods a backend must implement.</p>
+</section>
+</section>
+
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link"
+         href="https://github.com/flaqship/qc-executor/blob/main/docs/installation.rst"
+         target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+  <div class="fq-pagetoc-inner">
+    <p class="fq-pagetoc-title">On this page</p>
+    <ul>
+<li><a class="reference internal" href="#">Installation</a><ul>
+<li><a class="reference internal" href="#requirements">Requirements</a></li>
+<li><a class="reference internal" href="#install-from-pypi">Install from PyPI</a></li>
+<li><a class="reference internal" href="#install-from-github">Install from GitHub</a></li>
+<li><a class="reference internal" href="#build-from-source">Build from source</a></li>
+<li><a class="reference internal" href="#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li><a class="reference internal" href="#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+    </aside>
+  </div>
+</body>
+</html>

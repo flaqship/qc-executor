@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pauli_propagation</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="../../_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="../../_static/favicon.png"><script src="../../_static/documentation_options.js?v=01f34227"></script><script src="../../_static/doctools.js?v=fd6eb6e6"></script><script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="../../index.html">
+    <img class="fq-logo fq-logo--light" src="../../_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="../../_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../../../versions.json"
+           data-current-version="dev"
+           data-pagename="api/generated/qc_executor.pauli_propagation">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="../../index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="../../_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="../../_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html#backend-plugins">Backend plugins</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <section id="module-qc_executor.pauli_propagation">
+<span id="pauli-propagation"></span><h1>pauli_propagation<a class="headerlink" href="#module-qc_executor.pauli_propagation" title="Link to this heading">¶</a></h1>
+<section id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">¶</a></h2>
+<p>Included in the core package — no additional dependencies required.</p>
+</section>
+<section id="executor">
+<h2>Executor<a class="headerlink" href="#executor" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">PauliPropagationExecutor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shots</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'WARNING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">caching</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cache'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_cache_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">truncate_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symmetry_strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_executor.html#PauliPropagationExecutor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="../index.html#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></p>
+<p>Executor for quantum circuits using Pauli propagation (Heisenberg picture).</p>
+<p>This executor propagates observables backward through quantum circuits,
+enabling efficient computation of expectation values for sparse observables.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shots</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Number of measurement shots (not used for exact simulation)</p></li>
+<li><p><strong>seed</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Random seed for reproducibility (not used for exact simulation)</p></li>
+<li><p><strong>log_file</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Path to log file (not implemented)</p></li>
+<li><p><strong>caching</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Whether to use caching (not implemented yet)</p></li>
+<li><p><strong>cache_dir</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Directory for caching (not implemented yet)</p></li>
+<li><p><strong>truncate_threshold</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Coefficient threshold for automatic truncation (None = no truncation)</p></li>
+<li><p><strong>max_weight</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Maximum Pauli weight for truncation (None = no weight limit)</p></li>
+<li><p><strong>symmetry_strategy</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.symmetry.SymmetryStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">SymmetryStrategy</span></code></a> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Strategy for Pauli symmetry merging (None = no merging)</p></li>
+<li><p><strong>n_jobs</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of worker processes for independent expectation-value
+evaluations (multiple circuits x observables, parameter-shift
+gradients). 1 (default) runs serially; -1 uses all CPU cores.
+Process startup on Windows (spawn) costs roughly 100 ms per
+worker plus import time, so parallelism pays off only for
+workloads with many or expensive independent evaluations.</p></li>
+<li><p><strong>log_level</strong> (<em>str</em>)</p></li>
+<li><p><strong>max_cache_size</strong> (<em>int</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor.shots">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">shots</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.shots" title="Link to this definition">¶</a></dt>
+<dd><p>Return the number of shots.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor.remote">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">remote</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.remote" title="Link to this definition">¶</a></dt>
+<dd><p>Return False (Pauli propagation is local execution).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor.transpile_operator">
+<span class="sig-name descname"><span class="pre">transpile_operator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symmetry_strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_executor.html#PauliPropagationExecutor.transpile_operator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.transpile_operator" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Overloads<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">QuantumOperatorBase</span>) → <span class="sphinx_autodoc_typehints-type">PauliPropagationOperator</span></p></li>
+<li><p><strong>self</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">QuantumOperatorBase</span>), <strong>symmetry_strategy</strong> (<span class="sphinx_autodoc_typehints-type">SymmetryStrategy</span>) → <span class="sphinx_autodoc_typehints-type">PauliPropagationOperator</span></p></li>
+<li><p><strong>self</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">List[QuantumOperatorBase]</span>) → <span class="sphinx_autodoc_typehints-type">List[PauliPropagationOperator]</span></p></li>
+<li><p><strong>self</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">List[QuantumOperatorBase]</span>), <strong>symmetry_strategy</strong> (<span class="sphinx_autodoc_typehints-type">SymmetryStrategy</span>) → <span class="sphinx_autodoc_typehints-type">List[PauliPropagationOperator]</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>operator</strong> (<em>QuantumOperatorBase</em><em> | </em><em>List</em><em>[</em><em>QuantumOperatorBase</em><em>]</em>)</p></li>
+<li><p><strong>symmetry_strategy</strong> (<a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.symmetry.SymmetryStrategy"><em>SymmetryStrategy</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><em>PauliPropagationOperator</em></a> | <em>List</em>[<a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><em>PauliPropagationOperator</em></a>]</p>
+</dd>
+</dl>
+<p>Transpile the operator for execution on Pauli Propagation backend.</p>
+<p>Accepts both native PauliPropagationOperator and generic QuantumOperator types.
+When a list of operators is provided, each operator is transpiled and cached individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>operator</strong> (<em>QuantumOperatorBase</em><em> | </em><em>List</em><em>[</em><em>QuantumOperatorBase</em><em>]</em>) – The
+quantum operator or a list of operators to transpile.</p></li>
+<li><p><strong>symmetry_strategy</strong> (<a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.SymmetryStrategy"><em>SymmetryStrategy</em></a><em> | </em><em>None</em>) – Strategy for symmetry handling.
+If provided, takes precedence over executor-level default.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The</dt><dd><p>transpiled operator(s) in native format.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.PauliPropagationOperator">PauliPropagationOperator</a> | List[<a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.PauliPropagationOperator">PauliPropagationOperator</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor.get_truncation_stats">
+<span class="sig-name descname"><span class="pre">get_truncation_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_executor.html#PauliPropagationExecutor.get_truncation_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.get_truncation_stats" title="Link to this definition">¶</a></dt>
+<dd><p>Get statistics from last truncation operation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">TruncationStats</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>TruncationStats from most recent execution, or None if no truncation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_types">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_accepted_backend_types</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_executor.html#PauliPropagationExecutor.get_accepted_backend_types"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_types" title="Link to this definition">¶</a></dt>
+<dd><p>Return all object types accepted as backend in factory auto-detection.</p>
+<p>PauliPropagationExecutor does not accept backend objects during initialization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">type</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_aliases">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_accepted_backend_aliases</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_executor.html#PauliPropagationExecutor.get_accepted_backend_aliases"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_aliases" title="Link to this definition">¶</a></dt>
+<dd><p>Return string aliases accepted by this executor in <code class="docutils literal notranslate"><span class="pre">Executor.create</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="native-abstraction">
+<h2>Native abstraction<a class="headerlink" href="#native-abstraction" title="Link to this heading">¶</a></h2>
+<section id="circuit">
+<h3>Circuit<a class="headerlink" href="#circuit" title="Link to this heading">¶</a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">PauliPropagationCircuit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_qubits</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">gates</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_symbols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">QuantumCircuitBase</span></code></p>
+<p>Backend-native circuit representation for Pauli propagation.</p>
+<p>This datatype stores operations directly in the internal gate representation
+used by the propagation engine and does not depend on Qiskit objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_qubits</strong> (<em>int</em>)</p></li>
+<li><p><strong>gates</strong> (<em>Sequence</em><em>[</em><em>Gate</em><em> | </em><em>LayerBarrier</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>parameter_symbols</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>sp.Symbol</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.from_quantum_circuit">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_quantum_circuit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.from_quantum_circuit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.from_quantum_circuit" title="Link to this definition">¶</a></dt>
+<dd><p>Create a PauliPropagationCircuit from a generic circuit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="qc_executor.pauli_propagation.pauli_propagation_circuit.PauliPropagationCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>circuit</strong> (<em>QuantumCircuitBase</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.gates">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">gates</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Gate</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">LayerBarrier</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.gates" title="Link to this definition">¶</a></dt>
+<dd><p>Return a shallow copy of gate instructions.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.parameters">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">parameters</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Return parameter names used by the circuit.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.parameter_symbols">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">parameter_symbols</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Symbol</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.parameter_symbols" title="Link to this definition">¶</a></dt>
+<dd><p>Return a copy of the parameter-name to sympy-symbol mapping.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.num_parameters">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">num_parameters</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.num_parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Return the number of free trainable parameters in the circuit.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.is_parameterized">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_parameterized</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.is_parameterized" title="Link to this definition">¶</a></dt>
+<dd><p>Check if the wavefunction is parameterized.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.draw">
+<span class="sig-name descname"><span class="pre">draw</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.draw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.draw" title="Link to this definition">¶</a></dt>
+<dd><p>Returns printable string representation of the circuit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.h">
+<span class="sig-name descname"><span class="pre">h</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.h"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.h" title="Link to this definition">¶</a></dt>
+<dd><p>Add hadamard gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.s">
+<span class="sig-name descname"><span class="pre">s</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.s"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.s" title="Link to this definition">¶</a></dt>
+<dd><p>Add S gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.sdag">
+<span class="sig-name descname"><span class="pre">sdag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.sdag"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.sdag" title="Link to this definition">¶</a></dt>
+<dd><p>Add Sdag gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.t">
+<span class="sig-name descname"><span class="pre">t</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.t"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.t" title="Link to this definition">¶</a></dt>
+<dd><p>Add T gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.tdag">
+<span class="sig-name descname"><span class="pre">tdag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.tdag"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.tdag" title="Link to this definition">¶</a></dt>
+<dd><p>Add Tdg gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.p">
+<span class="sig-name descname"><span class="pre">p</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.p"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.p" title="Link to this definition">¶</a></dt>
+<dd><p>Add P gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.x">
+<span class="sig-name descname"><span class="pre">x</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.x"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.x" title="Link to this definition">¶</a></dt>
+<dd><p>Add X gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.y">
+<span class="sig-name descname"><span class="pre">y</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.y"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.y" title="Link to this definition">¶</a></dt>
+<dd><p>Add Y gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.z">
+<span class="sig-name descname"><span class="pre">z</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.z"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.z" title="Link to this definition">¶</a></dt>
+<dd><p>Add Z gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.rx">
+<span class="sig-name descname"><span class="pre">rx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.rx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rx" title="Link to this definition">¶</a></dt>
+<dd><p>Add RX gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.ry">
+<span class="sig-name descname"><span class="pre">ry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.ry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.ry" title="Link to this definition">¶</a></dt>
+<dd><p>Add RY gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.rz">
+<span class="sig-name descname"><span class="pre">rz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.rz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rz" title="Link to this definition">¶</a></dt>
+<dd><p>Add RZ gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.cx">
+<span class="sig-name descname"><span class="pre">cx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.cx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cx" title="Link to this definition">¶</a></dt>
+<dd><p>Add CNOT gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.cy">
+<span class="sig-name descname"><span class="pre">cy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.cy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cy" title="Link to this definition">¶</a></dt>
+<dd><p>Add CY gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.cz">
+<span class="sig-name descname"><span class="pre">cz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.cz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cz" title="Link to this definition">¶</a></dt>
+<dd><p>Add CZ gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.crx">
+<span class="sig-name descname"><span class="pre">crx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.crx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.crx" title="Link to this definition">¶</a></dt>
+<dd><p>Add CRX gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.cry">
+<span class="sig-name descname"><span class="pre">cry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.cry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cry" title="Link to this definition">¶</a></dt>
+<dd><p>Add CRX gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.crz">
+<span class="sig-name descname"><span class="pre">crz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.crz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.crz" title="Link to this definition">¶</a></dt>
+<dd><p>Add CRX gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.rxx">
+<span class="sig-name descname"><span class="pre">rxx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.rxx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rxx" title="Link to this definition">¶</a></dt>
+<dd><p>Add RXX gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.ryy">
+<span class="sig-name descname"><span class="pre">ryy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.ryy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.ryy" title="Link to this definition">¶</a></dt>
+<dd><p>Add RYY gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.rzz">
+<span class="sig-name descname"><span class="pre">rzz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.rzz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rzz" title="Link to this definition">¶</a></dt>
+<dd><p>Add RZZ gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.rzx">
+<span class="sig-name descname"><span class="pre">rzx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">control_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_qubit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">angle</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.rzx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rzx" title="Link to this definition">¶</a></dt>
+<dd><p>Add RZX gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>control_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>target_qubit</strong> (<em>int</em>)</p></li>
+<li><p><strong>angle</strong> (<em>float</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.swap">
+<span class="sig-name descname"><span class="pre">swap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubit1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qubit2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.swap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.swap" title="Link to this definition">¶</a></dt>
+<dd><p>Add SWAP gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>qubit1</strong> (<em>int</em>)</p></li>
+<li><p><strong>qubit2</strong> (<em>int</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.barrier">
+<span class="sig-name descname"><span class="pre">barrier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.barrier"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.barrier" title="Link to this definition">¶</a></dt>
+<dd><p>Add barrier gates</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qubits</strong> (<em>int</em><em> | </em><em>List</em><em>[</em><em>int</em><em>]</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.measure">
+<span class="sig-name descname"><span class="pre">measure</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.measure"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.measure" title="Link to this definition">¶</a></dt>
+<dd><p>Add measure gates</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.compose">
+<span class="sig-name descname"><span class="pre">compose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qc</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.compose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.compose" title="Link to this definition">¶</a></dt>
+<dd><p>Compose two quantum circuits.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="qc_executor.pauli_propagation.pauli_propagation_circuit.PauliPropagationCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>qc</strong> (<em>QuantumCircuitBase</em>)</p></li>
+<li><p><strong>qubits</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.assign_parameters">
+<span class="sig-name descname"><span class="pre">assign_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.assign_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.assign_parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Bind symbolic parameters to concrete values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>parameters</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]</span>) – Dict mapping parameter names to float values</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="qc_executor.pauli_propagation.pauli_propagation_circuit.PauliPropagationCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>New circuit with parameters substituted</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.invert">
+<span class="sig-name descname"><span class="pre">invert</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.invert"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.invert" title="Link to this definition">¶</a></dt>
+<dd><p>Invert the circuit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="qc_executor.pauli_propagation.pauli_propagation_circuit.PauliPropagationCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.copy" title="Link to this definition">¶</a></dt>
+<dd><p>Return a copy of the circuit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="qc_executor.pauli_propagation.pauli_propagation_circuit.PauliPropagationCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.replace_gate">
+<span class="sig-name descname"><span class="pre">replace_gate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gate</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.replace_gate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.replace_gate" title="Link to this definition">¶</a></dt>
+<dd><p>Return a new circuit with the gate at <code class="docutils literal notranslate"><span class="pre">index</span></code> replaced.</p>
+<p>Unreplaced gate objects are shared with this circuit; gates are
+immutable after construction, so this is safe.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit" title="qc_executor.pauli_propagation.pauli_propagation_circuit.PauliPropagationCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>index</strong> (<em>int</em>)</p></li>
+<li><p><strong>gate</strong> (<em>Gate</em><em> | </em><em>LayerBarrier</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.circuit_metrics">
+<span class="sig-name descname"><span class="pre">circuit_metrics</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.circuit_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.circuit_metrics" title="Link to this definition">¶</a></dt>
+<dd><p>count number of gates in the circuit</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.from_qasm">
+<span class="sig-name descname"><span class="pre">from_qasm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qasm</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.from_qasm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.from_qasm" title="Link to this definition">¶</a></dt>
+<dd><p>Load the circuit from a qasm string</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>qasm</strong> (<em>str</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationCircuit.to_qasm">
+<span class="sig-name descname"><span class="pre">to_qasm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_circuit.html#PauliPropagationCircuit.to_qasm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.to_qasm" title="Link to this definition">¶</a></dt>
+<dd><p>Convert the circuit to a qasm string</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="operator">
+<h3>Operator<a class="headerlink" href="#operator" title="Link to this heading">¶</a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">PauliPropagationOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">paulis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeffs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_qubits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pauli_sum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symmetry_strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">parametric_coeffs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_symbols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">QuantumOperatorBase</span></code></p>
+<p>Backend-native operator representation for Pauli propagation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>paulis</strong> (<em>List</em><em>[</em><em>str</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>coeffs</strong> (<em>List</em><em>[</em><em>complex</em><em> | </em><em>'sp.Expr'</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>num_qubits</strong> (<em>int</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>pauli_sum</strong> (<em>PauliSum</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>symmetry_strategy</strong> (<a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.SymmetryStrategy"><em>SymmetryStrategy</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>parametric_coeffs</strong> (<em>Dict</em><em>[</em><em>int</em><em>, </em><em>sp.Expr</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>parameter_symbols</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>sp.Symbol</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.from_quantum_operator">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_quantum_operator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">symmetry_strategy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.from_quantum_operator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.from_quantum_operator" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Overloads<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cls</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">QuantumOperatorBase</span>) → <span class="sphinx_autodoc_typehints-type">PauliPropagationOperator</span></p></li>
+<li><p><strong>cls</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">QuantumOperatorBase</span>), <strong>symmetry_strategy</strong> (<span class="sphinx_autodoc_typehints-type">SymmetryStrategy</span>) → <span class="sphinx_autodoc_typehints-type">PauliPropagationOperator</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>operator</strong> (<em>QuantumOperatorBase</em>)</p></li>
+<li><p><strong>symmetry_strategy</strong> (<a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.symmetry.SymmetryStrategy"><em>SymmetryStrategy</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><em>PauliPropagationOperator</em></a></p>
+</dd>
+</dl>
+<p>Create a PauliPropagationOperator from a generic operator.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.pauli_sum">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">pauli_sum</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">PauliSum</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.pauli_sum" title="Link to this definition">¶</a></dt>
+<dd><p>Return a copy of the underlying PauliSum.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.symmetry">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">symmetry</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.symmetry" title="Link to this definition">¶</a></dt>
+<dd><p>Return the symmetry strategy of the underlying PauliSum.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.has_active_symmetry">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">has_active_symmetry</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.has_active_symmetry" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if a non-trivial symmetry strategy is active.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.num_qubits">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">num_qubits</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.num_qubits" title="Link to this definition">¶</a></dt>
+<dd><p>Return the number of qubits in the circuit.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.num_paulis">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">num_paulis</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.num_paulis" title="Link to this definition">¶</a></dt>
+<dd><p>Return the number of Paulis in the operator.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.paulis">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">paulis</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.paulis" title="Link to this definition">¶</a></dt>
+<dd><p>Return the list of Paulis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.coeffs">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">coeffs</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">complex</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.coeffs" title="Link to this definition">¶</a></dt>
+<dd><p>Return the list of coefficients.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.is_parametrized">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_parametrized</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_parametrized" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the operator is parametrized.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.parameters">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">parameters</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Return the parameters of the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of parameters.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.parameter_symbols">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">parameter_symbols</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Symbol</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.parameter_symbols" title="Link to this definition">¶</a></dt>
+<dd><p>Return a copy of the parameter-name to sympy-symbol mapping.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.parametric_coeffs">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">parametric_coeffs</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Expr</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.parametric_coeffs" title="Link to this definition">¶</a></dt>
+<dd><p>Return a copy of the term to symbolic-coefficient mapping.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.num_parameters">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">num_parameters</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.num_parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Return the number of parameters in the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Number of parameters.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.copy" title="Link to this definition">¶</a></dt>
+<dd><p>Return a deep copy of this operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.assign_parameters">
+<span class="sig-name descname"><span class="pre">assign_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.assign_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.assign_parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Bind symbolic parameters to concrete values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>parameters</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]</span>) – Dict mapping parameter names to float values</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>New operator with parameters substituted</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.adjoint">
+<span class="sig-name descname"><span class="pre">adjoint</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.adjoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.adjoint" title="Link to this definition">¶</a></dt>
+<dd><p>Return the adjoint of the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Adjoint of the operator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.apply_layout">
+<span class="sig-name descname"><span class="pre">apply_layout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">layout</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.apply_layout"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.apply_layout" title="Link to this definition">¶</a></dt>
+<dd><p>Apply a layout to the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>layout</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – Layout to apply.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Operator with applied layout.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.compose">
+<span class="sig-name descname"><span class="pre">compose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.compose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.compose" title="Link to this definition">¶</a></dt>
+<dd><p>Compose the operator with another operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>other</strong> (<em>QuantumOperatorBase</em>) – Operator to compose with.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Composed operator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.append">
+<span class="sig-name descname"><span class="pre">append</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pauli</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.append"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.append" title="Link to this definition">¶</a></dt>
+<dd><p>Append another operator to the current operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>other</strong> (<em>QuantumOperatorBase</em>) – Operator to append.</p></li>
+<li><p><strong>pauli</strong> (<em>str</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Appended operator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.simplify">
+<span class="sig-name descname"><span class="pre">simplify</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.simplify"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.simplify" title="Link to this definition">¶</a></dt>
+<dd><p>Simplify the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Simplified operator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.transpose">
+<span class="sig-name descname"><span class="pre">transpose</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.transpose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.transpose" title="Link to this definition">¶</a></dt>
+<dd><p>Return the transpose of the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Transpose of the operator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.conjugate">
+<span class="sig-name descname"><span class="pre">conjugate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.conjugate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.conjugate" title="Link to this definition">¶</a></dt>
+<dd><p>Return the conjugate of the operator.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Conjugate of the operator.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.group_commuting">
+<span class="sig-name descname"><span class="pre">group_commuting</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/pauli_propagation_operator.html#PauliPropagationOperator.group_commuting"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.group_commuting" title="Link to this definition">¶</a></dt>
+<dd><p>Group commuting operators.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator" title="qc_executor.pauli_propagation.pauli_propagation_operator.PauliPropagationOperator"><code class="xref py py-class docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a>]</span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of commuting operators.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.is_unitary">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_unitary</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_unitary" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the operator is unitary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if the operator is unitary.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.is_real">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_real</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_real" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the operator is real.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if the operator is real.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PauliPropagationOperator.is_imaginary">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">is_imaginary</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_imaginary" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the operator is imaginary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if the operator is imaginary.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+<section id="other-classes">
+<h2>Other classes<a class="headerlink" href="#other-classes" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.SymmetryStrategy">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">SymmetryStrategy</span></span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#SymmetryStrategy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Abstract base class for symmetry strategies.</p>
+<p>Symmetry strategies define how Pauli terms are grouped into equivalence
+classes. Each strategy must implement canonical_representative() to map
+a Pauli term to its canonical form.</p>
+<dl class="simple">
+<dt>Canonical Representative:</dt><dd><p>A unique representative element from each equivalence class under the
+symmetry transformation. Terms with the same canonical representative
+are considered equivalent and can be merged (coefficients summed).</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<p>For qubit permutation symmetry, the strings XXY, XYX, YXX all have
+the same multiset {X, X, Y} and should map to the same canonical form.</p>
+<dl class="simple">
+<dt>Implementation Notes:</dt><dd><ul class="simple">
+<li><p>Pauli terms are encoded as integers (2 bits per qubit)</p></li>
+<li><p>Encoding: I=00, X=01, Y=10, Z=11 (little-endian)</p></li>
+<li><p>canonical_representative() must be deterministic</p></li>
+<li><p>canonical_representative() should be fast (called many times)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.SymmetryStrategy.canonical_representative">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">canonical_representative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">term</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nqubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#SymmetryStrategy.canonical_representative"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.SymmetryStrategy.canonical_representative" title="Link to this definition">¶</a></dt>
+<dd><p>Compute canonical representative of a Pauli term.</p>
+<p>Maps a Pauli term to its canonical form under this symmetry.
+All terms in the same equivalence class must map to the same canonical.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>term</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Pauli term encoded as integer (2 bits per qubit, little-endian)</p></li>
+<li><p><strong>nqubits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of qubits</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Canonical representative (integer, same encoding as input)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.SymmetryStrategy.name">
+<span class="property"><span class="k"><span class="pre">abstract</span></span><span class="w"> </span><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.SymmetryStrategy.name" title="Link to this definition">¶</a></dt>
+<dd><p>Return human-readable name of this symmetry strategy.</p>
+<p>Used for debugging, logging, and statistics tracking.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.NoSymmetry">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">NoSymmetry</span></span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#NoSymmetry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.NoSymmetry" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.symmetry.SymmetryStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">SymmetryStrategy</span></code></a></p>
+<p>Identity symmetry strategy (no merging).</p>
+<p>This strategy performs no merging - each Pauli term is its own canonical
+representative. Used as the default symmetry when no specific symmetry
+is requested.</p>
+<dl class="simple">
+<dt>Useful for:</dt><dd><ul class="simple">
+<li><p>Backward compatibility (default behavior)</p></li>
+<li><p>Baseline comparisons (measuring impact of symmetry merging)</p></li>
+<li><p>Debugging (disable merging without changing code structure)</p></li>
+</ul>
+</dd>
+<dt>Performance:</dt><dd><ul class="simple">
+<li><p>O(1) per canonical call (identity function)</p></li>
+<li><p>Zero computational overhead</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.NoSymmetry.canonical_representative">
+<span class="sig-name descname"><span class="pre">canonical_representative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">term</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nqubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#NoSymmetry.canonical_representative"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.NoSymmetry.canonical_representative" title="Link to this definition">¶</a></dt>
+<dd><p>Return term unchanged (identity function).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>term</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Pauli term encoded as integer</p></li>
+<li><p><strong>nqubits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of qubits (unused)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The input term unchanged</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.NoSymmetry.name">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.NoSymmetry.name" title="Link to this definition">¶</a></dt>
+<dd><p>Return ‘no_symmetry’ as identifier.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PermutationSymmetry">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">PermutationSymmetry</span></span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#PermutationSymmetry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PermutationSymmetry" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.symmetry.SymmetryStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">SymmetryStrategy</span></code></a></p>
+<p>Qubit permutation symmetry (S_n) using sorted multiset canonical form.</p>
+<p>Groups Pauli terms that differ only by qubit permutations. The canonical
+representative is the term with Paulis sorted lexicographically (I &lt; X &lt; Y &lt; Z).</p>
+<dl>
+<dt>Mathematical Background:</dt><dd><p>Two Pauli strings P and Q are in the same orbit under S_n (symmetric group
+of n elements) if they have the same multiset of local Pauli operators.</p>
+<p>Example: XXY, XYX, YXX all have multiset {X, X, Y} → same orbit</p>
+</dd>
+<dt>Implementation:</dt><dd><p>Uses O(n) bit manipulation without lookup tables. Canonical form is computed
+by counting occurrences of each Pauli type and reconstructing in sorted order.</p>
+</dd>
+<dt>Algorithm Complexity:</dt><dd><p>Time: O(n) per canonical computation (one pass to count, one to reconstruct)
+Space: O(1) (fixed-size counter array [4])</p>
+</dd>
+</dl>
+<p>Scales efficiently to 100+ qubits.</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sym</span> <span class="o">=</span> <span class="n">PermutationSymmetry</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Encode XXY, XYX, YXX at 3 qubits</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">term1</span> <span class="o">=</span> <span class="mh">0x05</span>  <span class="c1"># XXY binary: 010001</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">term2</span> <span class="o">=</span> <span class="mh">0x09</span>  <span class="c1"># XYX binary: 100001</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">term3</span> <span class="o">=</span> <span class="mh">0x06</span>  <span class="c1"># YXX binary: 000110</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sym</span><span class="o">.</span><span class="n">canonical_representative</span><span class="p">(</span><span class="n">term1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>  <span class="c1"># All map to same value</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sym</span><span class="o">.</span><span class="n">canonical_representative</span><span class="p">(</span><span class="n">term2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sym</span><span class="o">.</span><span class="n">canonical_representative</span><span class="p">(</span><span class="n">term3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PermutationSymmetry.canonical_representative">
+<span class="sig-name descname"><span class="pre">canonical_representative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">term</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nqubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#PermutationSymmetry.canonical_representative"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.PermutationSymmetry.canonical_representative" title="Link to this definition">¶</a></dt>
+<dd><p>Compute canonical Pauli term under qubit permutations.</p>
+<p>The canonical form is reconstructed from the multiset of local Pauli
+symbols in sorted order <code class="docutils literal notranslate"><span class="pre">I</span> <span class="pre">&lt;</span> <span class="pre">X</span> <span class="pre">&lt;</span> <span class="pre">Y</span> <span class="pre">&lt;</span> <span class="pre">Z</span></code>.</p>
+<p>Uses whole-word popcounts to count Pauli types and repeated-pattern
+arithmetic to reconstruct the sorted form, so the cost is O(1) word
+operations instead of a per-qubit Python loop.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>term</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Pauli term encoded as integer (2 bits per qubit, little-endian).</p></li>
+<li><p><strong>nqubits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of qubits.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Canonical representative as integer.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.PermutationSymmetry.name">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.PermutationSymmetry.name" title="Link to this definition">¶</a></dt>
+<dd><p>Return ‘permutation’ as identifier.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.CompositeSymmetry">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.pauli_propagation.</span></span><span class="sig-name descname"><span class="pre">CompositeSymmetry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">strategies</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#CompositeSymmetry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.CompositeSymmetry" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.symmetry.SymmetryStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">SymmetryStrategy</span></code></a></p>
+<p>Compose multiple symmetry strategies.</p>
+<p>Applies multiple symmetry strategies sequentially to compute the final
+canonical representative. The result of strategy i becomes the input to
+strategy i+1.</p>
+<dl class="simple">
+<dt>Use Cases:</dt><dd><ul class="simple">
+<li><p>Combine multiple independent symmetries (e.g., permutation + point group)</p></li>
+<li><p>Layer symmetries with different granularities</p></li>
+<li><p>Experimental symmetry compositions for research</p></li>
+</ul>
+</dd>
+<dt>Implementation:</dt><dd><p>Strategies are applied in the order they are provided to __init__().
+For commuting symmetries, order doesn’t matter. For non-commuting
+symmetries, different orders may give different canonical forms.</p>
+</dd>
+<dt>Performance:</dt><dd><p>Time: Sum of individual strategy times
+Space: O(1) beyond storage of strategy references</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">perm_sym</span> <span class="o">=</span> <span class="n">PermutationSymmetry</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">point_group_sym</span> <span class="o">=</span> <span class="n">PointGroupSymmetry</span><span class="p">()</span>  <span class="c1"># hypothetical</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">composite</span> <span class="o">=</span> <span class="n">CompositeSymmetry</span><span class="p">(</span><span class="n">perm_sym</span><span class="p">,</span> <span class="n">point_group_sym</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Applies permutation symmetry first, then point group</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">canonical</span> <span class="o">=</span> <span class="n">composite</span><span class="o">.</span><span class="n">canonical_representative</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Empty CompositeSymmetry (no strategies) acts as NoSymmetry</p></li>
+<li><p>Single strategy behaves identically to using that strategy alone</p></li>
+<li><p>Ordering matters only if symmetries don’t commute</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>strategies</strong> (<a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy" title="qc_executor.pauli_propagation.SymmetryStrategy"><em>SymmetryStrategy</em></a>)</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.CompositeSymmetry.canonical_representative">
+<span class="sig-name descname"><span class="pre">canonical_representative</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">term</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nqubits</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/qc_executor/pauli_propagation/symmetry.html#CompositeSymmetry.canonical_representative"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.pauli_propagation.CompositeSymmetry.canonical_representative" title="Link to this definition">¶</a></dt>
+<dd><p>Apply all configured strategies sequentially.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>term</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Pauli term encoded as integer.</p></li>
+<li><p><strong>nqubits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of qubits.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Canonical representative after all strategies are applied.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.pauli_propagation.CompositeSymmetry.name">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#qc_executor.pauli_propagation.CompositeSymmetry.name" title="Link to this definition">¶</a></dt>
+<dd><p>Return composite name listing all strategies.</p>
+<p>Format: ‘composite(strategy1 + strategy2 + …)’</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="../../_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="../../_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link"
+         href="https://github.com/flaqship/qc-executor/blob/main/docs/api/generated/qc_executor.pauli_propagation.rst"
+         target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+  <div class="fq-pagetoc-inner">
+    <p class="fq-pagetoc-title">On this page</p>
+    <ul>
+<li><a class="reference internal" href="#">pauli_propagation</a><ul>
+<li><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li><a class="reference internal" href="#executor">Executor</a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.shots"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor.shots</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.remote"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor.remote</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.transpile_operator"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor.transpile_operator()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.get_truncation_stats"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor.get_truncation_stats()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_types"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor.get_accepted_backend_types()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_aliases"><code class="docutils literal notranslate"><span class="pre">PauliPropagationExecutor.get_accepted_backend_aliases()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#native-abstraction">Native abstraction</a><ul>
+<li><a class="reference internal" href="#circuit">Circuit</a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.from_quantum_circuit"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.from_quantum_circuit()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.gates"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.gates</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.parameters"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.parameters</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.parameter_symbols"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.parameter_symbols</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.num_parameters"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.num_parameters</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.is_parameterized"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.is_parameterized</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.draw"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.draw()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.h"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.h()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.s"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.s()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.sdag"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.sdag()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.t"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.t()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.tdag"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.tdag()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.p"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.p()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.x"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.x()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.y"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.y()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.z"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.z()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rx"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.rx()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.ry"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.ry()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rz"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.rz()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cx"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.cx()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cy"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.cy()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cz"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.cz()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.crx"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.crx()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.cry"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.cry()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.crz"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.crz()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rxx"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.rxx()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.ryy"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.ryy()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rzz"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.rzz()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.rzx"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.rzx()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.swap"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.swap()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.barrier"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.barrier()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.measure"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.measure()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.compose"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.compose()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.assign_parameters"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.assign_parameters()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.invert"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.invert()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.copy"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.copy()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.replace_gate"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.replace_gate()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.circuit_metrics"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.circuit_metrics()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.from_qasm"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.from_qasm()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationCircuit.to_qasm"><code class="docutils literal notranslate"><span class="pre">PauliPropagationCircuit.to_qasm()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#operator">Operator</a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.from_quantum_operator"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.from_quantum_operator()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.pauli_sum"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.pauli_sum</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.symmetry"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.symmetry</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.has_active_symmetry"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.has_active_symmetry</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.num_qubits"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.num_qubits</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.num_paulis"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.num_paulis</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.paulis"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.paulis</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.coeffs"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.coeffs</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_parametrized"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.is_parametrized</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.parameters"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.parameters</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.parameter_symbols"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.parameter_symbols</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.parametric_coeffs"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.parametric_coeffs</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.num_parameters"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.num_parameters</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.copy"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.copy()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.assign_parameters"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.assign_parameters()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.adjoint"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.adjoint()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.apply_layout"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.apply_layout()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.compose"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.compose()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.append"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.append()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.simplify"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.simplify()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.transpose"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.transpose()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.conjugate"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.conjugate()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.group_commuting"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.group_commuting()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_unitary"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.is_unitary</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_real"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.is_real</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PauliPropagationOperator.is_imaginary"><code class="docutils literal notranslate"><span class="pre">PauliPropagationOperator.is_imaginary</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#other-classes">Other classes</a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy"><code class="docutils literal notranslate"><span class="pre">SymmetryStrategy</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy.canonical_representative"><code class="docutils literal notranslate"><span class="pre">SymmetryStrategy.canonical_representative()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.SymmetryStrategy.name"><code class="docutils literal notranslate"><span class="pre">SymmetryStrategy.name</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.NoSymmetry"><code class="docutils literal notranslate"><span class="pre">NoSymmetry</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.NoSymmetry.canonical_representative"><code class="docutils literal notranslate"><span class="pre">NoSymmetry.canonical_representative()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.NoSymmetry.name"><code class="docutils literal notranslate"><span class="pre">NoSymmetry.name</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PermutationSymmetry"><code class="docutils literal notranslate"><span class="pre">PermutationSymmetry</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PermutationSymmetry.canonical_representative"><code class="docutils literal notranslate"><span class="pre">PermutationSymmetry.canonical_representative()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.PermutationSymmetry.name"><code class="docutils literal notranslate"><span class="pre">PermutationSymmetry.name</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.CompositeSymmetry"><code class="docutils literal notranslate"><span class="pre">CompositeSymmetry</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.CompositeSymmetry.canonical_representative"><code class="docutils literal notranslate"><span class="pre">CompositeSymmetry.canonical_representative()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.pauli_propagation.CompositeSymmetry.name"><code class="docutils literal notranslate"><span class="pre">CompositeSymmetry.name</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  </div>
+    </aside>
+  </div>
+</body>
+</html>

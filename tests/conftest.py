@@ -14,13 +14,14 @@ from typing import Iterable
 import pytest
 
 #: All backend names registered by the package, in a stable order.
-ALL_BACKENDS = ("qiskit", "pennylane", "qulacs", "pauli_propagation")
+ALL_BACKENDS = ("qiskit", "pennylane", "qulacs", "qrisp", "pauli_propagation")
 
 #: Third-party distribution each backend needs; ``None`` means "pure Python".
 _BACKEND_REQUIREMENTS: dict[str, str | None] = {
     "qiskit": "qiskit",
     "pennylane": "pennylane",
     "qulacs": "qulacs",
+    "qrisp": "qrisp",
     "pauli_propagation": None,
 }
 

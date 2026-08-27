@@ -34,6 +34,7 @@ class Executor:
         "qiskit": "qiskit",
         "pennylane": "pennylane",
         "qulacs": "qulacs",
+        "qrisp": "qrisp",
         "pauli_propagation": "pauli_propagation",
     }
 

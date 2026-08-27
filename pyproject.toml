@@ -43,6 +43,7 @@ dynamic = ["version"]
 qiskit = ["qiskit>=1.0.0", "packaging>=21.0"]
 pennylane = ["pennylane>=0.34.0"]
 qulacs = ["qulacs>=0.6.4.1"]
+qrisp = ["qrisp>=0.9"]
 # Aer and the IBM runtime are needed for shot-based sampling and for the
 # dynamic circuits the local Qiskit primitives refuse to run.
 qiskit-full = [
@@ -59,12 +60,14 @@ all = [
     "qulacs>=0.6.4.1",
     "qiskit-aer>=0.12.0",
     "qiskit-ibm-runtime>=0.18.0",
+    "qrisp>=0.9",
 ]
 
 [project.entry-points."qc_executor.backends"]
 pennylane = "qc_executor.pennylane:PennyLaneExecutor"
 qiskit = "qc_executor.qiskit:QiskitExecutor"
 qulacs = "qc_executor.qulacs:QulacsExecutor"
+qrisp = "qc_executor.qrisp:QrispExecutor"
 pauli_propagation = "qc_executor.pauli_propagation:PauliPropagationExecutor"
 
 [dependency-groups]

@@ -26,7 +26,7 @@ __version__ = "0.1.0"
 
 #: Backends resolved on first attribute access.  Importing one eagerly here
 #: would make its framework a hard dependency of the core package.
-_OPTIONAL_BACKENDS = ("qiskit", "pennylane", "qulacs", "pauli_propagation")
+_OPTIONAL_BACKENDS = ("qiskit", "pennylane", "qulacs", "qrisp", "pauli_propagation")
 
 __all__ = [
     "Executor",

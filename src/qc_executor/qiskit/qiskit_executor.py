@@ -407,15 +407,17 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
     return (False, False, False)
 
 
-def _read_shots_from_primitive(primitive) -> int:
+def _read_shots_from_primitive(primitive) -> int | None:
     """Best-effort extraction of the shot count already baked into an
     injected primitive - used only when the caller didn't pass an explicit
     ``shots=`` alongside it, so ``QiskitExecutor.shots`` reflects reality
     instead of staying ``None`` for a primitive that already samples with a
     concrete shot count. Falls back to ``1024`` when the primitive carries no
-    shot information at all (e.g. an exact ``StatevectorEstimator`` with
-    ``default_precision == 0.0``), matching the default every other
-    construction path in this class applies.
+    shot information at all, matching the default every other construction
+    path in this class applies - except for an exact ``StatevectorEstimator``
+    (``default_precision == 0.0``), where that *is* the shot information:
+    unlike a sampler, an estimator can be genuinely exact, and reporting a
+    fake shot count there would misrepresent it.
 
     Read-only: the injected primitive itself is never mutated here - it
     stays exactly as the caller configured it (see the class docstring).
@@ -431,7 +433,7 @@ def _read_shots_from_primitive(primitive) -> int:
         return primitive.options.get("shots", 0) or 1024
     if isinstance(primitive, StatevectorEstimator):
         precision = primitive.default_precision
-        return int(round(1.0 / precision**2)) if precision else 1024
+        return int(round(1.0 / precision**2)) if precision else None
     if isinstance(primitive, StatevectorSampler):
         return primitive.default_shots or 1024
     if isinstance(primitive, (RuntimeEstimatorV2, RuntimeSamplerV2)):
@@ -835,10 +837,20 @@ class QiskitExecutor(ExecutorBase):
 
         Estimators express this as precision (``1 / sqrt(shots)``); samplers
         and V1-style primitives take the shot count directly. Left untouched
-        when ``self._shots`` is ``None`` (exact simulation, already each
-        primitive's own default).
+        when ``self._shots`` is ``None`` and the primitive is freshly built
+        (still at its own default) - except a ``StatevectorEstimator``, which
+        is explicitly reset to exact. That reset matters when this method
+        runs via the ``shots`` setter (not just construction): unlike a
+        sampler or a real-backend estimator - which cannot be "exact" and so
+        have nothing coherent to reset to - a StatevectorEstimator going from
+        a concrete shot count back to ``None`` must actually become exact
+        again, not silently keep the last precision it was set to.
         """
-        if primitive is None or self._shots is None:
+        if primitive is None:
+            return
+        if self._shots is None:
+            if isinstance(primitive, StatevectorEstimator):
+                primitive._default_precision = 0.0
             return
         if isinstance(primitive, (RuntimeEstimatorV1, RuntimeSamplerV1)):
             execution = primitive.options.get("execution") or {}

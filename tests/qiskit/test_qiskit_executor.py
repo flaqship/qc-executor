@@ -875,6 +875,20 @@ class TestFunctioningShotsSetter:
 
         assert executor._shots == 2048
 
+    def test_shots_setter_resets_statevector_estimator_to_exact_on_none(self):
+        """Setting shots back to None after a concrete value must actually
+        restore exactness on a StatevectorEstimator - not silently keep the
+        last precision it was configured with. Matters most for an injected
+        (caller-owned, possibly reused) estimator: without this, repeatedly
+        constructing executors around the same shared StatevectorEstimator
+        and toggling shots would leak precision across them."""
+        executor = QiskitExecutor(backend="statevector", shots=1234)
+        assert executor.estimator.default_precision == pytest.approx(1 / 1234**0.5)
+
+        executor.shots = None
+
+        assert executor.estimator.default_precision == 0.0
+
 
 class TestBackendProperty:
     def test_backend_property_returns_resolved_backend(self):
@@ -928,12 +942,17 @@ class TestInjectedPrimitiveShotsReadback:
         assert executor.shots == 777
         assert sampler.default_shots == 777
 
-    def test_falls_back_to_1024_when_primitive_carries_no_shot_information(self):
+    def test_exact_statevector_estimator_reads_back_as_none_not_1024(self):
+        """default_precision == 0.0 on a StatevectorEstimator IS the shot
+        information (genuinely exact) - unlike a sampler, which can never be
+        exact, so a missing shot count there really does mean 'unconfigured,
+        assume 1024'. Reporting a fake 1024 for an exact estimator would
+        misrepresent it."""
         estimator = StatevectorEstimator()  # default_precision == 0.0 (exact)
 
         executor = QiskitExecutor(backend=estimator)
 
-        assert executor.shots == 1024
+        assert executor.shots is None
         assert estimator.default_precision == 0.0  # still untouched
 
     def test_explicit_shots_argument_takes_precedence_over_readback(self):

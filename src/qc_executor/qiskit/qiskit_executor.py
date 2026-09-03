@@ -819,8 +819,15 @@ class QiskitExecutor(ExecutorBase):
 
     @shots.setter
     def shots(self, value: int | None) -> None:
-        """Set the number of shots."""
+        """Set the number of shots and apply it to the current primitives in
+        place, so the change takes effect on the very next ``run()`` without
+        needing a rebuild - including for a primitive a host's
+        ``primitive_wrapper`` still holds a reference to, since that
+        reference is to the same raw object being mutated here.
+        """
         self._shots = value
+        self._apply_shots_option(self.raw_estimator)
+        self._apply_shots_option(self.raw_sampler)
 
     @property
     def remote(self) -> bool:

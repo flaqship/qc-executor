@@ -816,6 +816,66 @@ def _tag_primitive(primitive, kind):
     return _TaggedEstimator(primitive) if kind == "estimator" else _TaggedSampler(primitive)
 
 
+class TestFunctioningShotsSetter:
+    """``executor.shots = n`` after construction must reconfigure the
+    *existing* primitives in place - not just update bookkeeping - so the
+    change takes effect on the very next ``run()`` without a rebuild."""
+
+    def test_shots_setter_updates_aer_estimator_precision_in_place(self):
+        pytest.importorskip("qiskit_aer")
+        executor = QiskitExecutor(backend="aer", shots=100)
+        estimator_before = executor.raw_estimator
+
+        executor.shots = 4096
+
+        assert executor.raw_estimator is estimator_before  # mutated, not rebuilt
+        assert executor.estimator.options.default_precision == pytest.approx(1 / 4096**0.5)
+
+    def test_shots_setter_updates_aer_sampler_shots_in_place(self):
+        pytest.importorskip("qiskit_aer")
+        executor = QiskitExecutor(backend="aer", shots=100)
+        sampler_before = executor.raw_sampler
+
+        executor.shots = 4096
+
+        assert executor.raw_sampler is sampler_before
+        assert executor.sampler.options.default_shots == 4096
+
+    def test_shots_setter_updates_statevector_reference_primitives_in_place(self):
+        executor = QiskitExecutor(backend="statevector", shots=100)
+
+        executor.shots = 1024
+
+        assert executor.estimator.default_precision == pytest.approx(1 / 1024**0.5)
+        assert executor.sampler.default_shots == 1024
+
+    def test_shots_setter_takes_effect_on_a_held_wrapped_primitive(self):
+        """The scenario the setter exists for: a host holds the decorated
+        primitive across many calls (e.g. sQUlearn's ExecutorEstimatorV2)
+        and changes shots between calls without rebuilding anything."""
+        executor = QiskitExecutor(
+            backend="statevector", shots=100, primitive_wrapper=_tag_primitive
+        )
+        held_wrapper = executor.estimator  # a host would hold exactly this
+
+        executor.shots = 1024
+
+        assert executor.estimator is held_wrapper  # same wrapper instance
+        assert held_wrapper.primitive.default_precision == pytest.approx(1 / 1024**0.5)
+
+    def test_shots_setter_is_a_noop_when_no_primitives_exist_yet(self):
+        """A deferred-session IBM Quantum executor has no raw primitives to
+        mutate yet; the setter must not raise."""
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = False
+        executor._raw_estimator = None
+        executor._raw_sampler = None
+
+        executor.shots = 2048  # must not raise
+
+        assert executor._shots == 2048
+
+
 class TestStatevectorPrimitiveFamily:
     """"statevector" and "aer_statevector" target the same exact state
     through two different (both unbiased) shot-based estimators - Qiskit's

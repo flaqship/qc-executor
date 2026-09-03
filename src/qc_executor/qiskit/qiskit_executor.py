@@ -407,6 +407,50 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
     return (False, False, False)
 
 
+def _read_shots_from_primitive(primitive) -> int:
+    """Best-effort extraction of the shot count already baked into an
+    injected primitive - used only when the caller didn't pass an explicit
+    ``shots=`` alongside it, so ``QiskitExecutor.shots`` reflects reality
+    instead of staying ``None`` for a primitive that already samples with a
+    concrete shot count. Falls back to ``1024`` when the primitive carries no
+    shot information at all (e.g. an exact ``StatevectorEstimator`` with
+    ``default_precision == 0.0``), matching the default every other
+    construction path in this class applies.
+
+    Read-only: the injected primitive itself is never mutated here - it
+    stays exactly as the caller configured it (see the class docstring).
+    """
+    if isinstance(primitive, (RuntimeEstimatorV1, RuntimeSamplerV1)):
+        try:
+            return primitive.options["execution"]["shots"] or 1024
+        except (KeyError, TypeError):
+            return 1024
+    if isinstance(primitive, (BaseEstimatorV1, BaseSamplerV1)):
+        # BackendEstimatorV1/SamplerV1 and PrimitiveEstimatorV1/SamplerV1 alike
+        # store shots directly under .options.
+        return primitive.options.get("shots", 0) or 1024
+    if isinstance(primitive, StatevectorEstimator):
+        precision = primitive.default_precision
+        return int(round(1.0 / precision**2)) if precision else 1024
+    if isinstance(primitive, StatevectorSampler):
+        return primitive.default_shots or 1024
+    if isinstance(primitive, (RuntimeEstimatorV2, RuntimeSamplerV2)):
+        options = primitive.options
+        shots = getattr(options, "default_shots", None)
+        if shots:
+            return shots
+        precision = getattr(options, "default_precision", None)
+        return int(round(1.0 / precision**2)) if precision else 1024
+    if isinstance(primitive, (BaseEstimatorV2, BaseSamplerV2)):
+        # BackendEstimatorV2 / BackendSamplerV2
+        precision = getattr(primitive.options, "default_precision", None)
+        if precision:
+            return int(round(1.0 / precision**2))
+        shots = getattr(primitive.options, "default_shots", None)
+        return shots or 1024
+    return 1024
+
+
 class QiskitExecutor(ExecutorBase):
     """Class for executing Qiskit circuits.
 
@@ -628,6 +672,12 @@ class QiskitExecutor(ExecutorBase):
             # V1 vs V2 sampler API detection should be based on sampler instance.
             self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
 
+            if shots is None:
+                # The caller configured shots on the injected primitive itself
+                # (rather than via this executor's shots= argument) - reflect
+                # that in self.shots instead of leaving it None.
+                self._shots = _read_shots_from_primitive(backend)
+
         # ── 2. Injected Session / Batch ────────────────────────────────────
         # Ownership is intentionally transferred to the executor: close_session()
         # will close even externally created objects.
@@ -843,6 +893,16 @@ class QiskitExecutor(ExecutorBase):
     def session(self):
         """Return the active runtime Session or Batch, or ``None``."""
         return self._session
+
+    @property
+    def backend(self):
+        """Return the resolved Qiskit backend, or ``None``.
+
+        ``None`` for exact statevector simulation (``backend="statevector"``,
+        ``shots=None``) and for an injected primitive/Session from which no
+        backend context could be recovered.
+        """
+        return self._backend
 
     @property
     def estimator(self):

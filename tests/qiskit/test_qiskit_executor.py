@@ -876,6 +876,84 @@ class TestFunctioningShotsSetter:
         assert executor._shots == 2048
 
 
+class TestBackendProperty:
+    def test_backend_property_returns_resolved_backend(self):
+        pytest.importorskip("qiskit_aer")
+        executor = QiskitExecutor(backend="aer")
+        assert executor.backend is executor._backend
+        assert executor.backend is not None
+
+    def test_backend_property_is_none_for_exact_statevector(self):
+        executor = QiskitExecutor(backend="statevector")
+        assert executor.backend is None
+
+
+class TestInjectedPrimitiveShotsReadback:
+    """When a caller injects an already-configured primitive without an
+    explicit shots=, self.shots must reflect what's actually baked into the
+    primitive - not silently stay None while the primitive itself samples
+    with a concrete shot count. The injected primitive itself is never
+    mutated for this - only read from."""
+
+    def test_reads_shots_from_backend_estimator_v2_precision(self):
+        pytest.importorskip("qiskit_aer")
+        from qiskit_aer import Aer
+        from qiskit.primitives import BackendEstimatorV2
+
+        backend = Aer.get_backend("aer_simulator")
+        estimator = BackendEstimatorV2(backend=backend)
+        estimator.options.default_precision = 1 / 64**0.5
+
+        executor = QiskitExecutor(backend=estimator)
+
+        assert executor.shots == 64
+        # Read-only: the injected primitive's own configuration is untouched.
+        assert estimator.options.default_precision == pytest.approx(1 / 64**0.5)
+
+    def test_reads_shots_from_statevector_estimator_precision(self):
+        estimator = StatevectorEstimator()
+        estimator._default_precision = 1 / 256**0.5
+
+        executor = QiskitExecutor(backend=estimator)
+
+        assert executor.shots == 256
+        assert estimator.default_precision == pytest.approx(1 / 256**0.5)
+
+    def test_reads_shots_from_statevector_sampler_default_shots(self):
+        sampler = StatevectorSampler()
+        sampler._default_shots = 777
+
+        executor = QiskitExecutor(backend=sampler)
+
+        assert executor.shots == 777
+        assert sampler.default_shots == 777
+
+    def test_falls_back_to_1024_when_primitive_carries_no_shot_information(self):
+        estimator = StatevectorEstimator()  # default_precision == 0.0 (exact)
+
+        executor = QiskitExecutor(backend=estimator)
+
+        assert executor.shots == 1024
+        assert estimator.default_precision == 0.0  # still untouched
+
+    def test_explicit_shots_argument_takes_precedence_over_readback(self):
+        estimator = StatevectorEstimator()
+        estimator._default_precision = 1 / 256**0.5
+
+        executor = QiskitExecutor(backend=estimator, shots=333)
+
+        assert executor.shots == 333
+        # The injected primitive is untouched either way.
+        assert estimator.default_precision == pytest.approx(1 / 256**0.5)
+
+    def test_readback_not_applied_to_session_or_string_backends(self):
+        """The readback only concerns branch 1 (primitive injection) - a
+        fresh backend/string has nothing pre-existing to read from, and must
+        keep its own (None) default."""
+        executor = QiskitExecutor(backend="statevector")
+        assert executor.shots is None
+
+
 class TestStatevectorPrimitiveFamily:
     """"statevector" and "aer_statevector" target the same exact state
     through two different (both unbiased) shot-based estimators - Qiskit's

@@ -201,6 +201,44 @@ class TestQiskitExecutorFakeBackend:
             expected_cls = qiskit_ibm_runtime.Sampler
         assert isinstance(executor._sampler, expected_cls)
 
+    def test_estimator_property_returns_internal_estimator(self):
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=1024)
+        assert executor.estimator is executor._estimator
+
+    def test_sampler_property_returns_internal_sampler(self):
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=1024)
+        assert executor.sampler is executor._sampler
+
+    def test_estimator_precision_reflects_shots(self):
+        """A freshly constructed estimator honors ``shots`` as ``1/sqrt(shots)``
+        precision - not qiskit's own default, which ignores the constructor's
+        ``shots`` argument entirely for runtime/backend primitives."""
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=2048)
+        assert executor.estimator.options.default_precision == pytest.approx(
+            1.0 / 2048**0.5
+        )
+
+    def test_sampler_shots_reflects_constructor_argument(self):
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=2048)
+        assert executor.sampler.options.default_shots == 2048
+
+    def test_exact_shots_leaves_default_precision_untouched(self):
+        """``shots=None`` means exact simulation; the primitive's own default
+        precision/shots (not attributable to any particular shot count) is
+        left alone rather than forced to some sentinel value."""
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=None)
+        # No shots configured -> _apply_shots_option is a no-op; whatever
+        # qiskit's own constructor chose is preserved unchanged.
+        default_executor = QiskitExecutor(backend=_get_fake_backend())
+        assert executor.estimator.options.default_precision == pytest.approx(
+            default_executor.estimator.options.default_precision
+        )
+
     def test_context_manager(self):
         """Test that the executor can be used as a context manager."""
         backend = _get_fake_backend()
@@ -334,6 +372,121 @@ class TestIBMInternalHelpers:
         executor._ensure_session_active()
 
         assert executor._create_session_called is True
+
+    def test_ensure_primitives_current_rebuilds_on_session_renewal(self):
+        """A session swap (detected by identity) triggers a primitive rebuild,
+        even though the already-cached estimator/sampler are not None - the
+        gap ``_ensure_runtime_primitives`` alone leaves uncovered."""
+        executor = object.__new__(QiskitExecutor)
+        old_session = object()
+        new_session = object()
+        executor._session = old_session
+        executor._estimator = "stale_estimator"
+        executor._sampler = "stale_sampler"
+
+        def _fake_ensure_session_active():
+            executor._session = new_session
+
+        refreshed = {"called": False}
+
+        def _fake_refresh_primitives():
+            refreshed["called"] = True
+            executor._estimator = "fresh_estimator"
+            executor._sampler = "fresh_sampler"
+
+        executor._ensure_session_active = _fake_ensure_session_active
+        executor._refresh_primitives = _fake_refresh_primitives
+
+        executor._ensure_primitives_current()
+
+        assert refreshed["called"] is True
+        assert executor._estimator == "fresh_estimator"
+        assert executor._sampler == "fresh_sampler"
+
+    def test_ensure_primitives_current_skips_rebuild_when_session_unchanged(self):
+        executor = object.__new__(QiskitExecutor)
+        session = object()
+        executor._session = session
+        executor._estimator = "existing_estimator"
+        executor._sampler = "existing_sampler"
+
+        executor._ensure_session_active = lambda: None  # session stays the same object
+
+        refreshed = {"called": False}
+
+        def _fake_refresh_primitives():
+            refreshed["called"] = True
+
+        executor._refresh_primitives = _fake_refresh_primitives
+
+        executor._ensure_primitives_current()
+
+        assert refreshed["called"] is False
+        assert executor._estimator == "existing_estimator"
+        assert executor._sampler == "existing_sampler"
+
+    def test_ensure_primitives_current_builds_on_first_use(self):
+        """No prior session/primitives at all (``None``) still triggers a build,
+        matching what ``_ensure_runtime_primitives`` already covered."""
+        executor = object.__new__(QiskitExecutor)
+        executor._session = None
+        executor._estimator = None
+        executor._sampler = None
+
+        executor._ensure_session_active = lambda: None
+
+        refreshed = {"called": False}
+
+        def _fake_refresh_primitives():
+            refreshed["called"] = True
+
+        executor._refresh_primitives = _fake_refresh_primitives
+
+        executor._ensure_primitives_current()
+
+        assert refreshed["called"] is True
+
+    def test_estimator_property_refreshes_stale_primitive(self):
+        """The public ``estimator`` property must go through
+        ``_ensure_primitives_current`` for IBM Quantum backends, not the
+        weaker ``_ensure_runtime_primitives`` (which never revisits an
+        already-built primitive)."""
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._estimator = "stale"
+
+        calls = []
+        executor._ensure_primitives_current = lambda: calls.append("called")
+
+        result = executor.estimator
+
+        assert calls == ["called"]
+        assert result == "stale"  # the fake helper above didn't mutate it
+
+    def test_sampler_property_refreshes_stale_primitive(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._sampler = "stale"
+
+        calls = []
+        executor._ensure_primitives_current = lambda: calls.append("called")
+
+        result = executor.sampler
+
+        assert calls == ["called"]
+        assert result == "stale"
+
+    def test_estimator_property_skips_refresh_for_non_ibm_backend(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = False
+        executor._estimator = "local_estimator"
+
+        def _should_not_be_called():
+            raise AssertionError("must not check session/primitive freshness for non-IBM backends")
+
+        executor._ensure_primitives_current = _should_not_be_called
+
+        assert executor.estimator == "local_estimator"
 
     def test_instantiate_runtime_primitive_v2_uses_expected_kwargs(self):
         executor = object.__new__(QiskitExecutor)

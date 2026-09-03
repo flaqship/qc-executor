@@ -716,6 +716,37 @@ class QiskitExecutor(ExecutorBase):
         else:
             self._random = np.random.default_rng()
 
+        if not is_primitive:
+            # A directly injected primitive (branch 1) is caller-configured and
+            # left untouched; every other construction path built its primitives
+            # from a bare backend/string/session, which never carried any shots
+            # information on its own.
+            self._apply_shots_option(self._estimator)
+            self._apply_shots_option(self._sampler)
+
+    def _apply_shots_option(self, primitive) -> None:
+        """Configure *primitive* so it honors ``self._shots``.
+
+        Estimators express this as precision (``1 / sqrt(shots)``); samplers
+        and V1-style primitives take the shot count directly. Left untouched
+        when ``self._shots`` is ``None`` (exact simulation, already each
+        primitive's own default) or the primitive has no shot-related option
+        at all (an exact ``StatevectorEstimator``/``StatevectorSampler``).
+        """
+        if primitive is None or self._shots is None:
+            return
+        if isinstance(primitive, (RuntimeEstimatorV1, RuntimeSamplerV1)):
+            execution = primitive.options.get("execution") or {}
+            execution["shots"] = self._shots
+            primitive.set_options(execution=execution)
+        elif isinstance(primitive, (BaseEstimatorV1, BaseSamplerV1)):
+            primitive.set_options(shots=self._shots)
+        elif hasattr(primitive, "options"):
+            if hasattr(primitive.options, "default_precision"):
+                primitive.options.default_precision = 1.0 / self._shots**0.5
+            elif hasattr(primitive.options, "default_shots"):
+                primitive.options.default_shots = self._shots
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -744,6 +775,32 @@ class QiskitExecutor(ExecutorBase):
     def session(self):
         """Return the active runtime Session or Batch, or ``None``."""
         return self._session
+
+    @property
+    def estimator(self):
+        """Return the Qiskit estimator primitive used for execution.
+
+        For real IBM Quantum hardware, this refreshes the underlying runtime
+        session and primitives first if the session has expired since the
+        last access - safe to call repeatedly across a long-running loop
+        without needing a ``with`` block.
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._estimator
+
+    @property
+    def sampler(self):
+        """Return the Qiskit sampler primitive used for execution.
+
+        For real IBM Quantum hardware, this refreshes the underlying runtime
+        session and primitives first if the session has expired since the
+        last access - safe to call repeatedly across a long-running loop
+        without needing a ``with`` block.
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._sampler
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -865,23 +922,49 @@ class QiskitExecutor(ExecutorBase):
                 exc_info=True,
             )
 
+    def _ensure_primitives_current(self) -> None:
+        """Rebuild the estimator/sampler if the runtime session was just renewed.
+
+        ``_ensure_session_active()`` transparently re-creates an expired
+        session but leaves any already-constructed estimator/sampler bound to
+        the old (now-closed) one - callers that only build on first use (like
+        :meth:`_ensure_runtime_primitives`) never notice a session renewed
+        mid-lifetime. Comparing session identity before/after is what lets a
+        long-running loop that never re-enters ``__enter__`` keep working
+        across a session expiry.
+        """
+        session_before = self._session
+        self._ensure_session_active()
+        if (
+            self._estimator is None
+            or self._sampler is None
+            or self._session is not session_before
+        ):
+            self._refresh_primitives()
+
     def _create_runtime_estimator(self):
         """Instantiate the runtime Estimator for the current backend / session."""
         self._ensure_session_active()
         if self._runtime_primitives_version == "v1":
             cls, _ = _load_runtime_primitives_v1()
-            return self._instantiate_runtime_primitive_v1(cls, self._options)
-        cls, _ = _load_runtime_primitives_v2()
-        return self._instantiate_runtime_primitive_v2(cls, self._options)
+            estimator = self._instantiate_runtime_primitive_v1(cls, self._options)
+        else:
+            cls, _ = _load_runtime_primitives_v2()
+            estimator = self._instantiate_runtime_primitive_v2(cls, self._options)
+        self._apply_shots_option(estimator)
+        return estimator
 
     def _create_runtime_sampler(self):
         """Instantiate the runtime Sampler for the current backend / session."""
         self._ensure_session_active()
         if self._runtime_primitives_version == "v1":
             _, cls = _load_runtime_primitives_v1()
-            return self._instantiate_runtime_primitive_v1(cls, self._options)
-        _, cls = _load_runtime_primitives_v2()
-        return self._instantiate_runtime_primitive_v2(cls, self._options)
+            sampler = self._instantiate_runtime_primitive_v1(cls, self._options)
+        else:
+            _, cls = _load_runtime_primitives_v2()
+            sampler = self._instantiate_runtime_primitive_v2(cls, self._options)
+        self._apply_shots_option(sampler)
+        return sampler
 
     # -- V1 instantiation (qiskit-ibm-runtime < 0.21) ---------------------
 

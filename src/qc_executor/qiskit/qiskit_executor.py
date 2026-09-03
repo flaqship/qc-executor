@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Literal, Tuple
+from typing import Any, Callable, List, Literal, Tuple
 
 import numpy as np
 from qiskit.primitives import (
@@ -452,6 +452,21 @@ class QiskitExecutor(ExecutorBase):
             ``"batch"`` for independent parallel jobs.
         options (dict | None, optional): Options forwarded to IBM Runtime primitives
             (e.g. ``{"resilience_level": 1}``).  Ignored for local backends.
+        primitive_wrapper (callable | None, optional): ``wrapper(primitive, kind)
+            -> primitive``, with ``kind`` either ``"estimator"`` or ``"sampler"``.
+            Applied to every primitive this executor (re)builds - on initial
+            construction, after a runtime session renewal, and for lazily
+            deferred session primitives - so a host application can layer
+            cross-cutting concerns (retry, disk caching, seeding, ...) on top
+            of execution without ever holding a primitive itself. The
+            wrapper's return value must be a genuine instance of the same
+            base class as the primitive it was given (``BaseEstimatorV1``/
+            ``BaseEstimatorV2`` for an estimator, ``BaseSamplerV1``/
+            ``BaseSamplerV2`` for a sampler) - qc_executor's own OpTree
+            evaluation dispatches on ``isinstance()`` of exactly those
+            classes, so duck-typing ``run()`` alone is not enough. See
+            :attr:`raw_estimator`/:attr:`raw_sampler` for the underlying,
+            undecorated primitive.
     """
 
     _native_circuit_class = QiskitCircuit
@@ -478,6 +493,7 @@ class QiskitExecutor(ExecutorBase):
         max_cache_size: int | None = 4096,
         execution_mode: Literal["job", "session", "batch"] = "job",
         options: dict | None = None,
+        primitive_wrapper: Callable[[Any, str], Any] | None = None,
     ):
         super().__init__(
             shots=shots,
@@ -496,6 +512,13 @@ class QiskitExecutor(ExecutorBase):
         self._ibm_quantum_backend: bool = False
         self._execution_mode = execution_mode
         self._options = options
+        self._primitive_wrapper = primitive_wrapper
+        # The raw (undecorated) primitives this executor built - always the
+        # genuine Qiskit object, regardless of what primitive_wrapper turns
+        # self._estimator/self._sampler (the ones actually used for
+        # execution) into. See _decorate_primitive().
+        self._raw_estimator = None
+        self._raw_sampler = None
         # Safe defaults — overwritten in the relevant branches below
         self._runtime_primitives_version: str = "v2"
         self._sampler_uses_v1_api: bool = QISKIT_SMALLER_1_2
@@ -724,6 +747,25 @@ class QiskitExecutor(ExecutorBase):
             self._apply_shots_option(self._estimator)
             self._apply_shots_option(self._sampler)
 
+        # Whichever branch above built them, self._estimator/self._sampler are
+        # still the raw Qiskit primitives at this point - snapshot them, then
+        # apply the host's wrapper (if any) for actual execution use.
+        self._raw_estimator = self._estimator
+        self._raw_sampler = self._sampler
+        self._estimator = self._decorate_primitive(self._raw_estimator, "estimator")
+        self._sampler = self._decorate_primitive(self._raw_sampler, "sampler")
+
+    def _decorate_primitive(self, primitive, kind: str):
+        """Apply the host's ``primitive_wrapper`` (if any) to a freshly (re)built
+        primitive - see the ``primitive_wrapper`` constructor argument. Called
+        for every construction path: initial ``__init__``, a runtime session
+        renewal (:meth:`_refresh_primitives`), and lazily deferred session
+        primitives (:meth:`_ensure_runtime_primitives`).
+        """
+        if primitive is None or self._primitive_wrapper is None:
+            return primitive
+        return self._primitive_wrapper(primitive, kind)
+
     def _apply_shots_option(self, primitive) -> None:
         """Configure *primitive* so it honors ``self._shots``.
 
@@ -802,6 +844,34 @@ class QiskitExecutor(ExecutorBase):
             self._ensure_primitives_current()
         return self._sampler
 
+    @property
+    def raw_estimator(self):
+        """Return the raw (undecorated) Qiskit estimator primitive.
+
+        Unlike :attr:`estimator`, which returns whatever a registered
+        ``primitive_wrapper`` turned the primitive into (see the
+        constructor), this is always the genuine Qiskit primitive
+        qc_executor itself constructed - useful for host-side introspection
+        (e.g. reading its concrete type or default options).
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._raw_estimator
+
+    @property
+    def raw_sampler(self):
+        """Return the raw (undecorated) Qiskit sampler primitive.
+
+        Unlike :attr:`sampler`, which returns whatever a registered
+        ``primitive_wrapper`` turned the primitive into (see the
+        constructor), this is always the genuine Qiskit primitive
+        qc_executor itself constructed - useful for host-side introspection
+        (e.g. reading its concrete type or default options).
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._raw_sampler
+
     # ------------------------------------------------------------------
     # Session lifecycle
     # ------------------------------------------------------------------
@@ -809,6 +879,19 @@ class QiskitExecutor(ExecutorBase):
     def _uses_managed_session(self) -> bool:
         """Return *True* when this executor should own a runtime Session/Batch."""
         return self._ibm_quantum_backend and self._execution_mode in ("session", "batch")
+
+    def create_session(self) -> None:
+        """Explicitly (re)create the runtime session now, instead of waiting
+        for the first execution to trigger it lazily.
+
+        A no-op when this executor doesn't manage its own session (local
+        simulators, fake backends, or real IBM Quantum hardware in ``"job"``
+        execution mode all build their primitives without one).
+        """
+        if not self._uses_managed_session():
+            return
+        self._create_session()
+        self._refresh_primitives()
 
     def _create_session(self) -> None:
         """Create (or re-create) a :class:`~qiskit_ibm_runtime.Session` or
@@ -936,8 +1019,8 @@ class QiskitExecutor(ExecutorBase):
         session_before = self._session
         self._ensure_session_active()
         if (
-            self._estimator is None
-            or self._sampler is None
+            self._raw_estimator is None
+            or self._raw_sampler is None
             or self._session is not session_before
         ):
             self._refresh_primitives()
@@ -1032,16 +1115,20 @@ class QiskitExecutor(ExecutorBase):
 
     def _refresh_primitives(self) -> None:
         """Re-create primitives after a session renewal."""
-        self._estimator = self._create_runtime_estimator()
-        self._sampler = self._create_runtime_sampler()
+        self._raw_estimator = self._create_runtime_estimator()
+        self._raw_sampler = self._create_runtime_sampler()
+        self._estimator = self._decorate_primitive(self._raw_estimator, "estimator")
+        self._sampler = self._decorate_primitive(self._raw_sampler, "sampler")
 
     def _ensure_runtime_primitives(self) -> None:
         """Lazily create runtime primitives when session management is deferred."""
-        if self._estimator is None:
-            self._estimator = self._create_runtime_estimator()
-        if self._sampler is None:
-            self._sampler = self._create_runtime_sampler()
-        self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
+        if self._raw_estimator is None:
+            self._raw_estimator = self._create_runtime_estimator()
+            self._estimator = self._decorate_primitive(self._raw_estimator, "estimator")
+        if self._raw_sampler is None:
+            self._raw_sampler = self._create_runtime_sampler()
+            self._sampler = self._decorate_primitive(self._raw_sampler, "sampler")
+        self._sampler_uses_v1_api = isinstance(self._raw_sampler, BaseSamplerV1)
 
     # ------------------------------------------------------------------
     # ISA transpilation (for IBM / fake backends)

@@ -56,6 +56,26 @@ def _get_fake_backend():
     return pytest.skip("No fake backend available in this qiskit-ibm-runtime version")
 
 
+class FakeRunEstimator:
+    """Minimal stand-in for a runtime Estimator - returns its label from run()."""
+
+    def __init__(self, label):
+        self.label = label
+
+    def run(self, pubs, *, precision=None):
+        return self.label
+
+
+class FakeRunSampler:
+    """Minimal stand-in for a runtime Sampler - returns its label from run()."""
+
+    def __init__(self, label):
+        self.label = label
+
+    def run(self, pubs, *, shots=None):
+        return self.label
+
+
 def _build_circuit(num_qubits, operations):
     qc = QuantumCircuit(num_qubits)
     for gate_name, gate_args in operations:
@@ -357,6 +377,34 @@ class TestExecutionFakeBackend:
 
 
 class TestIBMInternalHelpers:
+    def test_public_create_session_builds_session_and_refreshes_primitives(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._execution_mode = "session"
+
+        calls = []
+        executor._create_session = lambda: calls.append("create_session")
+        executor._refresh_primitives = lambda: calls.append("refresh_primitives")
+
+        executor.create_session()
+
+        assert calls == ["create_session", "refresh_primitives"]
+
+    def test_public_create_session_is_a_noop_without_a_managed_session(self):
+        """Job-mode execution (or a non-IBM backend) never owns a session -
+        create_session() must not build one."""
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._execution_mode = "job"
+
+        calls = []
+        executor._create_session = lambda: calls.append("create_session")
+        executor._refresh_primitives = lambda: calls.append("refresh_primitives")
+
+        executor.create_session()
+
+        assert calls == []
+
     def test_ensure_session_active_recreates_expired_session(self):
         executor = object.__new__(QiskitExecutor)
         executor._ibm_quantum_backend = True
@@ -381,8 +429,8 @@ class TestIBMInternalHelpers:
         old_session = object()
         new_session = object()
         executor._session = old_session
-        executor._estimator = "stale_estimator"
-        executor._sampler = "stale_sampler"
+        executor._raw_estimator = "stale_estimator"
+        executor._raw_sampler = "stale_sampler"
 
         def _fake_ensure_session_active():
             executor._session = new_session
@@ -391,8 +439,8 @@ class TestIBMInternalHelpers:
 
         def _fake_refresh_primitives():
             refreshed["called"] = True
-            executor._estimator = "fresh_estimator"
-            executor._sampler = "fresh_sampler"
+            executor._raw_estimator = "fresh_estimator"
+            executor._raw_sampler = "fresh_sampler"
 
         executor._ensure_session_active = _fake_ensure_session_active
         executor._refresh_primitives = _fake_refresh_primitives
@@ -400,15 +448,15 @@ class TestIBMInternalHelpers:
         executor._ensure_primitives_current()
 
         assert refreshed["called"] is True
-        assert executor._estimator == "fresh_estimator"
-        assert executor._sampler == "fresh_sampler"
+        assert executor._raw_estimator == "fresh_estimator"
+        assert executor._raw_sampler == "fresh_sampler"
 
     def test_ensure_primitives_current_skips_rebuild_when_session_unchanged(self):
         executor = object.__new__(QiskitExecutor)
         session = object()
         executor._session = session
-        executor._estimator = "existing_estimator"
-        executor._sampler = "existing_sampler"
+        executor._raw_estimator = "existing_estimator"
+        executor._raw_sampler = "existing_sampler"
 
         executor._ensure_session_active = lambda: None  # session stays the same object
 
@@ -422,16 +470,16 @@ class TestIBMInternalHelpers:
         executor._ensure_primitives_current()
 
         assert refreshed["called"] is False
-        assert executor._estimator == "existing_estimator"
-        assert executor._sampler == "existing_sampler"
+        assert executor._raw_estimator == "existing_estimator"
+        assert executor._raw_sampler == "existing_sampler"
 
     def test_ensure_primitives_current_builds_on_first_use(self):
         """No prior session/primitives at all (``None``) still triggers a build,
         matching what ``_ensure_runtime_primitives`` already covered."""
         executor = object.__new__(QiskitExecutor)
         executor._session = None
-        executor._estimator = None
-        executor._sampler = None
+        executor._raw_estimator = None
+        executor._raw_sampler = None
 
         executor._ensure_session_active = lambda: None
 
@@ -534,6 +582,57 @@ class TestIBMInternalHelpers:
         assert primitive.kwargs["backend"] is executor._backend
         assert primitive.kwargs["options"] is not None
         assert primitive.kwargs["options"].resilience_level == 1
+
+
+class TestPrimitiveWrapperAcrossSessionRenewal:
+    """The wrapper hook (see ``primitive_wrapper`` on ``QiskitExecutor``) must
+    be re-applied whenever a runtime session renewal rebuilds the raw
+    primitive - not just once at construction - so a host's retry/caching/
+    seeding decorations keep working across a long-running IBM Quantum loop
+    that never re-enters ``with``."""
+
+    class _Tagged:
+        def __init__(self, primitive, kind):
+            self.primitive = primitive
+            self.kind = kind
+
+    def test_estimator_wrapper_reapplied_after_simulated_session_renewal(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._primitive_wrapper = self._Tagged
+        executor._raw_estimator = FakeRunEstimator("stale")
+        executor._estimator = self._Tagged(executor._raw_estimator, "estimator")
+
+        def _fake_ensure_primitives_current():
+            executor._raw_estimator = FakeRunEstimator("fresh")
+            executor._estimator = executor._decorate_primitive(
+                executor._raw_estimator, "estimator"
+            )
+
+        executor._ensure_primitives_current = _fake_ensure_primitives_current
+
+        result = executor.estimator
+
+        assert isinstance(result, self._Tagged)
+        assert result.primitive.label == "fresh"
+
+    def test_sampler_wrapper_reapplied_after_simulated_session_renewal(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._primitive_wrapper = self._Tagged
+        executor._raw_sampler = FakeRunSampler("stale")
+        executor._sampler = self._Tagged(executor._raw_sampler, "sampler")
+
+        def _fake_ensure_primitives_current():
+            executor._raw_sampler = FakeRunSampler("fresh")
+            executor._sampler = executor._decorate_primitive(executor._raw_sampler, "sampler")
+
+        executor._ensure_primitives_current = _fake_ensure_primitives_current
+
+        result = executor.sampler
+
+        assert isinstance(result, self._Tagged)
+        assert result.primitive.label == "fresh"
 
 
 # ---------------------------------------------------------------------------

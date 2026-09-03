@@ -3,7 +3,12 @@ import logging
 import numpy as np
 import pytest
 from qiskit.circuit import Parameter
-from qiskit.primitives import StatevectorEstimator, StatevectorSampler
+from qiskit.primitives import (
+    BaseEstimatorV2,
+    BaseSamplerV2,
+    StatevectorEstimator,
+    StatevectorSampler,
+)
 
 from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameters
@@ -740,6 +745,131 @@ class TestExecutorInternalHelpers:
 
         native_operator = QiskitOperator(generic_operator)
         assert executor._transpile_operator(native_operator) is native_operator
+
+
+class _TaggedEstimator(BaseEstimatorV2):
+    """Minimal V2 Estimator wrapper for TestPrimitiveWrapperHook.
+
+    Must genuinely subclass BaseEstimatorV2 (not just duck-type run()):
+    qc_executor's own OpTree evaluation dispatches on isinstance() of
+    BaseEstimatorV1/V2 - a wrapper's return value has to satisfy that too,
+    exactly as sQUlearn's ExecutorEstimatorV1/V2 already do.
+    """
+
+    def __init__(self, primitive):
+        self.primitive = primitive
+        self.run_count = 0
+
+    def run(self, pubs, *, precision=None):
+        self.run_count += 1
+        return self.primitive.run(pubs, precision=precision)
+
+    @property
+    def options(self):
+        return self.primitive.options
+
+
+class _TaggedSampler(BaseSamplerV2):
+    """Minimal V2 Sampler wrapper - see :class:`_TaggedEstimator`."""
+
+    def __init__(self, primitive):
+        self.primitive = primitive
+        self.run_count = 0
+
+    def run(self, pubs, *, shots=None):
+        self.run_count += 1
+        return self.primitive.run(pubs, shots=shots)
+
+    @property
+    def options(self):
+        return self.primitive.options
+
+
+def _tag_primitive(primitive, kind):
+    return _TaggedEstimator(primitive) if kind == "estimator" else _TaggedSampler(primitive)
+
+
+class TestPrimitiveWrapperHook:
+    """``primitive_wrapper`` lets a host application decorate every primitive
+    this executor builds (retry, caching, seeding, ...) without ever holding
+    a primitive itself - the seam host applications are meant to extend
+    qc_executor through, instead of re-implementing execution around it."""
+
+    def test_no_wrapper_leaves_primitives_unchanged(self):
+        executor = QiskitExecutor()
+        assert executor.estimator is executor.raw_estimator
+        assert executor.sampler is executor.raw_sampler
+
+    def test_wrapper_applied_on_initial_construction(self):
+        executor = QiskitExecutor(primitive_wrapper=_tag_primitive)
+
+        assert isinstance(executor.estimator, _TaggedEstimator)
+        assert isinstance(executor.sampler, _TaggedSampler)
+        assert executor.estimator.primitive is executor.raw_estimator
+        assert executor.sampler.primitive is executor.raw_sampler
+
+    def test_wrapper_is_used_for_actual_execution(self):
+        """The decorated primitive, not the raw one, must be what
+        expectation_value()/sample() actually call - otherwise a host's
+        retry/caching wrapper would silently never run for the native path."""
+        from qiskit.circuit import QuantumCircuit as QiskitQC
+        from qiskit.quantum_info import SparsePauliOp
+
+        executor = QiskitExecutor(backend="statevector", primitive_wrapper=_tag_primitive)
+        qc = QiskitQC(1)
+        qc.h(0)
+        obs = SparsePauliOp("Z")
+
+        result = executor.expectation_value(qc, obs)
+
+        assert executor.estimator.run_count == 1
+        assert np.isclose(result, 0.0, atol=1e-10)  # <+|Z|+> = 0
+
+    def test_wrapper_reapplied_after_session_refresh(self):
+        """A session renewal rebuilds the raw primitive; the wrapper must be
+        re-applied to the fresh one, not left wrapping the stale primitive."""
+        executor = object.__new__(QiskitExecutor)
+        executor._primitive_wrapper = _tag_primitive
+        executor._runtime_primitives_version = "v2"
+        executor._options = None
+        executor._backend = None
+        executor._session = None
+        executor._ibm_quantum_backend = False
+
+        executor._ensure_session_active = lambda: None
+        first_raw, second_raw = StatevectorEstimator(), StatevectorEstimator()
+        raws = iter([first_raw, second_raw])
+        executor._create_runtime_estimator = lambda: next(raws)
+        executor._create_runtime_sampler = lambda: StatevectorSampler()
+
+        executor._refresh_primitives()
+        first_wrapped = executor.estimator
+        assert first_wrapped.primitive is first_raw
+
+        executor._refresh_primitives()
+        second_wrapped = executor.estimator
+        assert second_wrapped.primitive is second_raw
+        assert second_wrapped is not first_wrapped
+
+    def test_raw_estimator_and_sampler_are_never_wrapped(self):
+        executor = QiskitExecutor(backend="statevector", primitive_wrapper=_tag_primitive)
+        assert not isinstance(executor.raw_estimator, (_TaggedEstimator, _TaggedSampler))
+        assert not isinstance(executor.raw_sampler, (_TaggedEstimator, _TaggedSampler))
+
+    def test_none_primitive_is_not_passed_to_wrapper(self):
+        """A branch that legitimately leaves a primitive unset (e.g. only a
+        Sampler injected, no context to build a counterpart Estimator) must
+        not hand None to the wrapper."""
+        calls = []
+
+        def wrapper(primitive, kind):
+            calls.append((primitive, kind))
+            return _tag_primitive(primitive, kind)
+
+        executor = QiskitExecutor(backend=StatevectorSampler(), primitive_wrapper=wrapper)
+
+        assert executor.raw_estimator is not None  # auto-created counterpart
+        assert all(primitive is not None for primitive, _kind in calls)
 
 
 # =============================================================================

@@ -30,6 +30,7 @@ class TestQiskitExecutor:
     def test_get_accepted_backend_aliases(self):
         aliases = QiskitExecutor.get_accepted_backend_aliases()
         assert "statevector" in aliases
+        assert "aer_statevector" in aliases
         assert "aer" in aliases
 
     def test_init_default(self):
@@ -78,16 +79,42 @@ class TestQiskitExecutor:
         with pytest.raises(ValueError, match="cannot be combined with injected"):
             QiskitExecutor(backend=StatevectorEstimator(), options={"resilience_level": 1})
 
-    @pytest.mark.parametrize("backend_name", ["statevector", "aer"])
-    def test_shot_based_string_backends_use_aer(self, backend_name):
-        """Shot-based string backends should create Aer-backed primitives."""
+    def test_shot_based_aer_string_backend_uses_aer(self):
+        """The "aer" string backend should create Aer-backed primitives."""
         pytest.importorskip("qiskit_aer")
 
-        executor = QiskitExecutor(backend=backend_name, shots=32, seed=0)
+        executor = QiskitExecutor(backend="aer", shots=32, seed=0)
 
         assert executor._backend is not None
         assert executor._estimator is not None
         assert executor._sampler is not None
+
+    def test_shot_based_aer_statevector_string_backend_uses_aer(self):
+        """"aer_statevector" is the real-Aer-sampling counterpart to
+        "statevector"'s analytic noise model - same exact state, different
+        (both unbiased) estimator."""
+        pytest.importorskip("qiskit_aer")
+
+        executor = QiskitExecutor(backend="aer_statevector", shots=32, seed=0)
+
+        assert executor._backend is not None
+        assert executor._backend.name == "aer_simulator_statevector"
+        assert isinstance(executor._estimator, BaseEstimatorV2)
+        assert not isinstance(executor._estimator, StatevectorEstimator)
+        assert isinstance(executor._sampler, BaseSamplerV2)
+        assert not isinstance(executor._sampler, StatevectorSampler)
+
+    def test_shot_based_statevector_string_backend_stays_exact_reference(self):
+        """"statevector" never needs Aer, even with shots set - it stays on
+        Qiskit's reference primitives, applying shots as an analytic noise
+        model (default_precision/default_shots) instead."""
+        executor = QiskitExecutor(backend="statevector", shots=32, seed=0)
+
+        assert executor._backend is None
+        assert isinstance(executor._estimator, StatevectorEstimator)
+        assert isinstance(executor._sampler, StatevectorSampler)
+        assert executor._estimator.default_precision == pytest.approx(1 / 32**0.5)
+        assert executor._sampler.default_shots == 32
 
     # ========================================================================
     # Logging Tests
@@ -787,6 +814,57 @@ class _TaggedSampler(BaseSamplerV2):
 
 def _tag_primitive(primitive, kind):
     return _TaggedEstimator(primitive) if kind == "estimator" else _TaggedSampler(primitive)
+
+
+class TestStatevectorPrimitiveFamily:
+    """"statevector" and "aer_statevector" target the same exact state
+    through two different (both unbiased) shot-based estimators - Qiskit's
+    analytic reference-primitive noise model vs. real Aer sampling."""
+
+    def test_statevector_exact_matches_analytic_expectation_value(self):
+        qc = _build_circuit(1, [("h", [0])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor(backend="statevector")
+        result = executor.expectation_value(qc, operator)
+
+        assert np.isclose(result, 0.0, atol=1e-10)  # <+|Z|+> = 0
+
+    def test_statevector_with_shots_applies_analytic_precision(self):
+        """Shots on "statevector" only ever configure default_precision - the
+        analytic noise model - never switch to Aer; see the construction-level
+        assertions in TestQiskitExecutor for the precision value itself."""
+        qc = _build_circuit(1, [("h", [0])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor(backend="statevector", shots=256, seed=0)
+        result = executor.expectation_value(qc, operator)
+
+        assert np.isclose(result, 0.0, atol=0.3)  # noisy but centered at 0
+        assert executor._backend is None
+
+    def test_aer_statevector_matches_exact_expectation_value_within_shot_noise(self):
+        pytest.importorskip("qiskit_aer")
+        qc = _build_circuit(1, [("h", [0])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor(backend="aer_statevector", shots=8192, seed=0)
+        result = executor.expectation_value(qc, operator)
+
+        assert np.isclose(result, 0.0, atol=0.05)
+
+    def test_aer_statevector_and_statevector_agree_in_the_exact_limit(self):
+        """With no shots configured, both aliases target the exact same
+        state - only their construction path (Aer vs. reference primitive)
+        differs."""
+        qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        operator = QuantumOperator(["ZZ"], [1.0])
+
+        exact = QiskitExecutor(backend="statevector").expectation_value(qc, operator)
+        aer_exact = QiskitExecutor(backend="aer_statevector").expectation_value(qc, operator)
+
+        assert np.isclose(exact, 1.0, atol=1e-10)
+        assert np.isclose(aer_exact, 1.0, atol=1e-10)
 
 
 class TestPrimitiveWrapperHook:

@@ -410,14 +410,23 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
 class QiskitExecutor(ExecutorBase):
     """Class for executing Qiskit circuits.
 
-    Supports local simulation (``"statevector"``, ``"aer"``) **and** execution
-    on real IBM Quantum hardware or noise-aware fake backends via
+    Supports local simulation (``"statevector"``, ``"aer_statevector"``,
+    ``"aer"``) **and** execution on real IBM Quantum hardware or noise-aware
+    fake backends via
     `qiskit-ibm-runtime <https://github.com/Qiskit/qiskit-ibm-runtime>`_.
 
     The ``backend`` parameter is the single entry point and accepts all
     supported configurations:
 
-    * ``"statevector"`` / ``"aer"`` — local simulation string shortcuts.
+    * ``"statevector"`` — Qiskit's reference primitives
+      (``StatevectorEstimator``/``StatevectorSampler``): exact for
+      ``shots=None``, otherwise an analytic Gaussian noise model on top of
+      the exact statevector.
+    * ``"aer_statevector"`` — real shot-based sampling of the statevector via
+      ``AerSimulator(method="statevector")``; a different, not necessarily
+      numerically equivalent estimator/sampler than ``"statevector"`` with
+      shots set, despite both targeting the same exact state.
+    * ``"aer"`` — the general-purpose ``AerSimulator``.
     * A :class:`~qiskit.providers.Backend` / ``BackendV2`` instance (e.g.
       from ``QiskitRuntimeService`` or ``fake_provider``).
     * A ``qiskit_ibm_runtime.Session`` or ``Batch`` — ownership is transferred
@@ -434,7 +443,8 @@ class QiskitExecutor(ExecutorBase):
 
     Args:
         backend: Backend to use for execution.  Accepts:
-            ``"statevector"`` (default) or ``"aer"`` string shortcuts, a Qiskit
+            ``"statevector"`` (default), ``"aer_statevector"`` or ``"aer"``
+            string shortcuts, a Qiskit
             :class:`~qiskit.providers.Backend` instance (IBM hardware or fake),
             a ``qiskit_ibm_runtime.Session`` / ``Batch``, or a pre-configured
             Qiskit primitive (``BaseSamplerV1/V2`` / ``BaseEstimatorV1/V2``).
@@ -652,17 +662,19 @@ class QiskitExecutor(ExecutorBase):
         # ── 3. Local simulator backends (string shortcuts) ────────────────
         elif isinstance(backend, str):
             if backend == "statevector":
-                if shots is None:
-                    # Exact statevector mode — no Aer required
-                    self._estimator = StatevectorEstimator()
-                    self._sampler = StatevectorSampler()
-                    self._backend = None
-                else:
-                    # Shot-based statevector via Aer
-                    aer_simulator_cls = _load_aer_simulator()
-                    self._backend = aer_simulator_cls(method="statevector")
-                    self._estimator = BackendEstimator(backend=self._backend)
-                    self._sampler = BackendSampler(backend=self._backend)
+                # Qiskit's reference primitives - exact for shots=None, else an
+                # analytic Gaussian noise model on top of the exact statevector
+                # (default_precision / default_shots). No Aer required.
+                self._estimator = StatevectorEstimator()
+                self._sampler = StatevectorSampler()
+                self._backend = None
+            elif backend == "aer_statevector":
+                # Real shot-based sampling of the statevector via Aer, as
+                # opposed to "statevector"'s analytic noise model.
+                aer_simulator_cls = _load_aer_simulator()
+                self._backend = aer_simulator_cls(method="statevector")
+                self._estimator = BackendEstimator(backend=self._backend)
+                self._sampler = BackendSampler(backend=self._backend)
             elif backend == "aer":
                 aer_simulator_cls = _load_aer_simulator()
                 self._backend = aer_simulator_cls()
@@ -671,7 +683,8 @@ class QiskitExecutor(ExecutorBase):
             else:
                 raise ValueError(
                     f"Unknown backend string: {backend!r}. "
-                    "Use 'statevector', 'aer', or pass a Backend / Session instance."
+                    "Use 'statevector', 'aer_statevector', 'aer', or pass a "
+                    "Backend / Session instance."
                 )
 
         # ── 4. Backend object (IBMBackend / FakeBackend / any BackendV2) ──
@@ -729,7 +742,8 @@ class QiskitExecutor(ExecutorBase):
 
         else:
             raise TypeError(
-                f"'backend' must be a string ('statevector', 'aer'), a Qiskit Backend "
+                f"'backend' must be a string ('statevector', 'aer_statevector', 'aer'), "
+                f"a Qiskit Backend "
                 f"instance, a qiskit-ibm-runtime Session/Batch, or a Qiskit primitive "
                 f"(BaseSamplerV1/V2 / BaseEstimatorV1/V2). Got {type(backend)!r}."
             )
@@ -772,8 +786,7 @@ class QiskitExecutor(ExecutorBase):
         Estimators express this as precision (``1 / sqrt(shots)``); samplers
         and V1-style primitives take the shot count directly. Left untouched
         when ``self._shots`` is ``None`` (exact simulation, already each
-        primitive's own default) or the primitive has no shot-related option
-        at all (an exact ``StatevectorEstimator``/``StatevectorSampler``).
+        primitive's own default).
         """
         if primitive is None or self._shots is None:
             return
@@ -783,6 +796,12 @@ class QiskitExecutor(ExecutorBase):
             primitive.set_options(execution=execution)
         elif isinstance(primitive, (BaseEstimatorV1, BaseSamplerV1)):
             primitive.set_options(shots=self._shots)
+        elif isinstance(primitive, StatevectorEstimator):
+            # No .options - default_precision is a plain, directly settable
+            # attribute (backed by _default_precision).
+            primitive._default_precision = 1.0 / self._shots**0.5
+        elif isinstance(primitive, StatevectorSampler):
+            primitive._default_shots = self._shots
         elif hasattr(primitive, "options"):
             if hasattr(primitive.options, "default_precision"):
                 primitive.options.default_precision = 1.0 / self._shots**0.5
@@ -1702,4 +1721,4 @@ class QiskitExecutor(ExecutorBase):
     @classmethod
     def get_accepted_backend_aliases(cls) -> list[str]:
         """Return string aliases accepted by this executor in ``Executor.create``."""
-        return ["statevector", "aer"]
+        return ["statevector", "aer_statevector", "aer"]

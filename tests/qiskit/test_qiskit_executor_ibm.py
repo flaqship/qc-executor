@@ -237,9 +237,7 @@ class TestQiskitExecutorFakeBackend:
         ``shots`` argument entirely for runtime/backend primitives."""
         backend = _get_fake_backend()
         executor = QiskitExecutor(backend=backend, shots=2048)
-        assert executor.estimator.options.default_precision == pytest.approx(
-            1.0 / 2048**0.5
-        )
+        assert executor.estimator.options.default_precision == pytest.approx(1.0 / 2048**0.5)
 
     def test_sampler_shots_reflects_constructor_argument(self):
         backend = _get_fake_backend()

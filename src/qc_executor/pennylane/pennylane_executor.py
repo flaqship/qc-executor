@@ -175,6 +175,8 @@ class PennyLaneExecutor(ExecutorBase):
             self._device_kwargs = {}
             self._custom_device = True
             self._device: Device = backend
+            # Read the device's own shots back instead of leaving self._shots at None
+            self._shots = self._read_shots_from_device(backend)
 
         self._logger.debug(
             "PennyLaneExecutor initialised (shots=%s, seed=%s, device=%s)",
@@ -190,8 +192,35 @@ class PennyLaneExecutor(ExecutorBase):
 
     @shots.setter
     def shots(self, value: int | None) -> None:
-        """Set the number of shots."""
-        raise NotImplementedError
+        """Set the number of shots for future executions.
+
+        The device itself is built once during initialization and never
+        rebuilt, so this does not touch it. Instead,
+        every QNode built by ``_expectation_value``, ``_expectation_value_
+        derivatives`` and ``_sample`` is wrapped in :func:`pennylane.set_shots`
+        with the current value of ``self._shots`` at call time - so a change
+        here takes effect on the next execution without rebuilding the device
+        or any already-returned result.
+        """
+        self._shots = value
+
+    @staticmethod
+    def _read_shots_from_device(device: Device) -> int | None:
+        """Read the shots configured on an already-built device.
+
+        Args:
+            device: The PennyLane device to inspect.
+
+        Returns:
+            int | None: The device's shot count, or ``None`` for analytic mode
+                or if the device exposes no usable shots information.
+        """
+        device_shots = getattr(device, "shots", None)
+        if isinstance(device_shots, qml.measurements.Shots):
+            return device_shots.total_shots
+        if isinstance(device_shots, int):
+            return device_shots
+        return None
 
     @property
     def remote(self) -> bool:
@@ -324,6 +353,10 @@ class PennyLaneExecutor(ExecutorBase):
             ):
                 _circ.build_pennylane_circuit()(*args)
                 return _obs.build_pennylane_observable()(*args[len(_circ.parameter_names) :])
+
+            # Bind the current shots at call time (see the shots setter) rather
+            # than relying on whatever the device was constructed with.
+            circuit_func = qml.set_shots(circuit_func, shots=self._shots)
 
             observable_values = []
             for cp in circuit_parameter_tuples:
@@ -536,6 +569,8 @@ class PennyLaneExecutor(ExecutorBase):
             pennylane_function = qml.QNode(
                 circuit_func, self._device, diff_method="best", max_diff=len(todo)
             )
+            # See the shots setter: bind the current shots at call time.
+            pennylane_function = qml.set_shots(pennylane_function, shots=self._shots)
 
             if todo[0] in ("expectation_value", ""):
                 result = np.real_if_close(
@@ -605,6 +640,9 @@ class PennyLaneExecutor(ExecutorBase):
                 # has to be replaced by measurements
                 return qml.sample(wires=list(range(_num_qubits)))
 
+            # See the shots setter: bind the current shots at call time.
+            circuit_func = qml.set_shots(circuit_func, shots=self._shots)
+
             for cp in circuit_parameter_tuples:
                 samples = circuit_func(*cp)
                 # Convert samples to bitstrings
@@ -633,7 +671,6 @@ class PennyLaneExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         num_qubits = pennylane_circuits[0].num_qubits
         self._validate_device_wires(num_qubits)

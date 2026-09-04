@@ -75,8 +75,14 @@ class QulacsExecutor(ExecutorBase):
 
     @shots.setter
     def shots(self, value: int | None) -> None:
-        """Set the number of shots."""
-        raise NotImplementedError
+        """Set the number of shots for future ``sample()`` calls.
+
+        Qulacs has no persistent device object to keep in sync - the
+        expectation-value and derivative paths are fully analytic and
+        unaffected by this value; only ``_sample`` reads ``self._shots``,
+        directly, at call time.
+        """
+        self._shots = value
 
     @property
     def remote(self) -> bool:

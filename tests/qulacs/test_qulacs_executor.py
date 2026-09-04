@@ -28,11 +28,16 @@ class TestQulacsExecutorMetadata:
         assert executor.shots == 128
         assert executor.remote is False
 
-    def test_shots_setter_raises(self):
-        """Test that setting shots via property is not implemented."""
+    def test_shots_setter_updates_shots(self):
+        """Test that the shots setter actually changes the reported shot count."""
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError):
-            executor.shots = 64
+        assert executor.shots is None
+
+        executor.shots = 64
+        assert executor.shots == 64
+
+        executor.shots = None
+        assert executor.shots is None
 
 
 class TestQulacsExecutorLoggingAndCache:

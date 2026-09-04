@@ -90,7 +90,7 @@ class TestQiskitExecutor:
         assert executor._sampler is not None
 
     def test_shot_based_aer_statevector_string_backend_uses_aer(self):
-        """"aer_statevector" is the real-Aer-sampling counterpart to
+        """ "aer_statevector" is the real-Aer-sampling counterpart to
         "statevector"'s analytic noise model - same exact state, different
         (both unbiased) estimator."""
         pytest.importorskip("qiskit_aer")
@@ -105,7 +105,7 @@ class TestQiskitExecutor:
         assert not isinstance(executor._sampler, StatevectorSampler)
 
     def test_shot_based_statevector_string_backend_stays_exact_reference(self):
-        """"statevector" never needs Aer, even with shots set - it stays on
+        """ "statevector" never needs Aer, even with shots set - it stays on
         Qiskit's reference primitives, applying shots as an analytic noise
         model (default_precision/default_shots) instead."""
         executor = QiskitExecutor(backend="statevector", shots=32, seed=0)
@@ -911,8 +911,8 @@ class TestInjectedPrimitiveShotsReadback:
 
     def test_reads_shots_from_backend_estimator_v2_precision(self):
         pytest.importorskip("qiskit_aer")
-        from qiskit_aer import Aer
         from qiskit.primitives import BackendEstimatorV2
+        from qiskit_aer import Aer
 
         backend = Aer.get_backend("aer_simulator")
         estimator = BackendEstimatorV2(backend=backend)
@@ -974,7 +974,7 @@ class TestInjectedPrimitiveShotsReadback:
 
 
 class TestStatevectorPrimitiveFamily:
-    """"statevector" and "aer_statevector" target the same exact state
+    """ "statevector" and "aer_statevector" target the same exact state
     through two different (both unbiased) shot-based estimators - Qiskit's
     analytic reference-primitive noise model vs. real Aer sampling."""
 

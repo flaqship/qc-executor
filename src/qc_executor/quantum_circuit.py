@@ -58,7 +58,12 @@ class QuantumCircuit(QuantumCircuitBase):
         }
     )
 
-    def __init__(self, num_qubits: int, num_clbits: int = 0, _native_circuit: QiskitQuantumCircuit | None = None):
+    def __init__(
+        self,
+        num_qubits: int,
+        num_clbits: int = 0,
+        _native_circuit: QiskitQuantumCircuit | None = None,
+    ):
         super().__init__(num_qubits)
         self._qiskit_circuit: QiskitQuantumCircuit = (
             _native_circuit
@@ -306,9 +311,7 @@ class QuantumCircuit(QuantumCircuitBase):
                 f"a circuit with {self.num_clbits} classical bits."
             )
 
-        return self._qiskit_circuit.if_test(
-            (self._qiskit_circuit.clbits[clbit], value)
-        )
+        return self._qiskit_circuit.if_test((self._qiskit_circuit.clbits[clbit], value))
 
     # pauli_string, pauli_evolution and controlled_pauli_evolution are
     # inherited from QuantumCircuitBase.

@@ -536,12 +536,16 @@ class TestPennylaneProperties:
         executor = PennyLaneExecutor(shots=500)
         assert executor.shots == 500
 
-    def test_shots_property_setter_raises_error(self):
-        """Test that shots setter raises NotImplementedError."""
+    def test_shots_property_setter_updates_shots(self):
+        """Test that shots setter actually changes the reported shot count."""
         executor = PennyLaneExecutor()
+        assert executor.shots is None
 
-        with pytest.raises(NotImplementedError):
-            executor.shots = 1000
+        executor.shots = 1000
+        assert executor.shots == 1000
+
+        executor.shots = None
+        assert executor.shots is None
 
     def test_remote_property(self):
         """Test that remote property returns False."""

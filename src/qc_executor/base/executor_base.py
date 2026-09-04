@@ -539,7 +539,7 @@ class ExecutorBase(ABC):
 
     def probabilities(
         self, circuit: QuantumCircuitBase, *, cutoff: float = 0.0, **parameters
-    ) -> Dict[int, float]:
+    ) -> Dict[int, float] | List[Dict[int, float]]:
         """Compute the measurement probabilities of a circuit.
 
         With ``shots=None`` the probabilities are exact (derived from the
@@ -553,35 +553,58 @@ class ExecutorBase(ABC):
                 natively; pass a larger value to keep the result sparse for
                 many qubits.
             parameters: Values for the free parameters of the circuit given as
-                keyword arguments.
+                keyword arguments. Passing more than one parameter set (the
+                same batching convention as :meth:`expectation_value`) is
+                supported on backends whose :meth:`statevector`/:meth:`sample`
+                support it.
 
         Returns:
-            Dict[int, float]: Mapping of basis-state index (big-endian
-            ordering, qubit 0 = most significant bit) to probability.
+            Dict[int, float] | List[Dict[int, float]]: Mapping of basis-state
+            index (big-endian ordering, qubit 0 = most significant bit) to
+            probability - one mapping for a single parameter set, or a list
+            of mappings, one per set, for a batch of parameter sets.
 
         Raises:
-            ValueError: If a list of circuits or multiple parameter sets are
-                passed.
+            ValueError: If a list of circuits is passed.
         """
         if isinstance(circuit, list):
             raise ValueError("probabilities supports a single circuit only")
         if self._shots is None:
             state_vector = np.asarray(self.statevector(circuit, **parameters))
-            probability_values = np.abs(state_vector) ** 2
-            return {
-                index: float(value)
-                for index, value in enumerate(probability_values)
-                if value > cutoff
-            }
+            if state_vector.ndim > 1:
+                return [self._probabilities_from_statevector(sv, cutoff) for sv in state_vector]
+            return self._probabilities_from_statevector(state_vector, cutoff)
         counts = self.sample(circuit, **parameters)
-        # unwrap the single-set case since some backends return one counts dict per parameter set.
+        # Some backends return one counts dict per parameter set even for a
+        # single set (a length-1 list); unwrap that case so a single
+        # parameter set always yields a single dict here too, regardless of
+        # backend. More than one entry is a genuine batch.
         if isinstance(counts, list):
-            if len(counts) != 1:
-                raise ValueError("probabilities supports a single parameter set only")
-            counts = counts[0]
+            if len(counts) == 1:
+                counts = counts[0]
+            else:
+                return [self._probabilities_from_counts(c, cutoff) for c in counts]
+        return self._probabilities_from_counts(counts, cutoff)
+
+    @staticmethod
+    def _probabilities_from_statevector(
+        state_vector: np.ndarray, cutoff: float
+    ) -> Dict[int, float]:
+        """Convert one statevector to a probability mapping, pruned at ``cutoff``."""
+        probability_values = np.abs(state_vector) ** 2
+        return {
+            index: float(value) for index, value in enumerate(probability_values) if value > cutoff
+        }
+
+    @staticmethod
+    def _probabilities_from_counts(counts: Dict[str, int], cutoff: float) -> Dict[int, float]:
+        """Convert one bitstring-count mapping to a probability mapping, pruned at ``cutoff``.
+
+        Prunes with the same threshold as :meth:`_probabilities_from_statevector`,
+        so that switching ``shots`` on or off does not change which entries
+        are reported.
+        """
         total = sum(counts.values())
-        # Prune with the same threshold as the exact branch, so that switching
-        # `shots` on or off does not change which entries are reported.
         probabilities = ((int(str(bits), 2), count / total) for bits, count in counts.items())
         return {index: value for index, value in probabilities if value > cutoff}
 

@@ -493,6 +493,143 @@ class TestQiskitExecutor:
         assert np.allclose(result, 1.0)
 
 
+class TestQiskitExecutorParameterBatching:
+    """Passing several parameter sets at once via an extra leading axis - the
+    same convention the PennyLane and Qulacs backends use - now works and
+    returns one result per set. Previously the same input silently returned
+    the wrong value (only the first set), or raised for statevector()."""
+
+    def test_expectation_value_batch_of_parameter_sets(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value(qc, operator, x=[[v] for v in x_values])
+        individually = [executor.expectation_value(qc, operator, x=[v]) for v in x_values]
+
+        assert np.shape(batched) == (3,)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_expectation_value_flat_list_previously_silently_wrong(self):
+        """A flat list for a 1-dimensional parameter used to be misread as
+        one value (arr[p.index] with p.index==0 just picked element 0),
+        silently discarding the rest without any error. It is now a batch,
+        exactly as it already is for the PennyLane and Qulacs backends."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value(qc, operator, x=x_values)
+        individually = [executor.expectation_value(qc, operator, x=[v]) for v in x_values]
+
+        assert np.shape(batched) == (3,)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_expectation_value_single_set_unaffected_by_batching_support(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        result = executor.expectation_value(qc, operator, x=[0.3])
+
+        assert np.shape(result) == ()
+
+    def test_expectation_value_batch_with_list_of_circuits(self):
+        """The parameter-set batch axis and the circuit-list axis are
+        independent: circuits lead, batch trails."""
+        x = Parameters("x", 1)
+        qc1 = _build_circuit(1, [("ry", [0, x[0]])])
+        qc2 = _build_circuit(1, [("rx", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5]
+        batched = executor.expectation_value([qc1, qc2], operator, x=[[v] for v in x_values])
+
+        assert np.shape(batched) == (2, 2)
+        for row, qc in zip(batched, (qc1, qc2)):
+            expected = [executor.expectation_value(qc, operator, x=[v]) for v in x_values]
+            assert np.allclose(row, expected, atol=1e-10)
+
+    def test_derivatives_batch_of_parameter_sets(self):
+        """The batch axis leads (position 0); a pre-existing, batching-
+        unrelated quirk of OpTreeDerivative.differentiate (it always wraps
+        its result in a length-1 structural list) is preserved unchanged as
+        the trailing axis - the same shape a single, unbatched call already
+        has, just with the new batch axis prepended."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value_derivatives(
+            qc, operator, "x", x=[[v] for v in x_values]
+        )
+        individually = [
+            executor.expectation_value_derivatives(qc, operator, "x", x=[v]) for v in x_values
+        ]
+
+        assert np.shape(batched) == (3, 1)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_derivatives_batch_disagreeing_batch_sizes_raise(self):
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+        executor = QiskitExecutor(backend="statevector")
+
+        with pytest.raises(ValueError, match="must share the same batch size"):
+            executor.expectation_value_derivatives(
+                qc, operator, "x", x=[[0.1], [0.2], [0.3]], p_obs=[[1.0], [2.0]]
+            )
+
+    def test_statevector_batch_of_parameter_sets(self):
+        """Previously raised TypeError: Cannot assign object ([...]) object
+        to parameter - a hard crash rather than a silent wrong value, since
+        statevector() binds parameters directly instead of going through
+        OpTree."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.statevector(qc, x=[[v] for v in x_values])
+        individually = np.array([executor.statevector(qc, x=[v]) for v in x_values])
+
+        assert batched.shape == (3, 2)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_sample_batch_of_parameter_sets(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        executor = QiskitExecutor(backend="aer", shots=2000, seed=0)
+
+        result = executor.sample(qc, x=[[0.0], [np.pi]])
+
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0] == {"0": 2000}
+        assert result[1]["1"] >= 1900
+
+    def test_probabilities_exact_batch_of_parameter_sets(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.probabilities(qc, x=[[v] for v in x_values])
+        individually = [executor.probabilities(qc, x=[v]) for v in x_values]
+
+        assert batched == individually
+
+
 # =============================================================================
 # Parameter vs ParameterVector compatibility tests
 #
@@ -682,13 +819,19 @@ class TestExecutorInternalHelpers:
         assert observable_dict == {p_obs[0]: 0.3}
 
     def test_prepare_parameter_dicts_raises_for_short_parameter_vector(self):
-        """An underspecified ParameterVector should raise a clear ValueError."""
+        """An underspecified ParameterVector should raise a clear ValueError.
+
+        Parameter values are interpreted the same way as the PennyLane/Qulacs
+        backends (adjust_features): 2 values for a declared length-3 vector
+        match neither "one value per vector element" nor a recognized batch
+        shape, so the shared, backend-consistent error message is raised.
+        """
         x = Parameters("x", 3)
         qc = _build_circuit(1, [("rx", [0, x[2]])])
 
         executor = QiskitExecutor()
 
-        with pytest.raises(ValueError, match="length 2 but parameter index 2"):
+        with pytest.raises(ValueError, match="Wrong format of an input variable"):
             executor._prepare_parameter_dicts(qc, None, x=[0.1, 0.2])
 
     def test_extract_counts_supports_v2_and_v1_result_formats(self):

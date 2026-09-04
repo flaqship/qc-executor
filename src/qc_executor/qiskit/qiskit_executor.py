@@ -25,6 +25,7 @@ from qc_executor.qiskit.optree.optree import (
 )
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_operator import QiskitOperator
+from qc_executor.utils.data_preprocessing import adjust_features, resolve_parameter_batch_size
 from qc_executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
@@ -1353,9 +1354,17 @@ class QiskitExecutor(ExecutorBase):
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
         **parameters,
-    ) -> Tuple[dict, dict]:
+    ) -> Tuple[dict | List[dict], dict | List[dict]]:
         """
         Prepare separate parameter dictionaries for circuits and operators.
+
+        Each named parameter's value is interpreted with the same
+        :func:`adjust_features`-based convention the PennyLane and Qulacs
+        backends use: a value shaped like a single parameter set binds
+        directly, while a value carrying an extra leading axis is a genuine
+        batch of parameter sets. All batched parameters - across both the
+        circuit and the observable - must agree on the batch size (see
+        :func:`resolve_parameter_batch_size`).
 
         Args:
             circuit: The quantum circuit(s)
@@ -1363,7 +1372,11 @@ class QiskitExecutor(ExecutorBase):
             **parameters: Keyword arguments with parameter values
 
         Returns:
-            Tuple of (circuit_param_dict, observable_param_dict)
+            Tuple of (circuit_param_dict(s), observable_param_dict(s)) - a
+            single dict for a single parameter set, or a list of dicts for a
+            batch. This is the same ``dict | List[dict]`` convention
+            :meth:`OpTreeEvaluate.evaluate_with_estimator`/
+            ``evaluate_with_sampler`` already accept.
         """
 
         # helper to get the underlying qiskit objects
@@ -1383,41 +1396,53 @@ class QiskitExecutor(ExecutorBase):
         circuits = _collect_objects(circuit)
         observables = _collect_objects(observable) if observable is not None else []
 
-        def _build_param_dict(qiskit_objects):
+        def _param_name(p) -> str:
+            # Support both ParameterVector elements and standalone Parameters
+            return p.vector.name if hasattr(p, "vector") else p.name
+
+        def _param_dimension(p) -> int:
+            return len(p.vector) if hasattr(p, "vector") else 1
+
+        # Every named parameter referenced by any of the given circuits/
+        # observables and actually supplied, together with its dimension
+        # (vector length, or 1 for a standalone Parameter).
+        named_params: dict = {}
+        for qobj in (*circuits, *observables):
+            for p in qobj.parameters:
+                name = _param_name(p)
+                if name in parameters:
+                    named_params.setdefault(name, _param_dimension(p))
+
+        value_arrays = {
+            name: adjust_features(parameters[name], dim)[0] for name, dim in named_params.items()
+        }
+        batch_size = resolve_parameter_batch_size(arr.shape[0] for arr in value_arrays.values())
+
+        def _row(name: str, batch_index: int) -> np.ndarray:
+            arr = value_arrays[name]
+            return arr[batch_index] if arr.shape[0] > 1 else arr[0]
+
+        def _build_param_dict(qiskit_objects, batch_index: int) -> dict:
             param_dict = {}
             for qobj in qiskit_objects:
                 for p in qobj.parameters:
-                    # Support both ParameterVector elements and standalone Parameters
-                    name = p.vector.name if hasattr(p, "vector") else p.name
-                    if name not in parameters:
+                    name = _param_name(p)
+                    if name not in value_arrays:
                         continue
-                    supplied = parameters[name]
-                    # Normalize to numpy
-                    if isinstance(supplied, (list, tuple, np.ndarray)):
-                        arr = np.asarray(supplied)
-                        if hasattr(p, "index"):
-                            # ParameterVector element – bind by index
-                            try:
-                                val = arr[p.index]
-                            except (IndexError, TypeError) as exc:
-                                if arr.size == 1:
-                                    val = arr.flat[0]
-                                else:
-                                    raise ValueError(
-                                        f"Provided values for parameter '{name}' have length "
-                                        f"{arr.size} but parameter index {p.index} is requested."
-                                    ) from exc
-                        else:
-                            # Standalone Parameter – scalar expected; take first element
-                            val = arr.flat[0] if arr.size == 1 else arr
-                    else:
-                        val = supplied
-                    param_dict[p] = val
+                    row = _row(name, batch_index)
+                    param_dict[p] = row[p.index] if hasattr(p, "index") else row[0]
             return param_dict
 
-        circuit_dict = _build_param_dict(circuits)
-        observable_dict = _build_param_dict(observables) if observables else {}
-        return circuit_dict, observable_dict
+        if batch_size == 1:
+            circuit_dict = _build_param_dict(circuits, 0)
+            observable_dict = _build_param_dict(observables, 0) if observables else {}
+            return circuit_dict, observable_dict
+
+        circuit_dicts = [_build_param_dict(circuits, i) for i in range(batch_size)]
+        observable_dicts = (
+            [_build_param_dict(observables, i) for i in range(batch_size)] if observables else {}
+        )
+        return circuit_dicts, observable_dicts
 
     def _extract_counts(self, pub_result, n_qubits=None):
         """Extract measurement counts from a primitive result object.
@@ -1501,21 +1526,34 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format
         circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
-        # Prepare separate parameter dictionaries
+        # Prepare separate parameter dictionaries - a plain dict for a single
+        # parameter set, or a list of dicts (one per set) for a batch.
         circuit_dict, observable_dict = self._prepare_parameter_dicts(
             circuit, observable, **parameter_values
         )
+        is_batched = isinstance(circuit_dict, list)
 
-        # Use OpTree evaluation with Estimator
-        return OpTreeEvaluate.evaluate_with_estimator(
+        # dictionaries_combined=True pairs entry i of the circuit-parameter
+        # list with entry i of the observable-parameter list (one parameter
+        # set per pair) rather than every combination of the two - the
+        # circuit-/observable-*list* axes (multiple circuits/observables)
+        # already provide the cross-product behavior.
+        result = OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
             operator=observable_tree,
             dictionary_circuit=circuit_dict,
             dictionary_operator=observable_dict,
             estimator=self._estimator,
-            dictionaries_combined=False,
+            dictionaries_combined=is_batched,
             detect_duplicates=True,
         )
+        if is_batched:
+            # OpTree returns the parameter-set (batch) axis first/outermost;
+            # move it to the end so the circuit-/observable-list axes lead,
+            # matching the "list input adds a leading axis" base contract and
+            # the PennyLane/Qulacs batching convention.
+            result = np.moveaxis(np.asarray(result), 0, -1)
+        return result
 
     def _expectation_value_derivatives(
         self,
@@ -1552,10 +1590,12 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format
         circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
-        # Prepare separate parameter dictionaries
+        # Prepare separate parameter dictionaries - a plain dict for a single
+        # parameter set, or a list of dicts (one per set) for a batch.
         circuit_dict, observable_dict = self._prepare_parameter_dicts(
             circuit, observable, **parameter_values
         )
+        is_batched = isinstance(circuit_dict, list)
 
         # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
@@ -1595,6 +1635,7 @@ class QiskitExecutor(ExecutorBase):
                     dictionary_circuit=circuit_dict,
                     dictionary_operator=observable_dict,
                     estimator=self._estimator,
+                    dictionaries_combined=is_batched,
                     detect_duplicates=True,
                 )
 
@@ -1607,9 +1648,14 @@ class QiskitExecutor(ExecutorBase):
                     dictionary_circuit=circuit_dict,
                     dictionary_operator=observable_dict,
                     estimator=self._estimator,
+                    dictionaries_combined=is_batched,
                     detect_duplicates=True,
                 )
 
+            # circuit/observable are always single objects here (the base
+            # class expands any circuit/observable list before calling this
+            # method), so a batch produces a plain (batch,) array - no extra
+            # axis to move, unlike _expectation_value.
             return total
 
         results: dict = {}
@@ -1624,8 +1670,8 @@ class QiskitExecutor(ExecutorBase):
                 if len(matching) == 1:
                     results[dp] = _derivative_for_single_param(matching[0])
                 else:
-                    # ParameterVector: return one derivative value per element.
-                    results[dp] = np.array([_derivative_for_single_param(p) for p in matching])
+                    stacked = np.array([_derivative_for_single_param(p) for p in matching])
+                    results[dp] = np.moveaxis(stacked, 1, 0) if is_batched else stacked
             elif isinstance(dp, ParameterVectorElement):
                 results[dp] = _derivative_for_single_param(dp)
             else:
@@ -1653,10 +1699,14 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format (just for consistent handling)
         circuit_tree, _ = self._convert_to_optree(circuit, operator=None)
 
-        # Prepare parameter dictionary (only for circuits)
+        # Prepare parameter dictionary (only for circuits) - a plain
+        # dict for a single parameter set, or a list of dicts (one per set)
+        # for a batch.
         circuit_dict, _ = self._prepare_parameter_dicts(
             circuit, observable=None, **parameter_values
         )
+        circuit_dicts = circuit_dict if isinstance(circuit_dict, list) else [circuit_dict]
+        batch_size = len(circuit_dicts)
 
         # Extract circuits from OpTree
         if isinstance(circuit_tree, OpTreeCircuit):
@@ -1664,15 +1714,18 @@ class QiskitExecutor(ExecutorBase):
         else:
             circuits = [child.circuit for child in circuit_tree.children]
 
-        # Bind parameters to circuits
+        # Bind parameters to circuits - one bound circuit per (circuit, batch
+        # index) pair, circuit-major so a flat result list can be regrouped
+        # below without needing to know the sampler's own pub ordering.
         bound_circuits = []
         for circ in circuits:
-            # Bind only parameters that exist in this circuit
-            params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
-            bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
-            if bound_circ.num_clbits == 0:
-                bound_circ.measure_all()
-            bound_circuits.append(bound_circ)
+            for d in circuit_dicts:
+                # Bind only parameters that exist in this circuit
+                params_to_bind = {p: d[p] for p in circ.parameters if p in d}
+                bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
+                if bound_circ.num_clbits == 0:
+                    bound_circ.measure_all()
+                bound_circuits.append(bound_circ)
 
         if self._sampler_uses_v1_api:
             job = self._sampler.run(bound_circuits, shots=self._shots)
@@ -1687,9 +1740,20 @@ class QiskitExecutor(ExecutorBase):
         n_qubits_list = [getattr(c, "qiskit_circuit", c).num_qubits for c in raw_circuits_for_nq]
         counts_list = self._extract_counts(result, n_qubits_list[0])
 
-        if not is_list_input:
-            return counts_list[0] if isinstance(counts_list, list) else counts_list
-        return counts_list
+        if batch_size == 1:
+            if not is_list_input:
+                return counts_list[0] if isinstance(counts_list, list) else counts_list
+            return counts_list
+
+        # Regroup the flat, circuit-major counts_list back into per-circuit
+        # batches - a list of count dicts (one per parameter set) for a
+        # single circuit, matching the PennyLane backend's own sample()
+        # convention; a list of such lists (one per circuit) for a circuit
+        # list.
+        grouped = [
+            counts_list[i * batch_size : (i + 1) * batch_size] for i in range(len(circuits))
+        ]
+        return grouped[0] if not is_list_input else grouped
 
     def _statevector(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
@@ -1705,18 +1769,29 @@ class QiskitExecutor(ExecutorBase):
         else:
             raw_circuits = [getattr(circuit, "qiskit_circuit", circuit)]
 
-        # Prepare parameter dictionary
+        # Prepare parameter dictionary(-ies) - a plain dict for a single
+        # parameter set, or a list of dicts (one per set) for a batch.
         circuit_dict, _ = self._prepare_parameter_dicts(
             circuit, observable=None, **parameter_values
         )
+        circuit_dicts = circuit_dict if isinstance(circuit_dict, list) else [circuit_dict]
 
         statevectors = []
         for circ in raw_circuits:
-            params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
-            bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
-            statevectors.append(_reverse_qubit_ordering(Statevector(bound_circ).data))
+            per_circuit = []
+            for d in circuit_dicts:
+                params_to_bind = {p: d[p] for p in circ.parameters if p in d}
+                bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
+                per_circuit.append(_reverse_qubit_ordering(Statevector(bound_circ).data))
+            statevectors.append(per_circuit)
 
+        # Shape at this point: (n_circuits, n_parameter_sets, statevector_dim).
+        # A single parameter set (the common case) is squeezed away, matching
+        # the previous behavior exactly; more than one is kept as a genuine
+        # batch axis, mirroring the PennyLane/Qulacs statevector batching.
         statevectors = np.array(statevectors)
+        if statevectors.shape[1] == 1:
+            statevectors = statevectors[:, 0, ...]
         return statevectors[0] if len(raw_circuits) == 1 else statevectors
 
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:

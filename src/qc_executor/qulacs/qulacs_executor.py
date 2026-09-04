@@ -15,7 +15,7 @@ from qulacs import QuantumState  # pylint: disable=no-name-in-module
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit
-from ..utils.data_preprocessing import adjust_features, to_tuple
+from ..utils.data_preprocessing import adjust_features, resolve_parameter_batch_size, to_tuple
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_operator import QulacsOperator
 
@@ -187,10 +187,9 @@ class QulacsExecutor(ExecutorBase):
 
         values = []
 
-        # Multiple circuits and multiple observables are supported and handled by the
-        # nested loops below. Only a single parameter set per call is supported, i.e.
-        # batched/multiple parameter sets are not implemented (this is consistent with
-        # the PennyLane backend).
+        # Multiple circuits, multiple observables, and multiple parameter
+        # sets (a batch, per named parameter) are all supported and handled
+        # by the nested loops below - see the shape handling after the loop.
 
         for qulacs_circuit in qulacs_circuits:
 
@@ -264,12 +263,11 @@ class QulacsExecutor(ExecutorBase):
             values.append(circuit_values)
 
         values = np.array(values)
-
-        # Remove the parameter dimension list (has to be fixed for multiple parameters)
-        shape = list(values.shape)
-        shape.pop(1)
-        shape.pop(-1)
-        values = values.reshape(shape)
+        values = np.moveaxis(values, 1, 2)
+        if values.shape[-1] == 1:
+            values = values[..., 0]
+        if values.shape[-1] == 1:
+            values = values[..., 0]
 
         if not multiple_circuits:
             values = values[0]
@@ -277,7 +275,7 @@ class QulacsExecutor(ExecutorBase):
                 values = values[0]
         else:
             if not multiple_observables:
-                values = values.reshape(-1)
+                values = values[:, 0, ...]
 
         return values
 
@@ -430,37 +428,32 @@ class QulacsExecutor(ExecutorBase):
         qulacs_circuit = qulacs_circuits[0]
         qulacs_observable = qulacs_observables[0]
 
-        circuit_parameters = []
-        multiple_circuit_parameters = []
-        circuit_parameters_dimension = []
-
         # preprocess the parameter values
+        circuit_param_arrays = []
         for param in qulacs_circuit.parameter_names:
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
-
-            param_values, multiple_params = adjust_features(
+            param_values, _ = adjust_features(
                 parameter_values[param], qulacs_circuit.parameter_dimensions[param]
             )
-            circuit_parameters.append(param_values[0])
-            multiple_circuit_parameters.append(multiple_params)
-            circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
+            circuit_param_arrays.append((param, param_values))
 
-        observable_parameters = []
-        multiple_observable_parameters = []
-        observable_parameters_dimension = []
+        observable_param_arrays = []
         for param in qulacs_observable.parameter_names:
             if param not in parameter_values:
                 raise ValueError(f"Parameter '{param}' not found in provided parameter values.")
-
-            param_values, multiple_params = adjust_features(
+            param_values, _ = adjust_features(
                 parameter_values[param], qulacs_observable.parameter_dimensions[param]
             )
-            observable_parameters.append(param_values[0])
-            multiple_observable_parameters.append(multiple_params)
-            observable_parameters_dimension.append(qulacs_observable.parameter_dimensions[param])
+            observable_param_arrays.append((param, param_values))
 
-        result_dict = {}
+        # A parameter with more than one row is a genuine batch of parameter
+        # sets; one with exactly one row broadcasts across the batch. All
+        # batched parameters (circuit- and observable-side) must agree on the
+        # batch size - resolved once, up front.
+        batch_size = resolve_parameter_batch_size(
+            arr.shape[0] for _, arr in (*circuit_param_arrays, *observable_param_arrays)
+        )
 
         if values is None or len(values) == 0:
             values = ("expectation_value",)
@@ -471,109 +464,138 @@ class QulacsExecutor(ExecutorBase):
         value_list = [value_list[i] for i in indices]
         value_list = [to_tuple(cast(Any, v)) for v in value_list]
 
-        # Loop over all requested derivatives
-        for todo in value_list:
+        def evaluate_one(batch_index: int):
+            """Evaluate every requested derivative for a single row of the batch."""
+            circuit_parameters = [
+                arr[batch_index] if arr.shape[0] > 1 else arr[0] for _, arr in circuit_param_arrays
+            ]
+            observable_parameters = [
+                arr[batch_index] if arr.shape[0] > 1 else arr[0]
+                for _, arr in observable_param_arrays
+            ]
+            parameter_values_one = {
+                name: (arr[batch_index] if arr.shape[0] > 1 else arr[0])
+                for name, arr in (*circuit_param_arrays, *observable_param_arrays)
+            }
 
-            if len(todo) > 1:
-                raise ValueError(
-                    "Higher order derivatives are not supported with qulacs, "
-                    "please use pennylane"
-                )
+            result_dict = {}
 
-            # get the parameter objects for the requested circuit derivatives
-            parameter_vector = []
-            for param in qulacs_circuit.free_parameters:
-                if isinstance(todo[0], str):
-                    if todo[0] == "" or todo[0] == "expectation_value":
-                        pass
-                    elif todo[0] == remove_brackets(param.name):
-                        parameter_vector.append(param)
-                    elif todo[0] == param.name:
-                        parameter_vector.append(param)
-                elif isinstance(todo[0], ParameterVectorElement):
-                    if param == todo[0]:
-                        parameter_vector.append(param)
-                else:
-                    raise ValueError("Unknown parameter type:", type(todo[0]))
-            if len(parameter_vector) > 0:
-                # Sort numerically by vector name and element index; a plain
-                # string sort would order theta[10] before theta[2].
-                parameter_vector = sorted(
-                    parameter_vector,
-                    key=lambda p: (remove_brackets(p.name), getattr(p, "index", 0)),
-                )
+            # Loop over all requested derivatives
+            for todo in value_list:
 
-            # get the parameter objects for the requested observable derivatives
-            observable_vector = []
-            for param in qulacs_observable.free_parameters:
-                if isinstance(todo[0], str):
-                    if todo[0] == "" or todo[0] == "expectation_value":
-                        pass
-                    elif todo[0] == remove_brackets(param.name):
-                        observable_vector.append(param)
-                    elif todo[0] == param.name:
-                        observable_vector.append(param)
-                elif isinstance(todo[0], ParameterVectorElement):
-                    if param == todo[0]:
-                        observable_vector.append(param)
-                else:
-                    raise ValueError("Unknown parameter type:", type(todo[0]))
-            if len(observable_vector) > 0:
-                observable_vector = sorted(
-                    observable_vector,
-                    key=lambda p: (remove_brackets(p.name), getattr(p, "index", 0)),
-                )
-
-            # Compute the requested derivatives
-            if len(parameter_vector) == 0 and len(observable_vector) == 0:
-
-                if todo[0] == "fischer":
-                    raise NotImplementedError(
-                        "Fischer information is not implemented for qulacs executor."
+                if len(todo) > 1:
+                    raise ValueError(
+                        "Higher order derivatives are not supported with qulacs, "
+                        "please use pennylane"
                     )
 
-                if todo[0] != "" and todo[0] != "expectation_value":
-                    raise ValueError(f"Unknown derivative: {todo[0]}")
+                # get the parameter objects for the requested circuit derivatives
+                parameter_vector = []
+                for param in qulacs_circuit.free_parameters:
+                    if isinstance(todo[0], str):
+                        if todo[0] == "" or todo[0] == "expectation_value":
+                            pass
+                        elif todo[0] == remove_brackets(param.name):
+                            parameter_vector.append(param)
+                        elif todo[0] == param.name:
+                            parameter_vector.append(param)
+                    elif isinstance(todo[0], ParameterVectorElement):
+                        if param == todo[0]:
+                            parameter_vector.append(param)
+                    else:
+                        raise ValueError("Unknown parameter type:", type(todo[0]))
+                if len(parameter_vector) > 0:
+                    # Sort numerically by vector name and element index; a plain
+                    # string sort would order theta[10] before theta[2].
+                    parameter_vector = sorted(
+                        parameter_vector,
+                        key=lambda p: (remove_brackets(p.name), getattr(p, "index", 0)),
+                    )
 
-                # compute expectation value
-                result = self._expectation_value(circuit, observable, **parameter_values)
+                # get the parameter objects for the requested observable derivatives
+                observable_vector = []
+                for param in qulacs_observable.free_parameters:
+                    if isinstance(todo[0], str):
+                        if todo[0] == "" or todo[0] == "expectation_value":
+                            pass
+                        elif todo[0] == remove_brackets(param.name):
+                            observable_vector.append(param)
+                        elif todo[0] == param.name:
+                            observable_vector.append(param)
+                    elif isinstance(todo[0], ParameterVectorElement):
+                        if param == todo[0]:
+                            observable_vector.append(param)
+                    else:
+                        raise ValueError("Unknown parameter type:", type(todo[0]))
+                if len(observable_vector) > 0:
+                    observable_vector = sorted(
+                        observable_vector,
+                        key=lambda p: (remove_brackets(p.name), getattr(p, "index", 0)),
+                    )
 
-            elif len(parameter_vector) > 0 and len(observable_vector) == 0:
-                # compute gradient w.r.t. circuit parameters
-                result = evaluate_circuit_gradient(
-                    qulacs_circuit,
-                    qulacs_observable,
-                    tuple(circuit_parameters),
-                    tuple(observable_parameters),
-                    parameter_vector,
-                )
-            elif len(parameter_vector) == 0 and len(observable_vector) > 0:
-                # compute gradient w.r.t. observable parameters
-                result = evaluate_observable_gradient(
-                    qulacs_circuit,
-                    qulacs_observable,
-                    tuple(circuit_parameters),
-                    tuple(observable_parameters),
-                    observable_vector,
-                )
-            else:
-                raise ValueError(
-                    "Higher order derivatives are not supported with qulacs, "
-                    "please use pennylane"
-                )
+                # Compute the requested derivatives
+                if len(parameter_vector) == 0 and len(observable_vector) == 0:
 
-            if len(values) == 1:
-                return result
+                    if todo[0] == "fischer":
+                        raise NotImplementedError(
+                            "Fischer information is not implemented for qulacs executor."
+                        )
 
-            if len(todo) == 1:
-                if todo[0] == "":
-                    result_dict["expectation_value"] = result
+                    if todo[0] != "" and todo[0] != "expectation_value":
+                        raise ValueError(f"Unknown derivative: {todo[0]}")
+
+                    # compute expectation value
+                    result = self._expectation_value(circuit, observable, **parameter_values_one)
+
+                elif len(parameter_vector) > 0 and len(observable_vector) == 0:
+                    # compute gradient w.r.t. circuit parameters
+                    result = evaluate_circuit_gradient(
+                        qulacs_circuit,
+                        qulacs_observable,
+                        tuple(circuit_parameters),
+                        tuple(observable_parameters),
+                        parameter_vector,
+                    )
+                elif len(parameter_vector) == 0 and len(observable_vector) > 0:
+                    # compute gradient w.r.t. observable parameters
+                    result = evaluate_observable_gradient(
+                        qulacs_circuit,
+                        qulacs_observable,
+                        tuple(circuit_parameters),
+                        tuple(observable_parameters),
+                        observable_vector,
+                    )
                 else:
-                    result_dict[todo[0]] = result
-            else:
-                result_dict[todo] = result
+                    raise ValueError(
+                        "Higher order derivatives are not supported with qulacs, "
+                        "please use pennylane"
+                    )
 
-        return result_dict
+                if len(values) == 1:
+                    return result
+
+                if len(todo) == 1:
+                    if todo[0] == "":
+                        result_dict["expectation_value"] = result
+                    else:
+                        result_dict[todo[0]] = result
+                else:
+                    result_dict[todo] = result
+
+            return result_dict
+
+        if batch_size == 1:
+            return evaluate_one(0)
+
+        # Every requested derivative, evaluated once per row of the batch and
+        # stacked with a leading batch axis - the same list-batching
+        # convention used for circuits/observables.
+        per_row_results = [evaluate_one(i) for i in range(batch_size)]
+        if isinstance(per_row_results[0], dict):
+            return {
+                key: np.stack([row[key] for row in per_row_results]) for key in per_row_results[0]
+            }
+        return np.stack(per_row_results)
 
     def _sample(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
@@ -661,10 +683,8 @@ class QulacsExecutor(ExecutorBase):
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)
-        # Remove the parameter dimension list (has to be fixed for multiple parameters)
-        shape = list(state_vectors.shape)
-        shape.pop(1)
-        state_vectors = state_vectors.reshape(shape)
+        if state_vectors.shape[1] == 1:
+            state_vectors = state_vectors[:, 0, ...]
 
         if not multiple_circuits:
             state_vectors = state_vectors[0]

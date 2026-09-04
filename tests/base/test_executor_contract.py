@@ -275,6 +275,52 @@ def test_statevector_matches_reference(executor):
     assert overlap == pytest.approx(1.0, abs=1e-8)
 
 
+def test_expectation_value_batch_of_parameter_sets(executor):
+    """A batch of parameter sets - the same leading-axis convention already
+    used for circuit/observable lists - gives one result per set, matching a
+    per-set reference, on every backend (Qiskit, PennyLane, Qulacs alike)."""
+    circuit = _ansatz()
+    operator = SparsePauliOp(["ZZ", "XI"], [1.0, 0.5])
+    value_sets = [[0.3, 0.8], [0.1, 0.2], [1.0, -0.5]]
+
+    batched = executor.expectation_value(
+        circuit, QuantumOperator(_native_operator=operator), theta=value_sets
+    )
+    reference = [np.real(_reference_expectation(circuit, operator, v)) for v in value_sets]
+
+    assert np.shape(batched) == (3,)
+    np.testing.assert_allclose(np.real(batched), reference, atol=1e-8)
+
+
+def test_expectation_value_single_set_unaffected_by_batching_support(executor):
+    """A single parameter set still returns a bare scalar on every backend -
+    the common case is unaffected by batch support."""
+    circuit = _ansatz()
+    operator = QuantumOperator(_native_operator=SparsePauliOp(["ZZ"], [1.0]))
+
+    result = executor.expectation_value(circuit, operator, theta=[0.3, 0.8])
+
+    assert np.shape(result) == ()
+
+
+def test_statevector_batch_of_parameter_sets(executor):
+    """A batch of parameter sets gives one statevector per set, matching a
+    per-set qiskit reference, on every backend."""
+    circuit = _ansatz()
+    value_sets = [[0.3, 0.8], [0.1, 0.2]]
+
+    batched = executor.statevector(circuit, theta=value_sets)
+    assert np.shape(batched)[0] == 2
+
+    for i, values in enumerate(value_sets):
+        bound = circuit.qiskit_circuit.assign_parameters(
+            dict(zip(circuit.qiskit_circuit.parameters, values))
+        )
+        reference = _to_big_endian(Statevector(bound).data)
+        overlap = np.abs(np.vdot(np.asarray(batched[i]).reshape(-1), reference))
+        assert overlap == pytest.approx(1.0, abs=1e-8)
+
+
 def test_create_passes_through_prebuilt_executor():
     """An already constructed executor must be returned unchanged."""
     prebuilt = Executor.create("qulacs")

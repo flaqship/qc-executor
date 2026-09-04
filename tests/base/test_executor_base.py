@@ -334,6 +334,56 @@ class TestExecutorBaseProbabilities:
         assert ex.last_statevector_parameters == {"x": [0.1]}
 
 
+class BatchProbabilitiesExecutor(DummyExecutor):
+    """Dummy executor whose statevector/sample can return a genuine batch.
+
+    The sample() convention mirrors the PennyLane backend: a list of dicts,
+    one per parameter set, even when there is only one set - exercising the
+    single-vs-batch unwrapping in probabilities() independently of
+    ProbabilitiesExecutor's bare-dict (Qulacs-style) convention above.
+    """
+
+    def _statevector(self, circuit, **parameters):
+        if parameters.get("batch"):
+            return np.array([[1.0, 0.0], [0.0, 1.0]])
+        return np.array([1.0, 0.0])
+
+    def _sample(self, circuit, **parameters):
+        if parameters.get("batch"):
+            return [{"0": 100}, {"1": 100}]
+        return [{"0": 100}]
+
+
+class TestExecutorBaseProbabilitiesBatching:
+    def test_exact_single_set_returns_a_bare_mapping(self):
+        ex = BatchProbabilitiesExecutor()
+
+        assert ex.probabilities("c0") == {0: 1.0}
+
+    def test_exact_batch_returns_a_list_of_mappings(self):
+        ex = BatchProbabilitiesExecutor()
+
+        result = ex.probabilities("c0", batch=True)
+
+        assert result == [{0: 1.0}, {1: 1.0}]
+
+    def test_sampled_single_set_from_list_convention_unwraps_to_a_bare_mapping(self):
+        """A backend that always wraps sample() results in a list (even for
+        one parameter set) still yields a bare mapping here - the length-1
+        list is unwrapped, matching what a backend returning a bare dict
+        directly (ProbabilitiesExecutor above) already produces."""
+        ex = BatchProbabilitiesExecutor(shots=100)
+
+        assert ex.probabilities("c0") == {0: 1.0}
+
+    def test_sampled_batch_returns_a_list_of_mappings(self):
+        ex = BatchProbabilitiesExecutor(shots=100)
+
+        result = ex.probabilities("c0", batch=True)
+
+        assert result == [{0: 1.0}, {1: 1.0}]
+
+
 class TestExecutorBaseLoggingAndValidation:
     def test_invalid_log_level_raises(self):
         with pytest.raises(ValueError, match="Invalid log_level"):

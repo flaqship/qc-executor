@@ -19,7 +19,7 @@ from qc_executor.parameters import Parameter, Parameters
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit
-from ..utils.data_preprocessing import adjust_features, to_tuple
+from ..utils.data_preprocessing import adjust_features, resolve_parameter_batch_size, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_operator import PennyLaneOperator
 
@@ -345,7 +345,7 @@ class PennyLaneExecutor(ExecutorBase):
                 )
                 observable_parameters.append(param_values)
 
-            observable_parameter_tuples = product(*observable_parameters)
+            observable_parameter_tuples = list(product(*observable_parameters))
 
             @qml.qnode(self._device)
             def circuit_func(  # pylint: disable=function-redefined
@@ -399,16 +399,12 @@ class PennyLaneExecutor(ExecutorBase):
                 parameter_values,
             )
             values.append(circuit_values)
-        values = np.array(values)
 
-        shape = list(values.shape)
-        num_circuit_param = shape.pop(-1)
-        if num_circuit_param > 1:
-            raise NotImplementedError("Multiple parameters per circuit not supported yet.")
-        num_obs_param = shape.pop(-1)
-        if num_obs_param > 1:
-            raise NotImplementedError("Multiple parameters per observable not supported yet.")
-        values = values.reshape(shape)
+        values = np.array(values)
+        if values.shape[-1] == 1:
+            values = values[..., 0]
+        if values.shape[-1] == 1:
+            values = values[..., 0]
 
         if not multiple_circuits:
             values = values[0]
@@ -416,7 +412,7 @@ class PennyLaneExecutor(ExecutorBase):
                 values = values[0]
         else:
             if not multiple_observables:
-                values = values.reshape(-1)
+                values = values[:, 0, ...]
 
         return values
 
@@ -435,7 +431,14 @@ class PennyLaneExecutor(ExecutorBase):
 
     @staticmethod
     def _collect_named_params(pennylane_obj, parameter_values):
-        """Return (param_list, multiple_list, dim_list) for a circuit or observable."""
+        """Return (param_arrays, multiple_list, dim_list) for a circuit or observable.
+
+        Each entry of ``param_arrays`` is the full array from
+        :func:`adjust_features` (shape ``(batch, dim)``), not just its first
+        row - callers resolve the batch size across every named parameter
+        (see :func:`resolve_parameter_batch_size`) and pick the row for a
+        given batch index themselves.
+        """
         params = []
         multiples = []
         dims = []
@@ -445,7 +448,7 @@ class PennyLaneExecutor(ExecutorBase):
             pv, multiple = adjust_features(
                 parameter_values[param], pennylane_obj.parameter_dimensions[param]
             )
-            params.append(pv[0])
+            params.append(pv)
             multiples.append(multiple)
             dims.append(pennylane_obj.parameter_dimensions[param])
         return params, multiples, dims
@@ -540,9 +543,18 @@ class PennyLaneExecutor(ExecutorBase):
         pennylane_circuit = pennylane_circuits[0]
         pennylane_observable = pennylane_observables[0]
 
-        circuit_parameters, _, _ = self._collect_named_params(pennylane_circuit, parameter_values)
-        observable_parameters, _, _ = self._collect_named_params(
+        circuit_param_arrays, _, _ = self._collect_named_params(
+            pennylane_circuit, parameter_values
+        )
+        observable_param_arrays, _, _ = self._collect_named_params(
             pennylane_observable, parameter_values
+        )
+        # A parameter with more than one row is a genuine batch of parameter
+        # sets; one with exactly one row broadcasts across the batch. All
+        # batched parameters (circuit- and observable-side) must agree on the
+        # batch size - resolved once, up front.
+        batch_size = resolve_parameter_batch_size(
+            arr.shape[0] for arr in (*circuit_param_arrays, *observable_param_arrays)
         )
 
         if values is None or len(values) == 0:
@@ -564,37 +576,59 @@ class PennyLaneExecutor(ExecutorBase):
 
         argnum_dict = self._build_argnum_dict(pennylane_circuit, pennylane_observable)
 
-        result_dict = {}
-        for todo in todo_list:
-            pennylane_function = qml.QNode(
-                circuit_func, self._device, diff_method="best", max_diff=len(todo)
-            )
-            # See the shots setter: bind the current shots at call time.
-            pennylane_function = qml.set_shots(pennylane_function, shots=self._shots)
+        def evaluate_one(batch_index: int):
+            """Evaluate every requested derivative for a single row of the batch."""
+            circuit_parameters = [
+                arr[batch_index] if arr.shape[0] > 1 else arr[0] for arr in circuit_param_arrays
+            ]
+            observable_parameters = [
+                arr[batch_index] if arr.shape[0] > 1 else arr[0] for arr in observable_param_arrays
+            ]
 
-            if todo[0] in ("expectation_value", ""):
-                result = np.real_if_close(
-                    np.array(pennylane_function(*circuit_parameters, *observable_parameters))
+            result_dict = {}
+            for todo in todo_list:
+                pennylane_function = qml.QNode(
+                    circuit_func, self._device, diff_method="best", max_diff=len(todo)
                 )
-            else:
-                result = self._compute_derivative(
-                    todo,
-                    pennylane_function,
-                    circuit_parameters,
-                    observable_parameters,
-                    argnum_dict,
-                )
+                # See the shots setter: bind the current shots at call time.
+                pennylane_function = qml.set_shots(pennylane_function, shots=self._shots)
 
-            if len(todo_list) == 1:
-                return result
+                if todo[0] in ("expectation_value", ""):
+                    result = np.real_if_close(
+                        np.array(pennylane_function(*circuit_parameters, *observable_parameters))
+                    )
+                else:
+                    result = self._compute_derivative(
+                        todo,
+                        pennylane_function,
+                        circuit_parameters,
+                        observable_parameters,
+                        argnum_dict,
+                    )
 
-            if len(todo) == 1:
-                key = "expectation_value" if todo[0] == "" else todo[0]
-                result_dict[key] = result
-            else:
-                result_dict[todo] = result
+                if len(todo_list) == 1:
+                    return result
 
-        return result_dict
+                if len(todo) == 1:
+                    key = "expectation_value" if todo[0] == "" else todo[0]
+                    result_dict[key] = result
+                else:
+                    result_dict[todo] = result
+
+            return result_dict
+
+        if batch_size == 1:
+            return evaluate_one(0)
+
+        # Every requested derivative, evaluated once per row of the batch and
+        # stacked with a leading batch axis - the same list-batching
+        # convention used for circuits/observables.
+        per_row_results = [evaluate_one(i) for i in range(batch_size)]
+        if isinstance(per_row_results[0], dict):
+            return {
+                key: np.stack([row[key] for row in per_row_results]) for key in per_row_results[0]
+            }
+        return np.stack(per_row_results)
 
     def _sample(
         self,
@@ -707,10 +741,8 @@ class PennyLaneExecutor(ExecutorBase):
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)
-        # Remove the parameter dimension list (has to be fixed for multiple parameters)
-        shape = list(state_vectors.shape)
-        shape.pop(1)
-        state_vectors = state_vectors.reshape(shape)
+        if state_vectors.shape[1] == 1:
+            state_vectors = state_vectors[:, 0, ...]
 
         if not multiple_circuits:
             state_vectors = state_vectors[0]

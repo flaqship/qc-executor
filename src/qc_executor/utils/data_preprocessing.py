@@ -2,12 +2,38 @@
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import numpy as np
 from packaging import version
 from qiskit import __version__ as qiskit_version
 from qiskit.quantum_info import SparsePauliOp
+
+
+def resolve_parameter_batch_size(lengths: Iterable[int]) -> int:
+    """Resolve and validate the batch size implied by a set of parameters.
+
+    Args:
+        lengths: The leading-axis length of each named parameter's value
+            array, as produced by :func:`adjust_features`/
+            :func:`adjust_parameters` (i.e. ``array.shape[0]``). A length of
+            1 means that parameter was not batched - it broadcasts across
+            whatever batch size the other parameters imply.
+
+    Returns:
+        int: The common batch size across every entry greater than 1 (or 1
+            if none are batched).
+
+    Raises:
+        ValueError: If two parameters imply different batch sizes greater
+            than 1.
+    """
+    sizes = {n for n in lengths if n > 1}
+    if len(sizes) > 1:
+        raise ValueError(
+            "All batched parameters must share the same batch size, got " f"{sorted(sizes)}."
+        )
+    return sizes.pop() if sizes else 1
 
 
 def adjust_features(x: np.ndarray | float, x_length: int) -> Tuple[np.ndarray, bool]:

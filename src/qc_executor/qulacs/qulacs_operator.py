@@ -106,6 +106,7 @@ class QulacsOperator:
                     ValueError,
                     AttributeError,
                     NotImplementedError,
+                    RuntimeError,
                 ):
                     c_sym = _param_to_sympy(c)
                     p_sym = _param_to_sympy(param_element)
@@ -188,7 +189,9 @@ class QulacsOperator:
             new_operators_coeff_grad = []
             new_operators_used_parameters = []
             for c, p in zip(coeff, paulis):
-                string = " ".join(f"{p_} {i}" for i, p_ in enumerate(p)) + " "
+                # Qiskit labels are little-endian: the rightmost character acts
+                # on qubit 0, so reverse before assigning qulacs qubit indices.
+                string = " ".join(f"{p_} {i}" for i, p_ in enumerate(reversed(p))) + " "
                 coeff_func, grad_funcs, used_params = self._build_coeff_functions(c)
                 new_operator.append(string)
                 new_operators_coeff.append(coeff_func)

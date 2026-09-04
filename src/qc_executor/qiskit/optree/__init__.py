@@ -4,6 +4,7 @@ from .optree import (  # pylint: disable=cyclic-import
     OpTree,
     OpTreeCircuit,
     OpTreeContainer,
+    OpTreeElementBase,
     OpTreeExpectationValue,
     OpTreeList,
     OpTreeMeasuredOperator,
@@ -26,4 +27,5 @@ __all__ = [
     "OpTreeMeasuredOperator",
     "OpTreeContainer",
     "OpTreeValue",
+    "OpTreeElementBase",
 ]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import List
 
+import numpy as np
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
 from qiskit.circuit.parametervector import ParameterVectorElement
 
@@ -19,12 +20,55 @@ class QuantumCircuit(QuantumCircuitBase):
         num_qubits (int): Number of qubits in the circuit
     """
 
-    def __init__(self, num_qubits: int, _native_circuit: QiskitQuantumCircuit | None = None):
+    _GATE_NAMES = frozenset(
+        {
+            "h",
+            "s",
+            "sdag",
+            "t",
+            "tdag",
+            "x",
+            "y",
+            "z",
+            "i",
+            "p",
+            "rx",
+            "ry",
+            "rz",
+            "u",
+            "cx",
+            "cy",
+            "cz",
+            "ch",
+            "cnot",
+            "ecr",
+            "swap",
+            "cswap",
+            "ccx",
+            "toffoli",
+            "cp",
+            "crx",
+            "cry",
+            "crz",
+            "rxx",
+            "ryy",
+            "rzz",
+            "rzx",
+            "cu",
+        }
+    )
+
+    def __init__(
+        self,
+        num_qubits: int,
+        num_clbits: int = 0,
+        _native_circuit: QiskitQuantumCircuit | None = None,
+    ):
         super().__init__(num_qubits)
         self._qiskit_circuit: QiskitQuantumCircuit = (
             _native_circuit
             if _native_circuit is not None
-            else QiskitQuantumCircuit(self._num_qubits)
+            else QiskitQuantumCircuit(num_qubits, num_clbits)
         )
 
     @classmethod
@@ -32,15 +76,56 @@ class QuantumCircuit(QuantumCircuitBase):
         """Identity conversion for generic circuits."""
         return circuit
 
+    @classmethod
+    def from_qiskit(cls, circuit: QiskitQuantumCircuit) -> "QuantumCircuit":
+        """Wrap a native qiskit circuit.
+
+        Args:
+            circuit (QiskitQuantumCircuit): The qiskit circuit to wrap. The
+                circuit is used as-is (not copied).
+
+        Returns:
+            QuantumCircuit: The wrapping circuit.
+        """
+        return cls(circuit.num_qubits, _native_circuit=circuit)
+
+    @classmethod
+    def available_gates(cls) -> frozenset[str]:
+        """Return the set of gate-method names defined on this circuit class."""
+        return cls._GATE_NAMES
+
     @property
     def qiskit_circuit(self) -> QiskitQuantumCircuit:
         """The underlying Qiskit circuit."""
         return self._qiskit_circuit
 
+    @qiskit_circuit.setter
+    def qiskit_circuit(self, circuit: QiskitQuantumCircuit) -> None:
+        """Replace the underlying Qiskit circuit.
+
+        Args:
+            circuit (QiskitQuantumCircuit): The new native circuit. Must act
+                on the same number of qubits.
+
+        Raises:
+            ValueError: If the qubit count differs from the current circuit.
+        """
+        if circuit.num_qubits != self._num_qubits:
+            raise ValueError(
+                f"Replacement circuit must have {self._num_qubits} qubits, "
+                f"got {circuit.num_qubits}."
+            )
+        self._qiskit_circuit = circuit
+
     @property
     def num_qubits(self) -> int:
         """Return the number of qubits in the circuit."""
         return self._qiskit_circuit.num_qubits
+
+    @property
+    def num_clbits(self) -> int:
+        """Return the number of classical bits in the circuit."""
+        return self._qiskit_circuit.num_clbits
 
     @property
     def parameters(self) -> List[ParameterVectorElement]:
@@ -57,9 +142,9 @@ class QuantumCircuit(QuantumCircuitBase):
         """Check if the wavefunction is parameterized."""
         return len(self.parameters) > 0
 
-    def draw(self) -> str:
-        """Returns printable string representation of the circuit."""
-        raise NotImplementedError
+    def draw(self):
+        """Return a printable text representation of the circuit."""
+        return self._qiskit_circuit.draw("text")
 
     def h(self, qubits: int | List[int]):
         """Add hadamard gates"""
@@ -173,23 +258,63 @@ class QuantumCircuit(QuantumCircuitBase):
         """Add SWAP gates"""
         self._qiskit_circuit.swap(qubit1, qubit2)
 
-    def barrier(self, qubits: int | List[int]):
-        """Add barrier gates"""
-        self._qiskit_circuit.barrier(qubits)
+    def cswap(self, control_qubit: int, qubit1: int, qubit2: int):
+        """Add a controlled-SWAP (Fredkin) gate."""
+        self._qiskit_circuit.cswap(control_qubit, qubit1, qubit2)
 
-    def measure(self):
-        """Add measure gates"""
-        raise NotImplementedError
+    def ch(self, control_qubit: int, target_qubit: int):
+        """Add CH gates"""
+        self._qiskit_circuit.ch(control_qubit, target_qubit)
+
+    def i(self, qubits: int | List[int]):
+        """Add Identity gates"""
+        self._qiskit_circuit.id(qubits)
+
+    def u(self, qubits: int | List[int], theta: float, phi: float, lam: float):
+        """Add U gates"""
+        self._qiskit_circuit.u(theta, phi, lam, qubits)
+
+    def cu(
+        self,
+        control_qubit: int,
+        target_qubit: int,
+        theta: float,
+        phi: float,
+        lam: float,
+        gamma: float,
+    ):
+        """Add CU gates"""
+        self._qiskit_circuit.cu(theta, phi, lam, gamma, control_qubit, target_qubit)
+
+    def barrier(self, qubits: int | List[int] = None):
+        """Add barrier gates"""
+        if qubits is None:
+            self._qiskit_circuit.barrier()
+        else:
+            self._qiskit_circuit.barrier(qubits)
+
+    def measure(self, qubits: int | List[int], clbits: int | List[int]) -> None:
+        """Measure qubits into classical bits."""
+        self._qiskit_circuit.measure(qubits, clbits)
+
+    def if_test(self, clbit: int, value: int):
+        """Create a classical conditional block.
+
+        The returned context manager can be used as:
+
+            with qc.if_test(0, 1):
+                qc.x(0)
+        """
+        if clbit < 0 or clbit >= self.num_clbits:
+            raise ValueError(
+                f"Classical bit index {clbit} is out of range for "
+                f"a circuit with {self.num_clbits} classical bits."
+            )
+
+        return self._qiskit_circuit.if_test((self._qiskit_circuit.clbits[clbit], value))
 
     # pauli_string, pauli_evolution and controlled_pauli_evolution are
     # inherited from QuantumCircuitBase.
-
-    def compose(self, qc: QuantumCircuitBase, qubits: List[int]) -> "QuantumCircuit":
-        """Compose two quantum circuits."""
-        if isinstance(qc, QuantumCircuit):
-            self._qiskit_circuit.compose(qc.qiskit_circuit, qubits, inplace=True)
-            return self
-        raise ValueError("The circuit to compose must be a QuantumCircuit object")
 
     def assign_parameters(self, parameters: dict):
         """Change parameters in the circuit.
@@ -199,13 +324,23 @@ class QuantumCircuit(QuantumCircuitBase):
         """
         self._qiskit_circuit.assign_parameters(parameters, inplace=True)
 
+    def fixate_parameters(self, parameters: np.ndarray) -> None:
+        """Bind all free parameters, removing them from the circuit.
+
+        Args:
+            parameters (np.ndarray): Values to assign, in parameter order.
+        """
+        self._qiskit_circuit.assign_parameters(
+            dict(zip(self._qiskit_circuit.parameters, parameters)), inplace=True
+        )
+
     def invert(self) -> "QuantumCircuit":
         """Invert the circuit."""
         return self.__class__(self._num_qubits, self._qiskit_circuit.inverse())
 
     def copy(self) -> "QuantumCircuit":
         """Return a copy of the circuit."""
-        return self.__class__(self._num_qubits, self._qiskit_circuit.copy())
+        return self.__class__(self._num_qubits, self.num_clbits, self._qiskit_circuit.copy())
 
     def circuit_metrics(self) -> dict:
         """count number of gates in the circuit"""
@@ -219,8 +354,22 @@ class QuantumCircuit(QuantumCircuitBase):
         """Convert the circuit to a qasm string"""
         raise NotImplementedError
 
+    def structural_key(self) -> tuple:
+        """Return a hashable key describing the current circuit structure.
+
+        Recomputed on every call so that in-place mutations are always
+        reflected; never memoize this value.
+        """
+        return _circuit_key(self._qiskit_circuit)
+
     def __hash__(self):
         return hash(_circuit_key(self._qiskit_circuit))
+
+    def __eq__(self, other):
+        """Structural equality, consistent with the structural ``__hash__``."""
+        return isinstance(other, QuantumCircuit) and _circuit_key(
+            self._qiskit_circuit
+        ) == _circuit_key(other._qiskit_circuit)
 
     def __str__(self):
         return str(self._qiskit_circuit)

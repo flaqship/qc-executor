@@ -28,11 +28,16 @@ class TestQulacsExecutorMetadata:
         assert executor.shots == 128
         assert executor.remote is False
 
-    def test_shots_setter_raises(self):
-        """Test that setting shots via property is not implemented."""
+    def test_shots_setter_updates_shots(self):
+        """Test that the shots setter actually changes the reported shot count."""
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError):
-            executor.shots = 64
+        assert executor.shots is None
+
+        executor.shots = 64
+        assert executor.shots == 64
+
+        executor.shots = None
+        assert executor.shots is None
 
 
 class TestQulacsExecutorLoggingAndCache:
@@ -81,12 +86,12 @@ class TestQulacsExecutorLoggingAndCache:
         executor = QulacsExecutor(max_cache_size=1)
         assert executor._operator_cache.max_size == 1
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that caches are unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that caches use the default bound when max_cache_size is not specified."""
         executor = QulacsExecutor()
-        assert executor._max_cache_size is None
-        assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._max_cache_size == 4096
+        assert executor._circuit_cache.max_size == 4096
+        assert executor._operator_cache.max_size == 4096
 
 
 class TestQulacsExecutorPreprocessingAndTranspile:
@@ -217,6 +222,8 @@ class TestQulacsExecutorExpectationAndStatevector:
         qc_both = _build_circuit(3, [("x", [0]), ("x", [1]), ("ccx", [0, 1, 2])])
         # Only one control set -> target stays |0>, <Z> on target = +1
         qc_one = _build_circuit(3, [("x", [0]), ("ccx", [0, 1, 2])])
+        # Z on the target qubit 2; public labels are big-endian
+        # (leftmost character acts on qubit 0).
         op = QuantumOperator(["IIZ"], [1.0])
 
         executor = QulacsExecutor()
@@ -232,6 +239,47 @@ class TestQulacsExecutorExpectationAndStatevector:
         with pytest.raises(ValueError, match="Parameter 'x' not found"):
             executor.statevector(qc)
 
+    def test_expectation_value_batch_of_parameter_sets(self):
+        """Passing several parameter sets at once returns one result per set,
+        matching a loop over individual calls - previously this raised a raw
+        numpy reshape error."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor = QulacsExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value(qc, op, x=[[v] for v in x_values])
+        individually = [executor.expectation_value(qc, op, x=[v]) for v in x_values]
+
+        assert np.shape(batched) == (3,)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_expectation_value_single_set_unaffected_by_batching_support(self):
+        """A single parameter set still returns a bare scalar."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor = QulacsExecutor()
+
+        result = executor.expectation_value(qc, op, x=[0.3])
+
+        assert np.shape(result) == ()
+
+    def test_statevector_batch_of_parameter_sets(self):
+        """Passing several parameter sets returns a leading batch axis of
+        statevectors instead of the previous "cannot reshape" error."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        executor = QulacsExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.statevector(qc, x=[[v] for v in x_values])
+        individually = np.array([executor.statevector(qc, x=[v]) for v in x_values])
+
+        assert batched.shape == (3, 2)
+        assert np.allclose(batched, individually, atol=1e-10)
+
 
 class TestQulacsExecutorDerivatives:
     def test_derivatives_default_expectation_value(self):
@@ -244,25 +292,81 @@ class TestQulacsExecutorDerivatives:
 
         assert isinstance(value, (float, np.ndarray))
 
-    def test_derivatives_multiple_circuits_raises(self):
-        """Test that derivatives for multiple circuits raise NotImplementedError."""
+    def test_derivatives_batch_of_parameter_sets_single_todo(self):
+        """Passing several parameter sets returns one derivative per set.
+
+        Previously this silently evaluated only the first parameter set
+        (circuit_parameters.append(param_values[0])) and returned a
+        plausible-looking but wrong single result."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor = QulacsExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value_derivatives(qc, op, "x", x=[[v] for v in x_values])
+        individually = [
+            executor.expectation_value_derivatives(qc, op, "x", x=[v]) for v in x_values
+        ]
+
+        assert np.shape(batched) == (3, 1)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_derivatives_batch_of_parameter_sets_multiple_todo(self):
+        """The dict form (several requested derivatives) also batches: each
+        value is stacked with its own leading batch axis."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor = QulacsExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value_derivatives(
+            qc, op, "expectation_value", "x", x=[[v] for v in x_values]
+        )
+        expected_f = [executor.expectation_value(qc, op, x=[v]) for v in x_values]
+        expected_dx = [
+            executor.expectation_value_derivatives(qc, op, "x", x=[v]) for v in x_values
+        ]
+
+        assert np.allclose(batched["expectation_value"], expected_f, atol=1e-10)
+        assert np.allclose(batched["x"], expected_dx, atol=1e-10)
+
+    def test_derivatives_disagreeing_batch_sizes_raise(self):
+        """Two batched named parameters with different lengths are rejected
+        up front with a clear error instead of a confusing downstream one."""
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [p_obs[0]])
+        executor = QulacsExecutor()
+
+        with pytest.raises(ValueError, match="must share the same batch size"):
+            executor.expectation_value_derivatives(
+                qc, op, "x", x=[[0.1], [0.2], [0.3]], p_obs=[[1.0], [2.0]]
+            )
+
+    def test_derivatives_list_inputs_are_expanded_by_the_base(self):
+        """List inputs are expanded combinatorially before reaching the plugin."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1])
+        single = np.asarray(
+            executor.expectation_value_derivatives(qc, op, "x", x=[0.1]), dtype=float
+        )
+        per_circuit = np.asarray(
+            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1]), dtype=float
+        )
+        per_observable = np.asarray(
+            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1]), dtype=float
+        )
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
-        x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
-
-        executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1])
+        assert per_circuit.shape[0] == 2
+        assert per_observable.shape[0] == 2
+        np.testing.assert_allclose(per_circuit[0], single)
+        np.testing.assert_allclose(per_observable[1], single)
 
     def test_derivatives_higher_order_tuple_raises(self):
         """Test that higher-order derivative tuples are rejected."""

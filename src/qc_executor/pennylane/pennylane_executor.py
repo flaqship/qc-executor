@@ -12,15 +12,20 @@ from typing import List, cast, overload
 import numpy as np
 import pennylane as qml
 import pennylane.numpy as pnp
+from packaging.version import Version
 from pennylane.devices import Device
 
 from qc_executor.parameters import Parameter, Parameters
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
 from ..quantum_circuit import QuantumCircuit
-from ..utils.data_preprocessing import adjust_features, to_tuple
+from ..utils.data_preprocessing import adjust_features, resolve_parameter_batch_size, to_tuple
 from .pennylane_circuit import PennyLaneCircuit
 from .pennylane_operator import PennyLaneOperator
+
+# PennyLane 0.44 deprecated the ``argnum`` keyword of ``qml.jacobian`` in
+# favor of ``argnums``; 0.45 removed it.
+_JACOBIAN_ARG_KEYWORD = "argnums" if Version(qml.__version__) >= Version("0.44.0") else "argnum"
 
 
 def _remove_brackets(s: str) -> str:
@@ -47,7 +52,8 @@ class PennyLaneExecutor(ExecutorBase):
             ``"WARNING"`` / ``"ERROR"``). Defaults to ``"WARNING"``.
         caching (bool, optional): Whether to use caching. Defaults to None.
         cache_dir (str): Directory for caching. Defaults to ``"cache"``.
-        max_cache_size (int, optional): Maximum cache entries. Defaults to None.
+        max_cache_size (int | None, optional): Maximum number of entries kept
+            in each in-memory cache; ``None`` makes them unbounded.
         **kwargs: Keyword arguments forwarded to :func:`pennylane.device`
             (only when *backend* is a ``str``).  Typical keys are ``config``
             and ``custom_decomps``.
@@ -105,7 +111,7 @@ class PennyLaneExecutor(ExecutorBase):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
         **kwargs,
     ):
 
@@ -169,6 +175,8 @@ class PennyLaneExecutor(ExecutorBase):
             self._device_kwargs = {}
             self._custom_device = True
             self._device: Device = backend
+            # Read the device's own shots back instead of leaving self._shots at None
+            self._shots = self._read_shots_from_device(backend)
 
         self._logger.debug(
             "PennyLaneExecutor initialised (shots=%s, seed=%s, device=%s)",
@@ -184,8 +192,35 @@ class PennyLaneExecutor(ExecutorBase):
 
     @shots.setter
     def shots(self, value: int | None) -> None:
-        """Set the number of shots."""
-        raise NotImplementedError
+        """Set the number of shots for future executions.
+
+        The device itself is built once during initialization and never
+        rebuilt, so this does not touch it. Instead,
+        every QNode built by ``_expectation_value``, ``_expectation_value_
+        derivatives`` and ``_sample`` is wrapped in :func:`pennylane.set_shots`
+        with the current value of ``self._shots`` at call time - so a change
+        here takes effect on the next execution without rebuilding the device
+        or any already-returned result.
+        """
+        self._shots = value
+
+    @staticmethod
+    def _read_shots_from_device(device: Device) -> int | None:
+        """Read the shots configured on an already-built device.
+
+        Args:
+            device: The PennyLane device to inspect.
+
+        Returns:
+            int | None: The device's shot count, or ``None`` for analytic mode
+                or if the device exposes no usable shots information.
+        """
+        device_shots = getattr(device, "shots", None)
+        if isinstance(device_shots, qml.measurements.Shots):
+            return device_shots.total_shots
+        if isinstance(device_shots, int):
+            return device_shots
+        return None
 
     @property
     def remote(self) -> bool:
@@ -239,18 +274,20 @@ class PennyLaneExecutor(ExecutorBase):
 
         qulacs_circuits = []
 
-        # Check the cache for already converted circuits
+        # Check the cache for already converted circuits. Cache keys are
+        # structural, so in-place mutated circuits never hit stale entries.
         for circ in circuits:
             if isinstance(circ, self._native_circuit_class):
                 qulacs_circuits.append(circ)
                 continue
-            if circ in self._circuit_cache:
+            key = self._structural_cache_key(circ)
+            if key in self._circuit_cache:
                 self._logger.debug("Circuit cache hit for %s", circ)
-                qulacs_circuits.append(self._circuit_cache[circ])
+                qulacs_circuits.append(self._circuit_cache[key])
             else:
                 self._logger.debug("Circuit cache miss – converting circuit %s", circ)
                 qulacs_circuit = PennyLaneCircuit(cast(QuantumCircuit, circ))
-                self._circuit_cache[circ] = qulacs_circuit
+                self._circuit_cache[key] = qulacs_circuit
                 qulacs_circuits.append(qulacs_circuit)
 
         return qulacs_circuits, multiple_circuits
@@ -267,13 +304,14 @@ class PennyLaneExecutor(ExecutorBase):
             if isinstance(op, self._native_operator_class):
                 pennylane_operators.append(op)
                 continue
-            if op in self._operator_cache:
+            key = self._structural_cache_key(op)
+            if key in self._operator_cache:
                 self._logger.debug("Operator cache hit for %s", op)
-                pennylane_operators.append(self._operator_cache[op])
+                pennylane_operators.append(self._operator_cache[key])
             else:
                 self._logger.debug("Operator cache miss – converting operator %s", op)
                 pennylane_operator = PennyLaneOperator(op)
-                self._operator_cache[op] = pennylane_operator
+                self._operator_cache[key] = pennylane_operator
                 pennylane_operators.append(pennylane_operator)
 
         return pennylane_operators, multiple_operators
@@ -307,7 +345,7 @@ class PennyLaneExecutor(ExecutorBase):
                 )
                 observable_parameters.append(param_values)
 
-            observable_parameter_tuples = product(*observable_parameters)
+            observable_parameter_tuples = list(product(*observable_parameters))
 
             @qml.qnode(self._device)
             def circuit_func(  # pylint: disable=function-redefined
@@ -315,6 +353,10 @@ class PennyLaneExecutor(ExecutorBase):
             ):
                 _circ.build_pennylane_circuit()(*args)
                 return _obs.build_pennylane_observable()(*args[len(_circ.parameter_names) :])
+
+            # Bind the current shots at call time (see the shots setter) rather
+            # than relying on whatever the device was constructed with.
+            circuit_func = qml.set_shots(circuit_func, shots=self._shots)
 
             observable_values = []
             for cp in circuit_parameter_tuples:
@@ -357,16 +399,12 @@ class PennyLaneExecutor(ExecutorBase):
                 parameter_values,
             )
             values.append(circuit_values)
-        values = np.array(values)
 
-        shape = list(values.shape)
-        num_circuit_param = shape.pop(-1)
-        if num_circuit_param > 1:
-            raise NotImplementedError("Multiple parameters per circuit not supported yet.")
-        num_obs_param = shape.pop(-1)
-        if num_obs_param > 1:
-            raise NotImplementedError("Multiple parameters per observable not supported yet.")
-        values = values.reshape(shape)
+        values = np.array(values)
+        if values.shape[-1] == 1:
+            values = values[..., 0]
+        if values.shape[-1] == 1:
+            values = values[..., 0]
 
         if not multiple_circuits:
             values = values[0]
@@ -374,7 +412,7 @@ class PennyLaneExecutor(ExecutorBase):
                 values = values[0]
         else:
             if not multiple_observables:
-                values = values.reshape(-1)
+                values = values[:, 0, ...]
 
         return values
 
@@ -393,7 +431,14 @@ class PennyLaneExecutor(ExecutorBase):
 
     @staticmethod
     def _collect_named_params(pennylane_obj, parameter_values):
-        """Return (param_list, multiple_list, dim_list) for a circuit or observable."""
+        """Return (param_arrays, multiple_list, dim_list) for a circuit or observable.
+
+        Each entry of ``param_arrays`` is the full array from
+        :func:`adjust_features` (shape ``(batch, dim)``), not just its first
+        row - callers resolve the batch size across every named parameter
+        (see :func:`resolve_parameter_batch_size`) and pick the row for a
+        given batch index themselves.
+        """
         params = []
         multiples = []
         dims = []
@@ -403,7 +448,7 @@ class PennyLaneExecutor(ExecutorBase):
             pv, multiple = adjust_features(
                 parameter_values[param], pennylane_obj.parameter_dimensions[param]
             )
-            params.append(pv[0])
+            params.append(pv)
             multiples.append(multiple)
             dims.append(pennylane_obj.parameter_dimensions[param])
         return params, multiples, dims
@@ -445,7 +490,9 @@ class PennyLaneExecutor(ExecutorBase):
                 observable_parameters_adjusted[obs_idx] = pnp.array(
                     observable_parameters_adjusted[obs_idx], requires_grad=True
                 )
-            pennylane_derivative = qml.jacobian(pennylane_derivative, argnum=arg_index)
+            pennylane_derivative = qml.jacobian(
+                pennylane_derivative, **{_JACOBIAN_ARG_KEYWORD: arg_index}
+            )
 
         result = np.real_if_close(
             np.array(
@@ -496,9 +543,18 @@ class PennyLaneExecutor(ExecutorBase):
         pennylane_circuit = pennylane_circuits[0]
         pennylane_observable = pennylane_observables[0]
 
-        circuit_parameters, _, _ = self._collect_named_params(pennylane_circuit, parameter_values)
-        observable_parameters, _, _ = self._collect_named_params(
+        circuit_param_arrays, _, _ = self._collect_named_params(
+            pennylane_circuit, parameter_values
+        )
+        observable_param_arrays, _, _ = self._collect_named_params(
             pennylane_observable, parameter_values
+        )
+        # A parameter with more than one row is a genuine batch of parameter
+        # sets; one with exactly one row broadcasts across the batch. All
+        # batched parameters (circuit- and observable-side) must agree on the
+        # batch size - resolved once, up front.
+        batch_size = resolve_parameter_batch_size(
+            arr.shape[0] for arr in (*circuit_param_arrays, *observable_param_arrays)
         )
 
         if values is None or len(values) == 0:
@@ -520,35 +576,59 @@ class PennyLaneExecutor(ExecutorBase):
 
         argnum_dict = self._build_argnum_dict(pennylane_circuit, pennylane_observable)
 
-        result_dict = {}
-        for todo in todo_list:
-            pennylane_function = qml.QNode(
-                circuit_func, self._device, diff_method="best", max_diff=len(todo)
-            )
+        def evaluate_one(batch_index: int):
+            """Evaluate every requested derivative for a single row of the batch."""
+            circuit_parameters = [
+                arr[batch_index] if arr.shape[0] > 1 else arr[0] for arr in circuit_param_arrays
+            ]
+            observable_parameters = [
+                arr[batch_index] if arr.shape[0] > 1 else arr[0] for arr in observable_param_arrays
+            ]
 
-            if todo[0] in ("expectation_value", ""):
-                result = np.real_if_close(
-                    np.array(pennylane_function(*circuit_parameters, *observable_parameters))
+            result_dict = {}
+            for todo in todo_list:
+                pennylane_function = qml.QNode(
+                    circuit_func, self._device, diff_method="best", max_diff=len(todo)
                 )
-            else:
-                result = self._compute_derivative(
-                    todo,
-                    pennylane_function,
-                    circuit_parameters,
-                    observable_parameters,
-                    argnum_dict,
-                )
+                # See the shots setter: bind the current shots at call time.
+                pennylane_function = qml.set_shots(pennylane_function, shots=self._shots)
 
-            if len(todo_list) == 1:
-                return result
+                if todo[0] in ("expectation_value", ""):
+                    result = np.real_if_close(
+                        np.array(pennylane_function(*circuit_parameters, *observable_parameters))
+                    )
+                else:
+                    result = self._compute_derivative(
+                        todo,
+                        pennylane_function,
+                        circuit_parameters,
+                        observable_parameters,
+                        argnum_dict,
+                    )
 
-            if len(todo) == 1:
-                key = "expectation_value" if todo[0] == "" else todo[0]
-                result_dict[key] = result
-            else:
-                result_dict[todo] = result
+                if len(todo_list) == 1:
+                    return result
 
-        return result_dict
+                if len(todo) == 1:
+                    key = "expectation_value" if todo[0] == "" else todo[0]
+                    result_dict[key] = result
+                else:
+                    result_dict[todo] = result
+
+            return result_dict
+
+        if batch_size == 1:
+            return evaluate_one(0)
+
+        # Every requested derivative, evaluated once per row of the batch and
+        # stacked with a leading batch axis - the same list-batching
+        # convention used for circuits/observables.
+        per_row_results = [evaluate_one(i) for i in range(batch_size)]
+        if isinstance(per_row_results[0], dict):
+            return {
+                key: np.stack([row[key] for row in per_row_results]) for key in per_row_results[0]
+            }
+        return np.stack(per_row_results)
 
     def _sample(
         self,
@@ -594,6 +674,9 @@ class PennyLaneExecutor(ExecutorBase):
                 # has to be replaced by measurements
                 return qml.sample(wires=list(range(_num_qubits)))
 
+            # See the shots setter: bind the current shots at call time.
+            circuit_func = qml.set_shots(circuit_func, shots=self._shots)
+
             for cp in circuit_parameter_tuples:
                 samples = circuit_func(*cp)
                 # Convert samples to bitstrings
@@ -622,7 +705,6 @@ class PennyLaneExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         num_qubits = pennylane_circuits[0].num_qubits
         self._validate_device_wires(num_qubits)
@@ -659,10 +741,8 @@ class PennyLaneExecutor(ExecutorBase):
             state_vectors.append(circuit_values)
 
         state_vectors = np.array(state_vectors)
-        # Remove the parameter dimension list (has to be fixed for multiple parameters)
-        shape = list(state_vectors.shape)
-        shape.pop(1)
-        state_vectors = state_vectors.reshape(shape)
+        if state_vectors.shape[1] == 1:
+            state_vectors = state_vectors[:, 0, ...]
 
         if not multiple_circuits:
             state_vectors = state_vectors[0]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Literal, Tuple
+from typing import Any, Callable, List, Literal, Tuple
 
 import numpy as np
 from qiskit.primitives import (
@@ -25,6 +25,7 @@ from qc_executor.qiskit.optree.optree import (
 )
 from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_operator import QiskitOperator
+from qc_executor.utils.data_preprocessing import adjust_features, resolve_parameter_batch_size
 from qc_executor.utils.qiskit_compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
@@ -407,17 +408,72 @@ def _classify_backend(backend) -> Tuple[bool, bool, bool]:
     return (False, False, False)
 
 
+def _read_shots_from_primitive(primitive) -> int | None:
+    """Best-effort extraction of the shot count already baked into an
+    injected primitive - used only when the caller didn't pass an explicit
+    ``shots=`` alongside it, so ``QiskitExecutor.shots`` reflects reality
+    instead of staying ``None`` for a primitive that already samples with a
+    concrete shot count. Falls back to ``1024`` when the primitive carries no
+    shot information at all, matching the default every other construction
+    path in this class applies - except for an exact ``StatevectorEstimator``
+    (``default_precision == 0.0``), where that *is* the shot information:
+    unlike a sampler, an estimator can be genuinely exact, and reporting a
+    fake shot count there would misrepresent it.
+
+    Read-only: the injected primitive itself is never mutated here - it
+    stays exactly as the caller configured it (see the class docstring).
+    """
+    if isinstance(primitive, (RuntimeEstimatorV1, RuntimeSamplerV1)):
+        try:
+            return primitive.options["execution"]["shots"] or 1024
+        except (KeyError, TypeError):
+            return 1024
+    if isinstance(primitive, (BaseEstimatorV1, BaseSamplerV1)):
+        # BackendEstimatorV1/SamplerV1 and PrimitiveEstimatorV1/SamplerV1 alike
+        # store shots directly under .options.
+        return primitive.options.get("shots", 0) or 1024
+    if isinstance(primitive, StatevectorEstimator):
+        precision = primitive.default_precision
+        return int(round(1.0 / precision**2)) if precision else None
+    if isinstance(primitive, StatevectorSampler):
+        return primitive.default_shots or 1024
+    if isinstance(primitive, (RuntimeEstimatorV2, RuntimeSamplerV2)):
+        options = primitive.options
+        shots = getattr(options, "default_shots", None)
+        if shots:
+            return shots
+        precision = getattr(options, "default_precision", None)
+        return int(round(1.0 / precision**2)) if precision else 1024
+    if isinstance(primitive, (BaseEstimatorV2, BaseSamplerV2)):
+        # BackendEstimatorV2 / BackendSamplerV2
+        precision = getattr(primitive.options, "default_precision", None)
+        if precision:
+            return int(round(1.0 / precision**2))
+        shots = getattr(primitive.options, "default_shots", None)
+        return shots or 1024
+    return 1024
+
+
 class QiskitExecutor(ExecutorBase):
     """Class for executing Qiskit circuits.
 
-    Supports local simulation (``"statevector"``, ``"aer"``) **and** execution
-    on real IBM Quantum hardware or noise-aware fake backends via
+    Supports local simulation (``"statevector"``, ``"aer_statevector"``,
+    ``"aer"``) **and** execution on real IBM Quantum hardware or noise-aware
+    fake backends via
     `qiskit-ibm-runtime <https://github.com/Qiskit/qiskit-ibm-runtime>`_.
 
     The ``backend`` parameter is the single entry point and accepts all
     supported configurations:
 
-    * ``"statevector"`` / ``"aer"`` — local simulation string shortcuts.
+    * ``"statevector"`` — Qiskit's reference primitives
+      (``StatevectorEstimator``/``StatevectorSampler``): exact for
+      ``shots=None``, otherwise an analytic Gaussian noise model on top of
+      the exact statevector.
+    * ``"aer_statevector"`` — real shot-based sampling of the statevector via
+      ``AerSimulator(method="statevector")``; a different, not necessarily
+      numerically equivalent estimator/sampler than ``"statevector"`` with
+      shots set, despite both targeting the same exact state.
+    * ``"aer"`` — the general-purpose ``AerSimulator``.
     * A :class:`~qiskit.providers.Backend` / ``BackendV2`` instance (e.g.
       from ``QiskitRuntimeService`` or ``fake_provider``).
     * A ``qiskit_ibm_runtime.Session`` or ``Batch`` — ownership is transferred
@@ -434,7 +490,8 @@ class QiskitExecutor(ExecutorBase):
 
     Args:
         backend: Backend to use for execution.  Accepts:
-            ``"statevector"`` (default) or ``"aer"`` string shortcuts, a Qiskit
+            ``"statevector"`` (default), ``"aer_statevector"`` or ``"aer"``
+            string shortcuts, a Qiskit
             :class:`~qiskit.providers.Backend` instance (IBM hardware or fake),
             a ``qiskit_ibm_runtime.Session`` / ``Batch``, or a pre-configured
             Qiskit primitive (``BaseSamplerV1/V2`` / ``BaseEstimatorV1/V2``).
@@ -445,13 +502,28 @@ class QiskitExecutor(ExecutorBase):
         caching (bool | None, optional): Whether to use in-memory caching.
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
-            in each in-memory cache.
+            in each in-memory cache; ``None`` makes them unbounded.
         execution_mode (str, optional): ``"job"`` (default), ``"session"``, or
             ``"batch"``.  Only relevant for real IBM Quantum backends.
             Use ``"session"`` for iterative algorithms (VQE, QAOA) and
             ``"batch"`` for independent parallel jobs.
         options (dict | None, optional): Options forwarded to IBM Runtime primitives
             (e.g. ``{"resilience_level": 1}``).  Ignored for local backends.
+        primitive_wrapper (callable | None, optional): ``wrapper(primitive, kind)
+            -> primitive``, with ``kind`` either ``"estimator"`` or ``"sampler"``.
+            Applied to every primitive this executor (re)builds - on initial
+            construction, after a runtime session renewal, and for lazily
+            deferred session primitives - so a host application can layer
+            cross-cutting concerns (retry, disk caching, seeding, ...) on top
+            of execution without ever holding a primitive itself. The
+            wrapper's return value must be a genuine instance of the same
+            base class as the primitive it was given (``BaseEstimatorV1``/
+            ``BaseEstimatorV2`` for an estimator, ``BaseSamplerV1``/
+            ``BaseSamplerV2`` for a sampler) - qc_executor's own OpTree
+            evaluation dispatches on ``isinstance()`` of exactly those
+            classes, so duck-typing ``run()`` alone is not enough. See
+            :attr:`raw_estimator`/:attr:`raw_sampler` for the underlying,
+            undecorated primitive.
     """
 
     _native_circuit_class = QiskitCircuit
@@ -475,9 +547,10 @@ class QiskitExecutor(ExecutorBase):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
         execution_mode: Literal["job", "session", "batch"] = "job",
         options: dict | None = None,
+        primitive_wrapper: Callable[[Any, str], Any] | None = None,
     ):
         super().__init__(
             shots=shots,
@@ -496,6 +569,13 @@ class QiskitExecutor(ExecutorBase):
         self._ibm_quantum_backend: bool = False
         self._execution_mode = execution_mode
         self._options = options
+        self._primitive_wrapper = primitive_wrapper
+        # The raw (undecorated) primitives this executor built - always the
+        # genuine Qiskit object, regardless of what primitive_wrapper turns
+        # self._estimator/self._sampler (the ones actually used for
+        # execution) into. See _decorate_primitive().
+        self._raw_estimator = None
+        self._raw_sampler = None
         # Safe defaults — overwritten in the relevant branches below
         self._runtime_primitives_version: str = "v2"
         self._sampler_uses_v1_api: bool = QISKIT_SMALLER_1_2
@@ -595,6 +675,12 @@ class QiskitExecutor(ExecutorBase):
             # V1 vs V2 sampler API detection should be based on sampler instance.
             self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
 
+            if shots is None:
+                # The caller configured shots on the injected primitive itself
+                # (rather than via this executor's shots= argument) - reflect
+                # that in self.shots instead of leaving it None.
+                self._shots = _read_shots_from_primitive(backend)
+
         # ── 2. Injected Session / Batch ────────────────────────────────────
         # Ownership is intentionally transferred to the executor: close_session()
         # will close even externally created objects.
@@ -629,17 +715,19 @@ class QiskitExecutor(ExecutorBase):
         # ── 3. Local simulator backends (string shortcuts) ────────────────
         elif isinstance(backend, str):
             if backend == "statevector":
-                if shots is None:
-                    # Exact statevector mode — no Aer required
-                    self._estimator = StatevectorEstimator()
-                    self._sampler = StatevectorSampler()
-                    self._backend = None
-                else:
-                    # Shot-based statevector via Aer
-                    aer_simulator_cls = _load_aer_simulator()
-                    self._backend = aer_simulator_cls(method="statevector")
-                    self._estimator = BackendEstimator(backend=self._backend)
-                    self._sampler = BackendSampler(backend=self._backend)
+                # Qiskit's reference primitives - exact for shots=None, else an
+                # analytic Gaussian noise model on top of the exact statevector
+                # (default_precision / default_shots). No Aer required.
+                self._estimator = StatevectorEstimator()
+                self._sampler = StatevectorSampler()
+                self._backend = None
+            elif backend == "aer_statevector":
+                # Real shot-based sampling of the statevector via Aer, as
+                # opposed to "statevector"'s analytic noise model.
+                aer_simulator_cls = _load_aer_simulator()
+                self._backend = aer_simulator_cls(method="statevector")
+                self._estimator = BackendEstimator(backend=self._backend)
+                self._sampler = BackendSampler(backend=self._backend)
             elif backend == "aer":
                 aer_simulator_cls = _load_aer_simulator()
                 self._backend = aer_simulator_cls()
@@ -648,7 +736,8 @@ class QiskitExecutor(ExecutorBase):
             else:
                 raise ValueError(
                     f"Unknown backend string: {backend!r}. "
-                    "Use 'statevector', 'aer', or pass a Backend / Session instance."
+                    "Use 'statevector', 'aer_statevector', 'aer', or pass a "
+                    "Backend / Session instance."
                 )
 
         # ── 4. Backend object (IBMBackend / FakeBackend / any BackendV2) ──
@@ -706,7 +795,8 @@ class QiskitExecutor(ExecutorBase):
 
         else:
             raise TypeError(
-                f"'backend' must be a string ('statevector', 'aer'), a Qiskit Backend "
+                f"'backend' must be a string ('statevector', 'aer_statevector', 'aer'), "
+                f"a Qiskit Backend "
                 f"instance, a qiskit-ibm-runtime Session/Batch, or a Qiskit primitive "
                 f"(BaseSamplerV1/V2 / BaseEstimatorV1/V2). Got {type(backend)!r}."
             )
@@ -715,6 +805,71 @@ class QiskitExecutor(ExecutorBase):
             self._random = np.random.default_rng(seed)
         else:
             self._random = np.random.default_rng()
+
+        if not is_primitive:
+            # A directly injected primitive (branch 1) is caller-configured and
+            # left untouched; every other construction path built its primitives
+            # from a bare backend/string/session, which never carried any shots
+            # information on its own.
+            self._apply_shots_option(self._estimator)
+            self._apply_shots_option(self._sampler)
+
+        # Whichever branch above built them, self._estimator/self._sampler are
+        # still the raw Qiskit primitives at this point - snapshot them, then
+        # apply the host's wrapper (if any) for actual execution use.
+        self._raw_estimator = self._estimator
+        self._raw_sampler = self._sampler
+        self._estimator = self._decorate_primitive(self._raw_estimator, "estimator")
+        self._sampler = self._decorate_primitive(self._raw_sampler, "sampler")
+
+    def _decorate_primitive(self, primitive, kind: str):
+        """Apply the host's ``primitive_wrapper`` (if any) to a freshly (re)built
+        primitive - see the ``primitive_wrapper`` constructor argument. Called
+        for every construction path: initial ``__init__``, a runtime session
+        renewal (:meth:`_refresh_primitives`), and lazily deferred session
+        primitives (:meth:`_ensure_runtime_primitives`).
+        """
+        if primitive is None or self._primitive_wrapper is None:
+            return primitive
+        return self._primitive_wrapper(primitive, kind)
+
+    def _apply_shots_option(self, primitive) -> None:
+        """Configure *primitive* so it honors ``self._shots``.
+
+        Estimators express this as precision (``1 / sqrt(shots)``); samplers
+        and V1-style primitives take the shot count directly. Left untouched
+        when ``self._shots`` is ``None`` and the primitive is freshly built
+        (still at its own default) - except a ``StatevectorEstimator``, which
+        is explicitly reset to exact. That reset matters when this method
+        runs via the ``shots`` setter (not just construction): unlike a
+        sampler or a real-backend estimator - which cannot be "exact" and so
+        have nothing coherent to reset to - a StatevectorEstimator going from
+        a concrete shot count back to ``None`` must actually become exact
+        again, not silently keep the last precision it was set to.
+        """
+        if primitive is None:
+            return
+        if self._shots is None:
+            if isinstance(primitive, StatevectorEstimator):
+                primitive._default_precision = 0.0
+            return
+        if isinstance(primitive, (RuntimeEstimatorV1, RuntimeSamplerV1)):
+            execution = primitive.options.get("execution") or {}
+            execution["shots"] = self._shots
+            primitive.set_options(execution=execution)
+        elif isinstance(primitive, (BaseEstimatorV1, BaseSamplerV1)):
+            primitive.set_options(shots=self._shots)
+        elif isinstance(primitive, StatevectorEstimator):
+            # No .options - default_precision is a plain, directly settable
+            # attribute (backed by _default_precision).
+            primitive._default_precision = 1.0 / self._shots**0.5
+        elif isinstance(primitive, StatevectorSampler):
+            primitive._default_shots = self._shots
+        elif hasattr(primitive, "options"):
+            if hasattr(primitive.options, "default_precision"):
+                primitive.options.default_precision = 1.0 / self._shots**0.5
+            elif hasattr(primitive.options, "default_shots"):
+                primitive.options.default_shots = self._shots
 
     # ------------------------------------------------------------------
     # Properties
@@ -727,8 +882,15 @@ class QiskitExecutor(ExecutorBase):
 
     @shots.setter
     def shots(self, value: int | None) -> None:
-        """Set the number of shots."""
+        """Set the number of shots and apply it to the current primitives in
+        place, so the change takes effect on the very next ``run()`` without
+        needing a rebuild - including for a primitive a host's
+        ``primitive_wrapper`` still holds a reference to, since that
+        reference is to the same raw object being mutated here.
+        """
         self._shots = value
+        self._apply_shots_option(self.raw_estimator)
+        self._apply_shots_option(self.raw_sampler)
 
     @property
     def remote(self) -> bool:
@@ -745,6 +907,70 @@ class QiskitExecutor(ExecutorBase):
         """Return the active runtime Session or Batch, or ``None``."""
         return self._session
 
+    @property
+    def backend(self):
+        """Return the resolved Qiskit backend, or ``None``.
+
+        ``None`` for exact statevector simulation (``backend="statevector"``,
+        ``shots=None``) and for an injected primitive/Session from which no
+        backend context could be recovered.
+        """
+        return self._backend
+
+    @property
+    def estimator(self):
+        """Return the Qiskit estimator primitive used for execution.
+
+        For real IBM Quantum hardware, this refreshes the underlying runtime
+        session and primitives first if the session has expired since the
+        last access - safe to call repeatedly across a long-running loop
+        without needing a ``with`` block.
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._estimator
+
+    @property
+    def sampler(self):
+        """Return the Qiskit sampler primitive used for execution.
+
+        For real IBM Quantum hardware, this refreshes the underlying runtime
+        session and primitives first if the session has expired since the
+        last access - safe to call repeatedly across a long-running loop
+        without needing a ``with`` block.
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._sampler
+
+    @property
+    def raw_estimator(self):
+        """Return the raw (undecorated) Qiskit estimator primitive.
+
+        Unlike :attr:`estimator`, which returns whatever a registered
+        ``primitive_wrapper`` turned the primitive into (see the
+        constructor), this is always the genuine Qiskit primitive
+        qc_executor itself constructed - useful for host-side introspection
+        (e.g. reading its concrete type or default options).
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._raw_estimator
+
+    @property
+    def raw_sampler(self):
+        """Return the raw (undecorated) Qiskit sampler primitive.
+
+        Unlike :attr:`sampler`, which returns whatever a registered
+        ``primitive_wrapper`` turned the primitive into (see the
+        constructor), this is always the genuine Qiskit primitive
+        qc_executor itself constructed - useful for host-side introspection
+        (e.g. reading its concrete type or default options).
+        """
+        if self._ibm_quantum_backend:
+            self._ensure_primitives_current()
+        return self._raw_sampler
+
     # ------------------------------------------------------------------
     # Session lifecycle
     # ------------------------------------------------------------------
@@ -752,6 +978,19 @@ class QiskitExecutor(ExecutorBase):
     def _uses_managed_session(self) -> bool:
         """Return *True* when this executor should own a runtime Session/Batch."""
         return self._ibm_quantum_backend and self._execution_mode in ("session", "batch")
+
+    def create_session(self) -> None:
+        """Explicitly (re)create the runtime session now, instead of waiting
+        for the first execution to trigger it lazily.
+
+        A no-op when this executor doesn't manage its own session (local
+        simulators, fake backends, or real IBM Quantum hardware in ``"job"``
+        execution mode all build their primitives without one).
+        """
+        if not self._uses_managed_session():
+            return
+        self._create_session()
+        self._refresh_primitives()
 
     def _create_session(self) -> None:
         """Create (or re-create) a :class:`~qiskit_ibm_runtime.Session` or
@@ -865,23 +1104,49 @@ class QiskitExecutor(ExecutorBase):
                 exc_info=True,
             )
 
+    def _ensure_primitives_current(self) -> None:
+        """Rebuild the estimator/sampler if the runtime session was just renewed.
+
+        ``_ensure_session_active()`` transparently re-creates an expired
+        session but leaves any already-constructed estimator/sampler bound to
+        the old (now-closed) one - callers that only build on first use (like
+        :meth:`_ensure_runtime_primitives`) never notice a session renewed
+        mid-lifetime. Comparing session identity before/after is what lets a
+        long-running loop that never re-enters ``__enter__`` keep working
+        across a session expiry.
+        """
+        session_before = self._session
+        self._ensure_session_active()
+        if (
+            self._raw_estimator is None
+            or self._raw_sampler is None
+            or self._session is not session_before
+        ):
+            self._refresh_primitives()
+
     def _create_runtime_estimator(self):
         """Instantiate the runtime Estimator for the current backend / session."""
         self._ensure_session_active()
         if self._runtime_primitives_version == "v1":
             cls, _ = _load_runtime_primitives_v1()
-            return self._instantiate_runtime_primitive_v1(cls, self._options)
-        cls, _ = _load_runtime_primitives_v2()
-        return self._instantiate_runtime_primitive_v2(cls, self._options)
+            estimator = self._instantiate_runtime_primitive_v1(cls, self._options)
+        else:
+            cls, _ = _load_runtime_primitives_v2()
+            estimator = self._instantiate_runtime_primitive_v2(cls, self._options)
+        self._apply_shots_option(estimator)
+        return estimator
 
     def _create_runtime_sampler(self):
         """Instantiate the runtime Sampler for the current backend / session."""
         self._ensure_session_active()
         if self._runtime_primitives_version == "v1":
             _, cls = _load_runtime_primitives_v1()
-            return self._instantiate_runtime_primitive_v1(cls, self._options)
-        _, cls = _load_runtime_primitives_v2()
-        return self._instantiate_runtime_primitive_v2(cls, self._options)
+            sampler = self._instantiate_runtime_primitive_v1(cls, self._options)
+        else:
+            _, cls = _load_runtime_primitives_v2()
+            sampler = self._instantiate_runtime_primitive_v2(cls, self._options)
+        self._apply_shots_option(sampler)
+        return sampler
 
     # -- V1 instantiation (qiskit-ibm-runtime < 0.21) ---------------------
 
@@ -949,16 +1214,20 @@ class QiskitExecutor(ExecutorBase):
 
     def _refresh_primitives(self) -> None:
         """Re-create primitives after a session renewal."""
-        self._estimator = self._create_runtime_estimator()
-        self._sampler = self._create_runtime_sampler()
+        self._raw_estimator = self._create_runtime_estimator()
+        self._raw_sampler = self._create_runtime_sampler()
+        self._estimator = self._decorate_primitive(self._raw_estimator, "estimator")
+        self._sampler = self._decorate_primitive(self._raw_sampler, "sampler")
 
     def _ensure_runtime_primitives(self) -> None:
         """Lazily create runtime primitives when session management is deferred."""
-        if self._estimator is None:
-            self._estimator = self._create_runtime_estimator()
-        if self._sampler is None:
-            self._sampler = self._create_runtime_sampler()
-        self._sampler_uses_v1_api = isinstance(self._sampler, BaseSamplerV1)
+        if self._raw_estimator is None:
+            self._raw_estimator = self._create_runtime_estimator()
+            self._estimator = self._decorate_primitive(self._raw_estimator, "estimator")
+        if self._raw_sampler is None:
+            self._raw_sampler = self._create_runtime_sampler()
+            self._sampler = self._decorate_primitive(self._raw_sampler, "sampler")
+        self._sampler_uses_v1_api = isinstance(self._raw_sampler, BaseSamplerV1)
 
     # ------------------------------------------------------------------
     # ISA transpilation (for IBM / fake backends)
@@ -1085,9 +1354,17 @@ class QiskitExecutor(ExecutorBase):
         circuit: QuantumCircuitBase | List[QuantumCircuitBase],
         observable: QuantumOperatorBase | List[QuantumOperatorBase] | None = None,
         **parameters,
-    ) -> Tuple[dict, dict]:
+    ) -> Tuple[dict | List[dict], dict | List[dict]]:
         """
         Prepare separate parameter dictionaries for circuits and operators.
+
+        Each named parameter's value is interpreted with the same
+        :func:`adjust_features`-based convention the PennyLane and Qulacs
+        backends use: a value shaped like a single parameter set binds
+        directly, while a value carrying an extra leading axis is a genuine
+        batch of parameter sets. All batched parameters - across both the
+        circuit and the observable - must agree on the batch size (see
+        :func:`resolve_parameter_batch_size`).
 
         Args:
             circuit: The quantum circuit(s)
@@ -1095,7 +1372,11 @@ class QiskitExecutor(ExecutorBase):
             **parameters: Keyword arguments with parameter values
 
         Returns:
-            Tuple of (circuit_param_dict, observable_param_dict)
+            Tuple of (circuit_param_dict(s), observable_param_dict(s)) - a
+            single dict for a single parameter set, or a list of dicts for a
+            batch. This is the same ``dict | List[dict]`` convention
+            :meth:`OpTreeEvaluate.evaluate_with_estimator`/
+            ``evaluate_with_sampler`` already accept.
         """
 
         # helper to get the underlying qiskit objects
@@ -1115,41 +1396,53 @@ class QiskitExecutor(ExecutorBase):
         circuits = _collect_objects(circuit)
         observables = _collect_objects(observable) if observable is not None else []
 
-        def _build_param_dict(qiskit_objects):
+        def _param_name(p) -> str:
+            # Support both ParameterVector elements and standalone Parameters
+            return p.vector.name if hasattr(p, "vector") else p.name
+
+        def _param_dimension(p) -> int:
+            return len(p.vector) if hasattr(p, "vector") else 1
+
+        # Every named parameter referenced by any of the given circuits/
+        # observables and actually supplied, together with its dimension
+        # (vector length, or 1 for a standalone Parameter).
+        named_params: dict = {}
+        for qobj in (*circuits, *observables):
+            for p in qobj.parameters:
+                name = _param_name(p)
+                if name in parameters:
+                    named_params.setdefault(name, _param_dimension(p))
+
+        value_arrays = {
+            name: adjust_features(parameters[name], dim)[0] for name, dim in named_params.items()
+        }
+        batch_size = resolve_parameter_batch_size(arr.shape[0] for arr in value_arrays.values())
+
+        def _row(name: str, batch_index: int) -> np.ndarray:
+            arr = value_arrays[name]
+            return arr[batch_index] if arr.shape[0] > 1 else arr[0]
+
+        def _build_param_dict(qiskit_objects, batch_index: int) -> dict:
             param_dict = {}
             for qobj in qiskit_objects:
                 for p in qobj.parameters:
-                    # Support both ParameterVector elements and standalone Parameters
-                    name = p.vector.name if hasattr(p, "vector") else p.name
-                    if name not in parameters:
+                    name = _param_name(p)
+                    if name not in value_arrays:
                         continue
-                    supplied = parameters[name]
-                    # Normalize to numpy
-                    if isinstance(supplied, (list, tuple, np.ndarray)):
-                        arr = np.asarray(supplied)
-                        if hasattr(p, "index"):
-                            # ParameterVector element – bind by index
-                            try:
-                                val = arr[p.index]
-                            except (IndexError, TypeError) as exc:
-                                if arr.size == 1:
-                                    val = arr.flat[0]
-                                else:
-                                    raise ValueError(
-                                        f"Provided values for parameter '{name}' have length "
-                                        f"{arr.size} but parameter index {p.index} is requested."
-                                    ) from exc
-                        else:
-                            # Standalone Parameter – scalar expected; take first element
-                            val = arr.flat[0] if arr.size == 1 else arr
-                    else:
-                        val = supplied
-                    param_dict[p] = val
+                    row = _row(name, batch_index)
+                    param_dict[p] = row[p.index] if hasattr(p, "index") else row[0]
             return param_dict
 
-        circuit_dict = _build_param_dict(circuits)
-        observable_dict = _build_param_dict(observables) if observables else {}
-        return circuit_dict, observable_dict
+        if batch_size == 1:
+            circuit_dict = _build_param_dict(circuits, 0)
+            observable_dict = _build_param_dict(observables, 0) if observables else {}
+            return circuit_dict, observable_dict
+
+        circuit_dicts = [_build_param_dict(circuits, i) for i in range(batch_size)]
+        observable_dicts = (
+            [_build_param_dict(observables, i) for i in range(batch_size)] if observables else {}
+        )
+        return circuit_dicts, observable_dicts
 
     def _extract_counts(self, pub_result, n_qubits=None):
         """Extract measurement counts from a primitive result object.
@@ -1233,21 +1526,34 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format
         circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
-        # Prepare separate parameter dictionaries
+        # Prepare separate parameter dictionaries - a plain dict for a single
+        # parameter set, or a list of dicts (one per set) for a batch.
         circuit_dict, observable_dict = self._prepare_parameter_dicts(
             circuit, observable, **parameter_values
         )
+        is_batched = isinstance(circuit_dict, list)
 
-        # Use OpTree evaluation with Estimator
-        return OpTreeEvaluate.evaluate_with_estimator(
+        # dictionaries_combined=True pairs entry i of the circuit-parameter
+        # list with entry i of the observable-parameter list (one parameter
+        # set per pair) rather than every combination of the two - the
+        # circuit-/observable-*list* axes (multiple circuits/observables)
+        # already provide the cross-product behavior.
+        result = OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
             operator=observable_tree,
             dictionary_circuit=circuit_dict,
             dictionary_operator=observable_dict,
             estimator=self._estimator,
-            dictionaries_combined=False,
+            dictionaries_combined=is_batched,
             detect_duplicates=True,
         )
+        if is_batched:
+            # OpTree returns the parameter-set (batch) axis first/outermost;
+            # move it to the end so the circuit-/observable-list axes lead,
+            # matching the "list input adds a leading axis" base contract and
+            # the PennyLane/Qulacs batching convention.
+            result = np.moveaxis(np.asarray(result), 0, -1)
+        return result
 
     def _expectation_value_derivatives(
         self,
@@ -1284,10 +1590,12 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format
         circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
 
-        # Prepare separate parameter dictionaries
+        # Prepare separate parameter dictionaries - a plain dict for a single
+        # parameter set, or a list of dicts (one per set) for a batch.
         circuit_dict, observable_dict = self._prepare_parameter_dicts(
             circuit, observable, **parameter_values
         )
+        is_batched = isinstance(circuit_dict, list)
 
         # Build separate parameter sets for circuit and observable so we can
         # apply the product rule correctly.
@@ -1327,6 +1635,7 @@ class QiskitExecutor(ExecutorBase):
                     dictionary_circuit=circuit_dict,
                     dictionary_operator=observable_dict,
                     estimator=self._estimator,
+                    dictionaries_combined=is_batched,
                     detect_duplicates=True,
                 )
 
@@ -1339,9 +1648,14 @@ class QiskitExecutor(ExecutorBase):
                     dictionary_circuit=circuit_dict,
                     dictionary_operator=observable_dict,
                     estimator=self._estimator,
+                    dictionaries_combined=is_batched,
                     detect_duplicates=True,
                 )
 
+            # circuit/observable are always single objects here (the base
+            # class expands any circuit/observable list before calling this
+            # method), so a batch produces a plain (batch,) array - no extra
+            # axis to move, unlike _expectation_value.
             return total
 
         results: dict = {}
@@ -1356,8 +1670,8 @@ class QiskitExecutor(ExecutorBase):
                 if len(matching) == 1:
                     results[dp] = _derivative_for_single_param(matching[0])
                 else:
-                    # ParameterVector: return one derivative value per element.
-                    results[dp] = np.array([_derivative_for_single_param(p) for p in matching])
+                    stacked = np.array([_derivative_for_single_param(p) for p in matching])
+                    results[dp] = np.moveaxis(stacked, 1, 0) if is_batched else stacked
             elif isinstance(dp, ParameterVectorElement):
                 results[dp] = _derivative_for_single_param(dp)
             else:
@@ -1385,10 +1699,14 @@ class QiskitExecutor(ExecutorBase):
         # Convert to OpTree format (just for consistent handling)
         circuit_tree, _ = self._convert_to_optree(circuit, operator=None)
 
-        # Prepare parameter dictionary (only for circuits)
+        # Prepare parameter dictionary (only for circuits) - a plain
+        # dict for a single parameter set, or a list of dicts (one per set)
+        # for a batch.
         circuit_dict, _ = self._prepare_parameter_dicts(
             circuit, observable=None, **parameter_values
         )
+        circuit_dicts = circuit_dict if isinstance(circuit_dict, list) else [circuit_dict]
+        batch_size = len(circuit_dicts)
 
         # Extract circuits from OpTree
         if isinstance(circuit_tree, OpTreeCircuit):
@@ -1396,15 +1714,18 @@ class QiskitExecutor(ExecutorBase):
         else:
             circuits = [child.circuit for child in circuit_tree.children]
 
-        # Bind parameters to circuits
+        # Bind parameters to circuits - one bound circuit per (circuit, batch
+        # index) pair, circuit-major so a flat result list can be regrouped
+        # below without needing to know the sampler's own pub ordering.
         bound_circuits = []
         for circ in circuits:
-            # Bind only parameters that exist in this circuit
-            params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
-            bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
-            if bound_circ.num_clbits == 0:
-                bound_circ.measure_all()
-            bound_circuits.append(bound_circ)
+            for d in circuit_dicts:
+                # Bind only parameters that exist in this circuit
+                params_to_bind = {p: d[p] for p in circ.parameters if p in d}
+                bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
+                if bound_circ.num_clbits == 0:
+                    bound_circ.measure_all()
+                bound_circuits.append(bound_circ)
 
         if self._sampler_uses_v1_api:
             job = self._sampler.run(bound_circuits, shots=self._shots)
@@ -1419,9 +1740,20 @@ class QiskitExecutor(ExecutorBase):
         n_qubits_list = [getattr(c, "qiskit_circuit", c).num_qubits for c in raw_circuits_for_nq]
         counts_list = self._extract_counts(result, n_qubits_list[0])
 
-        if not is_list_input:
-            return counts_list[0] if isinstance(counts_list, list) else counts_list
-        return counts_list
+        if batch_size == 1:
+            if not is_list_input:
+                return counts_list[0] if isinstance(counts_list, list) else counts_list
+            return counts_list
+
+        # Regroup the flat, circuit-major counts_list back into per-circuit
+        # batches - a list of count dicts (one per parameter set) for a
+        # single circuit, matching the PennyLane backend's own sample()
+        # convention; a list of such lists (one per circuit) for a circuit
+        # list.
+        grouped = [
+            counts_list[i * batch_size : (i + 1) * batch_size] for i in range(len(circuits))
+        ]
+        return grouped[0] if not is_list_input else grouped
 
     def _statevector(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameter_values
@@ -1437,18 +1769,29 @@ class QiskitExecutor(ExecutorBase):
         else:
             raw_circuits = [getattr(circuit, "qiskit_circuit", circuit)]
 
-        # Prepare parameter dictionary
+        # Prepare parameter dictionary(-ies) - a plain dict for a single
+        # parameter set, or a list of dicts (one per set) for a batch.
         circuit_dict, _ = self._prepare_parameter_dicts(
             circuit, observable=None, **parameter_values
         )
+        circuit_dicts = circuit_dict if isinstance(circuit_dict, list) else [circuit_dict]
 
         statevectors = []
         for circ in raw_circuits:
-            params_to_bind = {p: circuit_dict[p] for p in circ.parameters if p in circuit_dict}
-            bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
-            statevectors.append(_reverse_qubit_ordering(Statevector(bound_circ).data))
+            per_circuit = []
+            for d in circuit_dicts:
+                params_to_bind = {p: d[p] for p in circ.parameters if p in d}
+                bound_circ = circ.assign_parameters(params_to_bind) if params_to_bind else circ
+                per_circuit.append(_reverse_qubit_ordering(Statevector(bound_circ).data))
+            statevectors.append(per_circuit)
 
+        # Shape at this point: (n_circuits, n_parameter_sets, statevector_dim).
+        # A single parameter set (the common case) is squeezed away, matching
+        # the previous behavior exactly; more than one is kept as a genuine
+        # batch axis, mirroring the PennyLane/Qulacs statevector batching.
         statevectors = np.array(statevectors)
+        if statevectors.shape[1] == 1:
+            statevectors = statevectors[:, 0, ...]
         return statevectors[0] if len(raw_circuits) == 1 else statevectors
 
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QiskitCircuit:
@@ -1532,4 +1875,4 @@ class QiskitExecutor(ExecutorBase):
     @classmethod
     def get_accepted_backend_aliases(cls) -> list[str]:
         """Return string aliases accepted by this executor in ``Executor.create``."""
-        return ["statevector", "aer"]
+        return ["statevector", "aer_statevector", "aer"]

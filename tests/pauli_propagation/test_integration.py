@@ -158,9 +158,18 @@ class TestDerivativesNative:
             p_obs=[0.5, 0.6],
         )
 
-        assert np.allclose(gradients["p"], np.array([-0.001799730012149741]), atol=1e-10)
-        assert np.allclose(gradients["p_obs"], np.array([0.0, 0.9995500337489875]), atol=1e-10)
-        assert np.allclose(gradients["x"], np.array([-0.005399190036449223]), atol=1e-10)
+        # With big-endian labels, "IZ" (coefficient p_obs[1]) acts on
+        # qubit 1, the qubit whose <Z> = cos(p[0] * x[0]) survives.
+        theta = 0.3 * 0.1
+        assert np.allclose(
+            np.asarray(gradients["p"]).reshape(-1), [0.6 * -np.sin(theta) * 0.1], atol=1e-10
+        )
+        assert np.allclose(
+            np.asarray(gradients["p_obs"]).reshape(-1), [0.0, np.cos(theta)], atol=1e-10
+        )
+        assert np.allclose(
+            np.asarray(gradients["x"]).reshape(-1), [0.6 * -np.sin(theta) * 0.3], atol=1e-10
+        )
 
 
 class TestFactoryIntegration:

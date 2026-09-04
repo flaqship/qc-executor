@@ -21,6 +21,7 @@ import pytest
 
 from qc_executor import Executor, QuantumCircuit, QuantumOperator
 from qc_executor.base.circuit_base import QuantumCircuitBase
+from qc_executor.base.executor_base import ExecutorBase
 from qc_executor.base.operator_base import QuantumOperatorBase
 from qc_executor.parameters import Parameters
 from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
@@ -181,6 +182,54 @@ class TestPennylaneExpectationValue:
 
         assert isinstance(result, (float, np.ndarray))
 
+    def test_expectation_value_batch_of_parameter_sets(self):
+        """Passing several parameter sets at once returns one result per set,
+        matching a loop over individual calls - previously this raised
+        NotImplementedError (or, before that guard was even reached, crashed
+        with an inhomogeneous-shape error from a generator that was silently
+        exhausted after the first parameter set)."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = PennyLaneExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value(qc, operator, x=[[v] for v in x_values])
+        individually = [executor.expectation_value(qc, operator, x=[v]) for v in x_values]
+
+        assert np.shape(batched) == (3,)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_expectation_value_single_set_unaffected_by_batching_support(self):
+        """A single parameter set still returns a bare scalar, not a
+        length-1 batch - the common case is unchanged by batch support."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = PennyLaneExecutor()
+
+        result = executor.expectation_value(qc, operator, x=[0.3])
+
+        assert np.shape(result) == ()
+
+    def test_expectation_value_batch_with_parametric_observable(self):
+        """A batched circuit parameter alongside a parametric observable
+        exercises the fix to the per-observable parameter-tuple generator,
+        which used to be exhausted after the first circuit parameter set."""
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+        executor = PennyLaneExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value(qc, operator, x=[[v] for v in x_values], p_obs=[2.0])
+        individually = [
+            executor.expectation_value(qc, operator, x=[v], p_obs=[2.0]) for v in x_values
+        ]
+
+        assert np.allclose(batched, individually, atol=1e-10)
+
 
 class TestPennylaneSampling:
     """Test suite for PennyLane executor sampling."""
@@ -220,7 +269,8 @@ class TestPennylaneSampling:
 
         samples = result[0]
         assert isinstance(samples, dict)
-        # After RX(pi), qubit 0 should be flipped
+        # After RX(pi), qubit 0 should be flipped; the public bitstring
+        # convention puts qubit 0 leftmost.
         assert "10" in samples
         assert samples["10"] >= 900  # Should have high count
 
@@ -320,6 +370,20 @@ class TestPennylaneStatevector:
         # Statevector should be normalized
         assert np.isclose(np.sum(np.abs(statevector) ** 2), 1.0, atol=1e-5)
 
+    def test_statevector_batch_of_parameter_sets(self):
+        """Passing several parameter sets returns a leading batch axis of
+        statevectors instead of the previous "cannot reshape" error."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]])])
+        executor = PennyLaneExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.statevector(qc, x=[[v] for v in x_values])
+        individually = np.array([executor.statevector(qc, x=[v]) for v in x_values])
+
+        assert batched.shape == (3, 2)
+        assert np.allclose(batched, individually, atol=1e-10)
+
 
 class TestPennylaneDerivatives:
     """Test suite for PennyLane executor derivatives."""
@@ -372,6 +436,62 @@ class TestPennylaneDerivatives:
         assert isinstance(derivative, (float, np.ndarray))
         # Derivative should be close to 0 at x=0
         assert np.isclose(derivative, 0.0, atol=1e-5)
+
+    def test_derivatives_batch_of_parameter_sets_single_todo(self):
+        """Passing several parameter sets returns one derivative per set.
+
+        Previously this silently evaluated only the first parameter set
+        (params.append(pv[0])) and returned a plausible-looking but wrong
+        single result, discarding the rest without any warning."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = PennyLaneExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value_derivatives(
+            qc, operator, "x", x=[[v] for v in x_values]
+        )
+        individually = [
+            executor.expectation_value_derivatives(qc, operator, "x", x=[v]) for v in x_values
+        ]
+
+        assert np.shape(batched) == (3, 1)
+        assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_derivatives_batch_of_parameter_sets_multiple_todo(self):
+        """The dict form (several requested derivatives) also batches:
+        each value is stacked with its own leading batch axis."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = PennyLaneExecutor()
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value_derivatives(
+            qc, operator, "expectation_value", "x", x=[[v] for v in x_values]
+        )
+        expected_f = [executor.expectation_value(qc, operator, x=[v]) for v in x_values]
+        expected_dx = [
+            executor.expectation_value_derivatives(qc, operator, "x", x=[v]) for v in x_values
+        ]
+
+        assert np.allclose(batched["expectation_value"], expected_f, atol=1e-10)
+        assert np.allclose(batched["x"], expected_dx, atol=1e-10)
+
+    def test_derivatives_disagreeing_batch_sizes_raise(self):
+        """Two batched named parameters with different lengths are rejected
+        up front with a clear error instead of a confusing downstream one."""
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+        executor = PennyLaneExecutor()
+
+        with pytest.raises(ValueError, match="must share the same batch size"):
+            executor.expectation_value_derivatives(
+                qc, operator, "x", x=[[0.1], [0.2], [0.3]], p_obs=[[1.0], [2.0]]
+            )
 
 
 class TestPennylaneErrorHandling:
@@ -443,25 +563,28 @@ class TestPennylaneErrorHandling:
         with pytest.raises(ValueError, match="Parameter 'y' not found"):
             executor.expectation_value_derivatives(qc, operator, x=[0.5])  # Missing y parameter
 
-    def test_derivatives_multiple_circuits_raises(self):
-        """Test that derivatives for multiple circuits raise NotImplementedError."""
+    def test_derivatives_list_inputs_are_expanded_by_the_base(self):
+        """List inputs are expanded combinatorially before reaching the plugin."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1])
+        single = np.asarray(
+            executor.expectation_value_derivatives(qc, operator, "x", x=[0.1]), dtype=float
+        )
+        per_circuit = np.asarray(
+            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1]), dtype=float
+        )
+        per_observable = np.asarray(
+            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1]),
+            dtype=float,
+        )
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
-        x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        operator = QuantumOperator(["Z"], [1.0])
-
-        executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1])
+        assert per_circuit.shape[0] == 2
+        assert per_observable.shape[0] == 2
+        np.testing.assert_allclose(per_circuit[0], single)
+        np.testing.assert_allclose(per_observable[1], single)
 
     def test_device_kwargs_raises(self):
         with pytest.raises(TypeError, match="'device' is not a supported argument"):
@@ -472,32 +595,55 @@ class TestPennylaneCaching:
     """Test suite for PennyLane executor caching."""
 
     def test_circuit_caching(self):
-        """Test that circuits are properly cached."""
+        """Test that circuits are cached under their structural key."""
         qc = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
         executor = PennyLaneExecutor()
 
         # First call should add to cache
         executor._preprocess_circuits(qc)
-        assert qc in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc) in executor._circuit_cache
 
         # Second call should use cache
         cached_circuits, _ = executor._preprocess_circuits(qc)
         assert len(cached_circuits) == 1
-        assert cached_circuits[0] is executor._circuit_cache[qc]
+        assert (
+            cached_circuits[0] is executor._circuit_cache[ExecutorBase._structural_cache_key(qc)]
+        )
+
+        # A structurally identical fresh object hits the same entry
+        qc_clone = _build_circuit(2, [("h", [0]), ("cx", [0, 1])])
+        cached_clone, _ = executor._preprocess_circuits(qc_clone)
+        assert cached_clone[0] is cached_circuits[0]
+        assert len(executor._circuit_cache) == 1
+
+        # An in-place mutation produces a fresh conversion
+        qc.x(0)
+        mutated, _ = executor._preprocess_circuits(qc)
+        assert mutated[0] is not cached_circuits[0]
+        assert len(executor._circuit_cache) == 2
 
     def test_observable_caching(self):
-        """Test that operators are properly cached."""
+        """Test that operators are cached under their structural key."""
         operator = QuantumOperator(["ZI"], [1.0])
         executor = PennyLaneExecutor()
 
         # First call should add to cache
         executor._preprocess_operators(operator)
-        assert operator in executor._operator_cache
+        assert ExecutorBase._structural_cache_key(operator) in executor._operator_cache
 
         # Second call should use cache
         cached_operators, _ = executor._preprocess_operators(operator)
         assert len(cached_operators) == 1
-        assert cached_operators[0] is executor._operator_cache[operator]
+        assert (
+            cached_operators[0]
+            is executor._operator_cache[ExecutorBase._structural_cache_key(operator)]
+        )
+
+        # A structurally identical fresh object hits the same entry
+        operator_clone = QuantumOperator(["ZI"], [1.0])
+        cached_clone, _ = executor._preprocess_operators(operator_clone)
+        assert cached_clone[0] is cached_operators[0]
+        assert len(executor._operator_cache) == 1
 
 
 class TestPennylaneProperties:
@@ -508,12 +654,16 @@ class TestPennylaneProperties:
         executor = PennyLaneExecutor(shots=500)
         assert executor.shots == 500
 
-    def test_shots_property_setter_raises_error(self):
-        """Test that shots setter raises NotImplementedError."""
+    def test_shots_property_setter_updates_shots(self):
+        """Test that shots setter actually changes the reported shot count."""
         executor = PennyLaneExecutor()
+        assert executor.shots is None
 
-        with pytest.raises(NotImplementedError):
-            executor.shots = 1000
+        executor.shots = 1000
+        assert executor.shots == 1000
+
+        executor.shots = None
+        assert executor.shots is None
 
     def test_remote_property(self):
         """Test that remote property returns False."""
@@ -598,11 +748,14 @@ class TestPennylaneCacheSizeRestriction:
         # Adding a third circuit should evict the oldest (qc1)
         executor._preprocess_circuits(qc3)
         assert len(executor._circuit_cache) == 2
-        assert qc1 not in executor._circuit_cache
-        assert qc2 in executor._circuit_cache
-        assert qc3 in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc1) not in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc2) in executor._circuit_cache
+        assert ExecutorBase._structural_cache_key(qc3) in executor._circuit_cache
         # qc2 was inserted before qc3, so it should be first in the ordered dict
-        assert list(executor._circuit_cache.keys()) == [qc2, qc3]
+        assert list(executor._circuit_cache.keys()) == [
+            ExecutorBase._structural_cache_key(qc2),
+            ExecutorBase._structural_cache_key(qc3),
+        ]
 
     def test_cache_size_restriction_observables(self):
         """Test that operator cache respects max_cache_size with FIFO eviction."""
@@ -619,17 +772,20 @@ class TestPennylaneCacheSizeRestriction:
         # Adding a third operator should evict the oldest (op1)
         executor._preprocess_operators(op3)
         assert len(executor._operator_cache) == 2
-        assert op1 not in executor._operator_cache
-        assert op2 in executor._operator_cache
-        assert op3 in executor._operator_cache
-        assert list(executor._operator_cache.keys()) == [op2, op3]
+        assert ExecutorBase._structural_cache_key(op1) not in executor._operator_cache
+        assert ExecutorBase._structural_cache_key(op2) in executor._operator_cache
+        assert ExecutorBase._structural_cache_key(op3) in executor._operator_cache
+        assert list(executor._operator_cache.keys()) == [
+            ExecutorBase._structural_cache_key(op2),
+            ExecutorBase._structural_cache_key(op3),
+        ]
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that cache is unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that caches use the default bound when max_cache_size is not specified."""
         executor = PennyLaneExecutor()
-        assert executor._max_cache_size is None
-        assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._max_cache_size == 4096
+        assert executor._circuit_cache.max_size == 4096
+        assert executor._operator_cache.max_size == 4096
 
 
 class TestPennylaneResultCaching:
@@ -828,9 +984,11 @@ class TestDeviceInit:
 
     def test_init_string_device_with_kwargs(self):
         """Extra **kwargs are stored and forwarded to qml.device()."""
-        executor = PennyLaneExecutor("default.qubit", custom_decomps={})
+        # "wires" is accepted by every PennyLane version; device-specific
+        # kwargs come and go across releases and would make this version-fragile.
+        executor = PennyLaneExecutor("default.qubit", wires=2)
         assert executor._custom_device is False
-        assert executor._device_kwargs == {"custom_decomps": {}}
+        assert executor._device_kwargs == {"wires": 2}
 
     # -- Device instance init -----------------------------------------------
 

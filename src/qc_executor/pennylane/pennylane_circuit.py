@@ -16,19 +16,43 @@ from ..utils.qiskit_compat import _param_is_constant, _param_to_float, _param_to
 from ._sympy_interface import _get_sympy_interface
 from .pennylane_gates import pennylane_target, qiskit_pennylane_gate_dict
 
+_VALID_MEASUREMENTS = (None, "probs", "state")
+
 
 class PennyLaneCircuit:
     """PennyLane circuit representation converted from a generic QuantumCircuit."""
 
     @classmethod
-    def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "PennyLaneCircuit":
+    def from_quantum_circuit(
+        cls, circuit: QuantumCircuit, measurement: Optional[str] = None
+    ) -> "PennyLaneCircuit":
         """Create a PennyLane native circuit from a generic circuit."""
-        return cls(circuit)
+        return cls(circuit, measurement=measurement)
 
     def __init__(
         self,
         circuit: QuantumCircuit,
+        measurement: Optional[str] = None,
     ) -> None:
+        """
+        Args:
+            circuit: The generic circuit to convert.
+            measurement: What the built callable returns in addition to
+                applying the circuit's gates. ``None`` (default) returns
+                nothing - the caller (typically an executor pairing the
+                circuit with a separately built observable) attaches its own
+                measurement. ``"probs"`` returns ``qml.probs`` over every
+                qubit; ``"state"`` returns ``qml.state()``.
+
+        Raises:
+            ValueError: If ``measurement`` is not one of ``None``, ``"probs"``,
+                or ``"state"``.
+        """
+        if measurement not in _VALID_MEASUREMENTS:
+            raise ValueError(
+                f"Unknown measurement {measurement!r}; expected one of " f"{_VALID_MEASUREMENTS}."
+            )
+        self._measurement = measurement
 
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_circuit = transpile(
@@ -263,5 +287,11 @@ class PennyLaneCircuit:
                         circuit_gate(*evaluated_param, wires=wires)
                     else:
                         circuit_gate(wires=wires)
+
+            if self._measurement == "probs":
+                return qml.probs(wires=range(self._num_qubits))
+            if self._measurement == "state":
+                return qml.state()
+            return None
 
         return pennylane_circuit

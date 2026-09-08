@@ -581,3 +581,88 @@ class TestTranspileCircuitPennyLane:
         result = self.executor.transpile_circuit(qc)
         circuit_func = result.build_pennylane_circuit()
         assert callable(circuit_func)
+
+
+class TestPennyLaneCircuitMeasurementMode:
+    """The built callable can optionally return its own measurement (probs
+    or state) instead of nothing - the mode a caller pairing the circuit
+    with a separately built observable, or wanting a differentiable
+    probs-returning QNode body for e.g. qml.metric_tensor, needs directly."""
+
+    def test_default_measurement_is_none(self):
+        x = Parameters("x", 1)
+        qc = QuantumCircuit(1)
+        qc.ry(0, x[0])
+
+        plc = PennyLaneCircuit(qc)
+
+        assert plc._measurement is None
+
+    def test_invalid_measurement_raises(self):
+        qc = QuantumCircuit(1)
+        qc.h(0)
+
+        with pytest.raises(ValueError, match="Unknown measurement"):
+            PennyLaneCircuit(qc, "bogus")
+
+    def test_probs_measurement_returns_normalized_distribution(self):
+        x = Parameters("x", 1)
+        qc = QuantumCircuit(1)
+        qc.ry(0, x[0])
+
+        plc = PennyLaneCircuit(qc, "probs")
+        qnode = qml.QNode(plc.pennylane_circuit, qml.device("default.qubit", wires=1))
+
+        probs = qnode([0.5])
+
+        assert np.isclose(np.sum(probs), 1.0)
+        assert np.isclose(probs[0], np.cos(0.25) ** 2, atol=1e-8)
+
+    def test_state_measurement_returns_normalized_statevector(self):
+        x = Parameters("x", 1)
+        qc = QuantumCircuit(1)
+        qc.ry(0, x[0])
+
+        plc = PennyLaneCircuit(qc, "state")
+        qnode = qml.QNode(plc.pennylane_circuit, qml.device("default.qubit", wires=1))
+
+        state = qnode([0.5])
+
+        assert np.isclose(np.sum(np.abs(state) ** 2), 1.0)
+        assert np.isclose(np.real(state[0]), np.cos(0.25), atol=1e-8)
+
+    def test_probs_measurement_supports_qml_metric_tensor(self):
+        """The scenario util/qfi.py needs: a differentiable QNode body
+        returning probs, fed to qml.metric_tensor."""
+        x = Parameters("x", 1)
+        qc = QuantumCircuit(1)
+        qc.ry(0, x[0])
+
+        plc = PennyLaneCircuit(qc, "probs")
+        qnode = qml.QNode(plc.pennylane_circuit, qml.device("default.qubit", wires=1))
+        fisher_func = qml.metric_tensor(qnode)
+
+        fisher = fisher_func(qml.numpy.array([0.5], requires_grad=True))
+
+        assert np.shape(fisher) == (1, 1)
+        assert np.isclose(fisher[0][0], 0.25, atol=1e-6)
+
+    def test_none_measurement_still_composes_with_a_separate_observable(self):
+        """The default (unmeasured) mode is a regression guard: it is not
+        meant to stand alone in a QNode, but composing it with a separately
+        attached measurement - what PennyLaneExecutor itself does - must be
+        unaffected by adding the measurement mode."""
+        x = Parameters("x", 1)
+        qc = QuantumCircuit(1)
+        qc.ry(0, x[0])
+
+        plc = PennyLaneCircuit(qc)
+
+        def composed(*args):
+            plc.pennylane_circuit(*args)
+            return qml.expval(qml.PauliZ(0))
+
+        qnode = qml.QNode(composed, qml.device("default.qubit", wires=1))
+        result = qnode([0.0])
+
+        assert np.isclose(result, 1.0)

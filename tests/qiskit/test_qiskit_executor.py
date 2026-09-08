@@ -630,6 +630,162 @@ class TestQiskitExecutorParameterBatching:
         assert batched == individually
 
 
+class TestQiskitExecutorChainedDerivatives:
+    """expectation_value_derivatives() accepts a tuple of parameters for
+    higher-order (chained) derivatives, in addition to the existing single
+    string/ParameterVectorElement form. One axis per tuple position, sized by
+    how many concrete parameters that position expands to (1 for a single
+    element, the vector length for a full ParameterVector name) - the same
+    convention batching (WP-11) already established for the leading axis."""
+
+    def test_second_order_pure_circuit_matches_finite_differences(self):
+        x = Parameters("x", 2)
+        qc = _build_circuit(2, [("h", [0]), ("ry", [0, x[0]]), ("cx", [0, 1]), ("ry", [1, x[1]])])
+        operator = QuantumOperator(["IZ", "ZI"], [1.0, 1.0])
+        executor = QiskitExecutor(backend="statevector")
+        x_vals = [0.3, 0.7]
+
+        analytic = executor.expectation_value_derivatives(qc, operator, ("x", "x"), x=x_vals)
+
+        h = 1e-4
+
+        def f(xv):
+            return executor.expectation_value(qc, operator, x=xv)
+
+        fd = np.zeros((2, 2))
+        for i in range(2):
+            for j in range(2):
+                xpp, xpm, xmp, xmm = (list(x_vals) for _ in range(4))
+                xpp[i] += h
+                xpp[j] += h
+                xpm[i] += h
+                xpm[j] -= h
+                xmp[i] -= h
+                xmp[j] += h
+                xmm[i] -= h
+                xmm[j] -= h
+                fd[i, j] = (f(xpp) - f(xpm) - f(xmp) + f(xmm)) / (4 * h * h)
+
+        assert analytic.shape == (2, 2)
+        np.testing.assert_allclose(analytic, fd, atol=1e-4)
+
+    def test_mixed_second_order_circuit_and_observable_matches_finite_differences(self):
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+        executor = QiskitExecutor(backend="statevector")
+        x_val, p_obs_val = 0.3, 0.9
+
+        analytic = executor.expectation_value_derivatives(
+            qc, operator, ("p_obs", "x"), x=[x_val], p_obs=[p_obs_val]
+        )
+
+        h = 1e-4
+
+        def f(xv, pv):
+            return executor.expectation_value(qc, operator, x=[xv], p_obs=[pv])
+
+        finite_difference = (
+            f(x_val + h, p_obs_val + h)
+            - f(x_val + h, p_obs_val - h)
+            - f(x_val - h, p_obs_val + h)
+            + f(x_val - h, p_obs_val - h)
+        ) / (4 * h * h)
+
+        assert analytic.shape == (1, 1)
+        np.testing.assert_allclose(analytic[0, 0], finite_difference, atol=1e-4)
+
+    def test_third_order_mixed_matches_finite_differences(self):
+        x = Parameters("x", 1)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+        executor = QiskitExecutor(backend="statevector")
+        x_val, p_obs_val = 0.3, 0.9
+
+        analytic = executor.expectation_value_derivatives(
+            qc, operator, ("p_obs", "x", "x"), x=[x_val], p_obs=[p_obs_val]
+        )
+
+        h = 2e-3
+
+        def f(xv, pv):
+            return executor.expectation_value(qc, operator, x=[xv], p_obs=[pv])
+
+        def d2f_dxdx(pv):
+            return (f(x_val + h, pv) - 2 * f(x_val, pv) + f(x_val - h, pv)) / (h * h)
+
+        finite_difference = (d2f_dxdx(p_obs_val + h) - d2f_dxdx(p_obs_val - h)) / (2 * h)
+
+        assert analytic.shape == (1, 1, 1)
+        np.testing.assert_allclose(analytic[0, 0, 0], finite_difference, atol=1e-2)
+
+    def test_batch_of_parameter_sets_with_tuple_derivative(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        x_values = [0.1, 0.5, 1.0]
+        batched = executor.expectation_value_derivatives(
+            qc, operator, ("x", "x"), x=[[v] for v in x_values]
+        )
+        individually = [
+            executor.expectation_value_derivatives(qc, operator, ("x", "x"), x=[v])
+            for v in x_values
+        ]
+
+        assert batched.shape == (3, 1, 1)
+        np.testing.assert_allclose(batched, individually, atol=1e-10)
+
+    def test_single_element_tuple_matches_plain_element_form(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        tuple_form = executor.expectation_value_derivatives(qc, operator, (x[0],), x=[0.3])
+        plain_form = executor.expectation_value_derivatives(qc, operator, x[0], x=[0.3])
+
+        np.testing.assert_allclose(tuple_form, plain_form)
+
+    def test_three_orderings_of_a_mixed_derivative_agree(self):
+        """Regression guard at the executor level for the _differentiate_inplace
+        aliasing bug: a coupled gate angle (x*p) makes an intermediate node's
+        own factor parameter-dependent, which used to make chained
+        differentiation order-dependent (mathematically it must not be)."""
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0] * p[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+        kwargs = dict(x=[0.3], p=[0.5])
+
+        same_twice_then_different = executor.expectation_value_derivatives(
+            qc, operator, (x[0], x[0], p[0]), **kwargs
+        )
+        different_first = executor.expectation_value_derivatives(
+            qc, operator, (p[0], x[0], x[0]), **kwargs
+        )
+        interleaved = executor.expectation_value_derivatives(
+            qc, operator, (x[0], p[0], x[0]), **kwargs
+        )
+
+        np.testing.assert_allclose(same_twice_then_different, different_first, atol=1e-10)
+        np.testing.assert_allclose(same_twice_then_different, interleaved, atol=1e-10)
+
+    def test_tuple_with_unknown_parameter_position_falls_back_to_zero(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        result = executor.expectation_value_derivatives(qc, operator, ("x", "p_obs"), x=[0.3])
+
+        assert result == 0.0
+
+
 # =============================================================================
 # Parameter vs ParameterVector compatibility tests
 #

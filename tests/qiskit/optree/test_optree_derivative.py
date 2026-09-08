@@ -8,6 +8,7 @@ from qiskit.quantum_info import SparsePauliOp
 from qc_executor.parameters import Parameters
 from qc_executor.qiskit.optree import OpTree
 from qc_executor.qiskit.optree.optree import (
+    OpTreeCircuit,
     OpTreeList,
     OpTreeNodeBase,
     OpTreeOperator,
@@ -225,6 +226,96 @@ class TestOpTreeDerivative:
         # This should not raise an error
         qc_linear_d = OpTree.derivative.differentiate(qc_linear, p[0])
         assert qc_linear_d is not None
+
+
+class TestChainedDifferentiationOrderIndependence:
+    """Regression tests for a use-after-mutate aliasing bug in
+    _differentiate_inplace: chaining differentiate() more than once used to
+    give a different (wrong) result depending on the order of the chain,
+    whenever an intermediate node's own factor became parameter-dependent -
+    which happens whenever a gate angle couples two parameters together
+    (e.g. RX(x*p)), since differentiating that angle by one of them leaves
+    the other symbolically present in the resulting parameter-shift
+    coefficient. Mixed partial derivatives must be order-independent
+    (Schwarz's theorem); before the fix, they weren't.
+    """
+
+    @staticmethod
+    def _coupled_circuit_and_operator():
+        from qiskit.quantum_info import SparsePauliOp as _SparsePauliOp
+
+        x = Parameters("x", 2)
+        p = Parameters("p", 1)
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.ry(x[0] * p[0], 0)
+        qc.cx(0, 1)
+        qc.ry(x[1], 1)
+        op = _SparsePauliOp(["IZ", "ZI"], [1.0, 1.0])
+        return qc, x, p, op
+
+    @staticmethod
+    def _evaluate(circuit_tree, op_tree, values):
+        from qiskit.primitives import StatevectorEstimator
+
+        return OpTree.evaluate.evaluate_with_estimator(
+            circuit_tree, op_tree, values, values, StatevectorEstimator()
+        )
+
+    def test_three_orderings_of_a_mixed_third_derivative_agree(self):
+        qc, x, p, op = self._coupled_circuit_and_operator()
+        circuit_tree = OpTreeCircuit(qc)
+        op_tree = OpTreeOperator(op)
+        values = {x[0]: 0.3, x[1]: 0.7, p[0]: 0.5}
+
+        def chain(order):
+            tree = circuit_tree
+            for param in order:
+                tree = OpTree.derivative.differentiate(tree, [param])
+            return float(np.asarray(self._evaluate(tree, op_tree, values)).reshape(-1)[0])
+
+        same_twice_then_different = chain([x[0], x[0], p[0]])
+        different_first = chain([p[0], x[0], x[0]])
+        interleaved = chain([x[0], p[0], x[0]])
+
+        assert same_twice_then_different == pytest.approx(different_first, abs=1e-10)
+        assert same_twice_then_different == pytest.approx(interleaved, abs=1e-10)
+
+    def test_mixed_third_derivative_matches_finite_differences(self):
+        """Not just self-consistent (the test above) but actually correct."""
+        qc, x, p, op = self._coupled_circuit_and_operator()
+        circuit_tree = OpTreeCircuit(qc)
+        op_tree = OpTreeOperator(op)
+        x_vals = [0.3, 0.7]
+        p_val = 0.5
+
+        def f(x0, x1, p0):
+            values = {x[0]: x0, x[1]: x1, p[0]: p0}
+            return float(np.asarray(self._evaluate(circuit_tree, op_tree, values)).reshape(-1)[0])
+
+        analytic = OpTree.derivative.differentiate(
+            OpTree.derivative.differentiate(
+                OpTree.derivative.differentiate(circuit_tree, [x[0]]), [x[0]]
+            ),
+            [p[0]],
+        )
+        values = {x[0]: x_vals[0], x[1]: x_vals[1], p[0]: p_val}
+        analytic_value = float(
+            np.asarray(self._evaluate(analytic, op_tree, values)).reshape(-1)[0]
+        )
+
+        h = 2e-3
+
+        def d2f_dx0dx0(p0):
+            return (
+                f(x_vals[0] + h, x_vals[1], p0)
+                - 2 * f(*x_vals, p0)
+                + f(x_vals[0] - h, x_vals[1], p0)
+            ) / (h * h)
+
+        finite_difference = (d2f_dx0dx0(p_val + h) - d2f_dx0dx0(p_val - h)) / (2 * h)
+
+        assert analytic_value == pytest.approx(finite_difference, abs=1e-2)
 
 
 class TestOpTreeDerivativeHelpers:

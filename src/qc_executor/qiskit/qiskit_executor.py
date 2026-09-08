@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from typing import Any, Callable, List, Literal, Tuple
 
@@ -1658,6 +1659,56 @@ class QiskitExecutor(ExecutorBase):
             # axis to move, unlike _expectation_value.
             return total
 
+        def _derivative_for_param_tuple(param_tuple: tuple) -> float:
+            """∂ⁿE/∂p₁...∂pₙ for a tuple of already-resolved individual
+            parameters - the chain rule applied once per side (circuit,
+            observable), each differentiated in sequence on its own tree,
+            then combined in a single evaluation. Circuit and observable
+            parameters are disjoint sets (the state never depends on an
+            observable parameter and vice versa), so this factorization is
+            exact - no cross terms are dropped by differentiating each side
+            separately instead of interleaving both differentiations into
+            one tree.
+            """
+            circ_seq = [p for p in param_tuple if p in circuit_param_set]
+            obs_seq = [p for p in param_tuple if p in observable_param_set]
+            if len(circ_seq) + len(obs_seq) != len(param_tuple):
+                raise ValueError(
+                    "A derivative tuple entry was found in neither the circuit "
+                    "nor the observable parameters."
+                )
+
+            circ_tree = circuit_tree
+            for p in circ_seq:
+                circ_tree = OpTreeDerivative.differentiate(circ_tree, [p])
+            obs_tree = observable_tree
+            for p in obs_seq:
+                obs_tree = OpTreeDerivative.differentiate(obs_tree, [p])
+
+            return OpTreeEvaluate.evaluate_with_estimator(
+                circuit=circ_tree,
+                operator=obs_tree,
+                dictionary_circuit=circuit_dict,
+                dictionary_operator=observable_dict,
+                estimator=self._estimator,
+                dictionaries_combined=is_batched,
+                detect_duplicates=True,
+            )
+
+        def _resolve_tuple_element(elem) -> list:
+            """Resolve one tuple entry to its list of concrete parameter
+            elements - a full ParameterVector name expands to every one of
+            its elements (index-sorted), matching the same expansion the
+            plain string case already does; a single element resolves to a
+            one-entry list."""
+            if isinstance(elem, str):
+                matching = [p for p in all_params if _param_name(p) == elem]
+                matching.sort(key=lambda p: p.index if hasattr(p, "index") else 0)
+                return matching
+            if isinstance(elem, ParameterVectorElement):
+                return [elem]
+            raise ValueError(f"Unknown derivative parameter type in tuple: {type(elem)}")
+
         results: dict = {}
         for dp in derivative_params:
             if isinstance(dp, str):
@@ -1674,6 +1725,26 @@ class QiskitExecutor(ExecutorBase):
                     results[dp] = np.moveaxis(stacked, 1, 0) if is_batched else stacked
             elif isinstance(dp, ParameterVectorElement):
                 results[dp] = _derivative_for_single_param(dp)
+            elif isinstance(dp, tuple):
+                # A tuple requests a higher-order (or mixed circuit/observable)
+                # derivative: one axis per tuple position, each sized by how
+                # many concrete parameters that position's entry expands to
+                # (1 for a single element, the vector length for a full
+                # ParameterVector name) - the same "0 matches -> plain 0.0"
+                # convention as the single-string case above, since qc_executor
+                # has no shaped representation for "an empty derivative axis".
+                resolved = [_resolve_tuple_element(e) for e in dp]
+                if any(len(lst) == 0 for lst in resolved):
+                    results[dp] = 0.0
+                    continue
+                shape = tuple(len(lst) for lst in resolved)
+                flat = np.array(
+                    [_derivative_for_param_tuple(combo) for combo in itertools.product(*resolved)]
+                )
+                if is_batched:
+                    results[dp] = np.moveaxis(flat.reshape(shape + (-1,)), -1, 0)
+                else:
+                    results[dp] = flat.reshape(shape)
             else:
                 raise ValueError(f"Unknown derivative parameter type: {type(dp)}")
 

@@ -336,7 +336,9 @@ class QuantumCircuit(QuantumCircuitBase):
 
     def invert(self) -> "QuantumCircuit":
         """Invert the circuit."""
-        return self.__class__(self._num_qubits, self._qiskit_circuit.inverse())
+        return self.__class__(
+            self._num_qubits, self.num_clbits, self._qiskit_circuit.inverse()
+        )
 
     def copy(self) -> "QuantumCircuit":
         """Return a copy of the circuit."""

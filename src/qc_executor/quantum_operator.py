@@ -29,7 +29,11 @@ class QuantumOperator(QuantumOperatorBase):
         if _native_operator is not None:
             self._qiskit_operator: SparsePauliOp = _native_operator
         elif paulis is not None:
-            self._qiskit_operator = SparsePauliOp(paulis, coeffs=cast(Any, coeffs))
+            # Public labels are big-endian (leftmost character acts on qubit 0).
+            # SparsePauliOp expects qiskit's little-endian labels.
+            self._qiskit_operator = SparsePauliOp(
+                [pauli[::-1] for pauli in paulis], coeffs=cast(Any, coeffs)
+            )
         elif num_qubits is not None:
             self._qiskit_operator = SparsePauliOp.from_list([("I" * num_qubits, 0.0)])
         else:
@@ -52,8 +56,8 @@ class QuantumOperator(QuantumOperatorBase):
 
     @property
     def paulis(self) -> List[str]:
-        """Return the list of Paulis."""
-        return list(self._qiskit_operator.paulis.to_labels())
+        """Return the list of Paulis (big-endian, leftmost character acts on qubit 0)."""
+        return [label[::-1] for label in self._qiskit_operator.paulis.to_labels()]
 
     @property
     def coeffs(self) -> List:
@@ -109,8 +113,14 @@ class QuantumOperator(QuantumOperatorBase):
         """
         Apply a layout to the operator.
 
+        Note:
+            Unlike the Pauli labels of this class, which are big-endian
+            (leftmost character acts on qubit 0), the layout indices are
+            forwarded to qiskit and therefore use qiskit's little-endian
+            qubit numbering.
+
         Args:
-            layout (List[int]): Layout to apply.
+            layout (List[int]): Layout to apply, in qiskit qubit numbering.
 
         Returns:
             Operator with applied layout.
@@ -139,14 +149,14 @@ class QuantumOperator(QuantumOperatorBase):
         Append a Pauli operator with a coefficient to the operator.
 
         Args:
-            pauli (str): Pauli operator to append.
+            pauli (str): Pauli operator to append (big-endian, leftmost character acts on qubit 0).
             coeff (float): Coefficient of the Pauli operator.
         """
         if coeff is None:
             coeff = 1.0
 
         self._qiskit_operator = SparsePauliOp.from_list(
-            self._qiskit_operator.to_list() + [(pauli, coeff)]
+            self._qiskit_operator.to_list() + [(pauli[::-1], coeff)]
         )
         return self
 
@@ -220,6 +230,14 @@ class QuantumOperator(QuantumOperatorBase):
         """
         raise NotImplementedError
 
+    def structural_key(self) -> tuple:
+        """Return a hashable key describing the current operator structure.
+
+        Recomputed on every call so that in-place mutations are always
+        reflected; never memoize this value.
+        """
+        return _observable_key(self._qiskit_operator)
+
     def __hash__(self):
         return hash(_observable_key(self._qiskit_operator))
 
@@ -245,3 +263,18 @@ class QuantumOperator(QuantumOperatorBase):
             String representation of the operator.
         """
         return str(self._qiskit_operator)
+
+    def __add__(self, other: "QuantumOperatorBase") -> "QuantumOperator":
+        """
+        Add two QuantumOperator instances.
+
+        Args:
+            other (QuantumOperatorBase): The other QuantumOperator instance to add.
+
+        Returns:
+            QuantumOperator: A new QuantumOperator instance representing the sum of
+                the two operators.
+        """
+        if not isinstance(other, QuantumOperator):
+            raise TypeError("Can only add another QuantumOperator instance")
+        return self.__class__(_native_operator=self._qiskit_operator + other.qiskit_operator)

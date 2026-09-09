@@ -89,7 +89,9 @@ class TestConvertOperatorQiskitTypes:
         assert isinstance(psum, PauliSum)
         assert psum.nqubits == 3
         assert len(psum) == 1
-        assert np.isclose(psum.get_coeff("YZI"), 1.0)
+        # get_coeff uses the internal leftmost-qubit-0 encoding; the qiskit
+        # label "YZI" (little-endian) is stored as "IZY".
+        assert np.isclose(psum.get_coeff("IZY"), 1.0)
 
     def test_convert_sparse_pauli_op(self):
         """SparsePauliOp terms and coefficients are preserved."""
@@ -99,7 +101,7 @@ class TestConvertOperatorQiskitTypes:
         assert isinstance(psum, PauliSum)
         assert psum.nqubits == 2
         assert len(psum) == 2
-        assert np.isclose(psum.get_coeff("IX"), 0.5 + 0.25j)
+        assert np.isclose(psum.get_coeff("XI"), 0.5 + 0.25j)
         assert np.isclose(psum.get_coeff("ZZ"), -2.0)
 
     def test_unsupported_operator_type_raises(self):

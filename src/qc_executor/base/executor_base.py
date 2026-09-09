@@ -7,7 +7,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, List, overload
+from typing import Any, Dict, List, overload
 
 import numpy as np
 
@@ -47,7 +47,7 @@ class ExecutorBase(ABC):
             in memory.
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
-            in each in-memory cache. ``None`` means unlimited.
+            in each in-memory cache; ``None`` makes them unbounded.
     """
 
     _native_circuit_class = None
@@ -66,7 +66,7 @@ class ExecutorBase(ABC):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
     ):
         self._backend = backend
         self._shots = shots
@@ -182,6 +182,17 @@ class ExecutorBase(ABC):
     # ========================================================================
 
     @staticmethod
+    def _structural_cache_key(obj):
+        """Return a mutation-aware cache key for a circuit or operator."""
+        method = getattr(obj, "structural_key", None)
+        if method is not None:
+            try:
+                return (type(obj).__qualname__, method())
+            except NotImplementedError:
+                pass
+        return obj
+
+    @staticmethod
     def _make_result_key(method_name: str, *args, **kwargs) -> tuple:
         """Build a hashable cache key for a public-interface call.
 
@@ -196,6 +207,10 @@ class ExecutorBase(ABC):
         """
 
         def _to_hashable(v):
+            if isinstance(v, (QuantumCircuitBase, QuantumOperatorBase)):
+                # Key circuits/operators by their current structure so that
+                # in-place mutations never hit stale cached results.
+                return ExecutorBase._structural_cache_key(v)
             if isinstance(v, np.ndarray):
                 # Include dtype, shape, and strides (memory layout) to avoid collisions
                 # between arrays that share the same raw bytes but differ structurally.
@@ -335,11 +350,19 @@ class ExecutorBase(ABC):
         Calculate the derivatives of the expectation value with respect to the
         parameters of the circuit.
 
+        The return format and the ordering below are part of the public API;
+        downstream consumers rely on both. The full gradient of a circuit is
+        obtained by supplying all of its parameter-vector names (see
+        :attr:`QuantumCircuitBase.parameter_vector_names`) as ``derivative``
+        arguments.
+
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
                 or a list of circuits.
             observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
-                observable or a list of observables.
+                observable or a list of observables. Lists of circuits and
+                observables are evaluated combinatorially: every circuit is
+                paired with every observable.
             derivative: The parameter(s) with respect to which the derivative is calculated.
             parameters: Additional values for the free parameters of the circuit(s) and
                 the observable(s) given as keyword arguments.
@@ -351,9 +374,18 @@ class ExecutorBase(ABC):
                 - single float/array if one derivative parameter is requested
                 - dictionary mapping parameter names to gradient arrays if multiple
                   parameters are requested
+
+            A list input adds a leading axis per list: ``(n_circuits, ...)``
+            for a circuit list, ``(n_observables, ...)`` for an observable
+            list, and ``(n_circuits, n_observables, ...)`` for both.
+
+            Entries within each parameter vector are ordered by numeric
+            element index, i.e. ``theta[2]`` precedes ``theta[10]``.
         """
         self._logger.info("Computing expectation value derivatives")
         parameters = self._normalize_parameter_values(**parameters)
+
+        key = None
         if self._result_cache is not None:
             key = self._make_result_key(
                 "expectation_value_derivatives", circuit, observable, derivative, **parameters
@@ -361,12 +393,50 @@ class ExecutorBase(ABC):
             if key in self._result_cache:
                 self._logger.debug("Result cache hit for expectation_value_derivatives")
                 return self._result_cache[key]
+
+        # Plugins only implement single-pair derivatives; list inputs are
+        # expanded combinatorially and the per-pair results are stacked with
+        # one leading axis per list input.
+        # TODO: Every circuit/observable pair is evaluated separately. Allow
+        # plugins to override this loop with native batching (e.g. qiskit
+        # Estimator PUBs, pennylane's qml.execute) where supported.
+        multiple_circuits = isinstance(circuit, (list, tuple))
+        multiple_observables = isinstance(observable, (list, tuple))
+        if not multiple_circuits and not multiple_observables:
             result = self._expectation_value_derivatives(
                 circuit, observable, *derivative, **parameters
             )
+        else:
+            circuits = list(circuit) if multiple_circuits else [circuit]
+            observables = list(observable) if multiple_observables else [observable]
+            pair_results = [
+                [
+                    self._expectation_value_derivatives(c, o, *derivative, **parameters)
+                    for o in observables
+                ]
+                for c in circuits
+            ]
+
+            def collapse(nested) -> np.ndarray:
+                values = np.asarray(nested)
+                if not multiple_circuits:
+                    return values[0]
+                if not multiple_observables:
+                    return values[:, 0]
+                return values
+
+            if isinstance(pair_results[0][0], dict):
+                # Multiple derivative parameters: stack the per-pair dicts per name.
+                result = {
+                    name: collapse([[pair[name] for pair in row] for row in pair_results])
+                    for name in pair_results[0][0]
+                }
+            else:
+                result = collapse(pair_results)
+
+        if self._result_cache is not None:
             self._result_cache[key] = result
-            return result
-        return self._expectation_value_derivatives(circuit, observable, *derivative, **parameters)
+        return result
 
     @abstractmethod
     def _expectation_value_derivatives(
@@ -384,6 +454,9 @@ class ExecutorBase(ABC):
     ) -> dict | List[dict]:
         """
         Computes samples of the quantumstate of the given circuit.
+
+        Bitstring keys use the big-endian convention ``q[0]q[1]...q[n-1]``
+        (qubit 0 is the leftmost character).
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
@@ -414,7 +487,11 @@ class ExecutorBase(ABC):
     def _sample(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
     ) -> dict | List[dict]:
-        """Abstract implementation of circuit sampling."""
+        """Abstract implementation of circuit sampling.
+
+        Returned bitstring keys must use the big-endian convention
+        ``q[0]q[1]...q[n-1]`` (qubit 0 is the leftmost character).
+        """
         raise NotImplementedError
 
     def statevector(
@@ -422,6 +499,9 @@ class ExecutorBase(ABC):
     ) -> np.ndarray:
         """
         Computes the statevector of the quantum circuit.
+
+        Amplitudes use the big-endian basis ordering: index ``i`` encodes
+        qubit 0 as the most significant bit.
 
         Args:
             circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
@@ -450,8 +530,83 @@ class ExecutorBase(ABC):
     def _statevector(
         self, circuit: QuantumCircuitBase | List[QuantumCircuitBase], **parameters
     ) -> np.ndarray:
-        """Abstract implementation of statevector computation."""
+        """Abstract implementation of statevector computation.
+
+        The returned amplitudes must use the big-endian basis ordering
+        (qubit 0 is the most significant bit of the index).
+        """
         raise NotImplementedError
+
+    def probabilities(
+        self, circuit: QuantumCircuitBase, *, cutoff: float = 0.0, **parameters
+    ) -> Dict[int, float] | List[Dict[int, float]]:
+        """Compute the measurement probabilities of a circuit.
+
+        With ``shots=None`` the probabilities are exact (derived from the
+        statevector); otherwise they are estimated from sampled counts.
+
+        Args:
+            circuit (QuantumCircuitBase): A single quantum circuit.
+            cutoff (float, optional): Only probabilities strictly greater
+                than this threshold are returned. The default of ``0.0``
+                omits exact zeros only, matching what the backends report
+                natively; pass a larger value to keep the result sparse for
+                many qubits.
+            parameters: Values for the free parameters of the circuit given as
+                keyword arguments. Passing more than one parameter set (the
+                same batching convention as :meth:`expectation_value`) is
+                supported on backends whose :meth:`statevector`/:meth:`sample`
+                support it.
+
+        Returns:
+            Dict[int, float] | List[Dict[int, float]]: Mapping of basis-state
+            index (big-endian ordering, qubit 0 = most significant bit) to
+            probability - one mapping for a single parameter set, or a list
+            of mappings, one per set, for a batch of parameter sets.
+
+        Raises:
+            ValueError: If a list of circuits is passed.
+        """
+        if isinstance(circuit, list):
+            raise ValueError("probabilities supports a single circuit only")
+        if self._shots is None:
+            state_vector = np.asarray(self.statevector(circuit, **parameters))
+            if state_vector.ndim > 1:
+                return [self._probabilities_from_statevector(sv, cutoff) for sv in state_vector]
+            return self._probabilities_from_statevector(state_vector, cutoff)
+        counts = self.sample(circuit, **parameters)
+        # Some backends return one counts dict per parameter set even for a
+        # single set (a length-1 list); unwrap that case so a single
+        # parameter set always yields a single dict here too, regardless of
+        # backend. More than one entry is a genuine batch.
+        if isinstance(counts, list):
+            if len(counts) == 1:
+                counts = counts[0]
+            else:
+                return [self._probabilities_from_counts(c, cutoff) for c in counts]
+        return self._probabilities_from_counts(counts, cutoff)
+
+    @staticmethod
+    def _probabilities_from_statevector(
+        state_vector: np.ndarray, cutoff: float
+    ) -> Dict[int, float]:
+        """Convert one statevector to a probability mapping, pruned at ``cutoff``."""
+        probability_values = np.abs(state_vector) ** 2
+        return {
+            index: float(value) for index, value in enumerate(probability_values) if value > cutoff
+        }
+
+    @staticmethod
+    def _probabilities_from_counts(counts: Dict[str, int], cutoff: float) -> Dict[int, float]:
+        """Convert one bitstring-count mapping to a probability mapping, pruned at ``cutoff``.
+
+        Prunes with the same threshold as :meth:`_probabilities_from_statevector`,
+        so that switching ``shots`` on or off does not change which entries
+        are reported.
+        """
+        total = sum(counts.values())
+        probabilities = ((int(str(bits), 2), count / total) for bits, count in counts.items())
+        return {index: value for index, value in probabilities if value > cutoff}
 
     # ========================================================================
     # Public API – Circuit/Operator Handling

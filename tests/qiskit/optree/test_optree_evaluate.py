@@ -386,6 +386,9 @@ class TestOpTreeEvaluation:
             def __init__(self):
                 self.called_with = None
 
+            def _run(self, circuits, observables, parameter_values, **run_options):
+                raise NotImplementedError
+
             def run(self, circuits, operators, parameters):
                 self.called_with = (circuits, operators, parameters)
                 return SimpleNamespace(result=lambda: SimpleNamespace(values=np.array([42.0])))
@@ -509,6 +512,9 @@ class TestOpTreeEvaluation:
         operator = SparsePauliOp("Z")
 
         class DummySamplerV1(oe.BaseSamplerV1):
+            def _run(self, circuits, parameter_values, **run_options):
+                raise NotImplementedError
+
             def run(self, circuits, parameter_list):
                 return SimpleNamespace(result=lambda: "SAMPLER_RESULT_OBJ")
 

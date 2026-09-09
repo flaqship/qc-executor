@@ -84,7 +84,9 @@ class Executor:
             target: Name of the backend (e.g., "qiskit", "pennylane", "qulacs").
                 May also be a Qiskit ``Backend`` / ``BackendV2`` instance, in
                 which case the ``"qiskit"`` executor is used automatically and
-                the object is forwarded as ``backend=<instance>``.
+                the object is forwarded as ``backend=<instance>``. An already
+                constructed :class:`ExecutorBase` instance is returned
+                unchanged (no ``**kwargs`` allowed in that case).
             **kwargs: Configuration parameters passed to the backend constructor
 
         Returns:
@@ -97,6 +99,16 @@ class Executor:
             >>> executor = Executor.create("qiskit", shots=1024, seed=42)
             >>> executor = Executor.create("pennylane", shots=1000)
         """
+
+        # Pass through already constructed executors unchanged.
+        if isinstance(target, ExecutorBase):
+            if kwargs:
+                raise ValueError(
+                    "Configuration arguments cannot be applied to an already "
+                    "constructed executor. Use switch_backend(...) to derive a "
+                    "reconfigured executor instead."
+                )
+            return target
 
         # Try discovering plugins if not done yet
         if not cls._plugins_discovered:

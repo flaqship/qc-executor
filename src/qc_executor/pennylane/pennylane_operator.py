@@ -146,10 +146,10 @@ class PennyLaneOperator:
                 [_resolve_coefficient(coeff, symbol_tuple, printer, modules) for coeff in coeffs]
             )
 
-        # Convert Pauli strings into PennyLane Pauli words
+        # Convert Pauli strings into PennyLane Pauli words.
         for op in operator:
             self._pennylane_words.append(
-                [pauli.string_to_pauli_word(p) for p in op.paulis.to_labels()]
+                [pauli.string_to_pauli_word(p[::-1]) for p in op.paulis.to_labels()]
             )
 
         if not islist:
@@ -180,32 +180,23 @@ class PennyLaneOperator:
             if isinstance(self._qiskit_operator, list):
                 expval_list = []
                 for i, obs in enumerate(self._pennylane_words):
-                    if len(obs_param_list) > 0:
+                    if len(self._pennylane_words[i]) == 0:
+                        expval_list.append(0.0)
+                    else:
+                        # Numeric coefficients must be applied also for
+                        # observables without free parameters.
                         coeff_list = [
                             coeff(*obs_param_list) if callable(coeff) else coeff
                             for coeff in self._pennylane_operator_param_functions[i]
                         ]
                         expval_list.append(qml.expval(qml.Hamiltonian(coeff_list, obs)))
-                    else:
-                        # In case no parameters are present in the observable
-                        # Calculate the expectation value of sum of the observables
-                        # since this is more compatible with hardware backends
-                        if len(self._pennylane_words[i]) == 0:
-                            expval_list.append(0.0)
-                        else:
-                            expval_list.append(qml.expval(qml.sum(*self._pennylane_words[i])))
                 return pnp.stack(tuple(expval_list))
-            if len(obs_param_list) > 0:
-                coeff_list = [
-                    coeff(*obs_param_list) if callable(coeff) else coeff
-                    for coeff in self._pennylane_operator_param_functions
-                ]
-                return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
-            # In case no parameters are present in the observable
-            # Calculate the expectation value of sum of the observables
-            # since this is more compatible with hardware backends
             if len(self._pennylane_words) == 0:
                 return 0.0
-            return qml.expval(qml.sum(*self._pennylane_words))
+            coeff_list = [
+                coeff(*obs_param_list) if callable(coeff) else coeff
+                for coeff in self._pennylane_operator_param_functions
+            ]
+            return qml.expval(qml.Hamiltonian(coeff_list, self._pennylane_words))
 
         return pennylane_observable

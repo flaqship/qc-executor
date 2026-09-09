@@ -572,9 +572,12 @@ class QuantumCircuitBase(ABC):
                 mapping, which requires equal qubit counts.
             clbits (List[int] | None): Classical-bit indices of ``self`` that
                 the classical bits of ``qc`` are mapped onto.
-            new_parameters (bool): If True (default), the parameters of ``qc``
-                are appended after the parameters of ``self``. If False, the
-                parameters of both circuits are merged positionally.
+            new_parameters (bool): Only relevant if a parameter name actually
+                collides between ``self`` and ``qc`` (two different Parameter
+                objects sharing a name) - disjoint or deliberately shared
+                names are never touched. If True (default), the colliding
+                parameters of ``qc`` are appended after those of ``self``. If
+                False, they are merged positionally instead.
 
         Returns:
             QuantumCircuitBase: This circuit, after in-place composition.
@@ -614,11 +617,14 @@ class QuantumCircuitBase(ABC):
 
         The default implementation merges in place via the shared qiskit
         representation, so it works for every circuit type that exposes a
-        ``qiskit_circuit``. Parameters of both circuits are re-indexed into
-        a single fresh parameter vector so that repeatedly composing
-        circuits that use identically named parameter vectors never
-        collides: the parameters of ``self`` keep their positions and the
-        parameters of ``qc`` are appended (or merged positionally for
+        ``qiskit_circuit``. Parameter identity is preserved by default -
+        composing circuits that use disjoint names (e.g. "p" and "x") or
+        that deliberately share the same Parameter object leaves every name
+        untouched. Only an actual name collision (two *different* Parameter
+        objects with the same name, which qiskit's own compose() would
+        reject) triggers a re-index into a single fresh parameter vector:
+        the parameters of ``self`` keep their positions and the parameters
+        of ``qc`` are appended (or merged positionally for
         ``new_parameters=False``).
 
         Raises:
@@ -639,13 +645,11 @@ class QuantumCircuitBase(ABC):
                 f"{type(qc).__name__}: the circuits share no qiskit representation."
             )
 
-        if own.parameters and other.parameters:
-            # TODO: Merging squashes both circuits into a single vector named
-            # after self's first parameter, so qc's parameters are renamed
-            # (e.g. "y[0]" becomes "x[1]") and keyword access via the old name
-            # stops working. Decide whether the original names should be kept.
-            own_params = list(own.parameters)
-            other_params = list(other.parameters)
+        own_params = list(own.parameters)
+        other_params = list(other.parameters)
+        own_by_name = {str(p): p for p in own_params}
+        collides = any(str(p) in own_by_name and own_by_name[str(p)] != p for p in other_params)
+        if collides:
             first = own_params[0]
             name = first.vector.name if isinstance(first, ParameterVectorElement) else first.name
             if new_parameters:

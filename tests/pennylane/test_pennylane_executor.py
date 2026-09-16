@@ -443,15 +443,28 @@ class TestPennylaneErrorHandling:
         with pytest.raises(ValueError, match="Parameter 'y' not found"):
             executor.expectation_value_derivatives(qc, operator, x=[0.5])  # Missing y parameter
 
-    def test_derivatives_multiple_circuits_raises(self):
-        """Test that derivatives for multiple circuits raise NotImplementedError."""
+    def test_derivatives_list_inputs_are_expanded_by_the_base(self):
+        """List inputs are expanded combinatorially before reaching the plugin."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         operator = QuantumOperator(["Z"], [1.0])
 
         executor = PennyLaneExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits"):
-            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1])
+        single = np.asarray(
+            executor.expectation_value_derivatives(qc, operator, "x", x=[0.1]), dtype=float
+        )
+        per_circuit = np.asarray(
+            executor.expectation_value_derivatives([qc, qc], operator, "x", x=[0.1]), dtype=float
+        )
+        per_observable = np.asarray(
+            executor.expectation_value_derivatives(qc, [operator, operator], "x", x=[0.1]),
+            dtype=float,
+        )
+
+        assert per_circuit.shape[0] == 2
+        assert per_observable.shape[0] == 2
+        np.testing.assert_allclose(per_circuit[0], single)
+        np.testing.assert_allclose(per_observable[1], single)
 
     def test_derivatives_over_multiple_observables(self):
         """Several observables are measured in one QNode and differentiated once.
@@ -523,12 +536,16 @@ class TestPennylaneProperties:
         executor = PennyLaneExecutor(shots=500)
         assert executor.shots == 500
 
-    def test_shots_property_setter_raises_error(self):
-        """Test that shots setter raises NotImplementedError."""
+    def test_shots_property_setter_updates_shots(self):
+        """Test that shots setter actually changes the reported shot count."""
         executor = PennyLaneExecutor()
+        assert executor.shots is None
 
-        with pytest.raises(NotImplementedError):
-            executor.shots = 1000
+        executor.shots = 1000
+        assert executor.shots == 1000
+
+        executor.shots = None
+        assert executor.shots is None
 
     def test_remote_property(self):
         """Test that remote property returns False."""
@@ -639,12 +656,12 @@ class TestPennylaneCacheSizeRestriction:
         assert op3 in executor._operator_cache
         assert list(executor._operator_cache.keys()) == [op2, op3]
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that cache is unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that caches use the default bound when max_cache_size is not specified."""
         executor = PennyLaneExecutor()
-        assert executor._max_cache_size is None
-        assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._max_cache_size == 4096
+        assert executor._circuit_cache.max_size == 4096
+        assert executor._operator_cache.max_size == 4096
 
 
 class TestPennylaneResultCaching:

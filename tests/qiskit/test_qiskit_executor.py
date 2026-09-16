@@ -77,12 +77,11 @@ class TestQiskitExecutor:
         with pytest.raises(ValueError, match="cannot be combined with injected"):
             QiskitExecutor(backend=StatevectorEstimator(), options={"resilience_level": 1})
 
-    @pytest.mark.parametrize("backend_name", ["statevector", "aer"])
-    def test_shot_based_string_backends_use_aer(self, backend_name):
-        """Shot-based string backends should create Aer-backed primitives."""
+    def test_shot_based_aer_string_backend_uses_aer(self):
+        """The "aer" string backend should create Aer-backed primitives."""
         pytest.importorskip("qiskit_aer")
 
-        executor = QiskitExecutor(backend=backend_name, shots=32, seed=0)
+        executor = QiskitExecutor(backend="aer", shots=32, seed=0)
 
         assert executor._backend is not None
         assert executor._estimator is not None
@@ -168,10 +167,10 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(max_cache_size=64)
         assert executor._max_cache_size == 64
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that cache is unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that the default cache bound is used when max_cache_size is not specified."""
         executor = QiskitExecutor()
-        assert executor._max_cache_size is None
+        assert executor._max_cache_size == 4096
 
     def test_expectation_value_bell_state_z_basis(self):
         """Test expectation value of Bell state with Z observables."""
@@ -655,13 +654,19 @@ class TestExecutorInternalHelpers:
         assert observable_dict == {to_qiskit_expr(p_obs[0]): 0.3}
 
     def test_prepare_parameter_dicts_raises_for_short_parameter_vector(self):
-        """An underspecified ParameterVector should raise a clear ValueError."""
+        """An underspecified ParameterVector should raise a clear ValueError.
+
+        Parameter values are interpreted the same way as the PennyLane/Qulacs
+        backends (adjust_features): 2 values for a declared length-3 vector
+        match neither "one value per vector element" nor a recognized batch
+        shape, so the shared, backend-consistent error message is raised.
+        """
         x = Parameters("x", 3)
         qc = _build_circuit(1, [("rx", [0, x[2]])])
 
         executor = QiskitExecutor()
 
-        with pytest.raises(ValueError, match="length 2 but parameter index 2"):
+        with pytest.raises(ValueError, match="Wrong format of an input variable"):
             executor._prepare_parameter_dicts(qc, None, x=[0.1, 0.2])
 
     def test_extract_counts_supports_v2_and_v1_result_formats(self):

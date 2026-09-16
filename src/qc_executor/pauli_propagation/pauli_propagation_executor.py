@@ -190,6 +190,8 @@ class PauliPropagationExecutor(ExecutorBase):
         log_file: Path to log file (not implemented)
         caching: Whether to use caching (not implemented yet)
         cache_dir: Directory for caching (not implemented yet)
+        max_cache_size: Maximum number of entries kept in each in-memory cache
+            (None = unbounded)
         truncate_threshold: Coefficient threshold for automatic truncation (None = no truncation)
         max_weight: Maximum Pauli weight for truncation (None = no weight limit)
         symmetry_strategy: Strategy for Pauli symmetry merging (None = no merging)
@@ -212,7 +214,7 @@ class PauliPropagationExecutor(ExecutorBase):
         log_level: str = "WARNING",
         caching: bool | None = None,
         cache_dir: str = "cache",
-        max_cache_size: int | None = None,
+        max_cache_size: int | None = 4096,
         truncate_threshold: float | None = None,
         max_weight: int | None = None,
         symmetry_strategy: SymmetryStrategy | None = None,

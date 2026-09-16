@@ -8,10 +8,10 @@ import numpy as np
 import sympy as sp
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs import QuantumCircuit as QulacsQuantumCircuit  # pylint: disable=no-name-in-module
-from sympy import lambdify
 
 from ..base.circuit_base import QuantumCircuitBase
 from ..base.circuit_ir import CircuitIR
+from ..base.expressions import compile_expression
 from ..base.gate_set import GATE_DEFS, OpCode
 from ..parameters import Parameter, sort_parameters
 from .qulacs_gates import qiskit_qulacs_gate_dict, qiskit_qulacs_param_gate_dict
@@ -157,8 +157,9 @@ class QulacsCircuit(QuantumCircuitBase):
         Adds a parameter expression to the circuit and do the pre-processing.
 
         Angles arrive as plain numbers or SymPy expressions.  Symbolic angles are
-        lambdified once, and their derivatives come from ``sympy.diff``; this
-        used to go through Qiskit's ``ParameterExpression.gradient``.
+        compiled once (see :func:`compile_expression`), and their derivatives
+        come from ``sympy.diff``; this used to go through Qiskit's
+        ``ParameterExpression.gradient``.
 
         Args:
             angle: Angle of rotation, numeric or symbolic.
@@ -180,7 +181,7 @@ class QulacsCircuit(QuantumCircuitBase):
 
         if isinstance(angle, sp.Basic) and angle.free_symbols:
             parameterized = True
-            func_list_element = lambdify(self._symbol_tuple_circuit, angle)
+            func_list_element = compile_expression(angle, self._symbol_tuple_circuit)
             func_grad_list_element = []
             used_parameters = []
             for param_element in sort_parameters(
@@ -189,7 +190,9 @@ class QulacsCircuit(QuantumCircuitBase):
                 used_parameters.append(param_element)
                 derivative = sp.diff(angle, param_element)
                 if derivative.free_symbols:
-                    func_grad_list_element.append(lambdify(self._symbol_tuple_circuit, derivative))
+                    func_grad_list_element.append(
+                        compile_expression(derivative, self._symbol_tuple_circuit)
+                    )
                 else:
                     # Call-by-value so the closure keeps this gate's constant.
                     value = float(derivative)

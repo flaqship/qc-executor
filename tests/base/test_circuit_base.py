@@ -37,11 +37,11 @@ class TestQuantumCircuitBasePropertiesAndAliases:
 
 
 class TestPauliString:
-    def test_pauli_string_applies_reversed_qubit_order(self):
+    def test_pauli_string_reads_qubit_zero_leftmost(self):
         circuit = SpyCircuit(3)
         circuit.pauli_string("XYZ")
 
-        assert circuit.ops == [("z", 0), ("y", 1), ("x", 2)]
+        assert circuit.ops == [("x", 0), ("y", 1), ("z", 2)]
 
     def test_pauli_string_length_mismatch_raises(self):
         circuit = SpyCircuit(2)
@@ -112,11 +112,10 @@ class TestPauliEvolution:
         circuit = SpyCircuit(3)
         op = FakeOperator("XZI", [0.5])
 
+        # Label position i acts on working_qubits[i]: X on 2, Z on 0.
         circuit.pauli_evolution(op, 2.0, working_qubits=[2, 0, 1])
 
-        assert ("h", 1) in circuit.ops
-        assert ("rz", 0, 2.0) in circuit.ops
-        assert ("cx", 1, 0) in circuit.ops
+        assert circuit.ops == [("h", 2), ("cx", 2, 0), ("rz", 0, 2.0), ("cx", 2, 0), ("h", 2)]
 
     def test_pauli_evolution_with_parameterized_coeff_runs(self):
         coeff = 1.0
@@ -135,14 +134,14 @@ class TestControlledPauliEvolution:
         circuit = SpyCircuit(1)
         op = FakeOperator("I", [0.5])
 
-        assert circuit.controlled_pauli_evolution(op, 4.0, control_qubit=0) is None
+        assert circuit.controlled_pauli_evolution(op, 4.0, control_qubits=0) is None
         assert circuit.ops == [("rz", 0, -2.0)]
 
     def test_controlled_pauli_evolution_nontrivial_uses_crz(self):
         circuit = SpyCircuit(2)
         op = FakeOperator("Z", [0.5])
 
-        circuit.controlled_pauli_evolution(op, 2.0, control_qubit=1)
+        circuit.controlled_pauli_evolution(op, 2.0, control_qubits=1)
 
         assert circuit.ops == [("crz", 1, 0, 2.0)]
 
@@ -151,31 +150,37 @@ class TestControlledPauliEvolution:
         op = FakeOperator("A", [1.0])
 
         with pytest.raises(ValueError, match="Unknown Pauli operator"):
-            circuit.controlled_pauli_evolution(op, 1.0, control_qubit=0)
+            circuit.controlled_pauli_evolution(op, 1.0, control_qubits=0)
 
     def test_controlled_pauli_evolution_complex_coeff_raises(self):
         circuit = SpyCircuit(1)
         op = FakeOperator("Z", [1 + 1j])
 
         with pytest.raises(ValueError, match="Complex coefficients are not supported"):
-            circuit.controlled_pauli_evolution(op, 1.0, control_qubit=0)
+            circuit.controlled_pauli_evolution(op, 1.0, control_qubits=0)
 
     def test_controlled_pauli_evolution_multi_term_coeffs_raises(self):
         circuit = SpyCircuit(1)
         op = FakeOperator("Z", [1.0, 2.0])
 
         with pytest.raises(ValueError, match="single Pauli strings"):
-            circuit.controlled_pauli_evolution(op, 1.0, control_qubit=0)
+            circuit.controlled_pauli_evolution(op, 1.0, control_qubits=0)
 
     def test_controlled_pauli_evolution_yx_chain_default_working_qubits(self):
         circuit = SpyCircuit(3)
         op = FakeOperator("YX", [0.5])
 
-        circuit.controlled_pauli_evolution(op, 2.0, control_qubit=2)
+        # Y on qubit 0, X on qubit 1; the free qubits 0 and 1 are used in order.
+        circuit.controlled_pauli_evolution(op, 2.0, control_qubits=2)
 
-        assert ("sdag", 1) in circuit.ops
-        assert ("h", 1) in circuit.ops
-        assert ("h", 0) in circuit.ops
-        assert ("cx", 1, 0) in circuit.ops
-        assert ("crz", 2, 0, 2.0) in circuit.ops
-        assert ("s", 1) in circuit.ops
+        assert circuit.ops == [
+            ("sdag", 0),
+            ("h", 0),
+            ("h", 1),
+            ("cx", 0, 1),
+            ("crz", 2, 1, 2.0),
+            ("cx", 0, 1),
+            ("h", 0),
+            ("s", 0),
+            ("h", 1),
+        ]

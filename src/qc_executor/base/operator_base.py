@@ -15,7 +15,7 @@ from typing import Any, List, Mapping, Sequence
 import numpy as np
 import sympy as sp
 
-from ..parameters import Parameter, translate_expression, sort_parameters
+from ..parameters import Parameter, sort_parameters, translate_expression
 from .operator_ir import PauliIR
 
 __all__ = ["QuantumOperatorBase"]

@@ -6,10 +6,10 @@ from typing import Any, Callable, Optional, cast
 
 import pennylane as qml
 import sympy as sp
-from sympy import lambdify
 
 from ..base.circuit_base import QuantumCircuitBase
 from ..base.circuit_ir import CircuitIR, Instruction
+from ..base.expressions import compile_expression
 from ..base.gate_set import GATE_DEFS, OPCODE_BY_NAME, OpCode
 from ..parameters import sort_parameters
 from ._sympy_interface import _get_sympy_interface
@@ -139,7 +139,9 @@ class PennyLaneCircuit(QuantumCircuitBase):
         param_tuple: tuple = ()
         for param in instruction.params:
             if isinstance(param, sp.Basic) and param.free_symbols:
-                param_tuple += (lambdify(symbol_tuple, param, modules=modules, printer=printer),)
+                param_tuple += (
+                    compile_expression(param, symbol_tuple, modules=modules, printer=printer),
+                )
             else:
                 param_tuple += (float(param),)
         return param_tuple

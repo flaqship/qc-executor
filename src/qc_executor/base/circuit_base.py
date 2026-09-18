@@ -23,12 +23,12 @@ across the generic circuit and every backend's native circuit.
 from __future__ import annotations
 
 from abc import ABC
-from typing import Any, Dict, FrozenSet, Iterator, List, Mapping, Sequence
+from typing import Any, Dict, FrozenSet, Iterator, List, Mapping, Sequence, Tuple
 
 import numpy as np
 import sympy as sp
 
-from ..parameters import Parameter, sort_parameters
+from ..parameters import Parameter, sort_parameters, translate_expression
 from .circuit_ir import CircuitIR, Condition, Instruction
 from .gate_set import GATE_DEFS, OpCode
 
@@ -183,6 +183,50 @@ class QuantumCircuitBase(ABC):
     def is_parameterized(self) -> bool:
         """Whether the circuit has any free parameter."""
         return bool(self._ir.free_parameters)
+
+    @property
+    def parameter_vector_names(self) -> List[str]:
+        """The distinct parameter-vector names, in :attr:`parameters` order.
+
+        Supplying all of them as ``derivative`` arguments to
+        :meth:`~qc_executor.base.executor_base.ExecutorBase.expectation_value_derivatives`
+        yields the full gradient of the circuit.
+        """
+        names: List[str] = []
+        for parameter in self.parameters:
+            if parameter.vector_name not in names:
+                names.append(parameter.vector_name)
+        return names
+
+    #: Names of the unitary gate-appending methods every circuit offers.  Kept
+    #: by hand because six of them (``i``, ``sdag``, ``sxdag``, ``tdag`` and the
+    #: aliases ``cnot``/``toffoli``) have no opcode of the same name in
+    #: :data:`GATE_DEFS`; ``tests/base/test_circuit_base.py`` checks the list
+    #: against the class and the gate table so it cannot drift silently.
+    _GATE_METHODS = frozenset(
+        {
+            "i", "h", "x", "y", "z", "s", "sdag", "t", "tdag", "sx", "sxdag",
+            "rx", "ry", "rz", "p", "u",
+            "cx", "cnot", "cy", "cz", "ch", "cs", "csx", "ecr", "swap", "iswap",
+            "cp", "crx", "cry", "crz", "rxx", "ryy", "rzz", "rzx",
+            "ccx", "toffoli", "cswap",
+        }
+    )  # fmt: skip
+
+    @classmethod
+    def available_gates(cls) -> FrozenSet[str]:
+        """Return the names of the gate methods defined on this circuit class."""
+        return cls._GATE_METHODS
+
+    def _replace_ir(self, ir: CircuitIR) -> None:
+        """Adopt a new instruction store, dropping any compiled native circuit.
+
+        The native cache is keyed on the store's revision counter, which a
+        fresh store restarts, so the counter alone cannot tell the two apart.
+        """
+        self._ir = ir
+        self._native_cache = None
+        self._native_revision = -1
 
     # ------------------------------------------------------------------
     # Appending
@@ -476,64 +520,61 @@ class QuantumCircuitBase(ABC):
         """Apply a Pauli string to the circuit.
 
         Args:
-            pauli_string: Pauli string to apply, one character per qubit.
+            pauli_string: One character per qubit, qubit 0 leftmost.
 
         Raises:
-            ValueError: If the string length does not match the qubit count.
+            ValueError: If the string length does not match the qubit count,
+                or a character is not one of ``I``, ``X``, ``Y``, ``Z``.
         """
         if len(pauli_string) != self.num_qubits:
             raise ValueError("Pauli string length does not match number of qubits")
 
-        for i, pauli in enumerate(pauli_string[::-1]):
+        for qubit, pauli in enumerate(pauli_string):
             if pauli == "X":
-                self.x(i)
+                self.x(qubit)
             elif pauli == "Y":
-                self.y(i)
+                self.y(qubit)
             elif pauli == "Z":
-                self.z(i)
-            elif pauli == "I":
-                pass  # Identity gate (I) can be skipped as it does nothing
+                self.z(qubit)
+            elif pauli != "I":
+                raise ValueError(f"Unknown Pauli operator: {pauli}")
 
-    def _apply_basis_change(
-        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
-    ) -> None:
-        """Apply basis change for non-trivial Paulis."""
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.sdag(working_qubits[q])
-                self.h(working_qubits[q])
-            elif p != "Z":
-                raise ValueError(f"Unknown Pauli operator: {p}")
+    def _apply_basis_change(self, paulis: List[str], qubits: List[int]) -> None:
+        """Rotate each non-identity Pauli into the Z basis."""
+        for pauli, qubit in zip(paulis, qubits):
+            if pauli == "X":
+                self.h(qubit)
+            elif pauli == "Y":
+                self.sdag(qubit)
+                self.h(qubit)
+            elif pauli != "Z":
+                raise ValueError(f"Unknown Pauli operator: {pauli}")
 
-    def _undo_basis_change(
-        self, paulis: List[str], qubits: List[int], working_qubits: List[int]
-    ) -> None:
-        """Undo basis change for non-trivial Paulis."""
-        for p, q in zip(paulis, qubits):
-            if p == "X":
-                self.h(working_qubits[q])
-            elif p == "Y":
-                self.h(working_qubits[q])
-                self.s(working_qubits[q])
+    def _undo_basis_change(self, paulis: List[str], qubits: List[int]) -> None:
+        """Undo :meth:`_apply_basis_change`."""
+        for pauli, qubit in zip(paulis, qubits):
+            if pauli == "X":
+                self.h(qubit)
+            elif pauli == "Y":
+                self.h(qubit)
+                self.s(qubit)
 
-    def _apply_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
+    def _apply_cnot_ladder(self, qubits: List[int]) -> None:
         """Apply the forward CNOT ladder for Pauli evolution."""
         if not qubits:
             return
         control = qubits[0]
         for target in qubits[1:]:
-            self.cx(working_qubits[control], working_qubits[target])
+            self.cx(control, target)
             control = target
 
-    def _undo_cnot_ladder(self, qubits: List[int], working_qubits: List[int]) -> None:
+    def _undo_cnot_ladder(self, qubits: List[int]) -> None:
         """Undo the CNOT ladder after the phase rotation."""
         if not qubits:
             return
         control = qubits[-1]
         for target in reversed(qubits[:-1]):
-            self.cx(working_qubits[target], working_qubits[control])
+            self.cx(target, control)
             control = target
 
     @staticmethod
@@ -561,88 +602,210 @@ class QuantumCircuitBase(ABC):
             raise ValueError("Complex coefficients are not supported")
         return scale * float(value.real) * parameter
 
+    @staticmethod
+    def _single_pauli_term(operator: Any) -> Tuple[str, Any]:
+        """Return the label and coefficient of a single-term operator.
+
+        Accepts any :class:`~qc_executor.base.operator_base.QuantumOperatorBase`
+        or anything exposing ``paulis`` (labels, qubit 0 leftmost) and
+        ``coeffs`` the same way.
+
+        Args:
+            operator: The operator to inspect.
+
+        Returns:
+            ``(label, coefficient)``.
+
+        Raises:
+            TypeError: If ``operator`` does not expose Pauli labels and coefficients.
+            ValueError: If the operator holds more than one Pauli string.
+        """
+        paulis = getattr(operator, "paulis", None)
+        coeffs = getattr(operator, "coeffs", None)
+        if paulis is None or coeffs is None:
+            raise TypeError(f"Expected a quantum operator, got {type(operator).__name__}")
+        labels, coeffs = list(paulis), list(coeffs)
+        if len(coeffs) != 1 or len(labels) != 1:
+            raise ValueError("Only operators with single Pauli strings are supported")
+        return str(labels[0]), coeffs[0]
+
     def pauli_evolution(
         self,
         operator: Any,
         parameter: Any,
-        working_qubits: "List[int] | None" = None,
+        working_qubits: "Sequence[int] | None" = None,
     ) -> None:
-        """Apply the Pauli evolution ``exp(itP)`` for a single Pauli term.
+        """Apply the Pauli evolution ``exp(-i t P)`` for a single Pauli string.
 
         Args:
-            operator: A quantum operator holding exactly one Pauli string.
-            parameter: The evolution parameter, numeric or symbolic.
-            working_qubits: Physical qubits to use, defaulting to ``0..n-1``.
+            operator: An operator holding exactly one Pauli string, a
+                :class:`~qc_executor.base.operator_base.QuantumOperatorBase`.
+            parameter: The evolution parameter ``t``, numeric or symbolic
+                (Qiskit parameter expressions are accepted).
+            working_qubits: Circuit qubit for each label position, defaulting
+                to ``0..n-1``.
 
         Raises:
             ValueError: If the operator holds more than one Pauli string.
         """
-        pauli_str = operator.paulis[0]
-        coeffs = operator.coeffs
-        if len(coeffs) != 1:
-            raise ValueError("Only operators with single Pauli strings are supported")
-
-        angle = self._evolution_angle(coeffs[0], parameter)
-
-        qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
-        paulis = [p for p in pauli_str if p != "I"]
-
-        if working_qubits is None:
-            working_qubits = list(range(len(pauli_str)))
-
-        self._apply_basis_change(paulis, qubits, working_qubits)
-
-        if qubits:
-            self._apply_cnot_ladder(qubits, working_qubits)
-            self.rz(working_qubits[qubits[-1]], angle)
-            self._undo_cnot_ladder(qubits, working_qubits)
-
-        self._undo_basis_change(paulis, qubits, working_qubits)
+        self.controlled_pauli_evolution(operator, parameter, working_qubits=working_qubits)
 
     def controlled_pauli_evolution(
         self,
         operator: Any,
         parameter: Any,
-        control_qubit: int,
-        working_qubits: "List[int] | None" = None,
+        working_qubits: "Sequence[Sequence[int]] | Sequence[int] | None" = None,
+        control_qubits: "Sequence[int | None] | int | None" = None,
+        control_state: "Sequence[str | None] | str | None" = None,
     ) -> None:
-        """Apply a controlled Pauli evolution ``exp(itP)``.
+        """Apply one or several (optionally controlled) Pauli evolutions.
+
+        Each operator ``P`` with coefficient ``c`` contributes ``exp(-i c t P)``.
+        Several operators are applied together on disjoint working qubits,
+        sharing one basis change and one CNOT-ladder layer.
 
         Args:
-            operator: A quantum operator holding exactly one Pauli string.
-            parameter: The evolution parameter, numeric or symbolic.
-            control_qubit: The control qubit.
-            working_qubits: Physical qubits to use for the Pauli support.
+            operator: A single-term operator (see :meth:`pauli_evolution`) or a
+                list of them.
+            parameter: The evolution parameter, or one per operator.
+            working_qubits: Circuit qubit for each label position, per
+                operator.  By default label position ``i`` maps to the
+                ``i``-th qubit that is neither a control nor already used.
+            control_qubits: One control qubit per operator, or ``None`` for an
+                uncontrolled evolution.
+            control_state: ``"0"`` or ``"1"`` per operator: the control value
+                that triggers the evolution.  Defaults to ``"1"``.
 
         Raises:
-            ValueError: If the operator holds more than one Pauli string.
+            TypeError: If ``operator`` is neither an operator nor a list.
+            ValueError: If an operator has several terms or a complex
+                coefficient, if a control state is invalid, or if the qubit
+                assignment is inconsistent or out of range.
+            NotImplementedError: If more than one control qubit is requested.
         """
-        pauli_str = operator.paulis[0]
-        coeffs = operator.coeffs
-        if len(coeffs) != 1:
-            raise ValueError("Only operators with single Pauli strings are supported")
+        # -- Normalise every argument to one entry per operator --
+        if isinstance(operator, (list, tuple)):
+            operators = list(operator)
+        elif hasattr(operator, "paulis"):
+            operators = [operator]
+        else:
+            raise TypeError("Operator must be a quantum operator or a list thereof")
+        count = len(operators)
 
-        qubits = [i for i, p in enumerate(pauli_str[::-1]) if p != "I"][::-1]
-        paulis = [p for p in pauli_str if p != "I"]
-
-        if not paulis:
-            self.rz(control_qubit, self._evolution_angle(coeffs[0], parameter, scale=-1.0))
-            return
-
-        angle = self._evolution_angle(coeffs[0], parameter)
+        parameters = (
+            list(parameter) if isinstance(parameter, (list, tuple)) else [parameter] * count
+        )
+        parameters = [translate_expression(value) for value in parameters]
 
         if working_qubits is None:
-            working_qubits = list(range(len(pauli_str) + 1))
-            working_qubits.remove(control_qubit)
+            working_lists: list = [None] * count
+        elif isinstance(working_qubits, (int, np.integer)):
+            working_lists = [[int(working_qubits)]] * count
+        elif len(working_qubits) > 0 and isinstance(working_qubits[0], (list, tuple, range)):
+            working_lists = [list(entry) for entry in working_qubits]
+        else:
+            working_lists = [list(working_qubits)] * count
 
-        self._apply_basis_change(paulis, qubits, working_qubits)
+        if control_qubits is None:
+            control_list: list = [None] * count
+        elif isinstance(control_qubits, (int, np.integer)):
+            control_list = [int(control_qubits)] * count
+        else:
+            control_list = list(control_qubits)
 
-        if qubits:
-            self._apply_cnot_ladder(qubits, working_qubits)
-            self.crz(control_qubit, working_qubits[qubits[-1]], angle)
-            self._undo_cnot_ladder(qubits, working_qubits)
+        if control_state is None:
+            state_list: list = [None] * count
+        elif isinstance(control_state, str):
+            state_list = [control_state] * count
+        else:
+            state_list = list(control_state)
 
-        self._undo_basis_change(paulis, qubits, working_qubits)
+        for name, entries in (
+            ("parameter", parameters),
+            ("working_qubits", working_lists),
+            ("control_qubits", control_list),
+            ("control_state", state_list),
+        ):
+            if len(entries) != count:
+                raise ValueError(f"{name} must have one entry per operator, got {len(entries)}")
+        for state in state_list:
+            if state not in (None, "0", "1"):
+                raise ValueError(f'control_state entries must be "0" or "1", got {state!r}')
+
+        # -- Per-operator preprocessing --
+        angles = []
+        paulis_per_operator = []
+        positions_per_operator = []
+        for op, value in zip(operators, parameters):
+            label, coeff = self._single_pauli_term(op)
+            for pauli in label:
+                if pauli not in "IXYZ":
+                    raise ValueError(f"Unknown Pauli operator: {pauli}")
+            angles.append(self._evolution_angle(coeff, value, scale=1.0))
+            positions_per_operator.append([i for i, pauli in enumerate(label) if pauli != "I"])
+            paulis_per_operator.append([pauli for pauli in label if pauli != "I"])
+
+        # -- Resolve control and working qubits --
+        free_qubits = set(range(self.num_qubits))
+        controls: list = []
+        for control in control_list:
+            if control is not None:
+                control = int(control)
+                if control not in free_qubits and control not in controls:
+                    raise ValueError(f"Control qubit {control} is out of range")
+                free_qubits.discard(control)
+            controls.append(control)
+
+        used: set = set()
+        working_per_operator = []
+        for positions, working in zip(positions_per_operator, working_lists):
+            if working is None:
+                candidates = sorted(free_qubits)
+                if max(positions, default=-1) >= len(candidates):
+                    raise ValueError("Not enough qubits left for implementing pauli evolution!")
+                qubits = [candidates[i] for i in positions]
+            else:
+                if max(positions, default=-1) >= len(working):
+                    raise ValueError("working_qubits has fewer entries than the Pauli string")
+                qubits = [int(working[i]) for i in positions]
+                if any(q < 0 or q >= self.num_qubits for q in qubits):
+                    raise ValueError("Working qubits are out of range for this circuit!")
+            if any(q in used for q in qubits):
+                raise ValueError("No distinct support qubits between the operators!")
+            if any(q in controls for q in qubits):
+                raise ValueError("Controlled qubits must be distinct from working qubits!")
+            used.update(qubits)
+            free_qubits.difference_update(qubits)
+            working_per_operator.append(qubits)
+
+        # -- Emit the gates --
+        for paulis, qubits in zip(paulis_per_operator, working_per_operator):
+            self._apply_basis_change(paulis, qubits)
+        for qubits in working_per_operator:
+            self._apply_cnot_ladder(qubits)
+
+        for qubits, angle, control, state in zip(
+            working_per_operator, angles, controls, state_list
+        ):
+            if control is None:
+                if qubits:
+                    self.rz(qubits[-1], 2 * angle)
+                # An identity term without control is a global phase: nothing to do.
+                continue
+            if state == "0":
+                self.x(control)
+            if qubits:
+                self.crz(control, qubits[-1], 2 * angle)
+            else:
+                # A controlled global phase is a Z rotation on the control.
+                self.rz(control, -angle)
+            if state == "0":
+                self.x(control)
+
+        for qubits in working_per_operator:
+            self._undo_cnot_ladder(qubits)
+        for paulis, qubits in zip(paulis_per_operator, working_per_operator):
+            self._undo_basis_change(paulis, qubits)
 
     # ------------------------------------------------------------------
     # Structure
@@ -653,24 +816,95 @@ class QuantumCircuitBase(ABC):
         qc: "QuantumCircuitBase",
         qubits: "Sequence[int] | None" = None,
         clbits: "Sequence[int] | None" = None,
+        new_parameters: bool = True,
     ) -> "QuantumCircuitBase":
         """Append another circuit's instructions onto this one, in place.
 
+        When both circuits are parameterised, their parameters are re-indexed
+        into a single vector named after this circuit's first parameter so
+        that repeatedly composing circuits that all use ``theta[0]`` never
+        collides: this circuit's parameters keep their positions and the
+        parameters of ``qc`` are appended after them (or merged positionally
+        for ``new_parameters=False``).
+
         Args:
             qc: The circuit to append.
-            qubits: Where ``qc``'s qubits land, defaulting to the identity.
+            qubits: Where ``qc``'s qubits land, defaulting to the identity,
+                which requires equal qubit counts.
             clbits: Where ``qc``'s classical bits land.
+            new_parameters: If True (default), the parameters of ``qc`` are
+                appended after the parameters of this circuit.  If False,
+                the parameters of both circuits are merged positionally.
 
         Returns:
             This circuit, to allow chaining.
 
         Raises:
             TypeError: If ``qc`` is not a quantum circuit.
+            ValueError: If the qubit mapping is invalid.
         """
         if not isinstance(qc, QuantumCircuitBase):
             raise TypeError(f"can only compose with a quantum circuit, got {type(qc).__name__}")
-        self._ir.extend(qc.ir, qubits, clbits)
+        if qubits is None:
+            if self.num_qubits != qc.num_qubits:
+                raise ValueError(
+                    "When qubits=None, both circuits must have the same number of qubits "
+                    f"(got self.num_qubits={self.num_qubits}, qc.num_qubits={qc.num_qubits})."
+                )
+            qubits = list(range(qc.num_qubits))
+        qubits = [int(q) for q in qubits]
+        if len(qubits) != qc.num_qubits:
+            raise ValueError(
+                "Length of qubits mapping must match the composed circuit qubit count "
+                f"(got len(qubits)={len(qubits)}, qc.num_qubits={qc.num_qubits})."
+            )
+        if any(q < 0 or q >= self.num_qubits for q in qubits):
+            raise ValueError("Qubit mapping contains indexes out of range for the target circuit.")
+        if len(set(qubits)) != len(qubits):
+            raise ValueError("Qubit mapping contains duplicate indices.")
+
+        # Merge first: renaming this circuit's own parameters swaps in a new
+        # instruction store, and the appended instructions must land in it.
+        merged = self._merged_parameter_ir(qc, new_parameters)
+        self._ir.extend(merged, qubits, clbits)
         return self
+
+    def _merged_parameter_ir(self, qc: "QuantumCircuitBase", new_parameters: bool) -> CircuitIR:
+        """Re-index both circuits' parameters into one vector before composing.
+
+        Renames this circuit's parameters in place and returns ``qc``'s
+        instruction store with its parameters renamed.  Circuits where only
+        one side is parameterised are left untouched.
+        """
+        own, other = self.parameters, qc.parameters
+        if not own or not other:
+            return qc.ir
+        name = own[0].vector_name
+        offset = len(own) if new_parameters else 0
+        own_binding = {p: Parameter(name, i) for i, p in enumerate(own) if p != Parameter(name, i)}
+        other_binding = {
+            p: Parameter(name, offset + i)
+            for i, p in enumerate(other)
+            if p != Parameter(name, offset + i)
+        }
+        if own_binding:
+            self._replace_ir(self._ir.substitute(own_binding))
+        return qc.ir.substitute(other_binding) if other_binding else qc.ir
+
+    def fixate_parameters(self, parameters: Sequence[float]) -> None:
+        """Bind every free parameter in place, leaving a numeric circuit.
+
+        Args:
+            parameters: One value per parameter, in :attr:`parameters` order.
+
+        Raises:
+            ValueError: If the number of values does not match.
+        """
+        values = np.asarray(parameters, dtype=float).reshape(-1)
+        free = self.parameters
+        if len(values) != len(free):
+            raise ValueError(f"Expected {len(free)} parameter values, got {len(values)}")
+        self._replace_ir(self._ir.substitute(dict(zip(free, (float(v) for v in values)))))
 
     def assign_parameters(self, parameters: Mapping[Any, float]) -> "QuantumCircuitBase":
         """Return a copy of this circuit with parameter values substituted.
@@ -700,6 +934,14 @@ class QuantumCircuitBase(ABC):
     def copy(self) -> "QuantumCircuitBase":
         """Return an independent copy of this circuit."""
         return type(self)(self.num_qubits, self.num_clbits, _ir=self._ir.copy())
+
+    def clear(self) -> None:
+        """Remove every instruction in place, keeping the qubit and clbit counts.
+
+        Lets a caller rewrite a circuit it holds a reference to -- for example
+        after simplifying its gate sequence -- without replacing the object.
+        """
+        self._replace_ir(CircuitIR(self.num_qubits, self.num_clbits))
 
     def circuit_metrics(self) -> Dict[str, int]:
         """Return how often each gate name appears in the circuit."""

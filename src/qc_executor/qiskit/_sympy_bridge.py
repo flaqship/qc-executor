@@ -77,7 +77,8 @@ class QiskitParameterFactory:
             self._vectors[name] = created
             return created
         if len(existing) < min_length:
-            # resize() preserves the identity of existing elements.
+            # resize() keeps the UUID of existing elements, which is what
+            # Qiskit compares parameters by; Qiskit 2 may return fresh objects.
             existing.resize(min_length)
         return existing
 

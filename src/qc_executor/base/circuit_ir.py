@@ -30,7 +30,7 @@ from typing import Any, Dict, FrozenSet, Iterable, Iterator, List, Mapping, Sequ
 import numpy as np
 import sympy as sp
 
-from ..parameters import Parameter, canonicalize
+from ..parameters import Parameter, canonicalize, translate_expression
 from .gate_set import GATE_DEFS, VARIABLE_QUBITS, GateDef, OpCode
 
 __all__ = ["Condition", "Instruction", "CircuitIR"]
@@ -225,6 +225,7 @@ class CircuitIR:
         self._qubit_off.append(len(self._qubits))
 
         for value in params:
+            value = translate_expression(value)
             if isinstance(value, sp.Basic) and value.free_symbols:
                 self._symbolic[len(self._params)] = canonicalize(value)
                 self._params.append(_SYMBOLIC)

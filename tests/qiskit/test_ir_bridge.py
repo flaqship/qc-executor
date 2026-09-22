@@ -11,7 +11,8 @@ from qc_executor import QuantumCircuit
 from qc_executor.base.circuit_ir import CircuitIR, Condition
 from qc_executor.base.gate_set import GATE_DEFS, OpCode
 from qc_executor.parameters import Parameters
-from qc_executor.qiskit._ir_bridge import SUPPORTED_OPCODES, ir_to_qiskit
+from qc_executor.base.decompose import UnsupportedGateError
+from qc_executor.qiskit._ir_bridge import SUPPORTED_OPCODES, ir_to_qiskit, qiskit_to_ir
 
 #: Opcodes deliberately outside the emitter table.
 _STRUCTURAL = {OpCode.BLOCK_BEGIN, OpCode.BLOCK_END}
@@ -136,3 +137,79 @@ def _rx_reference(angle: float):
     circuit = QiskitQuantumCircuit(1)
     circuit.rx(angle, 0)
     return circuit
+
+
+class TestImport:
+    @pytest.mark.parametrize(
+        "opcode",
+        [op for op in GATE_DEFS if op in SUPPORTED_OPCODES and op is not OpCode.MEASURE],
+        ids=lambda op: GATE_DEFS[op].name,
+    )
+    def test_each_gate_round_trips(self, opcode):
+        definition = GATE_DEFS[opcode]
+        num_qubits = 3 if definition.has_variable_width else definition.num_qubits
+        ir = CircuitIR(max(num_qubits, 1))
+        ir.append(
+            opcode, tuple(range(num_qubits)), tuple(0.3 for _ in range(definition.num_params))
+        )
+
+        assert qiskit_to_ir(ir_to_qiskit(ir)) == ir
+
+    def test_measurement_round_trips(self):
+        ir = CircuitIR(2, 2)
+        ir.append(OpCode.H, (0,))
+        ir.append(OpCode.MEASURE, (1,), clbits=(0,))
+
+        assert qiskit_to_ir(ir_to_qiskit(ir)) == ir
+
+    def test_parameter_vector_angles_become_parameters(self):
+        from qiskit.circuit import ParameterVector
+
+        theta = ParameterVector("theta", 2)
+        native = QiskitQuantumCircuit(1)
+        native.rx(2 * theta[0] + theta[1], 0)
+
+        ir = qiskit_to_ir(native)
+
+        expected = Parameters("theta", 2)
+        assert ir.free_parameters == frozenset(expected)
+        assert ir[0].params[0] == 2 * expected[0] + expected[1]
+
+    def test_library_circuit_is_unrolled(self):
+        from qiskit.circuit.library import ZZFeatureMap
+
+        library = ZZFeatureMap(2)
+        values = {p: 0.1 * (i + 1) for i, p in enumerate(library.parameters)}
+
+        circuit = QuantumCircuit.from_qiskit(library.assign_parameters(values))
+
+        assert isinstance(circuit, QuantumCircuit)
+        assert np.allclose(
+            Operator(circuit.qiskit_circuit).data,
+            Operator(library.assign_parameters(values)).data,
+        )
+
+    def test_qubit_order_survives_multiple_registers(self):
+        from qiskit.circuit import QuantumRegister
+
+        native = QiskitQuantumCircuit(QuantumRegister(1, "a"), QuantumRegister(1, "b"))
+        native.cx(1, 0)
+
+        assert qiskit_to_ir(native)[0].qubits == (1, 0)
+
+    def test_transpiled_circuit_is_refused(self):
+        from qiskit import transpile
+
+        native = QiskitQuantumCircuit(2)
+        native.cx(0, 1)
+        isa = transpile(native, basis_gates=["cx", "rz", "sx"], initial_layout=[1, 0])
+
+        with pytest.raises(UnsupportedGateError, match="layout"):
+            qiskit_to_ir(isa)
+
+    def test_inexpressible_instruction_is_refused(self):
+        native = QiskitQuantumCircuit(1)
+        native.delay(10, 0)
+
+        with pytest.raises(UnsupportedGateError, match="delay"):
+            qiskit_to_ir(native)

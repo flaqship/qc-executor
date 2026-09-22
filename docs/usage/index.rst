@@ -283,12 +283,14 @@ Composing circuits
 
 :meth:`compose <qc_executor.base.circuit_base.QuantumCircuitBase.compose>`
 appends one circuit onto another in place, optionally onto a subset of qubits.
-When both circuits are parameterised, the parameters are re-indexed into one
-vector named after the receiving circuit's first parameter: its own parameters
-keep their positions and the appended circuit's follow. Building an ansatz by
-composing many blocks that each use ``theta[0]`` therefore yields
-``theta[0] ... theta[n-1]`` rather than a single shared parameter; pass
-``new_parameters=False`` to merge positionally instead.
+When both circuits use a parameter of the same name, the parameters are
+re-indexed into one vector named after the receiving circuit's first parameter:
+its own parameters keep their positions and the appended circuit's follow.
+Building an ansatz by composing many blocks that each use ``theta[0]`` therefore
+yields ``theta[0] ... theta[n-1]`` rather than a single shared parameter; pass
+``new_parameters=False`` to merge positionally instead. Circuits whose parameter
+names are disjoint, such as features ``x`` and weights ``p``, are composed
+unchanged.
 :meth:`fixate_parameters <qc_executor.base.circuit_base.QuantumCircuitBase.fixate_parameters>`
 binds every free parameter in place.
 

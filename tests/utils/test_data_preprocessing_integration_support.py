@@ -4,9 +4,7 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_data_preprocessing.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-import numpy as np
 import pytest
-from qiskit.quantum_info import SparsePauliOp
 
 import qc_executor.utils.data_preprocessing as dp
 

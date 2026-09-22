@@ -4,20 +4,11 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_pennylane_executor.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-import logging
-import warnings
-from unittest.mock import MagicMock, patch
-
 import numpy as np
-import pennylane as qml
 import pytest
 
-from qc_executor import Executor, QuantumCircuit, QuantumOperator
-from qc_executor.base.circuit_base import QuantumCircuitBase
-from qc_executor.base.executor_base import ExecutorBase
-from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.parameters import Parameters
-from qc_executor.pennylane.pennylane_circuit import PennyLaneCircuit
 from qc_executor.pennylane.pennylane_executor import PennyLaneExecutor
 
 

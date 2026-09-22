@@ -4,13 +4,9 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_quantum_circuit.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-from unittest.mock import MagicMock, patch
-
-import pytest
 from qiskit.circuit import ParameterVector
 
 from qc_executor import QuantumCircuit
-from qc_executor.parameters import Parameters
 from tests.integration_support_helpers import FakeOperator, SpyCircuit
 
 

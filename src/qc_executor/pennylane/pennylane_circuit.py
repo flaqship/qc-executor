@@ -97,7 +97,7 @@ class PennyLaneCircuit(QuantumCircuitBase):
             ``circuit`` unchanged if it already is a PennyLane circuit with this
             measurement, else a new one holding a copy of its instructions.
         """
-        if isinstance(circuit, cls) and circuit._measurement == measurement:
+        if isinstance(circuit, cls) and circuit.measurement == measurement:
             return circuit
         return cls(
             circuit.num_qubits,
@@ -120,6 +120,11 @@ class PennyLaneCircuit(QuantumCircuitBase):
     def _build_native(self) -> Callable:
         """Compile the instruction store into the callable PennyLane circuit."""
         return self.build_pennylane_circuit()
+
+    @property
+    def measurement(self) -> Optional[str]:
+        """What the built callable returns: ``None``, ``"probs"`` or ``"state"``."""
+        return self._measurement
 
     @property
     def pennylane_circuit(self) -> Optional[Callable]:

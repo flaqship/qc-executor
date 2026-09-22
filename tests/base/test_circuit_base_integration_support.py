@@ -5,14 +5,19 @@ Merged in with ``integration-support``; the tests both branches share live in
 """
 
 import pytest
-from qiskit.circuit import Parameter, ParameterVector
 
 from tests.integration_support_helpers import FakeOperator, SpyCircuit
 
 
 class RecordingComposeCircuit(SpyCircuit):
     def _backend_specific_compose(self, qc, qubits, clbits, new_parameters):
-        self.compose_args = (qc, qubits, clbits, new_parameters)
+        # pylint: disable-next=attribute-defined-outside-init
+        self.compose_args = (
+            qc,
+            qubits,
+            clbits,
+            new_parameters,
+        )
         return self
 
 

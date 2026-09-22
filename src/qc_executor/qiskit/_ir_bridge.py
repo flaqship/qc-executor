@@ -183,21 +183,18 @@ def _flatten(circuit: QiskitQuantumCircuit) -> QiskitQuantumCircuit:
     Raises:
         UnsupportedGateError: If an instruction survives every round.
     """
-    for _ in range(_MAX_DECOMPOSE_ROUNDS):
-        unknown = _unknown_names(circuit)
-        if not unknown:
-            return circuit
-        unrolled = circuit.decompose(sorted(unknown))
-        if unrolled == circuit:
-            # Qiskit has no definition for what is left, so another round won't help.
-            break
-        circuit = unrolled
     unknown = _unknown_names(circuit)
-    if unknown:
-        raise UnsupportedGateError(
-            f"cannot import {sorted(unknown)} into the circuit IR: no opcode and "
-            "no decomposition into supported gates"
-        )
+    rounds = 0
+    while unknown:
+        unrolled = circuit.decompose(sorted(unknown))
+        rounds += 1
+        # An unchanged circuit means Qiskit has no definition for what is left.
+        if unrolled == circuit or rounds > _MAX_DECOMPOSE_ROUNDS:
+            raise UnsupportedGateError(
+                f"cannot import {sorted(unknown)} into the circuit IR: no opcode and "
+                "no decomposition into supported gates"
+            )
+        circuit, unknown = unrolled, _unknown_names(unrolled)
     return circuit
 
 

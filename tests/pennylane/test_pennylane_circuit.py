@@ -631,10 +631,29 @@ class TestPennyLaneCircuitMeasurementMode:
         qnode = qml.QNode(plc.pennylane_circuit, qml.device("default.qubit", wires=1))
         fisher_func = qml.metric_tensor(qnode)
 
+        # pylint: disable-next=not-callable
         fisher = fisher_func(qml.numpy.array([0.5], requires_grad=True))
 
         assert np.shape(fisher) == (1, 1)
         assert np.isclose(fisher[0][0], 0.25, atol=1e-6)
+
+    def test_measurement_property_reports_the_mode(self):
+        qc = QuantumCircuit(1)
+        qc.h(0)
+
+        plc = PennyLaneCircuit.from_quantum_circuit(qc, measurement="probs")
+
+        assert plc.measurement == "probs"
+
+    def test_conversion_reuses_a_circuit_only_with_the_same_measurement(self):
+        qc = QuantumCircuit(1)
+        qc.h(0)
+        probs = PennyLaneCircuit.from_quantum_circuit(qc, measurement="probs")
+
+        assert PennyLaneCircuit.from_quantum_circuit(probs, measurement="probs") is probs
+        state = PennyLaneCircuit.from_quantum_circuit(probs, measurement="state")
+        assert state is not probs
+        assert state.measurement == "state"
 
     def test_none_measurement_still_composes_with_a_separate_observable(self):
         """The default (unmeasured) mode is a regression guard: it is not

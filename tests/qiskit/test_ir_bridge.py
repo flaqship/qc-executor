@@ -5,13 +5,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
+from qiskit import transpile
+from qiskit.circuit import ParameterVector, QuantumRegister
+from qiskit.circuit.library import ZZFeatureMap
 from qiskit.quantum_info import Operator
 
 from qc_executor import QuantumCircuit
 from qc_executor.base.circuit_ir import CircuitIR, Condition
+from qc_executor.base.decompose import UnsupportedGateError
 from qc_executor.base.gate_set import GATE_DEFS, OpCode
 from qc_executor.parameters import Parameters
-from qc_executor.base.decompose import UnsupportedGateError
 from qc_executor.qiskit._ir_bridge import SUPPORTED_OPCODES, ir_to_qiskit, qiskit_to_ir
 
 #: Opcodes deliberately outside the emitter table.
@@ -163,8 +166,6 @@ class TestImport:
         assert qiskit_to_ir(ir_to_qiskit(ir)) == ir
 
     def test_parameter_vector_angles_become_parameters(self):
-        from qiskit.circuit import ParameterVector
-
         theta = ParameterVector("theta", 2)
         native = QiskitQuantumCircuit(1)
         native.rx(2 * theta[0] + theta[1], 0)
@@ -176,8 +177,6 @@ class TestImport:
         assert ir[0].params[0] == 2 * expected[0] + expected[1]
 
     def test_library_circuit_is_unrolled(self):
-        from qiskit.circuit.library import ZZFeatureMap
-
         library = ZZFeatureMap(2)
         values = {p: 0.1 * (i + 1) for i, p in enumerate(library.parameters)}
 
@@ -190,16 +189,12 @@ class TestImport:
         )
 
     def test_qubit_order_survives_multiple_registers(self):
-        from qiskit.circuit import QuantumRegister
-
         native = QiskitQuantumCircuit(QuantumRegister(1, "a"), QuantumRegister(1, "b"))
         native.cx(1, 0)
 
         assert qiskit_to_ir(native)[0].qubits == (1, 0)
 
     def test_transpiled_circuit_is_refused(self):
-        from qiskit import transpile
-
         native = QiskitQuantumCircuit(2)
         native.cx(0, 1)
         isa = transpile(native, basis_gates=["cx", "rz", "sx"], initial_layout=[1, 0])

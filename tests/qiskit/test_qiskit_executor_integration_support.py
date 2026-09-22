@@ -4,23 +4,22 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_qiskit_executor.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-import logging
-
 import numpy as np
 import pytest
-from qiskit.circuit import Parameter
+from qiskit.circuit import QuantumCircuit as QiskitQC
 from qiskit.primitives import (
+    BackendEstimatorV2,
     BaseEstimatorV2,
     BaseSamplerV2,
     StatevectorEstimator,
     StatevectorSampler,
 )
+from qiskit.quantum_info import SparsePauliOp
+from qiskit_aer import Aer
 
 from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameters
-from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
 from qc_executor.qiskit.qiskit_executor import QiskitExecutor
-from qc_executor.qiskit.qiskit_operator import QiskitOperator
 from qc_executor.quantum_operator import QuantumOperator
 
 
@@ -306,7 +305,7 @@ class TestQiskitExecutorChainedDerivatives:
         qc = _build_circuit(1, [("ry", [0, x[0] * p[0]])])
         operator = QuantumOperator(["Z"], [1.0])
         executor = QiskitExecutor(backend="statevector")
-        kwargs = dict(x=[0.3], p=[0.5])
+        kwargs = {"x": [0.3], "p": [0.5]}
 
         same_twice_then_different = executor.expectation_value_derivatives(
             qc, operator, (x[0], x[0], p[0]), **kwargs
@@ -469,8 +468,6 @@ class TestInjectedPrimitiveShotsReadback:
 
     def test_reads_shots_from_backend_estimator_v2_precision(self):
         pytest.importorskip("qiskit_aer")
-        from qiskit.primitives import BackendEstimatorV2
-        from qiskit_aer import Aer
 
         backend = Aer.get_backend("aer_simulator")
         estimator = BackendEstimatorV2(backend=backend)
@@ -605,8 +602,6 @@ class TestPrimitiveWrapperHook:
         """The decorated primitive, not the raw one, must be what
         expectation_value()/sample() actually call - otherwise a host's
         retry/caching wrapper would silently never run for the native path."""
-        from qiskit.circuit import QuantumCircuit as QiskitQC
-        from qiskit.quantum_info import SparsePauliOp
 
         executor = QiskitExecutor(backend="statevector", primitive_wrapper=_tag_primitive)
         qc = QiskitQC(1)
@@ -633,7 +628,7 @@ class TestPrimitiveWrapperHook:
         first_raw, second_raw = StatevectorEstimator(), StatevectorEstimator()
         raws = iter([first_raw, second_raw])
         executor._create_runtime_estimator = lambda: next(raws)
-        executor._create_runtime_sampler = lambda: StatevectorSampler()
+        executor._create_runtime_sampler = StatevectorSampler
 
         executor._refresh_primitives()
         first_wrapped = executor.estimator

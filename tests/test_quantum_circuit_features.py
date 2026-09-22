@@ -10,9 +10,9 @@ import pytest
 from qiskit import QuantumCircuit as QiskitCircuit
 from qiskit.circuit import ParameterVector
 from qiskit.circuit.library import PauliEvolutionGate
-from qiskit.quantum_info import SparsePauliOp, Statevector
+from qiskit.quantum_info import Operator, SparsePauliOp, Statevector
 
-from qc_executor import QuantumCircuit
+from qc_executor import Parameters, QuantumCircuit
 from qc_executor.qiskit import QiskitOperator
 
 
@@ -278,3 +278,60 @@ def test_structural_equality_and_hash():
 
     second.x(0)
     assert first != second
+
+
+@pytest.mark.parametrize(
+    "angles", [(0.3, 1.1, -0.7, 0.4), (2.0, -0.5, 0.9, -1.3), (np.pi, 0.0, 0.0, 0.0)]
+)
+def test_cu_matches_qiskit_cu_gate(angles):
+    """cu follows Qiskit's CUGate convention, including the phase gamma."""
+    circuit = QuantumCircuit(2)
+    circuit.cu(0, 1, *angles)
+
+    reference = QiskitCircuit(2)
+    reference.cu(*angles, 0, 1)
+
+    np.testing.assert_allclose(
+        Operator(circuit.qiskit_circuit).data, Operator(reference).data, atol=1e-12
+    )
+
+
+def test_cu_with_symbolic_angles_binds_like_numeric_ones():
+    theta = Parameters("theta", 4)
+    values = [0.3, 1.1, -0.7, 0.4]
+    circuit = QuantumCircuit(2)
+    circuit.h(0)
+    circuit.cu(0, 1, *theta)
+
+    numeric = QuantumCircuit(2)
+    numeric.h(0)
+    numeric.cu(0, 1, *values)
+
+    bound = circuit.assign_parameters(dict(zip(theta, values)))
+    np.testing.assert_allclose(_statevector(bound), _statevector(numeric), atol=1e-12)
+
+
+def test_compose_keeps_disjoint_parameter_names():
+    """Features x composed onto weights p keep their names."""
+    x, p = Parameters("x", 1), Parameters("p", 1)
+    weights = QuantumCircuit(1)
+    weights.ry(0, p[0])
+    features = QuantumCircuit(1)
+    features.rx(0, x[0])
+
+    weights.compose(features)
+
+    assert sorted(str(q) for q in weights.parameters) == ["p[0]", "x[0]"]
+
+
+def test_compose_reindexes_shared_parameter_names():
+    """Blocks that all use theta[0] still become theta[0] ... theta[n-1]."""
+    theta = Parameters("theta", 1)
+    ansatz = QuantumCircuit(1)
+    ansatz.ry(0, theta[0])
+    for _ in range(2):
+        block = QuantumCircuit(1)
+        block.ry(0, theta[0])
+        ansatz.compose(block)
+
+    assert [str(q) for q in ansatz.parameters] == ["theta[0]", "theta[1]", "theta[2]"]

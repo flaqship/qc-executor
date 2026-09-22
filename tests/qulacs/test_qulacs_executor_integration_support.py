@@ -4,14 +4,12 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_qulacs_executor.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-import logging
-
 import numpy as np
 import pytest
 
 from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.parameters import Parameters
-from qc_executor.qulacs import QulacsCircuit, QulacsExecutor, QulacsOperator
+from qc_executor.qulacs import QulacsExecutor
 
 
 def _build_circuit(num_qubits, operations):

@@ -62,7 +62,7 @@ class FakeRunEstimator:
     def __init__(self, label):
         self.label = label
 
-    def run(self, pubs, *, precision=None):
+    def run(self, pubs, *, precision=None):  # pylint: disable=unused-argument
         return self.label
 
 
@@ -72,7 +72,7 @@ class FakeRunSampler:
     def __init__(self, label):
         self.label = label
 
-    def run(self, pubs, *, shots=None):
+    def run(self, pubs, *, shots=None):  # pylint: disable=unused-argument
         return self.label
 
 
@@ -402,7 +402,7 @@ class TestIBMInternalHelpers:
 
         executor.create_session()
 
-        assert calls == []
+        assert not calls
 
     def test_ensure_session_active_recreates_expired_session(self):
         executor = object.__new__(QiskitExecutor)

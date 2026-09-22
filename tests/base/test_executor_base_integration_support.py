@@ -4,12 +4,9 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_executor_base.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-import logging
-
 import numpy as np
 import pytest
 
-from qc_executor import factory as factory_module
 from qc_executor.base.executor_base import ExecutorBase
 
 
@@ -35,7 +32,12 @@ class DummyExecutor(ExecutorBase):
 
     def _expectation_value(self, circuit, observable, **parameters):
         self.calls["expectation"] += 1
-        self.last_expectation_args = (circuit, observable, parameters)
+        # pylint: disable-next=attribute-defined-outside-init
+        self.last_expectation_args = (
+            circuit,
+            observable,
+            parameters,
+        )
         return float(self.calls["expectation"])
 
     def _expectation_value_derivatives(self, circuit, observable, *derivative, **parameters):
@@ -54,7 +56,7 @@ class DummyExecutor(ExecutorBase):
         self.calls["transpile_circuit"] += 1
         return f"tc:{circuit}"
 
-    def _transpile_operator(self, operator):
+    def _transpile_operator(self, operator):  # pylint: disable=arguments-differ
         self.calls["transpile_operator"] += 1
         return f"to:{operator}"
 
@@ -67,6 +69,7 @@ class ProbabilitiesExecutor(DummyExecutor):
     """Dummy executor with a controllable statevector and counts distribution."""
 
     def _statevector(self, circuit, **parameters):
+        # pylint: disable-next=attribute-defined-outside-init
         self.last_statevector_parameters = parameters
         # |amplitude|^2 gives probabilities 0.99, 0.01, 1e-6 and 0.0.
         return np.array([np.sqrt(0.99), 0.1, 1e-3, 0.0])

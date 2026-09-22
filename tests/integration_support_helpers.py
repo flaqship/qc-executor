@@ -1,5 +1,9 @@
 """Test doubles carried over from ``integration-support``'s ``tests/test_utils.py``."""
 
+# These doubles keep the signatures of the pre-IR interface they were written
+# against; the tests using them only exercise the shared validation paths.
+# pylint: disable=arguments-differ,arguments-renamed,signature-differs
+
 from qc_executor.base.circuit_base import QuantumCircuitBase
 from qc_executor.base.operator_base import QuantumOperatorBase
 

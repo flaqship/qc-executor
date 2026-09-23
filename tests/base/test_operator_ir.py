@@ -67,6 +67,18 @@ class TestConstruction:
         with pytest.raises(ValueError, match="but num_qubits is"):
             PauliIR.from_labels(["ZZ"], num_qubits=3)
 
+    def test_zero_qubit_labels_are_accepted(self):
+        operator = PauliIR.from_labels(["", ""], [2.0, 1.0], num_qubits=0)
+
+        assert operator.num_qubits == 0
+        assert operator.to_labels() == ["", ""]
+
+    def test_zero_qubit_terms_simplify_into_one_scalar(self):
+        operator = PauliIR.from_labels(["", ""], [2.0, 1.0], num_qubits=0).simplify()
+
+        assert operator.to_labels() == [""]
+        assert np.allclose(operator.coeffs_array, [3.0])
+
     def test_invalid_character(self):
         with pytest.raises(ValueError, match="invalid Pauli character"):
             PauliIR.from_labels(["Q"])
@@ -189,6 +201,56 @@ class TestAlgebra:
         groups = operator.group_commuting()
 
         assert any(group.symbolic for group in groups)
+
+    def test_qubit_wise_grouping_is_stricter_than_general_grouping(self):
+        # XX and ZZ commute, but not qubit by qubit.
+        operator = PauliIR.from_labels(["XX", "ZZ", "XI", "IZ"])
+
+        general = [group.to_labels() for group in operator.group_commuting()]
+        qubit_wise = [group.to_labels() for group in operator.group_commuting(qubit_wise=True)]
+
+        assert general == [["XX", "ZZ"], ["XI", "IZ"]]
+        assert qubit_wise == [["XX", "XI"], ["ZZ", "IZ"]]
+
+    def test_qubit_wise_groups_agree_on_every_shared_qubit(self):
+        operator = PauliIR.from_labels(["ZI", "IZ", "XI", "IX", "ZZ", "XX", "YI", "IY"])
+
+        groups = operator.group_commuting(qubit_wise=True)
+
+        assert sorted(label for group in groups for label in group.to_labels()) == sorted(
+            operator.to_labels()
+        )
+        for group in groups:
+            for first, second in itertools.combinations(group.to_labels(), 2):
+                assert all(
+                    "I" in (a, b) or a == b for a, b in zip(first, second)
+                ), f"{first} and {second} do not commute qubit-wise"
+
+    def test_qubit_wise_grouping_carries_symbolic_coefficients(self):
+        p = Parameters("p", 1)
+        operator = PauliIR.from_labels(["ZI", "XX", "IZ"], [p[0], 1.0, 2.0])
+
+        groups = operator.group_commuting(qubit_wise=True)
+
+        assert [group.to_labels() for group in groups] == [["ZI", "IZ"], ["XX"]]
+        assert groups[0].symbolic == {0: p[0]}
+        assert not groups[1].symbolic
+
+    def test_power_rejects_negative_exponents(self):
+        with pytest.raises(ValueError, match="exponent must be non-negative"):
+            PauliIR.from_labels(["Z"]).power(-1)
+
+    def test_commutes_with_rejects_mismatched_widths(self):
+        with pytest.raises(ValueError, match="same number of qubits"):
+            PauliIR.from_labels(["Z"]).commutes_with(PauliIR.from_labels(["ZZ"]))
+
+    def test_concatenate_needs_at_least_one_operator(self):
+        with pytest.raises(ValueError, match="at least one operator"):
+            PauliIR._concatenate([])
+
+    def test_concatenate_rejects_mismatched_widths(self):
+        with pytest.raises(ValueError, match="same number of qubits"):
+            PauliIR._concatenate([PauliIR.from_labels(["Z"]), PauliIR.from_labels(["ZZ"])])
 
 
 class TestSymbolicCoefficients:

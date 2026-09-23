@@ -411,6 +411,39 @@ class TestQiskitExecutor:
 
         assert isinstance(result, (float, np.ndarray))
 
+    def test_expectation_value_derivatives_by_parameter_vector(self):
+        """A Parameters object is resolved to its vector name."""
+        x = Parameters("x", 2)
+        qc = _build_circuit(2, [("ry", [0, x[0]]), ("rx", [1, x[1]])])
+        operator = QuantumOperator(["ZZ"], [1.0])
+
+        executor = QiskitExecutor()
+        by_vector = executor.expectation_value_derivatives(qc, operator, x, x=[0.3, 0.8])
+        by_name = executor.expectation_value_derivatives(qc, operator, "x", x=[0.3, 0.8])
+
+        np.testing.assert_allclose(by_vector, by_name)
+
+    def test_expectation_value_derivatives_tuple_rejects_unknown_types(self):
+        """A tuple entry that is neither a name nor a parameter is rejected."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        with pytest.raises(ValueError, match="Unknown derivative parameter type in tuple"):
+            executor.expectation_value_derivatives(qc, operator, ("x", 3), x=[0.3])
+
+    def test_expectation_value_derivatives_tuple_rejects_foreign_parameters(self):
+        """A tuple entry must belong to the circuit or the observable."""
+        x = Parameters("x", 1)
+        z = Parameters("z", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        with pytest.raises(ValueError, match="found in neither the circuit nor the observable"):
+            executor.expectation_value_derivatives(qc, operator, (x[0], z[0]), x=[0.3])
+
     def test_expectation_value_derivatives_indexed_parameter(self):
         """Test derivative with respect to indexed parameter (e.g., x[0])."""
         x = Parameters("x", 2)

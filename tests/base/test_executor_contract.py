@@ -14,6 +14,7 @@ from qiskit.circuit import ParameterVector
 from qiskit.quantum_info import SparsePauliOp, Statevector
 
 from qc_executor import Executor, QuantumCircuit, QuantumOperator
+from qc_executor.parameters import Parameters
 from qc_executor.qiskit import QiskitOperator
 
 BACKENDS = ["qulacs", "qiskit", "pennylane"]
@@ -123,6 +124,59 @@ def test_derivatives_return_format(executor):
     )
     assert isinstance(multiple, dict)
     assert set(multiple) == {"theta", "p_obs"}
+
+
+def test_derivatives_with_respect_to_single_parameter_objects(executor):
+    """A Parameter object selects one circuit or observable parameter, like its name."""
+    x = Parameters("x", 2)
+    w = Parameters("w", 1)
+    circuit = QuantumCircuit(2)
+    circuit.rx(0, x[0])
+    circuit.ry(1, x[1])
+    circuit.cx(0, 1)
+    # <ZI> = cos(x0) and <IZ> = cos(x0) cos(x1), so E = w cos(x0) + cos(x0) cos(x1).
+    operator = QuantumOperator(["ZI", "IZ"], [w[0], 1.0])
+    x0, x1, w0 = 0.3, 0.7, 0.5
+
+    by_circuit_parameter = executor.expectation_value_derivatives(
+        circuit, operator, x[0], x=[x0, x1], w=[w0]
+    )
+    by_observable_parameter = executor.expectation_value_derivatives(
+        circuit, operator, w[0], x=[x0, x1], w=[w0]
+    )
+
+    np.testing.assert_allclose(
+        np.ravel(by_circuit_parameter), [-np.sin(x0) * (w0 + np.cos(x1))], atol=1e-8
+    )
+    np.testing.assert_allclose(np.ravel(by_observable_parameter), [np.cos(x0)], atol=1e-8)
+
+
+def test_derivatives_circuit_list_with_several_names(executor):
+    """A circuit list with several names stacks each name's derivative per circuit."""
+    x = Parameters("x", 2)
+    y = Parameters("y", 1)
+    first = QuantumCircuit(2)
+    first.ry(0, x[0])
+    first.rx(1, x[1])
+    first.rz(0, y[0])
+    second = QuantumCircuit(2)
+    second.rx(0, x[0])
+    second.ry(1, x[1])
+    second.cx(0, 1)
+    second.ry(1, y[0])
+    operator = QuantumOperator(["ZZ", "XI"], [1.0, 0.5])
+    values = {"x": [0.3, 0.8], "y": [0.4]}
+
+    stacked = executor.expectation_value_derivatives([first, second], operator, "x", "y", **values)
+
+    assert set(stacked) == {"x", "y"}
+    for i, circuit in enumerate([first, second]):
+        single = executor.expectation_value_derivatives(circuit, operator, "x", "y", **values)
+        for name in ("x", "y"):
+            np.testing.assert_allclose(
+                np.asarray(stacked[name][i], dtype=float).ravel(),
+                np.asarray(single[name], dtype=float).ravel(),
+            )
 
 
 def test_derivatives_use_numeric_parameter_order(executor):
@@ -250,6 +304,14 @@ def test_probabilities_bit_ordering(executor):
     probabilities = executor.probabilities(circuit)
     assert set(probabilities.keys()) == {2}
     assert probabilities[2] == pytest.approx(1.0, abs=1e-10)
+
+
+def test_probabilities_rejects_a_circuit_list(executor):
+    """Probabilities are defined for one circuit at a time."""
+    circuit = QuantumCircuit(1)
+
+    with pytest.raises(ValueError, match="single circuit only"):
+        executor.probabilities([circuit, circuit])
 
 
 def test_statevector_bit_ordering(executor):

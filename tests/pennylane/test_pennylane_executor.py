@@ -75,6 +75,27 @@ class TestPennylaneExecutorInitialization:
         executor = PennyLaneExecutor(shots=500, seed=123, log_file="test.log")
         assert executor.shots == 500
 
+    def test_shots_are_read_from_a_device_instance(self):
+        """A prebuilt device brings its own shot count."""
+        device = qml.device("default.qubit", wires=1, shots=100)
+
+        executor = PennyLaneExecutor(backend=device)
+
+        assert executor.shots == 100
+
+    def test_an_analytic_device_instance_has_no_shots(self):
+        executor = PennyLaneExecutor(backend=qml.device("default.qubit", wires=1))
+
+        assert executor.shots is None
+
+    @pytest.mark.parametrize("shots, expected", [(50, 50), (None, None), ("many", None)])
+    def test_read_shots_from_legacy_devices(self, shots, expected):
+        """Older devices expose shots as a plain integer, or nothing usable."""
+        device = MagicMock(spec=["shots"])
+        device.shots = shots
+
+        assert PennyLaneExecutor._read_shots_from_device(device) == expected
+
 
 class TestPennylaneExpectationValue:
     """Test suite for PennyLane executor expectation values."""
@@ -372,6 +393,30 @@ class TestPennylaneDerivatives:
         assert isinstance(derivative, (float, np.ndarray))
         # Derivative should be close to 0 at x=0
         assert np.isclose(derivative, 0.0, atol=1e-5)
+
+    def test_higher_order_derivative_is_keyed_by_its_tuple(self):
+        """A second-order request next to a gradient is returned under its tuple key."""
+        x = Parameters("x", 2)
+        qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]]), ("cx", [0, 1])])
+        # <IZ> = cos(x0) cos(x1)
+        operator = QuantumOperator(["IZ"], [1.0])
+        x0, x1 = 0.3, 0.7
+
+        executor = PennyLaneExecutor()
+        result = executor.expectation_value_derivatives(qc, operator, ("x", "x"), "x", x=[x0, x1])
+
+        assert set(result) == {("x", "x"), "x"}
+        np.testing.assert_allclose(
+            result["x"], [-np.sin(x0) * np.cos(x1), -np.cos(x0) * np.sin(x1)], atol=1e-8
+        )
+        np.testing.assert_allclose(
+            result[("x", "x")],
+            [
+                [-np.cos(x0) * np.cos(x1), np.sin(x0) * np.sin(x1)],
+                [np.sin(x0) * np.sin(x1), -np.cos(x0) * np.cos(x1)],
+            ],
+            atol=1e-8,
+        )
 
 
 class TestPennylaneErrorHandling:

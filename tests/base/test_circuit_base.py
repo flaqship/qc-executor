@@ -35,6 +35,43 @@ class TestQuantumCircuitBasePropertiesAndAliases:
         circuit.cnot(0, 1)
         assert circuit.ops == [("cx", 0, 1)]
 
+    def test_available_gates_lists_the_gate_methods(self):
+        gates = QuantumCircuit.available_gates()
+
+        assert {"h", "cx", "rx", "crz"} <= gates
+        assert "compose" not in gates
+
+    def test_fixate_parameters_rejects_a_wrong_value_count(self):
+        circuit = QuantumCircuit(1)
+        x = Parameters("x", 2)
+        circuit.rx(0, x[0])
+        circuit.ry(0, x[1])
+
+        with pytest.raises(ValueError, match="Expected 2 parameter values, got 1"):
+            circuit.fixate_parameters([0.1])
+
+    def test_clear_removes_every_instruction_but_keeps_the_width(self):
+        circuit = QuantumCircuit(2)
+        circuit.h(0)
+        circuit.rx(1, Parameters("x", 1)[0])
+
+        circuit.clear()
+
+        assert circuit.num_qubits == 2
+        assert circuit.circuit_metrics() == {}
+        assert circuit.num_parameters == 0
+
+    def test_compose_reindexes_a_sparse_parameter_vector_from_zero(self):
+        p = Parameters("p", 3)
+        first = QuantumCircuit(1)
+        first.rx(0, p[2])
+        second = QuantumCircuit(1)
+        second.ry(0, p[2])
+
+        first.compose(second)
+
+        assert first.parameters == [p[0], p[1]]
+
 
 class TestPauliString:
     def test_pauli_string_reads_qubit_zero_leftmost(self):
@@ -48,6 +85,12 @@ class TestPauliString:
 
         with pytest.raises(ValueError, match="Pauli string length"):
             circuit.pauli_string("X")
+
+    def test_pauli_string_unknown_character_raises(self):
+        circuit = SpyCircuit(2)
+
+        with pytest.raises(ValueError, match="Unknown Pauli operator: A"):
+            circuit.pauli_string("XA")
 
     def test_pauli_string_identity_only_has_no_effect(self):
         circuit = SpyCircuit(2)
@@ -184,3 +227,61 @@ class TestControlledPauliEvolution:
             ("s", 0),
             ("h", 1),
         ]
+
+
+class TestControlledPauliEvolutionValidation:
+    def test_a_single_working_qubit_can_be_given_as_an_int(self):
+        circuit = SpyCircuit(2)
+        op = FakeOperator("Z", [0.5])
+
+        circuit.controlled_pauli_evolution(op, 2.0, working_qubits=1)
+
+        assert circuit.ops == [("rz", 1, 2.0)]
+
+    def test_non_operator_raises(self):
+        circuit = SpyCircuit(1)
+
+        with pytest.raises(TypeError, match="quantum operator or a list thereof"):
+            circuit.controlled_pauli_evolution("Z", 1.0)
+
+    def test_non_operator_inside_a_list_raises(self):
+        circuit = SpyCircuit(1)
+
+        with pytest.raises(TypeError, match="Expected a quantum operator, got str"):
+            circuit.controlled_pauli_evolution(["Z"], 1.0)
+
+    def test_one_parameter_per_operator_is_required(self):
+        circuit = SpyCircuit(2)
+        ops = [FakeOperator("Z", [1.0]), FakeOperator("Z", [1.0])]
+
+        with pytest.raises(ValueError, match="parameter must have one entry per operator, got 3"):
+            circuit.controlled_pauli_evolution(ops, [1.0, 2.0, 3.0])
+
+    def test_out_of_range_control_qubit_raises(self):
+        circuit = SpyCircuit(2)
+        op = FakeOperator("Z", [1.0])
+
+        with pytest.raises(ValueError, match="Control qubit 5 is out of range"):
+            circuit.controlled_pauli_evolution(op, 1.0, control_qubits=5)
+
+    def test_too_few_free_qubits_raise(self):
+        circuit = SpyCircuit(2)
+        op = FakeOperator("ZZ", [1.0])
+
+        # The control takes one of the two qubits, leaving one for a two-qubit string.
+        with pytest.raises(ValueError, match="Not enough qubits left"):
+            circuit.controlled_pauli_evolution(op, 1.0, control_qubits=0)
+
+    def test_working_qubits_shorter_than_the_label_raise(self):
+        circuit = SpyCircuit(3)
+        op = FakeOperator("ZZ", [1.0])
+
+        with pytest.raises(ValueError, match="fewer entries than the Pauli string"):
+            circuit.controlled_pauli_evolution(op, 1.0, working_qubits=[0])
+
+    def test_working_qubit_equal_to_the_control_raises(self):
+        circuit = SpyCircuit(2)
+        op = FakeOperator("Z", [1.0])
+
+        with pytest.raises(ValueError, match="Controlled qubits must be distinct"):
+            circuit.controlled_pauli_evolution(op, 1.0, working_qubits=[0], control_qubits=0)

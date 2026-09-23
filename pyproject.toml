@@ -41,7 +41,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 # Every backend is optional; the core package needs only numpy and sympy.
 qiskit = ["qiskit>=1.0.0", "packaging>=21.0"]
-pennylane = ["pennylane>=0.34.0"]
+pennylane = ["pennylane>=0.34.0", "packaging>=21.0"]
 qulacs = ["qulacs>=0.6.4.1"]
 # Aer and the IBM runtime are needed for shot-based sampling and for the
 # dynamic circuits the local Qiskit primitives refuse to run.

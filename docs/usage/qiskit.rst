@@ -71,7 +71,12 @@ Selecting a backend
 The ``backend`` argument selects the execution target. It accepts the
 ``"statevector"`` (default) and ``"aer"`` string shortcuts, a Qiskit
 ``Backend`` / ``BackendV2`` instance (IBM hardware or a fake backend), a
-``Session`` / ``Batch``, or a pre-configured primitive:
+``Session`` / ``Batch``, or a pre-configured primitive.
+``"statevector"`` uses Qiskit's reference primitives and needs no Aer: exact
+for ``shots=None``, otherwise with an analytic shot-noise model. ``"aer"``
+samples the same state with real shots instead. To pin Aer's simulation
+method, pass the simulator itself rather than the shortcut, for instance
+``AerSimulator(method="statevector")``:
 
 .. code-block:: python
 

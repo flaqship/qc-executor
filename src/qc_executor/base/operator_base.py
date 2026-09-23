@@ -9,12 +9,13 @@ representation into its native form.
 from __future__ import annotations
 
 from abc import ABC
+from numbers import Number
 from typing import Any, List, Mapping, Sequence
 
 import numpy as np
 import sympy as sp
 
-from ..parameters import Parameter, sort_parameters
+from ..parameters import Parameter, sort_parameters, translate_expression
 from .operator_ir import PauliIR
 
 __all__ = ["QuantumOperatorBase"]
@@ -120,6 +121,17 @@ class QuantumOperatorBase(ABC):
         return self._ir.coeffs
 
     @property
+    def coeffs_array(self) -> np.ndarray:
+        """The coefficients as a complex NumPy array.
+
+        Raises:
+            ValueError: If any coefficient is symbolic.
+        """
+        if self._ir.symbolic:
+            raise ValueError("coeffs_array needs numeric coefficients; bind the parameters first")
+        return self._ir.coeffs_array
+
+    @property
     def parameters(self) -> List[Parameter]:
         """The free parameters, sorted by ``(vector_name, index)``."""
         return sort_parameters(self._ir.free_parameters)
@@ -169,6 +181,15 @@ class QuantumOperatorBase(ABC):
     # Algebra
     # ------------------------------------------------------------------
 
+    #: Keep NumPy scalars from treating the operator as a sequence of terms:
+    #: ``np.float64(2.0) * op`` must reach :meth:`__rmul__` instead of being
+    #: broadcast by numpy; the flip side is that ``np.sum`` over operators is
+    #: not available, use :meth:`sum` or the built-in ``sum``.
+    __array_ufunc__ = None
+    #: ``theta * op`` with a SymPy symbol on the left: SymPy defers to the
+    #: operand with the higher priority, so it reaches :meth:`__rmul__` too.
+    _op_priority = 100.0
+
     def _rebuild(self, ir: PauliIR) -> "QuantumOperatorBase":
         """Wrap a new representation in this operator's type."""
         return type(self)(_ir=ir)
@@ -189,9 +210,50 @@ class QuantumOperatorBase(ABC):
         """Return the complex conjugate of the operator."""
         return self._rebuild(self._ir.conjugate())
 
-    def simplify(self) -> "QuantumOperatorBase":
-        """Combine duplicate terms and drop those with zero coefficient."""
-        return self._rebuild(self._ir.simplify())
+    def simplify(self, atol: float = 1e-12) -> "QuantumOperatorBase":
+        """Combine duplicate terms and drop those with zero coefficient.
+
+        Args:
+            atol: Terms whose combined coefficient is smaller than this are
+                dropped; ``0.0`` drops exact zeros only.
+        """
+        return self._rebuild(self._ir.simplify(atol))
+
+    def tensor(self, other: "QuantumOperatorBase") -> "QuantumOperatorBase":
+        """Return the tensor product with ``other`` acting on the qubits above this one's."""
+        return self._rebuild(self._ir.tensor(other.ir))
+
+    def expand(self, other: "QuantumOperatorBase") -> "QuantumOperatorBase":
+        """Return the tensor product with ``other`` acting on the qubits below this one's."""
+        return self._rebuild(self._ir.expand(other.ir))
+
+    def power(self, exponent: int) -> "QuantumOperatorBase":
+        """Return the operator raised to a non-negative integer power."""
+        return self._rebuild(self._ir.power(exponent))
+
+    def to_matrix(self, sparse: bool = False):
+        """Return the operator as a matrix, qubit 0 as the most significant bit.
+
+        Args:
+            sparse: Return a ``scipy.sparse.csr_matrix`` instead of a dense array.
+        """
+        return self._ir.to_matrix(sparse=sparse)
+
+    def diagonal(self) -> np.ndarray:
+        """Return the diagonal of :meth:`to_matrix` without building the matrix."""
+        return self._ir.diagonal()
+
+    def canonical_key(self, atol: float = 1e-12, decimals: int = 12) -> bytes:
+        """Return a digest identifying the operator up to term order and rounding."""
+        return self._ir.canonical_key(atol, decimals)
+
+    def commutes_with(self, other: "QuantumOperatorBase") -> np.ndarray:
+        """Return the boolean ``(len(self), len(other))`` matrix of commuting term pairs."""
+        return self._ir.commutes_with(other.ir)
+
+    def commutes_with_all(self, other: "QuantumOperatorBase") -> np.ndarray:
+        """Return, per term, whether it commutes with every term of ``other``."""
+        return self._ir.commutes_with_all(other.ir)
 
     def compose(self, other: "QuantumOperatorBase") -> "QuantumOperatorBase":
         """Return the product with another operator.
@@ -252,9 +314,121 @@ class QuantumOperatorBase(ABC):
         )
         return self._rebuild(combined)
 
-    def group_commuting(self) -> List["QuantumOperatorBase"]:
-        """Split the operator into groups of mutually commuting terms."""
-        return [self._rebuild(group) for group in self._ir.group_commuting()]
+    def __add__(self, other: Any) -> "QuantumOperatorBase":
+        """Return the sum with another operator, as a new operator.
+
+        Terms are concatenated without simplification, mirroring Qiskit's
+        ``SparsePauliOp.__add__``; call :meth:`simplify` to merge duplicates.
+
+        Args:
+            other: The operator to add.
+
+        Returns:
+            The sum, in this operator's type.
+
+        Raises:
+            ValueError: If the operators act on different numbers of qubits.
+        """
+        if not isinstance(other, QuantumOperatorBase):
+            return NotImplemented
+        if other.num_qubits != self.num_qubits:
+            raise ValueError(
+                f"cannot add a {other.num_qubits}-qubit operator to a "
+                f"{self.num_qubits}-qubit operator"
+            )
+        other_ir = other.ir
+        combined = PauliIR(
+            self.num_qubits,
+            np.concatenate([self._ir.z, other_ir.z]),
+            np.concatenate([self._ir.x, other_ir.x]),
+            np.concatenate([self._ir.coeffs_array, other_ir.coeffs_array]),
+            {
+                **self._ir.symbolic,
+                **{k + self.num_paulis: v for k, v in other_ir.symbolic.items()},
+            },
+        )
+        return self._rebuild(combined)
+
+    def __neg__(self) -> "QuantumOperatorBase":
+        """Return the operator with every coefficient negated."""
+        return self._rebuild(self._ir.scaled(-1.0))
+
+    def __sub__(self, other: Any) -> "QuantumOperatorBase":
+        """Return the difference with another operator, as a new operator."""
+        if not isinstance(other, QuantumOperatorBase):
+            return NotImplemented
+        return self + (-other)
+
+    def __mul__(self, factor: Any) -> "QuantumOperatorBase":
+        """Return the operator scaled by a number or SymPy expression."""
+        if isinstance(factor, QuantumOperatorBase):
+            return NotImplemented
+        return self._rebuild(self._ir.scaled(factor))
+
+    __rmul__ = __mul__
+
+    def __truediv__(self, divisor: Any) -> "QuantumOperatorBase":
+        """Return the operator divided by a number or SymPy expression."""
+        if isinstance(divisor, QuantumOperatorBase):
+            return NotImplemented
+        return self._rebuild(self._ir.scaled(1 / translate_expression(divisor)))
+
+    def __matmul__(self, other: Any) -> "QuantumOperatorBase":
+        """Return the matrix product ``self · other`` (same as :meth:`compose`)."""
+        if not isinstance(other, QuantumOperatorBase):
+            return NotImplemented
+        return self.compose(other)
+
+    def group_commuting(self, qubit_wise: bool = False) -> List["QuantumOperatorBase"]:
+        """Split the operator into groups of mutually commuting terms.
+
+        Args:
+            qubit_wise: Require commutation on every qubit individually.
+        """
+        return [self._rebuild(group) for group in self._ir.group_commuting(qubit_wise)]
+
+    @classmethod
+    def sum(cls, operators: Sequence["QuantumOperatorBase"]) -> "QuantumOperatorBase":
+        """Return the sum of several operators in one step.
+
+        Stacks every term once instead of chaining ``+``, then merges
+        duplicates.
+
+        Args:
+            operators: Operators of equal width, at least one.
+
+        Returns:
+            The simplified sum, in this class.
+        """
+        return cls(_ir=PauliIR._concatenate([op.ir for op in operators]).simplify(atol=0.0))
+
+    @classmethod
+    def from_symplectic(
+        cls,
+        z: np.ndarray,
+        x: np.ndarray,
+        coeffs: np.ndarray,
+        num_qubits: "int | None" = None,
+    ) -> "QuantumOperatorBase":
+        """Build an operator from symplectic ``z``/``x`` matrices and coefficients.
+
+        Args:
+            z: Boolean ``(num_terms, num_qubits)`` Z components.
+            x: Boolean ``(num_terms, num_qubits)`` X components.
+            coeffs: One numeric coefficient per term.
+            num_qubits: Width, inferred from the matrices when omitted.
+
+        Returns:
+            The operator.
+        """
+        z = np.asarray(z, dtype=bool)
+        width = z.shape[1] if num_qubits is None else num_qubits
+        return cls(_ir=PauliIR(width, z, np.asarray(x, dtype=bool), np.asarray(coeffs)))
+
+    @classmethod
+    def identity(cls, num_qubits: int, coeff: Any = 1.0) -> "QuantumOperatorBase":
+        """Return ``coeff`` times the identity on ``num_qubits`` qubits."""
+        return cls(["I" * num_qubits], [coeff], num_qubits)
 
     def assign_parameters(self, parameters: Mapping[Any, float]) -> "QuantumOperatorBase":
         """Return this operator with parameter values substituted.
@@ -282,6 +456,42 @@ class QuantumOperatorBase(ABC):
 
     def __len__(self) -> int:
         return self._ir.num_terms
+
+    def __getitem__(self, index: Any) -> "QuantumOperatorBase":
+        """Return one term (integer index) or a range of terms (slice) as an operator."""
+        rows = np.atleast_1d(np.arange(self._ir.num_terms)[index])
+        return self._rebuild(
+            PauliIR(
+                self.num_qubits,
+                self._ir.z[rows],
+                self._ir.x[rows],
+                self._ir.coeffs_array[rows],
+                {
+                    new: self._ir.symbolic[old]
+                    for new, old in enumerate(rows)
+                    if old in self._ir.symbolic
+                },
+            )
+        )
+
+    def __iter__(self):
+        """Iterate over the terms as single-term operators of this type."""
+        for index in range(self._ir.num_terms):
+            yield self._rebuild(
+                PauliIR(
+                    self.num_qubits,
+                    self._ir.z[index : index + 1],
+                    self._ir.x[index : index + 1],
+                    self._ir.coeffs_array[index : index + 1],
+                    {0: self._ir.symbolic[index]} if index in self._ir.symbolic else None,
+                )
+            )
+
+    def __radd__(self, other: Any) -> "QuantumOperatorBase":
+        """Support ``sum()``: ``0 + operator`` is the operator itself."""
+        if isinstance(other, Number) and other == 0:
+            return self.copy()
+        return NotImplemented
 
     def __hash__(self) -> int:
         return hash(self._ir.fingerprint())

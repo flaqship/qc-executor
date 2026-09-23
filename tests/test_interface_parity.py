@@ -409,18 +409,21 @@ class TestMultipleObservables:
         assert len(transpiled) == len(_OBSERVABLE_SET)
         assert all(isinstance(op, executor._native_operator_class) for op in transpiled)
 
-    def test_several_circuits_are_refused_where_unsupported(self, backend):
-        """Each circuit would need its own evaluation; refuse rather than guess.
-
-        Qiskit's OpTree does handle several circuits, so only the three
-        backends that cannot are checked.
-        """
-        if backend == "qiskit":
-            pytest.skip("the Qiskit backend supports derivatives over several circuits")
+    def test_several_circuits_gain_a_leading_axis(self, backend):
+        """A circuit list is expanded by the base class, one circuit at a time."""
         x = Parameters("x", 1)
         circuit = self._circuit(x)
+        executor = Executor.create(backend)
 
-        with pytest.raises(NotImplementedError, match="multiple circuits"):
-            Executor.create(backend).expectation_value_derivatives(
+        single = np.asarray(
+            executor.expectation_value_derivatives(circuit, _OBSERVABLE_SET[0], "x", x=[0.6])
+        )
+        stacked = np.asarray(
+            executor.expectation_value_derivatives(
                 [circuit, circuit], _OBSERVABLE_SET[0], "x", x=[0.6]
             )
+        )
+
+        assert stacked.shape == (2,) + single.shape
+        np.testing.assert_allclose(stacked[0], single, atol=1e-8)
+        np.testing.assert_allclose(stacked[1], single, atol=1e-8)

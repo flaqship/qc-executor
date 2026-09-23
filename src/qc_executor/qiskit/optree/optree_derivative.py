@@ -260,8 +260,10 @@ def _differentiate_inplace(
                 raise NotImplementedError("Expectation value differentiation not implemented yet")
             else:
                 # Node -> recursive call
+                original_child = copy.deepcopy(child)
                 _differentiate_inplace(child, parameter)
                 grad = child
+                child = original_child
 
             # Product rule for differentiation
             if isinstance(grad_fac, float):

@@ -208,7 +208,7 @@ class QuantumCircuitBase(ABC):
             "i", "h", "x", "y", "z", "s", "sdag", "t", "tdag", "sx", "sxdag",
             "rx", "ry", "rz", "p", "u",
             "cx", "cnot", "cy", "cz", "ch", "cs", "csx", "ecr", "swap", "iswap",
-            "cp", "crx", "cry", "crz", "rxx", "ryy", "rzz", "rzx",
+            "cp", "crx", "cry", "crz", "cu", "rxx", "ryy", "rzz", "rzx",
             "ccx", "toffoli", "cswap",
         }
     )  # fmt: skip
@@ -397,6 +397,22 @@ class QuantumCircuitBase(ABC):
     def rzx(self, qubit1: int, qubit2: int, angle: Any) -> None:
         """Add a ZX rotation, with Z on ``qubit1`` and X on ``qubit2``."""
         self._append(OpCode.RZX, (qubit1, qubit2), (angle,))
+
+    def cu(
+        self, control_qubit: int, target_qubit: int, theta: Any, phi: Any, lam: Any, gamma: Any
+    ) -> None:
+        """Add a controlled U gate with a global phase ``gamma`` on the target.
+
+        Same convention as Qiskit's ``CUGate``.  The IR has no opcode for it, so
+        the gate is written out as its standard decomposition into ``p``, ``cx``
+        and ``u``, which every backend already runs.
+        """
+        self.p(control_qubit, gamma + (lam + phi) / 2)
+        self.p(target_qubit, (lam - phi) / 2)
+        self.cx(control_qubit, target_qubit)
+        self.u(target_qubit, -theta / 2, 0, -(phi + lam) / 2)
+        self.cx(control_qubit, target_qubit)
+        self.u(target_qubit, theta / 2, phi, 0)
 
     # -- three qubit --
 
@@ -820,21 +836,24 @@ class QuantumCircuitBase(ABC):
     ) -> "QuantumCircuitBase":
         """Append another circuit's instructions onto this one, in place.
 
-        When both circuits are parameterised, their parameters are re-indexed
-        into a single vector named after this circuit's first parameter so
-        that repeatedly composing circuits that all use ``theta[0]`` never
-        collides: this circuit's parameters keep their positions and the
-        parameters of ``qc`` are appended after them (or merged positionally
-        for ``new_parameters=False``).
+        When the two circuits share a parameter name, their parameters are
+        re-indexed into a single vector named after this circuit's first
+        parameter so that repeatedly composing circuits that all use
+        ``theta[0]`` never collides: this circuit's parameters keep their
+        positions and the parameters of ``qc`` are appended after them (or
+        merged positionally for ``new_parameters=False``).  Circuits whose
+        parameter names are disjoint -- features ``x`` and weights ``p``, say --
+        are composed as they are, so every name keeps its meaning.
 
         Args:
             qc: The circuit to append.
             qubits: Where ``qc``'s qubits land, defaulting to the identity,
                 which requires equal qubit counts.
             clbits: Where ``qc``'s classical bits land.
-            new_parameters: If True (default), the parameters of ``qc`` are
-                appended after the parameters of this circuit.  If False,
-                the parameters of both circuits are merged positionally.
+            new_parameters: Only relevant when a parameter name is shared.
+                If True (default), the parameters of ``qc`` are appended after
+                the parameters of this circuit.  If False, the parameters of
+                both circuits are merged positionally.
 
         Returns:
             This circuit, to allow chaining.
@@ -873,11 +892,14 @@ class QuantumCircuitBase(ABC):
         """Re-index both circuits' parameters into one vector before composing.
 
         Renames this circuit's parameters in place and returns ``qc``'s
-        instruction store with its parameters renamed.  Circuits where only
-        one side is parameterised are left untouched.
+        instruction store with its parameters renamed.  Circuits that share no
+        parameter name -- including those where only one side is parameterised
+        -- are left untouched: renaming them would only destroy names that
+        callers bind by, such as a feature vector ``x`` composed onto weights
+        ``p``.
         """
         own, other = self.parameters, qc.parameters
-        if not own or not other:
+        if not set(own) & set(other):
             return qc.ir
         name = own[0].vector_name
         offset = len(own) if new_parameters else 0

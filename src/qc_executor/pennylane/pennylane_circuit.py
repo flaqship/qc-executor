@@ -22,6 +22,9 @@ _SUPPORTED = frozenset(
     OPCODE_BY_NAME[name] for name in qiskit_pennylane_gate_dict if name in OPCODE_BY_NAME
 ) | {OpCode.BARRIER}
 
+#: What the built callable may return besides applying the gates.
+_VALID_MEASUREMENTS = (None, "probs", "state")
+
 
 class PennyLaneCircuit(QuantumCircuitBase):
     """A quantum circuit that compiles to PennyLane.
@@ -34,7 +37,18 @@ class PennyLaneCircuit(QuantumCircuitBase):
     Args:
         num_qubits: Number of qubits in the circuit.
         num_clbits: Number of classical bits, for mid-circuit measurement.
+        measurement: What the built callable returns besides applying the
+            gates.  ``None`` (default) returns nothing, for a caller that
+            attaches its own measurement -- as the executor does when it pairs
+            the circuit with an observable.  ``"probs"`` returns ``qml.probs``
+            over every qubit and ``"state"`` returns ``qml.state()``, which makes
+            the callable a complete QNode body, e.g. for ``qml.metric_tensor``.
+            Circuits derived through ``copy``, ``invert`` or
+            ``assign_parameters`` start again from ``None``.
         _ir: Adopt this instruction store instead of starting empty.
+
+    Raises:
+        ValueError: If ``measurement`` is not ``None``, ``"probs"`` or ``"state"``.
     """
 
     @classmethod
@@ -51,9 +65,15 @@ class PennyLaneCircuit(QuantumCircuitBase):
         num_qubits: int = 0,
         num_clbits: int = 0,
         *,
+        measurement: Optional[str] = None,
         _ir: "CircuitIR | None" = None,
     ) -> None:
+        if measurement not in _VALID_MEASUREMENTS:
+            raise ValueError(
+                f"Unknown measurement {measurement!r}; expected one of {_VALID_MEASUREMENTS}."
+            )
         super().__init__(num_qubits, num_clbits, _ir=_ir)
+        self._measurement = measurement
 
         self._pennylane_gates = []
         self._pennylane_gates_param_function = []
@@ -61,6 +81,30 @@ class PennyLaneCircuit(QuantumCircuitBase):
         self._pennylane_conditions = []
         self._pennylane_circuit = None
         self._compiled_revision = -1
+
+    @classmethod
+    def from_quantum_circuit(
+        cls, circuit: QuantumCircuitBase, measurement: Optional[str] = None
+    ) -> "PennyLaneCircuit":
+        """Convert any circuit into a PennyLane circuit.
+
+        Args:
+            circuit: The circuit to convert.
+            measurement: What the built callable returns; see the class
+                docstring.
+
+        Returns:
+            ``circuit`` unchanged if it already is a PennyLane circuit with this
+            measurement, else a new one holding a copy of its instructions.
+        """
+        if isinstance(circuit, cls) and circuit.measurement == measurement:
+            return circuit
+        return cls(
+            circuit.num_qubits,
+            circuit.num_clbits,
+            measurement=measurement,
+            _ir=circuit.ir.copy(),
+        )
 
     # ------------------------------------------------------------------
     # Compilation
@@ -76,6 +120,11 @@ class PennyLaneCircuit(QuantumCircuitBase):
     def _build_native(self) -> Callable:
         """Compile the instruction store into the callable PennyLane circuit."""
         return self.build_pennylane_circuit()
+
+    @property
+    def measurement(self) -> Optional[str]:
+        """What the built callable returns: ``None``, ``"probs"`` or ``"state"``."""
+        return self._measurement
 
     @property
     def pennylane_circuit(self) -> Optional[Callable]:
@@ -266,5 +315,11 @@ class PennyLaneCircuit(QuantumCircuitBase):
                         circuit_gate(*evaluated_param, wires=wires)
                     else:
                         circuit_gate(wires=wires)
+
+            if self._measurement == "probs":
+                return qml.probs(wires=range(self.num_qubits))
+            if self._measurement == "state":
+                return qml.state()
+            return None
 
         return pennylane_circuit

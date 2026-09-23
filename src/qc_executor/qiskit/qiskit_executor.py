@@ -549,6 +549,7 @@ class QiskitExecutor(ExecutorBase):
       same exact state. Aer chooses its simulation method per circuit; pass the
       simulator itself, for instance ``AerSimulator(method="statevector")``, to
       pin one.
+    * ``"aer_statevector"`` — ``"aer"`` pinned to ``AerSimulator(method="statevector")``.
     * A :class:`~qiskit.providers.Backend` / ``BackendV2`` instance (e.g.
       from ``QiskitRuntimeService`` or ``fake_provider``).
     * A ``qiskit_ibm_runtime.Session`` or ``Batch`` — ownership is transferred
@@ -565,7 +566,7 @@ class QiskitExecutor(ExecutorBase):
 
     Args:
         backend: Backend to use for execution.  Accepts:
-            ``"statevector"`` (default) or ``"aer"`` string shortcuts, a Qiskit
+            ``"statevector"`` (default), ``"aer"`` or ``"aer_statevector"``, a Qiskit
             :class:`~qiskit.providers.Backend` instance (IBM hardware or fake),
             a ``qiskit_ibm_runtime.Session`` / ``Batch``, or a pre-configured
             Qiskit primitive (``BaseSamplerV1/V2`` / ``BaseEstimatorV1/V2``).
@@ -795,21 +796,20 @@ class QiskitExecutor(ExecutorBase):
                 self._estimator = StatevectorEstimator()
                 self._sampler = StatevectorSampler()
                 self._backend = None
-            elif backend == "aer":
+            elif backend in ("aer", "aer_statevector"):
                 # Real shot-based sampling rather than "statevector"'s analytic
                 # noise model, so the two are not numerically equivalent even
                 # though they target the same exact state. Aer picks its
-                # simulation method per circuit; to pin one, pass the simulator
-                # itself, e.g. AerSimulator(method="statevector").
-                aer_simulator_cls = _load_aer_simulator()
-                self._backend = aer_simulator_cls()
+                # simulation method per circuit; "aer_statevector" pins it.
+                method = {"method": "statevector"} if backend == "aer_statevector" else {}
+                self._backend = _load_aer_simulator()(**method)
                 self._estimator = BackendEstimator(backend=self._backend)
                 self._sampler = BackendSampler(backend=self._backend)
             else:
                 raise ValueError(
                     f"Unknown backend string: {backend!r}. "
-                    "Use 'statevector', 'aer', or pass a Backend / Session "
-                    "instance."
+                    "Use 'statevector', 'aer', 'aer_statevector', or pass a "
+                    "Backend / Session instance."
                 )
 
         # ── 4. Backend object (IBMBackend / FakeBackend / any BackendV2) ──
@@ -867,7 +867,7 @@ class QiskitExecutor(ExecutorBase):
 
         else:
             raise TypeError(
-                f"'backend' must be a string ('statevector', 'aer'), "
+                f"'backend' must be a string ('statevector', 'aer', 'aer_statevector'), "
                 f"a Qiskit Backend "
                 f"instance, a qiskit-ibm-runtime Session/Batch, or a Qiskit primitive "
                 f"(BaseSamplerV1/V2 / BaseEstimatorV1/V2). Got {type(backend)!r}."
@@ -2062,4 +2062,4 @@ class QiskitExecutor(ExecutorBase):
     @classmethod
     def get_accepted_backend_aliases(cls) -> list[str]:
         """Return string aliases accepted by this executor in ``Executor.create``."""
-        return ["statevector", "aer"]
+        return ["statevector", "aer", "aer_statevector"]

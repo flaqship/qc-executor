@@ -1553,7 +1553,7 @@ class OpTreeEvaluate:
 
         # Evaluation via the sampler
         if len(total_circuit_list) == 0:
-            _evaluate_index_tree(evaluation_tree, [])
+            return _evaluate_index_tree(evaluation_tree, [])
 
         if isinstance(sampler, BaseSamplerV1):
             sampler_result = sampler.run(total_circuit_list, total_parameter_list).result()

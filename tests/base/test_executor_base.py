@@ -8,6 +8,16 @@ from qc_executor.base.executor_base import ExecutorBase
 
 
 class DummyExecutor(ExecutorBase):
+    """A backend whose native types are plain strings.
+
+    Declaring the native classes exercises the pass-through branch of the
+    executor's input coercion: strings are accepted as already native, so no
+    transpilation entries land in the result cache.
+    """
+
+    _native_circuit_class = str
+    _native_operator_class = str
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.calls = {
@@ -47,7 +57,7 @@ class DummyExecutor(ExecutorBase):
         self.calls["transpile_circuit"] += 1
         return f"tc:{circuit}"
 
-    def _transpile_operator(self, operator):
+    def _transpile_operator(self, operator, **_options):
         self.calls["transpile_operator"] += 1
         return f"to:{operator}"
 

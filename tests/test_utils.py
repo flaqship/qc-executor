@@ -4,7 +4,7 @@ from qc_executor.base.circuit_base import QuantumCircuitBase
 class SpyCircuit(QuantumCircuitBase):
     def __init__(self, num_qubits: int):
         super().__init__(num_qubits)
-        self.ops = []
+        self.ops: list = []
 
     @classmethod
     def from_quantum_circuit(cls, circuit: "QuantumCircuitBase") -> "QuantumCircuitBase":
@@ -70,23 +70,23 @@ class SpyCircuit(QuantumCircuitBase):
     def crz(self, control_qubit, target_qubit, angle):
         self._record("crz", control_qubit, target_qubit, angle)
 
-    def rxx(self, control_qubit, target_qubit, angle):
-        self._record("rxx", control_qubit, target_qubit, angle)
+    def rxx(self, qubit1, qubit2, angle):
+        self._record("rxx", qubit1, qubit2, angle)
 
-    def ryy(self, control_qubit, target_qubit, angle):
-        self._record("ryy", control_qubit, target_qubit, angle)
+    def ryy(self, qubit1, qubit2, angle):
+        self._record("ryy", qubit1, qubit2, angle)
 
-    def rzz(self, control_qubit, target_qubit, angle):
-        self._record("rzz", control_qubit, target_qubit, angle)
+    def rzz(self, qubit1, qubit2, angle):
+        self._record("rzz", qubit1, qubit2, angle)
 
-    def rzx(self, control_qubit, target_qubit, angle):
-        self._record("rzx", control_qubit, target_qubit, angle)
+    def rzx(self, qubit1, qubit2, angle):
+        self._record("rzx", qubit1, qubit2, angle)
 
     def swap(self, qubit1, qubit2):
         self._record("swap", qubit1, qubit2)
 
-    def barrier(self, qubits):
+    def barrier(self, qubits=None):
         self._record("barrier", qubits)
 
-    def measure(self):
-        self._record("measure")
+    def measure(self, qubits=None, clbits=None):
+        self._record("measure", qubits, clbits)

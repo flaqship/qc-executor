@@ -1,6 +1,11 @@
+"""Tests for the framework-independent input-shaping helpers.
+
+``ensure_complex_coeffs`` moved to the Qiskit plugin with the rest of the
+version-specific handling, and its tests moved with it.
+"""
+
 import numpy as np
 import pytest
-from qiskit.quantum_info import SparsePauliOp
 
 import qc_executor.utils.data_preprocessing as dp
 
@@ -88,37 +93,3 @@ class TestToTuple:
 
     def test_scalar_flatten_false(self):
         assert dp.to_tuple("x", flatten=False) == ("x",)
-
-
-class TestEnsureComplexCoeffs:
-    def test_casts_coeffs_for_affected_qiskit_versions(self, monkeypatch):
-        base_operator = SparsePauliOp(["Z"], coeffs=np.array([1.0], dtype=np.complex128))
-
-        class DummyOp:
-            def __init__(self, paulis):
-                self.paulis = paulis
-                self.coeffs = np.array([1.0], dtype=np.float64)
-
-        operator = DummyOp(base_operator.paulis)
-        monkeypatch.setattr(dp, "qiskit_version", "2.1.5")
-
-        result = dp.ensure_complex_coeffs(operator)
-
-        assert isinstance(result, SparsePauliOp)
-        assert result.coeffs.dtype == np.dtype("complex128")
-
-    def test_returns_same_operator_outside_affected_range(self, monkeypatch):
-        operator = SparsePauliOp(["Z"], coeffs=np.array([1.0], dtype=np.float64))
-        monkeypatch.setattr(dp, "qiskit_version", "2.2.0")
-
-        result = dp.ensure_complex_coeffs(operator)
-
-        assert result is operator
-
-    def test_returns_same_operator_when_already_complex(self, monkeypatch):
-        operator = SparsePauliOp(["Z"], coeffs=np.array([1.0 + 0j], dtype=np.complex128))
-        monkeypatch.setattr(dp, "qiskit_version", "2.1.1")
-
-        result = dp.ensure_complex_coeffs(operator)
-
-        assert result is operator

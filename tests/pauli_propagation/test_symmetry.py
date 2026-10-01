@@ -502,6 +502,39 @@ class TestSymmetryPerformance:
         assert abs(coeff - expected_coeff) < 1e-10
 
 
+class TestSymmetryIdentity:
+    """Strategies must hash and compare by value.
+
+    The executor puts the strategy into its cache key; identity hashing would
+    make two equivalent strategies miss each other's entries.
+    """
+
+    def test_equal_strategies_hash_alike(self):
+        assert PermutationSymmetry() == PermutationSymmetry()
+        assert hash(PermutationSymmetry()) == hash(PermutationSymmetry())
+
+    def test_different_strategies_differ(self):
+        assert NoSymmetry() != PermutationSymmetry()
+        assert hash(NoSymmetry()) != hash(PermutationSymmetry())
+
+    def test_composites_compare_by_their_members(self):
+        left = CompositeSymmetry(PermutationSymmetry())
+        right = CompositeSymmetry(PermutationSymmetry())
+        other = CompositeSymmetry(NoSymmetry())
+
+        assert left == right
+        assert hash(left) == hash(right)
+        assert left != other
+
+    def test_not_equal_to_other_types(self):
+        assert NoSymmetry() != "no-symmetry"
+
+    def test_usable_as_a_dict_key(self):
+        cache = {PermutationSymmetry(): "hit"}
+
+        assert cache[PermutationSymmetry()] == "hit"
+
+
 class TestPermutationSymmetryCrossCheck:
     """Randomized cross-check of the popcount-based canonical form."""
 

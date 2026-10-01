@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from qiskit import QuantumCircuit as QiskitQuantumCircuit
+from qiskit.circuit import ParameterVector as QiskitParameterVector
 
 from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameters
@@ -21,18 +22,18 @@ class TestQiskitCircuit:
     def test_empty_circuit(self):
         """Test conversion of an empty circuit."""
         qc = QuantumCircuit(2)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
         assert qiskit_circ.num_qubits == 2
         assert len(qiskit_circ.parameter_names) == 0
-        assert isinstance(qiskit_circ.hash, int)
+        assert isinstance(qiskit_circ.fingerprint(), bytes)
 
     def test_single_hadamard_gate(self):
         """Test circuit with a single Hadamard gate."""
         qc = QuantumCircuit(1)
         qc.h(0)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 1
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -42,7 +43,7 @@ class TestQiskitCircuit:
         qc.h(0)
         qc.cx(0, 1)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 2
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -52,7 +53,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         getattr(qc, gate_name)(0)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 1
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -70,7 +71,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(num_qubits)
         getattr(qc, gate_name)(0, 1)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == num_qubits
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -82,7 +83,7 @@ class TestQiskitCircuit:
         qc.cx(1, 2)
         qc.cx(2, 3)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 4
 
     @pytest.mark.parametrize(
@@ -100,7 +101,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         getattr(qc, gate_name)(0, theta)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 1
         # Float parameters are not tracked as parameters
         assert len(qiskit_circ.parameter_names) == 0
@@ -118,7 +119,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(2)
         getattr(qc, gate_name)(0, 1, theta)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 2
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -128,7 +129,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.p(0, theta)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 1
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -138,7 +139,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(2)
         qc.cp(0, 1, theta)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 2
         assert len(qiskit_circ.parameter_names) == 0
 
@@ -148,7 +149,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
         assert qiskit_circ.parameter_dimensions["x"] == 1
 
@@ -160,7 +161,7 @@ class TestQiskitCircuit:
         qc.ry(1, x[1])
         qc.rz(2, x[2])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
         assert qiskit_circ.parameter_dimensions["x"] == 3
 
@@ -173,7 +174,7 @@ class TestQiskitCircuit:
         qc.ry(1, x[1])
         qc.rz(2, y[0])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
         assert "y" in qiskit_circ.parameter_names
         assert qiskit_circ.parameter_dimensions["x"] == 2
@@ -187,7 +188,7 @@ class TestQiskitCircuit:
         qc.cry(0, 1, theta[1])
         qc.crz(0, 1, theta[2])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "theta" in qiskit_circ.parameter_names
         assert qiskit_circ.parameter_dimensions["theta"] == 3
 
@@ -197,7 +198,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
 
     def test_parameter_arithmetic_addition(self):
@@ -206,7 +207,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] + 0.5)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
 
     def test_parameter_arithmetic_subtraction(self):
@@ -215,7 +216,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] - 0.2)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
 
     def test_parameter_arithmetic_division(self):
@@ -224,7 +225,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0] / 2)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
 
     def test_parameter_multiplication_between_vectors(self):
@@ -235,7 +236,7 @@ class TestQiskitCircuit:
         qc.h(0)
         qc.crx(0, 1, x[0] * y[0])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
         assert "y" in qiskit_circ.parameter_names
 
@@ -245,12 +246,13 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, 2 * x[0] - 1)
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert "x" in qiskit_circ.parameter_names
 
     def test_from_quantum_circuit_with_raw_qiskit_circuit(self):
         """Test from_quantum_circuit with a native Qiskit circuit."""
-        theta = Parameters("theta", 2)
+        # A raw Qiskit circuit takes Qiskit's own parameter objects.
+        theta = QiskitParameterVector("theta", 2)
         raw_qc = QiskitQuantumCircuit(1)
         raw_qc.rx(theta[0], 0)
         raw_qc.rz(theta[1], 0)
@@ -268,7 +270,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(1)
         qc.rx(0, x[0])
 
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         copied = qiskit_circ.copy()
 
         assert copied is not qiskit_circ
@@ -280,7 +282,7 @@ class TestQiskitCircuit:
     def test_num_qubits_property(self):
         """Test that num_qubits property returns correct value."""
         qc = QuantumCircuit(5)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
         assert qiskit_circ.num_qubits == 5
 
     def test_parameter_names_property_empty(self):
@@ -288,7 +290,7 @@ class TestQiskitCircuit:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
         assert isinstance(qiskit_circ.parameter_names, list)
         assert len(qiskit_circ.parameter_names) == 0
@@ -301,7 +303,7 @@ class TestQiskitCircuit:
         qc.rx(0, x[0])
         qc.ry(1, x[1])
         qc.rz(0, y[0])
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
         assert "x" in qiskit_circ.parameter_names
         assert "y" in qiskit_circ.parameter_names
@@ -313,30 +315,30 @@ class TestQiskitCircuit:
         qc.rx(0, x[0])
         qc.rx(1, x[1])
         qc.rx(2, x[2])
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
         assert isinstance(qiskit_circ.parameter_dimensions, dict)
         assert qiskit_circ.parameter_dimensions["x"] == 3
 
     def test_hash_property(self):
-        """Test that hash property returns a valid integer."""
+        """Circuits hash by content, through the shared fingerprint."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
-        hash_value = qiskit_circ.hash
-        assert isinstance(hash_value, int)
+        assert isinstance(hash(qiskit_circ), int)
+        assert hash(qiskit_circ) == hash(QiskitCircuit.from_quantum_circuit(qc))
 
     def test_hash_consistency(self):
         """Test that hash remains consistent for the same circuit."""
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
-        hash1 = qiskit_circ.hash
-        hash2 = qiskit_circ.hash
+        hash1 = qiskit_circ.fingerprint()
+        hash2 = qiskit_circ.fingerprint()
         assert hash1 == hash2
 
     @pytest.mark.parametrize(
@@ -353,7 +355,7 @@ class TestQiskitCircuit:
     ):
         """Test bind_parameters with various parameter value formats."""
         qc = _make_parametrized_circuit(vec_len, vec_name)
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
         bound = qiskit_circ.bind_parameters(param_values)
         assert len(bound.parameters) == expected_unbound_count
@@ -369,10 +371,12 @@ class TestQiskitCircuit:
     def test_bind_parameters_identity_and_mixed_cases(self, param_values, expect_identity):
         """Test bind_parameters for identity and mixed binding cases."""
         qc = _make_parametrized_circuit(2, "a")
-        qiskit_circ = QiskitCircuit(qc)
+        qiskit_circ = QiskitCircuit.from_quantum_circuit(qc)
 
-        original_parameters = set(qc.parameters)
-        original_str = str(qc)
+        # bind_parameters returns a Qiskit circuit, so compare against the
+        # native parameter objects rather than the framework-independent ones.
+        original_parameters = set(qc.qiskit_circuit.parameters)
+        original_str = str(qc.qiskit_circuit)
 
         ret = qiskit_circ.bind_parameters(param_values)
 

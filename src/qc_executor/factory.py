@@ -29,7 +29,9 @@ class Executor:
     _alias_registry_size: int = 0
     _plugins_discovered: bool = False
     _backend_extra_map: dict[str, str] = {
-        "qiskit": "qiskit-full",
+        # The minimal extra is enough to create the backend; qiskit-full adds
+        # Aer and the IBM runtime, which shot-based sampling needs.
+        "qiskit": "qiskit",
         "pennylane": "pennylane",
         "qulacs": "qulacs",
         "pauli_propagation": "pauli_propagation",
@@ -84,7 +86,9 @@ class Executor:
             target: Name of the backend (e.g., "qiskit", "pennylane", "qulacs").
                 May also be a Qiskit ``Backend`` / ``BackendV2`` instance, in
                 which case the ``"qiskit"`` executor is used automatically and
-                the object is forwarded as ``backend=<instance>``.
+                the object is forwarded as ``backend=<instance>``. An already
+                constructed :class:`ExecutorBase` instance is returned
+                unchanged (no ``**kwargs`` allowed in that case).
             **kwargs: Configuration parameters passed to the backend constructor
 
         Returns:
@@ -97,6 +101,16 @@ class Executor:
             >>> executor = Executor.create("qiskit", shots=1024, seed=42)
             >>> executor = Executor.create("pennylane", shots=1000)
         """
+
+        # Pass through already constructed executors unchanged.
+        if isinstance(target, ExecutorBase):
+            if kwargs:
+                raise ValueError(
+                    "Configuration arguments cannot be applied to an already "
+                    "constructed executor. Use switch_backend(...) to derive a "
+                    "reconfigured executor instead."
+                )
+            return target
 
         # Try discovering plugins if not done yet
         if not cls._plugins_discovered:
@@ -206,7 +220,9 @@ class Executor:
                 logger.debug("Loading plugin entry point: %s", ep.name)
                 ep.load()  # This triggers the @register decorator
             except (ImportError, AttributeError) as e:
-                logger.warning("Failed to load plugin '%s': %s", ep.name, e)
+                # An uninstalled optional extra is the normal case, not a fault:
+                # create() reports which extra to install if one is asked for.
+                logger.debug("Backend '%s' is not installed: %s", ep.name, e)
 
     @classmethod
     def _build_backend_not_found_error(cls, target: str, target_alias: str) -> ValueError:

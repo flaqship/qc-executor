@@ -7,7 +7,7 @@ from qiskit.circuit import Parameter as QiskitParameter
 
 from qc_executor import QuantumCircuit
 from qc_executor.base.circuit_ir import Condition
-from qc_executor.parameters import Parameters
+from qc_executor.parameters import Parameter, Parameters
 from tests.test_utils import SpyCircuit
 
 
@@ -67,12 +67,12 @@ class TestQuantumCircuitBasics:
 
 class TestQuantumCircuitPauliString:
 
-    def test_pauli_string_applies_reverse_qubit_order(self):
+    def test_pauli_string_reads_qubit_zero_leftmost(self):
         circuit = SpyCircuit(3)
 
         circuit.pauli_string("XYZ")
 
-        assert circuit.ops == [("z", 0), ("y", 1), ("x", 2)]
+        assert circuit.ops == [("x", 0), ("y", 1), ("z", 2)]
 
     def test_pauli_string_skips_identity_paulis(self):
         circuit = SpyCircuit(3)
@@ -119,13 +119,13 @@ class TestQuantumCircuitPauliEvolution:
         circuit.pauli_evolution(operator, 0.5)
 
         assert circuit.ops == [
-            ("h", 1),
             ("h", 0),
-            ("cx", 1, 0),
-            ("rz", 0, 1.0),
-            ("cx", 1, 0),
             ("h", 1),
+            ("cx", 0, 1),
+            ("rz", 1, 1.0),
+            ("cx", 0, 1),
             ("h", 0),
+            ("h", 1),
         ]
 
     def test_pauli_evolution_with_symbolic_coefficient(self):
@@ -183,7 +183,7 @@ class TestQuantumCircuitControlledPauliEvolution:
         circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["I"], coeffs=[1.0])
 
-        circuit.controlled_pauli_evolution(operator, 0.25, control_qubit=0)
+        circuit.controlled_pauli_evolution(operator, 0.25, control_qubits=0)
 
         assert circuit.ops == [("rz", 0, -0.25)]
 
@@ -191,7 +191,7 @@ class TestQuantumCircuitControlledPauliEvolution:
         circuit = SpyCircuit(2)
         operator = create_mock_operator(paulis=["X"], coeffs=[1.0])
 
-        circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
+        circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=1)
 
         assert circuit.ops == [("h", 0), ("crz", 1, 0, 1.0), ("h", 0)]
 
@@ -199,7 +199,7 @@ class TestQuantumCircuitControlledPauliEvolution:
         circuit = SpyCircuit(2)
         operator = create_mock_operator(paulis=["Y"], coeffs=[1.0])
 
-        circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
+        circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=1)
 
         assert circuit.ops == [
             ("sdag", 0),
@@ -213,16 +213,16 @@ class TestQuantumCircuitControlledPauliEvolution:
         circuit = SpyCircuit(3)
         operator = create_mock_operator(paulis=["XX"], coeffs=[1.0])
 
-        circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=2)
+        circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=2)
 
         assert circuit.ops == [
-            ("h", 1),
             ("h", 0),
-            ("cx", 1, 0),
-            ("crz", 2, 0, 1.0),
-            ("cx", 1, 0),
             ("h", 1),
+            ("cx", 0, 1),
+            ("crz", 2, 1, 1.0),
+            ("cx", 0, 1),
             ("h", 0),
+            ("h", 1),
         ]
 
     def test_controlled_pauli_evolution_with_symbolic_coefficient(self):
@@ -231,7 +231,7 @@ class TestQuantumCircuitControlledPauliEvolution:
         circuit = SpyCircuit(2)
         operator = create_mock_operator(paulis=["Z"], coeffs=[theta[0]])
 
-        circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=1)
+        circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=1)
 
         assert len(circuit.ops) == 1
         name, control, target, angle = circuit.ops[0]
@@ -244,7 +244,7 @@ class TestQuantumCircuitControlledPauliEvolution:
         circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["I"], coeffs=[theta[0]])
 
-        circuit.controlled_pauli_evolution(operator, 0.25, control_qubit=0)
+        circuit.controlled_pauli_evolution(operator, 0.25, control_qubits=0)
 
         assert len(circuit.ops) == 1
         name, qubit, angle = circuit.ops[0]
@@ -256,21 +256,21 @@ class TestQuantumCircuitControlledPauliEvolution:
         operator = create_mock_operator(paulis=["X"], coeffs=[1 + 1j])
 
         with pytest.raises(ValueError, match="Complex coefficients are not supported"):
-            circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=0)
+            circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=0)
 
     def test_controlled_pauli_evolution_rejects_multi_term_operator(self):
         circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["X", "Z"], coeffs=[1.0, 0.5])
 
         with pytest.raises(ValueError, match="single Pauli strings"):
-            circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=0)
+            circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=0)
 
     def test_controlled_pauli_evolution_rejects_unknown_pauli(self):
         circuit = SpyCircuit(1)
         operator = create_mock_operator(paulis=["A"], coeffs=[1.0])
 
         with pytest.raises(ValueError, match="Unknown Pauli operator: A"):
-            circuit.controlled_pauli_evolution(operator, 0.5, control_qubit=0)
+            circuit.controlled_pauli_evolution(operator, 0.5, control_qubits=0)
 
 
 class TestQuantumCircuitOperations:
@@ -365,12 +365,14 @@ class TestQuantumCircuitOperations:
         with pytest.raises(ValueError, match="repeated qubit indices"):
             circuit.cx(1, 1)
 
-    def test_foreign_parameter_types_are_rejected_clearly(self):
-        """A framework's own parameter type must not enter the IR silently."""
+    def test_qiskit_parameters_are_translated_on_append(self):
+        """A Qiskit parameter expression is stored as SymPy over our Parameters."""
         circuit = QuantumCircuit(1)
 
-        with pytest.raises(TypeError, match="must be a number or a SymPy expression"):
-            circuit.rx(0, QiskitParameter("theta"))
+        circuit.rx(0, 2 * QiskitParameter("theta"))
+
+        assert circuit.parameters == [Parameter("theta")]
+        assert float(circuit[0].params[0].subs({Parameter("theta"): 0.5})) == pytest.approx(1.0)
 
     def test_copy_creates_independent_circuit(self):
         circuit = QuantumCircuit(2)

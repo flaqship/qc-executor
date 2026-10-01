@@ -56,15 +56,19 @@ class TestImportIsolation:
         assert framework not in _top_level_modules_after_import()
 
     def test_a_backend_is_still_reachable_by_attribute(self):
-        """Laziness must not make the backends unreachable."""
+        """Laziness must not make an installed backend unreachable.
+
+        Uses pauli_propagation since it has no optional dependency and is
+        therefore always installed, unlike qiskit/pennylane/qulacs.
+        """
         completed = subprocess.run(
             [
                 sys.executable,
                 "-c",
                 "import sys, qc_executor; "
-                "assert 'qiskit' not in sys.modules; "
-                "assert qc_executor.qiskit is not None; "
-                "assert 'qiskit' in sys.modules; "
+                "assert 'qc_executor.pauli_propagation' not in sys.modules; "
+                "assert qc_executor.pauli_propagation is not None; "
+                "assert 'qc_executor.pauli_propagation' in sys.modules; "
                 "print('ok')",
             ],
             capture_output=True,

@@ -84,6 +84,11 @@ class QiskitCircuit(QuantumCircuitBase):
         instruction store is left empty and this object is a carrier for the
         compiled circuit.
 
+        The result runs on the Qiskit backend only: its instruction store is
+        empty, so converting it to another backend's circuit yields an empty
+        circuit.  To run a Qiskit circuit everywhere, import it with
+        :meth:`QuantumCircuit.from_qiskit <qc_executor.QuantumCircuit.from_qiskit>`.
+
         Args:
             qiskit_circuit: The Qiskit circuit to adopt.
 

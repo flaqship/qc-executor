@@ -38,3 +38,30 @@ class QuantumCircuit(QuantumCircuitBase):
         from .qiskit._ir_bridge import ir_to_qiskit  # pylint: disable=import-outside-toplevel
 
         return ir_to_qiskit(self._ir)
+
+    @classmethod
+    def from_qiskit(cls, qiskit_circuit: Any) -> "QuantumCircuit":
+        """Import a Qiskit circuit into the framework-independent IR.
+
+        The circuit's instructions are translated into the instruction store,
+        so the result runs on every backend -- unlike
+        :meth:`QiskitCircuit.from_qiskit <qc_executor.qiskit.QiskitCircuit.from_qiskit>`,
+        which only carries a pre-built circuit for the Qiskit backend and is the
+        right tool for ISA-transpiled circuits.  Requires the ``qiskit`` extra.
+
+        Args:
+            qiskit_circuit: The ``qiskit.QuantumCircuit`` to import.
+
+        Returns:
+            A new circuit holding the translated instructions.
+
+        Raises:
+            UnsupportedGateError: If the circuit is transpiled or contains an
+                instruction the IR cannot express; see
+                :func:`~qc_executor.qiskit._ir_bridge.qiskit_to_ir`.
+        """
+        # Imported lazily so the core package stays free of Qiskit.
+        from .qiskit._ir_bridge import qiskit_to_ir  # pylint: disable=import-outside-toplevel
+
+        ir = qiskit_to_ir(qiskit_circuit)
+        return cls(ir.num_qubits, ir.num_clbits, _ir=ir)

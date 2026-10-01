@@ -1,9 +1,9 @@
-"""Compilation of the framework-independent circuit IR into a Qiskit circuit.
+"""Translation between the framework-independent circuit IR and Qiskit.
 
 This is the Qiskit plugin's half of the translation layer: the core package
 knows nothing about Qiskit, and everything needed to turn a
 :class:`~qc_executor.base.circuit_ir.CircuitIR` into a ``qiskit.QuantumCircuit``
-lives here.
+and back lives here.
 """
 
 from __future__ import annotations
@@ -16,12 +16,14 @@ from qiskit.circuit import ClassicalRegister, QuantumRegister
 from qiskit.quantum_info import PauliList, SparsePauliOp
 
 from ..base.circuit_ir import CircuitIR, Condition, Instruction
-from ..base.gate_set import OpCode
+from ..base.decompose import UnsupportedGateError
+from ..base.gate_set import OPCODE_BY_NAME, OpCode
 from ..base.operator_ir import PauliIR
 from ._sympy_bridge import from_qiskit_expr, to_qiskit_expr
 
 __all__ = [
     "ir_to_qiskit",
+    "qiskit_to_ir",
     "pauli_ir_to_sparse_pauli_op",
     "sparse_pauli_op_to_pauli_ir",
     "SUPPORTED_OPCODES",
@@ -119,6 +121,88 @@ def ir_to_qiskit(ir: CircuitIR) -> QiskitQuantumCircuit:
             _emit(circuit, instruction, params)
 
     return circuit
+
+
+#: How often :func:`qiskit_to_ir` lets Qiskit unroll composite instructions
+#: before giving up.  Library circuits flatten in two or three rounds.
+_MAX_DECOMPOSE_ROUNDS = 10
+
+
+def qiskit_to_ir(circuit: QiskitQuantumCircuit) -> CircuitIR:
+    """Import a Qiskit circuit into the framework-independent circuit IR.
+
+    The inverse of :func:`ir_to_qiskit`.  Composite instructions -- the blocks a
+    ``qiskit.circuit.library`` circuit is built from -- are unrolled with Qiskit's
+    own ``decompose`` until every instruction has an :class:`OpCode`.  Angles go
+    through :func:`from_qiskit_expr`, so ``ParameterVector`` elements arrive as
+    :class:`~qc_executor.parameters.Parameter` symbols of the same name.
+
+    The global phase is dropped, as in the IR's own decomposition pass; it does
+    not affect expectation values, probabilities or samples.
+
+    Unlike :meth:`QiskitCircuit.from_qiskit`, which only carries a circuit for
+    the Qiskit backend, the result is a real instruction store that runs on
+    every backend.  That is also why an ISA-transpiled circuit is refused: its
+    layout would be silently lost.
+
+    Args:
+        circuit: The Qiskit circuit to import.
+
+    Returns:
+        The equivalent :class:`~qc_executor.base.circuit_ir.CircuitIR`.
+
+    Raises:
+        UnsupportedGateError: If the circuit carries a transpile layout, or an
+            instruction (control flow, ``delay``, an opaque gate) has no
+            :class:`OpCode` and cannot be decomposed into one.
+    """
+    if getattr(circuit, "layout", None) is not None:
+        raise UnsupportedGateError(
+            "a transpiled circuit carries a layout the IR cannot express; "
+            "use QiskitCircuit.from_qiskit to run it on the Qiskit backend"
+        )
+    circuit = _flatten(circuit)
+
+    ir = CircuitIR(circuit.num_qubits, circuit.num_clbits)
+    for item in circuit.data:
+        operation = item.operation
+        qubits = [circuit.find_bit(bit).index for bit in item.qubits]
+        clbits = [circuit.find_bit(bit).index for bit in item.clbits]
+        opcode = OPCODE_BY_NAME[operation.name]
+        if opcode is OpCode.BARRIER:
+            ir.append(opcode, qubits)
+            continue
+        params = [from_qiskit_expr(param) for param in operation.params]
+        ir.append(opcode, qubits, params, clbits)
+    return ir
+
+
+def _flatten(circuit: QiskitQuantumCircuit) -> QiskitQuantumCircuit:
+    """Unroll composite instructions until every name has an :class:`OpCode`.
+
+    Raises:
+        UnsupportedGateError: If an instruction survives every round.
+    """
+    unknown = _unknown_names(circuit)
+    rounds = 0
+    while unknown:
+        unrolled = circuit.decompose(sorted(unknown))
+        rounds += 1
+        # An unchanged circuit means Qiskit has no definition for what is left.
+        if unrolled == circuit or rounds > _MAX_DECOMPOSE_ROUNDS:
+            raise UnsupportedGateError(
+                f"cannot import {sorted(unknown)} into the circuit IR: no opcode and "
+                "no decomposition into supported gates"
+            )
+        circuit, unknown = unrolled, _unknown_names(unrolled)
+    return circuit
+
+
+def _unknown_names(circuit: QiskitQuantumCircuit) -> frozenset:
+    """Names of the instructions in ``circuit`` that have no :class:`OpCode`."""
+    return frozenset(
+        item.operation.name for item in circuit.data if item.operation.name not in OPCODE_BY_NAME
+    )
 
 
 def pauli_ir_to_sparse_pauli_op(ir: PauliIR) -> SparsePauliOp:

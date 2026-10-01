@@ -16,7 +16,7 @@ from typing import Any
 
 from . import base
 from .factory import Executor
-from .parameters import Parameters
+from .parameters import Parameter, Parameters
 from .quantum_circuit import QuantumCircuit
 from .quantum_operator import QuantumOperator
 
@@ -33,6 +33,7 @@ __all__ = [
     "base",
     "QuantumCircuit",
     "QuantumOperator",
+    "Parameter",
     "Parameters",
     *_OPTIONAL_BACKENDS,
 ]

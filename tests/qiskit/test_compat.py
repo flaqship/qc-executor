@@ -98,26 +98,37 @@ def test_param_free_symbols():
     assert qc._param_free_symbols(param) == {"a", "b"}
 
 
+@pytest.fixture
+def reload_compat(monkeypatch):
+    """Reload ``_compat`` under the test's patches, and restore it once they are gone.
+
+    The restoring reload has to run after ``monkeypatch.undo()``: reloading
+    while a faked version is still in place would leave its flags set for
+    every later test.
+    """
+    yield lambda: importlib.reload(qc)
+    monkeypatch.undo()
+    importlib.reload(qc)
+
+
 @pytest.mark.parametrize("version_string,expected_flags", RUNTIME_VERSIONS_INSTALLED)
 def test_runtime_version_flags_when_ibm_runtime_installed(
-    monkeypatch, version_string, expected_flags
+    monkeypatch, reload_compat, version_string, expected_flags
 ):
     """Test that version flags are correctly set based on qiskit-ibm-runtime version."""
     fake_runtime = ModuleType("qiskit_ibm_runtime")
     fake_runtime.__version__ = version_string
     monkeypatch.setitem(sys.modules, "qiskit_ibm_runtime", fake_runtime)
 
-    reloaded = importlib.reload(qc)
+    reloaded = reload_compat()
 
     assert reloaded.QISKIT_RUNTIME_AVAILABLE is expected_flags["AVAILABLE"]
     assert reloaded.QISKIT_RUNTIME_SMALLER_0_21 is expected_flags["SMALLER_0_21"]
     assert reloaded.QISKIT_RUNTIME_SMALLER_0_23 is expected_flags["SMALLER_0_23"]
     assert reloaded.QISKIT_RUNTIME_SMALLER_0_28 is expected_flags["SMALLER_0_28"]
 
-    importlib.reload(qc)
 
-
-def test_runtime_version_flags_when_ibm_runtime_missing(monkeypatch):
+def test_runtime_version_flags_when_ibm_runtime_missing(monkeypatch, reload_compat):
     """Test that version flags are None when qiskit-ibm-runtime is not installed."""
     original_import = builtins.__import__
 
@@ -129,29 +140,25 @@ def test_runtime_version_flags_when_ibm_runtime_missing(monkeypatch):
     monkeypatch.delitem(sys.modules, "qiskit_ibm_runtime", raising=False)
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    reloaded = importlib.reload(qc)
+    reloaded = reload_compat()
 
     assert reloaded.QISKIT_RUNTIME_AVAILABLE is False
     assert reloaded.QISKIT_RUNTIME_SMALLER_0_21 is None
     assert reloaded.QISKIT_RUNTIME_SMALLER_0_23 is None
     assert reloaded.QISKIT_RUNTIME_SMALLER_0_28 is None
 
-    importlib.reload(qc)
-
 
 @pytest.mark.parametrize("version_string,expected_flags", QISKIT_VERSIONS)
-def test_qiskit_version_flags(monkeypatch, version_string, expected_flags):
+def test_qiskit_version_flags(monkeypatch, reload_compat, version_string, expected_flags):
     """Test that Qiskit version flags are correctly set based on qiskit version."""
     fake_qiskit = sys.modules.get("qiskit")
     if fake_qiskit:
         monkeypatch.setattr(fake_qiskit, "__version__", version_string)
 
-    reloaded = importlib.reload(qc)
+    reloaded = reload_compat()
 
     assert reloaded.QISKIT_SMALLER_1_2 is expected_flags["SMALLER_1_2"]
     assert reloaded.QISKIT_SMALLER_2_0 is expected_flags["SMALLER_2_0"]
-
-    importlib.reload(qc)
 
 
 class TestEnsureComplexCoeffs:

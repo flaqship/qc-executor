@@ -16,8 +16,8 @@ from typing import Any, Callable, Dict, List, Sequence, Tuple
 import numpy as np
 import sympy as sp
 from qulacs import GeneralQuantumOperator, PauliOperator  # pylint: disable=no-name-in-module
-from sympy import lambdify
 
+from ..base.expressions import compile_expression
 from ..base.observable_batch import ObservableBatch
 from ..base.operator_base import QuantumOperatorBase
 from ..base.operator_ir import PauliIR
@@ -115,7 +115,7 @@ class QulacsOperator(QuantumOperatorBase):
             coefficient yields a zero derivative and no used parameters.
         """
         if isinstance(coeff, sp.Basic) and coeff.free_symbols:
-            coeff_func = lambdify(self._symbol_tuple_obs, coeff)
+            coeff_func = compile_expression(coeff, self._symbol_tuple_obs)
             grad_funcs: List[Callable] = []
             used_parameters: List[Parameter] = []
             for parameter in sort_parameters(
@@ -124,7 +124,7 @@ class QulacsOperator(QuantumOperatorBase):
                 used_parameters.append(parameter)
                 derivative = sp.diff(coeff, parameter)
                 if derivative.free_symbols:
-                    grad_funcs.append(lambdify(self._symbol_tuple_obs, derivative))
+                    grad_funcs.append(compile_expression(derivative, self._symbol_tuple_obs))
                 else:
                     # Call-by-value so the closure keeps this term's constant.
                     value = _as_number(derivative)

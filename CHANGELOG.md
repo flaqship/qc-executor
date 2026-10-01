@@ -57,6 +57,10 @@ below.
 
 ### Changed
 
+- **Minimum supported Qiskit version is now 1.2.0**, up from 1.0.0. Qiskit
+  1.0/1.1's `StatevectorEstimator`/`StatevectorSampler` return results with a
+  different shape for batched parameter sets, which the parameter-batching
+  support added above relies on.
 - **Pauli labels put qubit 0 leftmost on every backend.** See the migration
   notes; this changes Qiskit-backend results.
 - `Parameters` and `Parameter` are SymPy-backed rather than

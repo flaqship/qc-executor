@@ -18,8 +18,8 @@ import pennylane as qml
 import pennylane.numpy as pnp
 import sympy as sp
 from pennylane import pauli
-from sympy import lambdify
 
+from ..base.expressions import compile_expression
 from ..base.observable_batch import ObservableBatch
 from ..base.operator_base import QuantumOperatorBase
 from ..base.operator_ir import PauliIR
@@ -43,7 +43,7 @@ def _resolve_coefficient(coeff, symbol_tuple, printer, modules):
         ValueError: If a constant coefficient has an imaginary part.
     """
     if isinstance(coeff, sp.Basic) and coeff.free_symbols:
-        return lambdify(symbol_tuple, coeff, modules=modules, printer=printer)
+        return compile_expression(coeff, symbol_tuple, modules=modules, printer=printer)
     value = complex(coeff)
     if value.imag != 0:
         raise ValueError("Imaginary part of operator coefficient is not supported")

@@ -12,6 +12,7 @@ executor parameter-passing API and every backend already rely on.
 from __future__ import annotations
 
 import re
+from numbers import Number
 from typing import Any, Iterable, List, Sequence, Tuple, overload
 
 import sympy as sp
@@ -23,6 +24,7 @@ __all__ = [
     "free_parameters",
     "parse_symbol_name",
     "sort_parameters",
+    "translate_expression",
 ]
 
 #: Matches a parameter symbol name such as ``"theta[3]"`` -> ``("theta", 3)``.
@@ -233,6 +235,33 @@ def sort_parameters(params: Iterable[Parameter]) -> List[Parameter]:
         A new sorted list.
     """
     return sorted(params, key=lambda p: p.sort_key_tuple)
+
+
+def translate_expression(value: Any) -> Any:
+    """Translate another framework's parameter expression into a SymPy one.
+
+    Numbers and SymPy expressions pass through untouched.  A Qiskit
+    ``ParameterExpression`` is rebuilt as a SymPy expression over :class:`Parameter`
+    symbols.  This is what lets a circuit be built from Qiskit parameter
+    vectors and still land in the framework-independent instruction store;
+    the element names (``"theta[0]"``) carry over unchanged.
+
+    Args:
+        value: A number, a SymPy expression or a Qiskit parameter expression.
+
+    Returns:
+        ``value`` itself, or its SymPy translation.
+    """
+    if isinstance(value, (sp.Basic, Number)):
+        return value
+    if hasattr(value, "sympify") and hasattr(value, "parameters"):
+        # Only reached with a Qiskit object in hand, so Qiskit is installed.
+        from .qiskit._sympy_bridge import (  # pylint: disable=import-outside-toplevel
+            from_qiskit_expr,
+        )
+
+        return from_qiskit_expr(value)
+    return value
 
 
 def canonicalize(expr: Any) -> Any:

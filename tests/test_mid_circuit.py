@@ -150,7 +150,7 @@ class TestQiskitMidCircuit:
 
     def test_teleportation(self):
         """Aer is required: the local primitives reject control flow."""
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
         from qiskit_aer import AerSimulator  # noqa: PLC0415
 
         theta = 0.7

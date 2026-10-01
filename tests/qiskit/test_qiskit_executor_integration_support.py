@@ -8,19 +8,27 @@ import numpy as np
 import pytest
 from qiskit.circuit import QuantumCircuit as QiskitQC
 from qiskit.primitives import (
-    BackendEstimatorV2,
     BaseEstimatorV2,
     BaseSamplerV2,
     StatevectorEstimator,
     StatevectorSampler,
 )
 from qiskit.quantum_info import SparsePauliOp
-from qiskit_aer import Aer
 
 from qc_executor import QuantumCircuit
 from qc_executor.parameters import Parameters
+from qc_executor.qiskit.qiskit_executor import BackendEstimator as BackendEstimatorV2
 from qc_executor.qiskit.qiskit_executor import QiskitExecutor
 from qc_executor.quantum_operator import QuantumOperator
+
+try:
+    # qiskit-aer may be installed but incompatible with an older/newer pinned
+    # Qiskit (e.g. CI matrices that force a specific Qiskit version); treat
+    # that the same as "not installed" and let the per-test importorskip
+    # calls below skip the tests that need it.
+    from qiskit_aer import Aer
+except ImportError:
+    Aer = None
 
 
 def _build_circuit(num_qubits, operations):
@@ -36,7 +44,7 @@ class TestQiskitExecutor:
         """ "aer_statevector" is the real-Aer-sampling counterpart to
         "statevector"'s analytic noise model - same exact state, different
         (both unbiased) estimator."""
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
 
         executor = QiskitExecutor(backend="aer_statevector", shots=32, seed=0)
 
@@ -379,7 +387,7 @@ class TestFunctioningShotsSetter:
     change takes effect on the very next ``run()`` without a rebuild."""
 
     def test_shots_setter_updates_aer_estimator_precision_in_place(self):
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
         executor = QiskitExecutor(backend="aer", shots=100)
         estimator_before = executor.raw_estimator
 
@@ -389,7 +397,7 @@ class TestFunctioningShotsSetter:
         assert executor.estimator.options.default_precision == pytest.approx(1 / 4096**0.5)
 
     def test_shots_setter_updates_aer_sampler_shots_in_place(self):
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
         executor = QiskitExecutor(backend="aer", shots=100)
         sampler_before = executor.raw_sampler
 
@@ -449,7 +457,7 @@ class TestFunctioningShotsSetter:
 
 class TestBackendProperty:
     def test_backend_property_returns_resolved_backend(self):
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
         executor = QiskitExecutor(backend="aer")
         assert executor.backend is executor._backend
         assert executor.backend is not None
@@ -467,7 +475,7 @@ class TestInjectedPrimitiveShotsReadback:
     mutated for this - only read from."""
 
     def test_reads_shots_from_backend_estimator_v2_precision(self):
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
 
         backend = Aer.get_backend("aer_simulator")
         estimator = BackendEstimatorV2(backend=backend)
@@ -556,7 +564,7 @@ class TestStatevectorPrimitiveFamily:
         assert executor._backend is None
 
     def test_aer_statevector_matches_exact_expectation_value_within_shot_noise(self):
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
         qc = _build_circuit(1, [("h", [0])])
         operator = QuantumOperator(["Z"], [1.0])
 

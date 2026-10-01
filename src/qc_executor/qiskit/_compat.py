@@ -5,7 +5,7 @@ This module centralises all version checks and wrappers around private / changed
 Qiskit APIs so that the rest of the code-base stays free of ``try / except``
 blocks and version-gated imports.
 
-Supported Qiskit versions: >= 1.0  (including 2.x).
+Supported Qiskit versions: >= 1.2  (including 2.x).
 """
 
 from __future__ import annotations

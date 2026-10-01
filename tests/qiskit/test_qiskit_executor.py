@@ -79,7 +79,7 @@ class TestQiskitExecutor:
 
     def test_shot_based_aer_string_backend_uses_aer(self):
         """The "aer" string backend should create Aer-backed primitives."""
-        pytest.importorskip("qiskit_aer")
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
 
         executor = QiskitExecutor(backend="aer", shots=32, seed=0)
 

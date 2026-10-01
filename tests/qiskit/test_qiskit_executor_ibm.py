@@ -12,7 +12,6 @@ from qiskit.circuit import ParameterVector as QiskitParameterVector
 from qiskit.circuit import QuantumCircuit as QiskitQC
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 from qiskit.providers import Backend
-from qiskit_ibm_runtime import Batch, Session
 
 from qc_executor import Executor, QuantumCircuit
 from qc_executor.qiskit import qiskit_executor as qiskit_executor_module
@@ -32,8 +31,12 @@ from qc_executor.qiskit.qiskit_executor import (
 )
 from qc_executor.quantum_operator import QuantumOperator
 
-# Skip the entire module if qiskit-ibm-runtime is not installed
-qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
+# Skip the entire module if qiskit-ibm-runtime is not installed, or if it fails
+# to import because it is incompatible with the currently installed Qiskit
+# version (e.g. a newer qiskit-ibm-runtime against an older pinned Qiskit).
+qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime", exc_type=ImportError)
+Batch = qiskit_ibm_runtime.Batch
+Session = qiskit_ibm_runtime.Session
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,7 +51,7 @@ def _get_fake_backend():
     """
     candidates = ["FakeManilaV2", "FakeAlmadenV2"]
 
-    fake_provider = pytest.importorskip("qiskit_ibm_runtime.fake_provider")
+    fake_provider = pytest.importorskip("qiskit_ibm_runtime.fake_provider", exc_type=ImportError)
     for name in candidates:
         cls = getattr(fake_provider, name, None)
         if cls is not None:

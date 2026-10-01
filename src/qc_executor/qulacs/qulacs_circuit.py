@@ -289,7 +289,7 @@ class QulacsCircuit(QuantumCircuitBase):
             qubits (int or Iterable[int]): qubit indices
             angle: Angle of rotation; a number or a SymPy expression
         """
-        func_list_element, func_grad_list_element, used_parameters, parameterized = (
+        func_list_element, func_grad_list_element, used_parameters, _ = (
             self._add_parameter_expression(angle)
         )
 
@@ -297,10 +297,7 @@ class QulacsCircuit(QuantumCircuitBase):
         for q in qubits:
             if q >= self.num_qubits:
                 raise ValueError(f"Qubit index {q} is out of range")
-            if parameterized:
-                self._operation_list.append(gate_name)
-            else:
-                self._operation_list.append(gate_name)
+            self._operation_list.append(gate_name)
             self._qubit_list.append([q])
             self._func_list.append(func_list_element)
             self._func_grad_list.append(func_grad_list_element)
@@ -326,7 +323,7 @@ class QulacsCircuit(QuantumCircuitBase):
             qubits (int or Iterable[int]): qubit indices
             angle: Angle of rotation; a number or a SymPy expression
         """
-        func_list_element, func_grad_list_element, used_parameters, parameterized = (
+        func_list_element, func_grad_list_element, used_parameters, _ = (
             self._add_parameter_expression(angle)
         )
 
@@ -336,10 +333,7 @@ class QulacsCircuit(QuantumCircuitBase):
         for control, target in zip(qubit1, qubit2):
             if control >= self.num_qubits or target >= self.num_qubits:
                 raise ValueError("Qubit index is out of range")
-            if parameterized:
-                self._operation_list.append(gate_name)
-            else:
-                self._operation_list.append(gate_name)
+            self._operation_list.append(gate_name)
             self._qubit_list.append([control, target])
             self._func_list.append(func_list_element)
             self._func_grad_list.append(func_grad_list_element)

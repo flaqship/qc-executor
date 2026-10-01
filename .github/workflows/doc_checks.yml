@@ -13,6 +13,10 @@ concurrency:
 jobs:
   doc_checks:
     runs-on: ubuntu-latest
+    # The docs group pulls the private flaQship theme via a repository
+    # secret, and secrets are not exposed to pull requests from forks, so
+    # those runs would fail at `uv sync`. Skip them: a skipped job still
+    # reports a conclusion and satisfies a required status check.
     if: github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
@@ -33,6 +37,7 @@ jobs:
           chmod 600 ~/.ssh/theme_key
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
           git config --global core.sshCommand "ssh -i ~/.ssh/theme_key -o IdentitiesOnly=yes"
+          # uv reads the https URL from uv.lock, so route just that one repo over SSH.
           git config --global "url.git@github.com:$THEME_REPO.insteadOf" "https://github.com/$THEME_REPO"
           git ls-remote "https://github.com/$THEME_REPO" HEAD > /dev/null
           echo "theme repository reachable"

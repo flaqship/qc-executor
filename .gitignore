@@ -171,3 +171,5 @@ CLAUDE.md
 # docs
 docs/_build/
 docs/api/generated/
+docs/index.html
+docs/versions.json

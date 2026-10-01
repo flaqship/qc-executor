@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="QC Executor" src="docs/_static/logo_large.png" />
+  <img alt="QC Executor" src="https://raw.githubusercontent.com/flaqship/qc-executor/main/docs/_static/logo_large.png" />
 </p>
 
 # QC Executor
@@ -15,7 +15,7 @@ The abstraction is framework-independent: circuits, operators and parameters are
 QC Executor can be installed with only the backends you need. The core install depends on NumPy and SymPy alone, and includes the pure-Python `pauli_propagation` backend:
 
 ```bash
-pip install git+https://github.com/flaqship/qc-executor.git
+pip install qc-executor
 ```
 
 ### Backend-Specific Installation
@@ -24,22 +24,22 @@ Install QC Executor with specific backends:
 
 ```bash
 # Install with Qiskit backend (statevector simulation)
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qiskit]
+pip install qc-executor[qiskit]
 
 # Install with PennyLane backend
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[pennylane]
+pip install qc-executor[pennylane]
 
 # Install with Qulacs backend
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qulacs]
+pip install qc-executor[qulacs]
 
 # Install with full Qiskit support (Aer simulator and IBM Runtime)
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qiskit-full]
+pip install qc-executor[qiskit-full]
 
 # Install with all backends
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[all]
+pip install qc-executor[all]
 
 # Install multiple specific backends
-pip install git+https://github.com/flaqship/qc-executor.git#egg=qc-executor[qiskit,pennylane,qulacs]
+pip install qc-executor[qiskit,pennylane,qulacs]
 ```
 
 ## Usage

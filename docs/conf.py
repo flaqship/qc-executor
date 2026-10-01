@@ -47,7 +47,7 @@ def _build_plugin_dependencies():
 # -- Project information -----------------------------------------------------
 project = "QC Executor"
 copyright = "2026, Fraunhofer IPA"
-author = "David Kreplin, Moritz Willmann, Marco Roth, Dennis Kleinhans, Florian Wieland"
+author = "Moritz Willmann, Dennis Kleinhans, Florian Wieland, David Kreplin"
 release = qc_executor.__version__
 version = qc_executor.__version__
 

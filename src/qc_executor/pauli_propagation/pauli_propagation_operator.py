@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, List, Tuple, overload
+import hashlib
+from typing import TYPE_CHECKING, Dict, List, Mapping, Sequence, Tuple, overload
 
 import numpy as np
 import sympy as sp
 
 from qc_executor.base.operator_base import QuantumOperatorBase
+from qc_executor.base.operator_ir import PauliIR
 
 from .symmetry import CompositeSymmetry, NoSymmetry
 from .utils.pauli_algebra import (
@@ -28,7 +30,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
 
     @overload
     @classmethod
-    def from_quantum_operator(
+    def from_quantum_operator(  # pylint: disable=arguments-differ
         cls, operator: QuantumOperatorBase
     ) -> "PauliPropagationOperator": ...
 
@@ -41,7 +43,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
     ) -> "PauliPropagationOperator": ...
 
     @classmethod
-    def from_quantum_operator(
+    def from_quantum_operator(  # pylint: disable=arguments-differ
         cls,
         operator: QuantumOperatorBase,
         symmetry_strategy: SymmetryStrategy | None = None,
@@ -255,7 +257,28 @@ class PauliPropagationOperator(QuantumOperatorBase):
             parameter_symbols=self._parameters,
         )
 
-    def apply_layout(self, layout: Dict[int, int]) -> "PauliPropagationOperator":
+    def apply_layout(
+        self, layout: "Sequence[int] | Mapping[int, int]", num_qubits: int | None = None
+    ) -> "PauliPropagationOperator":
+        """Move each qubit onto a new position.
+
+        Args:
+            layout: ``layout[i]`` is the target position of source qubit ``i``.
+                A mapping is also accepted, in which case qubits it omits stay
+                where they are.
+            num_qubits: Accepted for interface parity; this backend keeps its
+                own width.
+
+        Returns:
+            The relocated operator.
+        """
+        # A sequence is the shared contract; this backend used to take only a
+        # mapping, so a caller written against the base class failed here.
+        positions = (
+            dict(layout)
+            if isinstance(layout, Mapping)
+            else {source: target for source, target in enumerate(layout)}
+        )
         remapped = PauliSum(self._num_qubits, symmetry=self._pauli_sum.symmetry)
         term_mapping: Dict[int, int] = {}
 
@@ -263,7 +286,7 @@ class PauliPropagationOperator(QuantumOperatorBase):
             remapped_term = 0
             for source_idx in range(self._num_qubits):
                 symbol = get_pauli(term, source_idx, self._num_qubits)
-                target_idx = layout.get(source_idx, source_idx)
+                target_idx = positions.get(source_idx, source_idx)
                 remapped_term = set_pauli(remapped_term, target_idx, symbol, self._num_qubits)
 
             term_mapping[term] = remapped_term
@@ -374,6 +397,34 @@ class PauliPropagationOperator(QuantumOperatorBase):
             else ()
         )
         return (self.num_qubits, terms_signature, symmetry_signature, parametric_signature)
+
+    @property
+    def ir(self) -> "PauliIR":
+        """The sparse Pauli representation, materialised from the term store.
+
+        This backend keeps its terms in a bit-packed ``PauliSum`` rather than
+        in a :class:`~qc_executor.base.operator_ir.PauliIR`, so the base's
+        store is a placeholder and this builds the real thing on demand.
+        """
+        return PauliIR.from_labels(self.paulis, self.coeffs, self.num_qubits)
+
+    def fingerprint(self) -> bytes:
+        """Return a stable digest of the operator's content.
+
+        Derived from the term store, not the base's placeholder: inheriting
+        that gave every operator of the same width the same fingerprint.
+        """
+        return hashlib.blake2b(
+            repr(self._canonical_signature()).encode("utf-8"), digest_size=32
+        ).digest()
+
+    @property
+    def is_hermitian(self) -> bool:
+        """Whether every numeric coefficient is real."""
+        return self.is_real
+
+    def __len__(self) -> int:
+        return self.num_paulis
 
     def __hash__(self):
         return hash(self._canonical_signature())

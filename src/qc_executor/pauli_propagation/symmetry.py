@@ -55,6 +55,23 @@ class SymmetryStrategy(ABC):
         Used for debugging, logging, and statistics tracking.
         """
 
+    def __eq__(self, other: object) -> bool:
+        """Compare by class and name.
+
+        Strategies are stateless apart from :class:`CompositeSymmetry`, whose
+        name lists its members, so the name determines behaviour.
+        """
+        return type(self) is type(other) and self.name == other.name  # type: ignore[attr-defined]
+
+    def __hash__(self) -> int:
+        """Hash by class and name.
+
+        Without this, a strategy passed to ``transpile_operator`` would fall
+        back to identity hashing in the executor's cache key, so two equivalent
+        strategies would miss each other's cache entries.
+        """
+        return hash((type(self).__name__, self.name))
+
 
 class NoSymmetry(SymmetryStrategy):
     """Identity symmetry strategy (no merging).

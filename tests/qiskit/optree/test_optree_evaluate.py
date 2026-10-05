@@ -8,11 +8,15 @@ import numpy as np
 import pytest
 from packaging import version
 from qiskit import __version__ as qiskit_version
-from qiskit.circuit import ClassicalRegister, Parameter, QuantumCircuit
+
+# OpTree operates on Qiskit's own parameter objects, so these tests build
+# them directly rather than going through the framework-independent types.
+from qiskit.circuit import ClassicalRegister, Parameter
+from qiskit.circuit import ParameterVector as Parameters
+from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
 import qc_executor.qiskit.optree.optree_evaluate as oe
-from qc_executor.parameters import Parameters
 from qc_executor.qiskit.optree import OpTree, OpTreeList, OpTreeSum
 from qc_executor.qiskit.optree.optree import (
     OpTreeContainer,
@@ -386,6 +390,9 @@ class TestOpTreeEvaluation:
             def __init__(self):
                 self.called_with = None
 
+            def _run(self, circuits, observables, parameter_values, **run_options):
+                raise NotImplementedError
+
             def run(self, circuits, operators, parameters):
                 self.called_with = (circuits, operators, parameters)
                 return SimpleNamespace(result=lambda: SimpleNamespace(values=np.array([42.0])))
@@ -509,6 +516,9 @@ class TestOpTreeEvaluation:
         operator = SparsePauliOp("Z")
 
         class DummySamplerV1(oe.BaseSamplerV1):
+            def _run(self, circuits, parameter_values, **run_options):
+                raise NotImplementedError
+
             def run(self, circuits, parameter_list):
                 return SimpleNamespace(result=lambda: "SAMPLER_RESULT_OBJ")
 

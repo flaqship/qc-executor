@@ -187,12 +187,18 @@ class TestCliffordGate:
         assert new_term == zii_term
         assert np.isclose(phase, 1.0)
 
-    def test_t_gate_transforms_x_with_complex_phase(self):
-        """T: X → X with exp(-iπ/4) phase."""
+    def test_t_gate_keeps_its_legacy_rule_for_direct_construction(self):
+        """T: X -> X with an exp(-i pi/4) phase.
+
+        T is not Clifford, so this single-Pauli rule is approximate; it is kept
+        only for direct CliffordGate("T") construction. The circuit builder
+        emits the exact PauliRotation(Z, pi/4) instead.
+        """
         t = CliffordGate("T", 0, nqubits=1)
         x_term = string_to_term("X", 1)
 
         new_term, phase = t.transform_pauli_term(x_term)
+
         assert new_term == x_term
         assert np.isclose(phase, np.exp(-1j * np.pi / 4))
 

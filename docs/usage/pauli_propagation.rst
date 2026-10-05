@@ -8,9 +8,11 @@ observable backward through the circuit. It is implemented in pure Python and is
 particularly efficient for **sparse observables**, optionally with truncation
 and symmetry merging.
 
+Being pure Python, it is the one backend that needs no extra at all:
+
 .. code-block:: bash
 
-   pip install "qc-executor[pauli_propagation]"
+   pip install qc-executor
 
 Basic usage
 -----------

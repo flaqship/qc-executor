@@ -1,14 +1,18 @@
 Qiskit backend
 ==============
 
-The Qiskit backend (:class:`~qc_executor.qiskit.QiskitExecutor`)
-is available with the core installation for statevector simulation, and with the
-``qiskit-full`` extra for the Aer simulator and IBM Quantum hardware.
+The Qiskit backend (:class:`~qc_executor.qiskit.QiskitExecutor`) needs the
+``qiskit`` extra for statevector simulation, or ``qiskit-full`` for the Aer
+simulator and IBM Quantum hardware.
 
 .. code-block:: bash
 
-   pip install qc-executor               # statevector simulation
+   pip install "qc-executor[qiskit]"       # statevector simulation
    pip install "qc-executor[qiskit-full]"  # + Aer + IBM Runtime
+
+``qiskit-full`` is also what you need for **dynamic circuits**: the local Qiskit
+primitives reject circuits containing measurements or control flow, so
+mid-circuit measurement and classical conditioning require Aer.
 
 Basic usage
 -----------
@@ -67,7 +71,12 @@ Selecting a backend
 The ``backend`` argument selects the execution target. It accepts the
 ``"statevector"`` (default) and ``"aer"`` string shortcuts, a Qiskit
 ``Backend`` / ``BackendV2`` instance (IBM hardware or a fake backend), a
-``Session`` / ``Batch``, or a pre-configured primitive:
+``Session`` / ``Batch``, or a pre-configured primitive.
+``"statevector"`` uses Qiskit's reference primitives and needs no Aer: exact
+for ``shots=None``, otherwise with an analytic shot-noise model. ``"aer"``
+samples the same state with real shots instead. To pin Aer's simulation
+method, pass the simulator itself rather than the shortcut, for instance
+``AerSimulator(method="statevector")``:
 
 .. code-block:: python
 

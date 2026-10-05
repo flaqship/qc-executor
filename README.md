@@ -6,11 +6,13 @@
 
 This library provides an abstraction for quantum circuits and operators that can be run on different backends using an `Executor` object.
 
+The abstraction is framework-independent: circuits, operators and parameters are built on a compact columnar instruction store and SymPy, not on any quantum SDK. `import qc_executor` pulls in nothing but NumPy and SymPy, and every backend — Qiskit included — is an optional extra loaded on first use.
+
 ## Installation
 
 ### Core Installation
 
-QC Executor can be installed with only the backends you need. By default, only Qiskit (used as the common intermediate representation) is required:
+QC Executor can be installed with only the backends you need. The core install depends on NumPy and SymPy alone, and includes the pure-Python `pauli_propagation` backend:
 
 ```bash
 pip install qc-executor
@@ -21,6 +23,9 @@ pip install qc-executor
 Install QC Executor with specific backends:
 
 ```bash
+# Install with Qiskit backend (statevector simulation)
+pip install qc-executor[qiskit]
+
 # Install with PennyLane backend
 pip install qc-executor[pennylane]
 
@@ -30,14 +35,11 @@ pip install qc-executor[qulacs]
 # Install with full Qiskit support (Aer simulator and IBM Runtime)
 pip install qc-executor[qiskit-full]
 
-# Install with Pauli Propagation backend
-pip install qc-executor[pauli_propagation]
-
 # Install with all backends
 pip install qc-executor[all]
 
 # Install multiple specific backends
-pip install qc-executor[pennylane,qulacs,pauli_propagation]
+pip install qc-executor[qiskit,pennylane,qulacs]
 ```
 
 ## Usage

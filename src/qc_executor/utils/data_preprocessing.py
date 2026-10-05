@@ -1,13 +1,41 @@
-"""Utility functions for preprocessing quantum circuit inputs and operators."""
+"""Framework-independent helpers for shaping input arrays.
+
+``ensure_complex_coeffs`` used to live here; it works on a Qiskit
+``SparsePauliOp`` and moved to ``qiskit/_compat.py`` with the rest of the
+version-specific Qiskit handling, leaving this module free of Qiskit.
+"""
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import numpy as np
-from packaging import version
-from qiskit import __version__ as qiskit_version
-from qiskit.quantum_info import SparsePauliOp
+
+
+def resolve_parameter_batch_size(lengths: Iterable[int]) -> int:
+    """Resolve and validate the batch size implied by a set of parameters.
+
+    Args:
+        lengths: The leading-axis length of each named parameter's value
+            array, as produced by :func:`adjust_features`/
+            :func:`adjust_parameters` (i.e. ``array.shape[0]``). A length of
+            1 means that parameter was not batched - it broadcasts across
+            whatever batch size the other parameters imply.
+
+    Returns:
+        int: The common batch size across every entry greater than 1 (or 1
+            if none are batched).
+
+    Raises:
+        ValueError: If two parameters imply different batch sizes greater
+            than 1.
+    """
+    sizes = {n for n in lengths if n > 1}
+    if len(sizes) > 1:
+        raise ValueError(
+            "All batched parameters must share the same batch size, got " f"{sorted(sizes)}."
+        )
+    return sizes.pop() if sizes else 1
 
 
 def adjust_features(x: np.ndarray | float, x_length: int) -> Tuple[np.ndarray, bool]:
@@ -128,7 +156,9 @@ def to_tuple(x: int | str | float | np.ndarray | list | tuple, flatten: bool = T
                 else:
                     yield i
 
-        if isinstance(x, (float, int, str)):
+        if isinstance(x, (float, int, str)) or not isinstance(x, (list, tuple, np.ndarray)):
+            # Scalars, numpy scalars and symbols such as ``Parameter`` are
+            # not containers: wrap them rather than trying to iterate them.
             return tuple([x])
         if len(np.shape(x)) == 1:
             return tuple(list(x))
@@ -142,29 +172,3 @@ def to_tuple(x: int | str | float | np.ndarray | list | tuple, flatten: bool = T
     if isinstance(x, (list, tuple, np.ndarray)):
         return array_to_nested_tuple(x)
     return tuple([x])
-
-
-def ensure_complex_coeffs(operator):
-    """Cast a SparsePauliOp's coefficients to complex128 if required by the active Qiskit version.
-
-    Qiskit 2.1.x introduced a strict dtype check in SparseObservable.from_sparse_pauli_op():
-    only SparsePauliOp instances with complex-typed coefficients are accepted. However,
-    assign_parameters() in that version returns float64 coefficients after substitution,
-    which triggers a TypeError. This was fixed in Qiskit 2.2.0, so the cast is only applied
-    for versions in the range [2.1.0, 2.2.0).
-
-    See: https://github.com/Qiskit/qiskit/issues/14807
-
-    Args:
-        operator: The SparsePauliOp whose coefficients should be checked.
-
-    Returns:
-        The operator unchanged, or a new SparsePauliOp with complex128 coefficients
-        if running on an affected Qiskit version.
-    """
-
-    if version.parse("2.1.0") <= version.parse(qiskit_version) < version.parse(
-        "2.2.0"
-    ) and operator.coeffs.dtype != np.dtype("complex128"):
-        return SparsePauliOp(operator.paulis, operator.coeffs.astype(complex))
-    return operator

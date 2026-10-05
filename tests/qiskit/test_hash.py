@@ -2,7 +2,7 @@ import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
-import qc_executor.utils.qiskit_hash_functions as qh
+import qc_executor.qiskit._hash as qh
 
 
 def test_bits_key_contains_indices_and_register_metadata():

@@ -28,11 +28,16 @@ class TestQulacsExecutorMetadata:
         assert executor.shots == 128
         assert executor.remote is False
 
-    def test_shots_setter_raises(self):
-        """Test that setting shots via property is not implemented."""
+    def test_shots_setter_updates_shots(self):
+        """Test that the shots setter actually changes the reported shot count."""
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError):
-            executor.shots = 64
+        assert executor.shots is None
+
+        executor.shots = 64
+        assert executor.shots == 64
+
+        executor.shots = None
+        assert executor.shots is None
 
 
 class TestQulacsExecutorLoggingAndCache:
@@ -81,12 +86,12 @@ class TestQulacsExecutorLoggingAndCache:
         executor = QulacsExecutor(max_cache_size=1)
         assert executor._operator_cache.max_size == 1
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that caches are unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that caches use the default bound when max_cache_size is not specified."""
         executor = QulacsExecutor()
-        assert executor._max_cache_size is None
-        assert executor._circuit_cache.max_size is None
-        assert executor._operator_cache.max_size is None
+        assert executor._max_cache_size == 4096
+        assert executor._circuit_cache.max_size == 4096
+        assert executor._operator_cache.max_size == 4096
 
 
 class TestQulacsExecutorPreprocessingAndTranspile:
@@ -124,7 +129,7 @@ class TestQulacsExecutorPreprocessingAndTranspile:
         """Test circuit transpilation for both native and generic inputs."""
         executor = QulacsExecutor()
         generic = _build_circuit(1, [("h", [0])])
-        native = QulacsCircuit(generic)
+        native = QulacsCircuit.from_quantum_circuit(generic)
 
         transpiled_generic = executor.transpile_circuit(generic)
         transpiled_native = executor.transpile_circuit(native)
@@ -136,7 +141,7 @@ class TestQulacsExecutorPreprocessingAndTranspile:
         """Test operator transpilation for both native and generic inputs."""
         executor = QulacsExecutor()
         generic = QuantumOperator(["Z"], [1.0])
-        native = QulacsOperator(generic)
+        native = QulacsOperator.from_quantum_operator(generic)
 
         transpiled_generic = executor._transpile_operator(generic)
         transpiled_native = executor._transpile_operator(native)
@@ -244,25 +249,52 @@ class TestQulacsExecutorDerivatives:
 
         assert isinstance(value, (float, np.ndarray))
 
-    def test_derivatives_multiple_circuits_raises(self):
-        """Test that derivatives for multiple circuits raise NotImplementedError."""
+    def test_derivatives_list_inputs_are_expanded_by_the_base(self):
+        """List inputs are expanded combinatorially before reaching the plugin."""
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("rx", [0, x[0]])])
         op = QuantumOperator(["Z"], [1.0])
 
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1])
+        single = np.asarray(
+            executor.expectation_value_derivatives(qc, op, "x", x=[0.1]), dtype=float
+        )
+        per_circuit = np.asarray(
+            executor.expectation_value_derivatives([qc, qc], op, "x", x=[0.1]), dtype=float
+        )
+        per_observable = np.asarray(
+            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1]), dtype=float
+        )
 
-    def test_derivatives_multiple_observables_raises(self):
-        """Test that derivatives for multiple observables raise NotImplementedError."""
+        assert per_circuit.shape[0] == 2
+        assert per_observable.shape[0] == 2
+        np.testing.assert_allclose(per_circuit[0], single)
+        np.testing.assert_allclose(per_observable[1], single)
+
+    def test_derivatives_over_multiple_observables(self):
+        """Several observables are differentiated together, as one batch.
+
+        Each entry must equal the gradient that observable gives on its own.
+        """
         x = Parameters("x", 1)
-        qc = _build_circuit(1, [("rx", [0, x[0]])])
-        op = QuantumOperator(["Z"], [1.0])
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        first = QuantumOperator(["Z"], [1.0])
+        second = QuantumOperator(["X"], [0.5])
 
         executor = QulacsExecutor()
-        with pytest.raises(NotImplementedError, match="multiple circuits or observables"):
-            executor.expectation_value_derivatives(qc, [op, op], "x", x=[0.1])
+        batched = np.asarray(
+            executor.expectation_value_derivatives(qc, [first, second], "x", x=[0.4])
+        ).reshape(-1)
+        singly = [
+            float(
+                np.asarray(executor.expectation_value_derivatives(qc, op, "x", x=[0.4])).reshape(
+                    -1
+                )[0]
+            )
+            for op in (first, second)
+        ]
+
+        assert batched == pytest.approx(singly, abs=1e-8)
 
     def test_derivatives_higher_order_tuple_raises(self):
         """Test that higher-order derivative tuples are rejected."""

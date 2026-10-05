@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 
+from .parameter_binding import bind_parameters
 from .propagation import propagate
-from .qiskit_converter import bind_parameters
 from .state_overlap import overlap_with_zero
 from .truncation import TruncationStats, truncate_combined
 

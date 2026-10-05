@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from qiskit.transpiler import Target
 from qulacs import ParametricQuantumCircuit  # pylint: disable=no-name-in-module
 from qulacs.gate import (  # pylint: disable=no-name-in-module
     CZ,
@@ -257,5 +256,3 @@ qiskit_qulacs_param_gate_dict = {
 #     "cs": cs,
 #     "csx": csx,
 # }
-
-qulacs_target = Target.from_configuration(list(qiskit_qulacs_gate_dict.keys()))

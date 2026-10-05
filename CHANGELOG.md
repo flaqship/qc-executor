@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-## [Unreleased]
+## [0.2.0] - 05.10.2026
 
 The circuit, operator and parameter types no longer wrap Qiskit. They are built
 on a columnar instruction store and SymPy, and **Qiskit is now an optional
@@ -274,3 +274,5 @@ observable.qiskit_operator  # -> qiskit.quantum_info.SparsePauliOp
 Every executor method accepts a generic *or* a backend-native circuit and
 operator, so an object you have already converted is passed straight through
 rather than translated again.
+
+## [Unreleased]

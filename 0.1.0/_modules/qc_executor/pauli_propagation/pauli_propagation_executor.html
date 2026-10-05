@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qc_executor.pauli_propagation.pauli_propagation_executor</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="../../../_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="../../../_static/favicon.png"><script src="../../../_static/documentation_options.js?v=01f34227"></script><script src="../../../_static/doctools.js?v=fd6eb6e6"></script><script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="../../../index.html">
+    <img class="fq-logo fq-logo--light" src="../../../_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="../../../_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../../../../versions.json"
+           data-current-version="0.1.0"
+           data-pagename="_modules/qc_executor/pauli_propagation/pauli_propagation_executor">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">0.1.0</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="../../../index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="../../../_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="../../../_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <h1>Source code for qc_executor.pauli_propagation.pauli_propagation_executor</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Pauli Propagation Executor.</span>
+
+<span class="sd">Implements quantum circuit execution using Heisenberg picture (Pauli propagation).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessPoolExecutor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">overload</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sympy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sp</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">..base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExecutorBase</span><span class="p">,</span> <span class="n">QuantumCircuitBase</span><span class="p">,</span> <span class="n">QuantumOperatorBase</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.pauli_propagation_circuit</span><span class="w"> </span><span class="kn">import</span> <span class="n">PauliPropagationCircuit</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.pauli_propagation_operator</span><span class="w"> </span><span class="kn">import</span> <span class="n">PauliPropagationOperator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.symmetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">NoSymmetry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.gates</span><span class="w"> </span><span class="kn">import</span> <span class="n">CliffordGate</span><span class="p">,</span> <span class="n">LayerBarrier</span><span class="p">,</span> <span class="n">PauliRotation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.parallel</span><span class="w"> </span><span class="kn">import</span> <span class="n">expectation_task</span><span class="p">,</span> <span class="n">expectation_task_star</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.pauli_algebra</span><span class="w"> </span><span class="kn">import</span> <span class="n">term_to_string</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.pauli_types</span><span class="w"> </span><span class="kn">import</span> <span class="n">PauliSum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.propagation</span><span class="w"> </span><span class="kn">import</span> <span class="n">batch_propagate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.qiskit_converter</span><span class="w"> </span><span class="kn">import</span> <span class="n">bind_parameters</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.state_overlap</span><span class="w"> </span><span class="kn">import</span> <span class="n">overlap_with_zero</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.utils.truncation</span><span class="w"> </span><span class="kn">import</span> <span class="n">TruncationStats</span><span class="p">,</span> <span class="n">truncate_combined</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.symmetry</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymmetryStrategy</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_list</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">obj</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">obj</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_normalize_parameters</span><span class="p">(</span><span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize parameters from list format to indexed format.</span>
+
+<span class="sd">    Converts parameters from:</span>
+<span class="sd">        {&quot;x&quot;: [0.1], &quot;p&quot;: [0.3], &quot;p_obs&quot;: [0.5, 0.6]}</span>
+<span class="sd">    To:</span>
+<span class="sd">        {&quot;x[0]&quot;: 0.1, &quot;p[0]&quot;: 0.3, &quot;p_obs[0]&quot;: 0.5, &quot;p_obs[1]&quot;: 0.6}</span>
+
+<span class="sd">    Also accepts already-normalized parameters with indexed keys.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        parameters: Parameter dictionary, values can be floats or lists</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Normalized parameter dictionary with indexed string keys</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: If parameter value is neither float nor list</span>
+<span class="sd">        ValueError: If parameter name is invalid</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">parameters</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="n">normalized</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="c1"># Convert list format: x=[0.1, 0.2] -&gt; {&quot;x[0]&quot;: 0.1, &quot;x[1]&quot;: 0.2}</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Parameter &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">[</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">]&#39; has invalid type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;Expected float or numeric value.&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">normalized</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">[</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">)):</span>
+            <span class="c1"># Already a scalar, accept as-is</span>
+            <span class="n">normalized</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;[&quot;</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="c1"># Already indexed format like &quot;x[0]&quot;, keep as-is</span>
+            <span class="n">normalized</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Parameter &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; has invalid value type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2">. &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;Expected float or list of floats.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">normalized</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_evaluate_symbolic_expression</span><span class="p">(</span><span class="n">expression</span><span class="p">,</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate a symbolic expression with normalized parameter values.&quot;&quot;&quot;</span>
+    <span class="n">subs_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">expression</span><span class="o">.</span><span class="n">free_symbols</span><span class="p">:</span>
+        <span class="n">param_name</span> <span class="o">=</span> <span class="n">symbol</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">if</span> <span class="n">param_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing parameter value for &#39;</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="n">subs_dict</span><span class="p">[</span><span class="n">symbol</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="n">expression</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">subs_dict</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">is_number</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expression </span><span class="si">{</span><span class="n">expression</span><span class="si">}</span><span class="s2"> could not be fully evaluated&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_derivative_param_to_name</span><span class="p">(</span><span class="n">param</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a Parameter/ParameterVector/string to parameter name string(s).&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">param</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">param</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">param</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">param</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_create_projector_observable</span><span class="p">(</span><span class="n">bitstring</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliSum</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create projector |b&gt;&lt;b| as a PauliSum.</span>
+
+<span class="sd">    The projector onto computational basis state |b&gt; is:</span>
+<span class="sd">    |b&gt;&lt;b| = tensor_i [(I + (-1)^{b_i} Z_i)/2]</span>
+
+<span class="sd">    This expands to a sum of 2^n Pauli terms.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        bitstring: Binary string (e.g., &quot;0101&quot;)</span>
+<span class="sd">        nqubits: Number of qubits</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        PauliSum representing |b&gt;&lt;b|</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bitstring</span><span class="p">)</span> <span class="o">!=</span> <span class="n">nqubits</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bitstring length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">bitstring</span><span class="p">)</span><span class="si">}</span><span class="s2"> doesn&#39;t match nqubits </span><span class="si">{</span><span class="n">nqubits</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Start with scalar 1</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">PauliSum</span><span class="p">(</span><span class="n">nqubits</span><span class="p">)</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="s2">&quot;I&quot;</span> <span class="o">*</span> <span class="n">nqubits</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+    <span class="c1"># Iteratively build up the tensor product</span>
+    <span class="k">for</span> <span class="n">qubit_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nqubits</span><span class="p">):</span>
+        <span class="c1"># qubit 0 is leftmost in the bitstring: bitstring[0] is qubit 0&#39;s bit</span>
+        <span class="n">bit</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">bitstring</span><span class="p">[</span><span class="n">qubit_idx</span><span class="p">])</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">bit</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="mi">1</span>
+
+        <span class="c1"># Multiply result by (I + sign*Z)/2 on this qubit</span>
+        <span class="c1"># This is equivalent to: result = result * (I + sign*Z_i) / 2</span>
+        <span class="n">new_result</span> <span class="o">=</span> <span class="n">PauliSum</span><span class="p">(</span><span class="n">nqubits</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">term</span><span class="p">,</span> <span class="n">coeff</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="c1"># Add the I component (term unchanged)</span>
+            <span class="n">new_result</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">coeff</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+
+            <span class="c1"># Add the Z component (apply Z to this qubit)</span>
+            <span class="n">term_str</span> <span class="o">=</span> <span class="n">term_to_string</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">)</span>
+            <span class="n">term_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">term_str</span><span class="p">)</span>
+
+            <span class="c1"># Apply Z at qubit_idx; qubit 0 is leftmost so string_index == qubit_idx</span>
+            <span class="n">string_index</span> <span class="o">=</span> <span class="n">qubit_idx</span>
+
+            <span class="k">if</span> <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;I&quot;</span><span class="p">:</span>
+                <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Z&quot;</span>
+                <span class="n">phase</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">elif</span> <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;X&quot;</span><span class="p">:</span>
+                <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Y&quot;</span>
+                <span class="n">phase</span> <span class="o">=</span> <span class="mi">1</span><span class="n">j</span>
+            <span class="k">elif</span> <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Y&quot;</span><span class="p">:</span>
+                <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;X&quot;</span>
+                <span class="n">phase</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="n">j</span>
+            <span class="k">elif</span> <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Z&quot;</span><span class="p">:</span>
+                <span class="c1"># Z * Z = I</span>
+                <span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;I&quot;</span>
+                <span class="n">phase</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown Pauli: </span><span class="si">{</span><span class="n">term_list</span><span class="p">[</span><span class="n">string_index</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">new_term_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">term_list</span><span class="p">)</span>
+            <span class="n">new_result</span><span class="o">.</span><span class="n">add_term</span><span class="p">(</span><span class="n">new_term_str</span><span class="p">,</span> <span class="n">sign</span> <span class="o">*</span> <span class="n">coeff</span> <span class="o">*</span> <span class="n">phase</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">new_result</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+
+<div class="viewcode-block" id="PauliPropagationExecutor">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PauliPropagationExecutor</span><span class="p">(</span><span class="n">ExecutorBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Executor for quantum circuits using Pauli propagation (Heisenberg picture).</span>
+
+<span class="sd">    This executor propagates observables backward through quantum circuits,</span>
+<span class="sd">    enabling efficient computation of expectation values for sparse observables.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        shots: Number of measurement shots (not used for exact simulation)</span>
+<span class="sd">        seed: Random seed for reproducibility (not used for exact simulation)</span>
+<span class="sd">        log_file: Path to log file (not implemented)</span>
+<span class="sd">        caching: Whether to use caching (not implemented yet)</span>
+<span class="sd">        cache_dir: Directory for caching (not implemented yet)</span>
+<span class="sd">        truncate_threshold: Coefficient threshold for automatic truncation (None = no truncation)</span>
+<span class="sd">        max_weight: Maximum Pauli weight for truncation (None = no weight limit)</span>
+<span class="sd">        symmetry_strategy: Strategy for Pauli symmetry merging (None = no merging)</span>
+<span class="sd">        n_jobs: Number of worker processes for independent expectation-value</span>
+<span class="sd">            evaluations (multiple circuits x observables, parameter-shift</span>
+<span class="sd">            gradients). 1 (default) runs serially; -1 uses all CPU cores.</span>
+<span class="sd">            Process startup on Windows (spawn) costs roughly 100 ms per</span>
+<span class="sd">            worker plus import time, so parallelism pays off only for</span>
+<span class="sd">            workloads with many or expensive independent evaluations.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_native_circuit_class</span> <span class="o">=</span> <span class="n">PauliPropagationCircuit</span>
+    <span class="n">_native_operator_class</span> <span class="o">=</span> <span class="n">PauliPropagationOperator</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">shots</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;WARNING&quot;</span><span class="p">,</span>
+        <span class="n">caching</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cache_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cache&quot;</span><span class="p">,</span>
+        <span class="n">max_cache_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">truncate_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">max_weight</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">symmetry_strategy</span><span class="p">:</span> <span class="n">SymmetryStrategy</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">shots</span><span class="o">=</span><span class="n">shots</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+            <span class="n">log_file</span><span class="o">=</span><span class="n">log_file</span><span class="p">,</span>
+            <span class="n">log_level</span><span class="o">=</span><span class="n">log_level</span><span class="p">,</span>
+            <span class="n">caching</span><span class="o">=</span><span class="n">caching</span><span class="p">,</span>
+            <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
+            <span class="n">max_cache_size</span><span class="o">=</span><span class="n">max_cache_size</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span> <span class="o">=</span> <span class="n">truncate_threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span> <span class="o">=</span> <span class="n">max_weight</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_strategy</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">symmetry_strategy</span> <span class="k">if</span> <span class="n">symmetry_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">NoSymmetry</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">n_jobs</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;n_jobs must be a positive integer or -1, got </span><span class="si">{</span><span class="n">n_jobs</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">=</span> <span class="n">n_jobs</span>
+
+        <span class="c1"># Statistics tracking</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_truncation_stats</span><span class="p">:</span> <span class="n">TruncationStats</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_random</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shots</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span>
+
+    <span class="nd">@shots</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">shots</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remote</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return False (Pauli propagation is local execution).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_expectation_value</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">circuit</span><span class="p">,</span>
+        <span class="n">observable</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">parameters</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">is_single_circuit</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+        <span class="n">is_single_observable</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">observable</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+
+        <span class="n">circuits</span> <span class="o">=</span> <span class="n">_as_list</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+        <span class="n">observables</span> <span class="o">=</span> <span class="n">_as_list</span><span class="p">(</span><span class="n">observable</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">PauliPropagationCircuit</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s2">&quot;PauliPropagationExecutor expects PauliPropagationCircuit inputs only.&quot;</span>
+                <span class="p">)</span>
+        <span class="k">for</span> <span class="n">obs</span> <span class="ow">in</span> <span class="n">observables</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obs</span><span class="p">,</span> <span class="n">PauliPropagationOperator</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s2">&quot;PauliPropagationExecutor expects PauliPropagationOperator inputs only.&quot;</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Normalize parameters once (from list format x=[0.1] to indexed x[0]=0.1)</span>
+        <span class="n">normalized_params</span> <span class="o">=</span> <span class="n">_normalize_parameters</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="n">ntasks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">circuits</span><span class="p">)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">observables</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">ntasks</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">outcomes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parallel_expectations</span><span class="p">(</span><span class="n">circuits</span><span class="p">,</span> <span class="n">observables</span><span class="p">,</span> <span class="n">normalized_params</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">outcomes</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">:</span>
+                <span class="n">outcomes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_batch_expectations_for_circuit</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">observables</span><span class="p">,</span> <span class="n">normalized_params</span><span class="p">)</span>
+                <span class="p">)</span>
+
+        <span class="n">do_truncate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">do_truncate</span> <span class="ow">and</span> <span class="n">outcomes</span><span class="p">:</span>
+            <span class="c1"># Same semantics as computing pair-by-pair: keep the last stats</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_truncation_stats</span> <span class="o">=</span> <span class="n">outcomes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span> <span class="k">for</span> <span class="n">value</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">outcomes</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">is_single_circuit</span> <span class="ow">and</span> <span class="n">is_single_observable</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">real</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">real</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolved_n_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the effective worker count (-1 means all CPU cores).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="ow">or</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parallel_expectations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circuits</span><span class="p">,</span> <span class="n">observables</span><span class="p">,</span> <span class="n">normalized_params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate all circuit x observable pairs in worker processes.</span>
+
+<span class="sd">        Task order (and therefore result order) is circuit-major, matching</span>
+<span class="sd">        the serial path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task_args</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span>
+                <span class="n">circ</span><span class="p">,</span>
+                <span class="n">obs</span><span class="p">,</span>
+                <span class="n">normalized_params</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_strategy</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuits</span>
+            <span class="k">for</span> <span class="n">obs</span> <span class="ow">in</span> <span class="n">observables</span>
+        <span class="p">]</span>
+        <span class="n">max_workers</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_resolved_n_jobs</span><span class="p">(),</span> <span class="nb">len</span><span class="p">(</span><span class="n">task_args</span><span class="p">))</span>
+        <span class="n">chunksize</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">task_args</span><span class="p">)</span> <span class="o">//</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">max_workers</span><span class="p">))</span>
+        <span class="c1"># Per-call pool: simpler lifecycle than a cached pool and safe with</span>
+        <span class="c1"># Windows spawn (workers re-import the package per call)</span>
+        <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">expectation_task_star</span><span class="p">,</span> <span class="n">task_args</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="n">chunksize</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_batch_expectations_for_circuit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circuit</span><span class="p">,</span> <span class="n">observables</span><span class="p">,</span> <span class="n">normalized_params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate all observables for one circuit, sharing per-circuit work.</span>
+
+<span class="sd">        Binds parameters once and uses batch_propagate so layer splitting and</span>
+<span class="sd">        parameter resolution are not repeated per observable.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of (complex expectation value, TruncationStats or None),</span>
+<span class="sd">            one per observable, in input order</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">gates</span> <span class="o">=</span> <span class="n">circuit</span><span class="o">.</span><span class="n">gates</span>
+        <span class="n">bound_params</span> <span class="o">=</span> <span class="n">bind_parameters</span><span class="p">(</span><span class="n">gates</span><span class="p">,</span> <span class="n">normalized_params</span><span class="p">)</span>
+
+        <span class="n">psums</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">observable</span> <span class="ow">in</span> <span class="n">observables</span><span class="p">:</span>
+            <span class="n">effective_observable</span> <span class="o">=</span> <span class="n">observable</span>
+            <span class="k">if</span> <span class="n">observable</span><span class="o">.</span><span class="n">is_parametrized</span><span class="p">:</span>
+                <span class="n">effective_observable</span> <span class="o">=</span> <span class="n">observable</span><span class="o">.</span><span class="n">assign_parameters</span><span class="p">(</span><span class="n">normalized_params</span><span class="p">)</span>
+
+            <span class="c1"># pauli_sum returns a copy, so mutating its symmetry is side-effect free</span>
+            <span class="n">psum</span> <span class="o">=</span> <span class="n">effective_observable</span><span class="o">.</span><span class="n">pauli_sum</span>
+
+            <span class="c1"># Use observable-level symmetry when explicitly configured.</span>
+            <span class="c1"># Fall back to executor-level symmetry otherwise.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">psum</span><span class="o">.</span><span class="n">has_active_symmetry</span><span class="p">:</span>
+                <span class="n">psum</span><span class="o">.</span><span class="n">symmetry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_strategy</span>
+            <span class="n">psums</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">psum</span><span class="p">)</span>
+
+        <span class="n">propagated_list</span> <span class="o">=</span> <span class="n">batch_propagate</span><span class="p">(</span>
+            <span class="n">gates</span><span class="p">,</span>
+            <span class="n">psums</span><span class="p">,</span>
+            <span class="n">bound_params</span><span class="p">,</span>
+            <span class="n">max_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span><span class="p">,</span>
+            <span class="n">truncate_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">do_truncate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">outcomes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">propagated</span> <span class="ow">in</span> <span class="n">propagated_list</span><span class="p">:</span>
+            <span class="n">stats</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">do_truncate</span><span class="p">:</span>
+                <span class="c1"># Final truncation pass (cheap cleanup; keeps the stats)</span>
+                <span class="n">propagated</span><span class="p">,</span> <span class="n">stats</span> <span class="o">=</span> <span class="n">truncate_combined</span><span class="p">(</span>
+                    <span class="n">propagated</span><span class="p">,</span>
+                    <span class="n">min_coeff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span> <span class="k">else</span> <span class="mf">1e-15</span><span class="p">,</span>
+                    <span class="n">max_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span><span class="p">,</span>
+                    <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="n">outcomes</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">overlap_with_zero</span><span class="p">(</span><span class="n">propagated</span><span class="p">),</span> <span class="n">stats</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">outcomes</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_single_expectation</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">circuit</span><span class="p">:</span> <span class="n">PauliPropagationCircuit</span><span class="p">,</span>
+        <span class="n">observable</span><span class="p">:</span> <span class="n">PauliPropagationOperator</span><span class="p">,</span>
+        <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">complex</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute expectation value for a single circuit and observable.</span>
+
+<span class="sd">        Thin wrapper around utils.parallel.expectation_task (the shared</span>
+<span class="sd">        serial/parallel code path).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            circuit: Quantum circuit</span>
+<span class="sd">            observable: Quantum observable</span>
+<span class="sd">            parameters: Parameter binding dictionary (can be in list or indexed format)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Complex expectation value</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">normalized_params</span> <span class="o">=</span> <span class="n">_normalize_parameters</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="n">value</span><span class="p">,</span> <span class="n">stats</span> <span class="o">=</span> <span class="n">expectation_task</span><span class="p">(</span>
+            <span class="n">circuit</span><span class="p">,</span>
+            <span class="n">observable</span><span class="p">,</span>
+            <span class="n">normalized_params</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">truncate_threshold</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_weight</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_strategy</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">stats</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_truncation_stats</span> <span class="o">=</span> <span class="n">stats</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_expectation_value_derivatives</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">circuit</span><span class="p">,</span>
+        <span class="n">observable</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">derivative_params</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">parameter_values</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate derivatives of expectation value.</span>
+
+<span class="sd">        Handles circuit parameters (via parameter-shift rule) and observable</span>
+<span class="sd">        coefficient parameters (via analytical derivatives). When a parameter</span>
+<span class="sd">        appears in both, contributions are computed separately and summed.</span>
+
+<span class="sd">        Accepts both the library&#39;s QuantumCircuit/QuantumOperator wrappers</span>
+<span class="sd">        and raw Qiskit types. Derivative parameters can be strings,</span>
+<span class="sd">        Parameter objects, or ParameterVector objects.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            circuit: Quantum circuit(s)</span>
+<span class="sd">            observable: Quantum observable(s)</span>
+<span class="sd">            *derivative_params: Parameter(s) to differentiate with respect to</span>
+<span class="sd">            **parameter_values: Parameter values (can be in list or indexed format)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            If single param requested: numpy array or float of gradients</span>
+<span class="sd">            If multiple params requested: dict mapping param names to gradient arrays</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks</span>
+        <span class="c1"># Convert derivative params to string names (base parameter names without indices)</span>
+        <span class="n">param_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">derivative_params</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+                <span class="n">param_names</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">_derivative_param_to_name</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">p</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;__iter__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">param_names</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">_derivative_param_to_name</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">p</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_derivative_param_to_name</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+
+        <span class="c1"># Remove duplicates while preserving order</span>
+        <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">unique_param_names</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">param_names</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                <span class="n">unique_param_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">param_names</span> <span class="o">=</span> <span class="n">unique_param_names</span>
+
+        <span class="n">is_single_derivative</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+
+        <span class="n">normalized_parameter_values</span> <span class="o">=</span> <span class="n">_normalize_parameters</span><span class="p">(</span><span class="n">parameter_values</span><span class="p">)</span>
+
+        <span class="c1"># Build a mapping from base parameter names to their values</span>
+        <span class="n">param_mapping</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parameter_values</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+                <span class="n">param_mapping</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">param_mapping</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="p">]</span>
+
+        <span class="c1"># Get observable and circuit parameters</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">observable</span><span class="p">,</span> <span class="n">PauliPropagationOperator</span><span class="p">):</span>
+            <span class="n">native_observable</span> <span class="o">=</span> <span class="n">observable</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">native_observable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transpile_operator</span><span class="p">(</span><span class="n">observable</span><span class="p">)</span>
+        <span class="n">observable_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">native_observable</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="n">PauliPropagationCircuit</span><span class="p">):</span>
+            <span class="n">native_circuit</span> <span class="o">=</span> <span class="n">circuit</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">native_circuit</span> <span class="o">=</span> <span class="n">PauliPropagationCircuit</span><span class="o">.</span><span class="n">from_quantum_circuit</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+        <span class="n">circuit_params</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">native_circuit</span><span class="o">.</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="n">uses_indexed_names</span> <span class="o">=</span> <span class="n">observable_params</span> <span class="o">|</span> <span class="n">circuit_params</span>
+        <span class="n">bound_circuit</span> <span class="o">=</span> <span class="n">native_circuit</span><span class="o">.</span><span class="n">assign_parameters</span><span class="p">(</span><span class="n">normalized_parameter_values</span><span class="p">)</span>
+
+        <span class="c1"># Hoisted copies of the parameter mappings (the properties return copies)</span>
+        <span class="n">observable_symbols</span> <span class="o">=</span> <span class="n">native_observable</span><span class="o">.</span><span class="n">parameter_symbols</span>
+        <span class="n">observable_parametric_coeffs</span> <span class="o">=</span> <span class="n">native_observable</span><span class="o">.</span><span class="n">parametric_coeffs</span>
+        <span class="n">circuit_symbols</span> <span class="o">=</span> <span class="n">native_circuit</span><span class="o">.</span><span class="n">parameter_symbols</span>
+
+        <span class="c1"># Two-pass gradient computation: the first pass walks parameters and</span>
+        <span class="c1"># gates collecting every needed expectation evaluation; the second</span>
+        <span class="c1"># evaluates them in two batched expectation_value calls (which also</span>
+        <span class="c1"># benefit from batch propagation and, if enabled, n_jobs parallelism)</span>
+        <span class="c1"># and accumulates the contributions.</span>
+        <span class="n">gradient_lists</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># (param_name, value_index, dcoeff/dparam, single-term observable)</span>
+        <span class="n">obs_jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># (param_name, value_index, dangle/dparam); the plus/minus shifted</span>
+        <span class="c1"># circuits are appended pairwise to shifted_circuits</span>
+        <span class="n">circ_jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">shifted_circuits</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">param_names</span><span class="p">:</span>
+            <span class="c1"># Normalize the param name (handle indexed format)</span>
+            <span class="k">if</span> <span class="s2">&quot;[&quot;</span> <span class="ow">in</span> <span class="n">param_name</span><span class="p">:</span>
+                <span class="n">base_name</span> <span class="o">=</span> <span class="n">param_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="c1"># Extract the index from indexed format like &quot;p_obs[0]&quot;</span>
+                <span class="n">index_str</span> <span class="o">=</span> <span class="n">param_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;]&quot;</span><span class="p">)</span>
+                <span class="n">specific_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">index_str</span><span class="p">)</span> <span class="k">if</span> <span class="n">index_str</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">base_name</span> <span class="o">=</span> <span class="n">param_name</span>
+                <span class="n">specific_index</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="c1"># Find the parameter value - could be under base_name or param_name</span>
+            <span class="k">if</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">param_mapping</span><span class="p">:</span>
+                <span class="n">all_values</span> <span class="o">=</span> <span class="n">param_mapping</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">specific_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">all_values</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+                    <span class="c1"># Indexed parameter - use only the specific index</span>
+                    <span class="n">param_values_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_values</span><span class="p">[</span><span class="n">specific_index</span><span class="p">]]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">param_values_list</span> <span class="o">=</span> <span class="n">all_values</span>
+            <span class="k">elif</span> <span class="n">base_name</span> <span class="ow">in</span> <span class="n">param_mapping</span><span class="p">:</span>
+                <span class="n">all_values</span> <span class="o">=</span> <span class="n">param_mapping</span><span class="p">[</span><span class="n">base_name</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">specific_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">all_values</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+                    <span class="c1"># Indexed parameter - use only the specific index</span>
+                    <span class="n">param_values_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_values</span><span class="p">[</span><span class="n">specific_index</span><span class="p">]]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">param_values_list</span> <span class="o">=</span> <span class="n">all_values</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Parameter &#39;</span><span class="si">{</span><span class="n">param_name</span><span class="si">}</span><span class="s2">&#39; not found in provided values&quot;</span><span class="p">)</span>
+
+            <span class="n">gradient_lists</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_values_list</span><span class="p">)</span>
+
+            <span class="c1"># Classify parameter location</span>
+            <span class="c1"># For base_name, check if any parameter starts with it (handles indexed params)</span>
+            <span class="n">in_observable</span> <span class="o">=</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">observable_params</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">in_observable</span> <span class="ow">and</span> <span class="s2">&quot;[&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">param_name</span><span class="p">:</span>
+                <span class="c1"># Base name - check if any observable param starts with this base name</span>
+                <span class="n">in_observable</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+                    <span class="n">obs_param</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">base_name</span> <span class="o">+</span> <span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">obs_param</span> <span class="ow">in</span> <span class="n">observable_params</span>
+                <span class="p">)</span>
+
+            <span class="n">in_circuit</span> <span class="o">=</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">circuit_params</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">in_circuit</span> <span class="ow">and</span> <span class="s2">&quot;[&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">param_name</span><span class="p">:</span>
+                <span class="c1"># Base name - check if any circuit param starts with this base name</span>
+                <span class="n">in_circuit</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+                    <span class="n">circ_param</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">base_name</span> <span class="o">+</span> <span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">circ_param</span> <span class="ow">in</span> <span class="n">circuit_params</span>
+                <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">_param_value</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">param_values_list</span><span class="p">):</span>
+                <span class="c1"># For indexed parameters, use the full indexed name</span>
+                <span class="c1"># For base parameters with multiple values, construct the indexed name</span>
+                <span class="n">effective_param_name</span> <span class="o">=</span> <span class="n">param_name</span>
+                <span class="k">if</span> <span class="s2">&quot;[&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">param_name</span> <span class="ow">and</span> <span class="s2">&quot;[&quot;</span> <span class="ow">in</span> <span class="n">base_name</span><span class="p">:</span>
+                    <span class="c1"># param_name was already indexed</span>
+                    <span class="k">pass</span>
+                <span class="k">elif</span> <span class="s2">&quot;[&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">param_name</span> <span class="ow">and</span> <span class="p">(</span>
+                    <span class="nb">len</span><span class="p">(</span><span class="n">param_values_list</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                    <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">base_name</span> <span class="o">+</span> <span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">uses_indexed_names</span><span class="p">)</span>
+                <span class="p">):</span>
+                    <span class="c1"># Base name with multiple values - use indexed notation</span>
+                    <span class="n">effective_param_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_name</span><span class="si">}</span><span class="s2">[</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">]&quot;</span>
+
+                <span class="c1"># === OBSERVABLE CONTRIBUTION ===</span>
+                <span class="k">if</span> <span class="n">in_observable</span><span class="p">:</span>
+                    <span class="c1"># Compute analytical derivative for observable coefficients</span>
+                    <span class="c1"># Use the actual symbol from the observable&#39;s parameter dict</span>
+                    <span class="n">param_symbol</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">if</span> <span class="n">effective_param_name</span> <span class="ow">in</span> <span class="n">observable_symbols</span><span class="p">:</span>
+                        <span class="n">param_symbol</span> <span class="o">=</span> <span class="n">observable_symbols</span><span class="p">[</span><span class="n">effective_param_name</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">param_name</span> <span class="ow">in</span> <span class="n">observable_symbols</span><span class="p">:</span>
+                        <span class="n">param_symbol</span> <span class="o">=</span> <span class="n">observable_symbols</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">base_name</span> <span class="ow">in</span> <span class="n">observable_symbols</span><span class="p">:</span>
+                        <span class="n">param_symbol</span> <span class="o">=</span> <span class="n">observable_symbols</span><span class="p">[</span><span class="n">base_name</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Try to find a matching symbol by name</span>
+                        <span class="k">for</span> <span class="n">sym_name</span><span class="p">,</span> <span class="n">sym</span> <span class="ow">in</span> <span class="n">observable_symbols</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                            <span class="k">if</span> <span class="n">sym_name</span> <span class="ow">in</span> <span class="p">(</span><span class="n">effective_param_name</span><span class="p">,</span> <span class="n">param_name</span><span class="p">):</span>
+                                <span class="n">param_symbol</span> <span class="o">=</span> <span class="n">sym</span>
+                                <span class="k">break</span>
+
+                    <span class="k">if</span> <span class="n">param_symbol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">observable_parametric_coeffs</span><span class="p">:</span>
+                        <span class="c1"># Observable has parametric coefficients - iterate through them</span>
+                        <span class="k">for</span> <span class="n">term</span><span class="p">,</span> <span class="n">coeff_expr</span> <span class="ow">in</span> <span class="n">observable_parametric_coeffs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                            <span class="c1"># Check if parameter appears in this coefficient</span>
+                            <span class="k">if</span> <span class="n">param_symbol</span> <span class="ow">in</span> <span class="n">coeff_expr</span><span class="o">.</span><span class="n">free_symbols</span><span class="p">:</span>
+                                <span class="c1"># Compute derivative: dcoeff/dparam</span>
+                                <span class="n">coeff_derivative</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">coeff_expr</span><span class="p">,</span> <span class="n">param_symbol</span><span class="p">)</span>
+                                <span class="n">coeff_deriv_value</span> <span class="o">=</span> <span class="n">_evaluate_symbolic_expression</span><span class="p">(</span>
+                                    <span class="n">coeff_derivative</span><span class="p">,</span> <span class="n">normalized_parameter_values</span>
+                                <span class="p">)</span>
+
+                                <span class="c1"># Create single-term observable for this Pauli</span>
+                                <span class="n">pauli_str</span> <span class="o">=</span> <span class="n">term_to_string</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">native_observable</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">)</span>
+                                <span class="n">single_term_obs</span> <span class="o">=</span> <span class="n">PauliPropagationOperator</span><span class="p">(</span>
+                                    <span class="n">paulis</span><span class="o">=</span><span class="p">[</span><span class="n">pauli_str</span><span class="p">],</span>
+                                    <span class="n">coeffs</span><span class="o">=</span><span class="p">[</span><span class="mf">1.0</span><span class="p">],</span>
+                                    <span class="n">num_qubits</span><span class="o">=</span><span class="n">native_observable</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span>
+                                <span class="p">)</span>
+
+                                <span class="c1"># Defer &lt;Pauli&gt; to the batched evaluation;</span>
+                                <span class="c1"># contribution is (dcoeff/dparam) * &lt;Pauli&gt;</span>
+                                <span class="n">obs_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                    <span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">coeff_deriv_value</span><span class="p">,</span> <span class="n">single_term_obs</span><span class="p">)</span>
+                                <span class="p">)</span>
+
+                <span class="c1"># === CIRCUIT CONTRIBUTION ===</span>
+                <span class="k">if</span> <span class="n">in_circuit</span><span class="p">:</span>
+                    <span class="n">effective_symbol</span> <span class="o">=</span> <span class="n">circuit_symbols</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">effective_param_name</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">effective_symbol</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">effective_param_name</span> <span class="o">==</span> <span class="n">base_name</span><span class="p">:</span>
+                        <span class="n">effective_symbol</span> <span class="o">=</span> <span class="n">circuit_symbols</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">base_name</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="n">effective_symbol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">gate_index</span><span class="p">,</span> <span class="p">(</span><span class="n">source_gate</span><span class="p">,</span> <span class="n">bound_gate</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+                            <span class="nb">zip</span><span class="p">(</span><span class="n">native_circuit</span><span class="o">.</span><span class="n">gates</span><span class="p">,</span> <span class="n">bound_circuit</span><span class="o">.</span><span class="n">gates</span><span class="p">)</span>
+                        <span class="p">):</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source_gate</span><span class="p">,</span> <span class="n">PauliRotation</span><span class="p">):</span>
+                                <span class="k">continue</span>
+                            <span class="k">if</span> <span class="n">source_gate</span><span class="o">.</span><span class="n">param_expr</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                                <span class="k">continue</span>
+                            <span class="k">if</span> <span class="n">effective_symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">source_gate</span><span class="o">.</span><span class="n">param_expr</span><span class="o">.</span><span class="n">free_symbols</span><span class="p">:</span>
+                                <span class="k">continue</span>
+
+                            <span class="n">angle_derivative</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">source_gate</span><span class="o">.</span><span class="n">param_expr</span><span class="p">,</span> <span class="n">effective_symbol</span><span class="p">)</span>
+                            <span class="n">angle_derivative_value</span> <span class="o">=</span> <span class="n">_evaluate_symbolic_expression</span><span class="p">(</span>
+                                <span class="n">angle_derivative</span><span class="p">,</span> <span class="n">normalized_parameter_values</span>
+                            <span class="p">)</span>
+                            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">angle_derivative_value</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">):</span>
+                                <span class="k">continue</span>
+
+                            <span class="n">current_angle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_angle</span><span class="p">(</span>
+                                <span class="n">bound_gate</span><span class="p">,</span> <span class="n">normalized_parameter_values</span>
+                            <span class="p">)</span>
+
+                            <span class="n">shifted_plus_circuit</span> <span class="o">=</span> <span class="n">bound_circuit</span><span class="o">.</span><span class="n">replace_gate</span><span class="p">(</span>
+                                <span class="n">gate_index</span><span class="p">,</span>
+                                <span class="n">PauliRotation</span><span class="p">(</span>
+                                    <span class="nb">list</span><span class="p">(</span><span class="n">bound_gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">),</span>
+                                    <span class="p">(</span>
+                                        <span class="n">bound_gate</span><span class="o">.</span><span class="n">qubits</span>
+                                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bound_gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                                        <span class="k">else</span> <span class="n">bound_gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                                    <span class="p">),</span>
+                                    <span class="n">bound_circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span>
+                                    <span class="n">param_expr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">param_value</span><span class="o">=</span><span class="n">current_angle</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+                                <span class="p">),</span>
+                            <span class="p">)</span>
+                            <span class="n">shifted_minus_circuit</span> <span class="o">=</span> <span class="n">bound_circuit</span><span class="o">.</span><span class="n">replace_gate</span><span class="p">(</span>
+                                <span class="n">gate_index</span><span class="p">,</span>
+                                <span class="n">PauliRotation</span><span class="p">(</span>
+                                    <span class="nb">list</span><span class="p">(</span><span class="n">bound_gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">),</span>
+                                    <span class="p">(</span>
+                                        <span class="n">bound_gate</span><span class="o">.</span><span class="n">qubits</span>
+                                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bound_gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span>
+                                        <span class="k">else</span> <span class="n">bound_gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                                    <span class="p">),</span>
+                                    <span class="n">bound_circuit</span><span class="o">.</span><span class="n">num_qubits</span><span class="p">,</span>
+                                    <span class="n">param_expr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                    <span class="n">param_value</span><span class="o">=</span><span class="n">current_angle</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+                                <span class="p">),</span>
+                            <span class="p">)</span>
+
+                            <span class="c1"># Defer the shifted evaluations to the batched call</span>
+                            <span class="n">shifted_circuits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">shifted_plus_circuit</span><span class="p">)</span>
+                            <span class="n">shifted_circuits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">shifted_minus_circuit</span><span class="p">)</span>
+                            <span class="n">circ_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">param_name</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">angle_derivative_value</span><span class="p">))</span>
+
+        <span class="c1"># Second pass: evaluate all collected jobs in two batched calls</span>
+        <span class="k">if</span> <span class="n">obs_jobs</span><span class="p">:</span>
+            <span class="n">obs_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">expectation_value</span><span class="p">(</span>
+                <span class="n">native_circuit</span><span class="p">,</span> <span class="p">[</span><span class="n">job</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">obs_jobs</span><span class="p">],</span> <span class="o">**</span><span class="n">parameter_values</span>
+            <span class="p">)</span>
+            <span class="n">obs_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">obs_values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">coeff_deriv_value</span><span class="p">,</span> <span class="n">_</span><span class="p">),</span> <span class="n">term_exp</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">obs_jobs</span><span class="p">,</span> <span class="n">obs_values</span><span class="p">):</span>
+                <span class="c1"># Contribution: (dcoeff/dparam) * &lt;Pauli&gt;</span>
+                <span class="n">gradient_lists</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span> <span class="o">+=</span> <span class="n">coeff_deriv_value</span> <span class="o">*</span> <span class="nb">float</span><span class="p">(</span><span class="n">term_exp</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">circ_jobs</span><span class="p">:</span>
+            <span class="n">circ_values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">expectation_value</span><span class="p">(</span>
+                <span class="n">shifted_circuits</span><span class="p">,</span> <span class="n">native_observable</span><span class="p">,</span> <span class="o">**</span><span class="n">parameter_values</span>
+            <span class="p">)</span>
+            <span class="n">circ_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">circ_values</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">job_index</span><span class="p">,</span> <span class="p">(</span><span class="n">param_name</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">angle_derivative_value</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">circ_jobs</span><span class="p">):</span>
+                <span class="n">exp_plus</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">circ_values</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">job_index</span><span class="p">])</span>
+                <span class="n">exp_minus</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">circ_values</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">job_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+                <span class="n">gate_gradient</span> <span class="o">=</span> <span class="p">(</span><span class="n">exp_plus</span> <span class="o">-</span> <span class="n">exp_minus</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+                <span class="n">gradient_lists</span><span class="p">[</span><span class="n">param_name</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span> <span class="o">+=</span> <span class="n">angle_derivative_value</span> <span class="o">*</span> <span class="n">gate_gradient</span>
+
+        <span class="c1"># Store gradient(s) for each parameter (same shapes as before)</span>
+        <span class="n">result_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">param_name</span><span class="p">,</span> <span class="n">gradients_for_param</span> <span class="ow">in</span> <span class="n">gradient_lists</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gradients_for_param</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">result_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">gradients_for_param</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result_dict</span><span class="p">[</span><span class="n">param_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">gradients_for_param</span><span class="p">)</span>
+
+        <span class="c1"># Return format based on number of parameters requested</span>
+        <span class="k">if</span> <span class="n">is_single_derivative</span><span class="p">:</span>
+            <span class="c1"># Return just the value for single parameter</span>
+            <span class="n">single_key</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">result_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">single_value</span> <span class="o">=</span> <span class="n">result_dict</span><span class="p">[</span><span class="n">single_key</span><span class="p">]</span>
+            <span class="c1"># For indexed format or array format</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">single_value</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">single_value</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,):</span>
+                    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">single_value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">return</span> <span class="n">single_value</span>
+            <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">single_value</span><span class="p">)</span>
+
+        <span class="c1"># For multiple parameters, group by base name if they&#39;re indexed</span>
+        <span class="n">final_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">result_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="s2">&quot;[&quot;</span> <span class="ow">in</span> <span class="n">key</span><span class="p">:</span>
+                <span class="c1"># Extract base name from indexed name</span>
+                <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(\w+)&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+                    <span class="n">base_name</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">base_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">final_dict</span><span class="p">:</span>
+                        <span class="n">final_dict</span><span class="p">[</span><span class="n">base_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="c1"># Extract index</span>
+                    <span class="n">idx_match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\[(\d+)\]&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">idx_match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="k">if</span> <span class="n">idx_match</span> <span class="k">else</span> <span class="mi">0</span>
+                    <span class="n">final_dict</span><span class="p">[</span><span class="n">base_name</span><span class="p">][</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Base name format</span>
+                <span class="n">final_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="c1"># Convert indexed dicts to arrays</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">grouped_value</span> <span class="ow">in</span> <span class="n">final_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grouped_value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">indices</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">grouped_value</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="n">final_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">grouped_value</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">])</span>
+
+        <span class="c1"># Return dictionary for multiple parameters</span>
+        <span class="k">return</span> <span class="n">final_dict</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_single_qubit_gate</span><span class="p">(</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">qubit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="n">tensor</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">nqubits</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="p">[</span><span class="n">qubit</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nqubits</span><span class="p">)</span> <span class="k">if</span> <span class="n">idx</span> <span class="o">!=</span> <span class="n">qubit</span><span class="p">]</span>
+        <span class="n">inv_perm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">perm</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">matrix</span> <span class="o">@</span> <span class="n">transformed</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">transformed</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">nqubits</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">transformed</span><span class="p">,</span> <span class="n">inv_perm</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">transformed</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_two_qubit_gate</span><span class="p">(</span>
+        <span class="n">state</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">qubit_a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">qubit_b</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">qubit_a</span> <span class="o">==</span> <span class="n">qubit_b</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Two-qubit gate requires distinct qubits.&quot;</span><span class="p">)</span>
+        <span class="n">tensor</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">nqubits</span><span class="p">)</span>
+        <span class="n">perm</span> <span class="o">=</span> <span class="p">[</span><span class="n">qubit_a</span><span class="p">,</span> <span class="n">qubit_b</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span>
+            <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nqubits</span><span class="p">)</span> <span class="k">if</span> <span class="n">idx</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">qubit_a</span><span class="p">,</span> <span class="n">qubit_b</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="n">inv_perm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">perm</span><span class="p">)</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">tensor</span><span class="p">,</span> <span class="n">perm</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">matrix</span> <span class="o">@</span> <span class="n">transformed</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">transformed</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">nqubits</span> <span class="o">-</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">transformed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">transformed</span><span class="p">,</span> <span class="n">inv_perm</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">transformed</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_angle</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve the angle value for a rotation gate.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            gate: PauliRotation gate</span>
+<span class="sd">            parameters: Dict mapping parameter names to values</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The resolved angle as a float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">gate</span><span class="o">.</span><span class="n">param_expr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">_evaluate_symbolic_expression</span><span class="p">(</span><span class="n">gate</span><span class="o">.</span><span class="n">param_expr</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">gate</span><span class="o">.</span><span class="n">param_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parametric gate has neither param_expr nor param_value.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">gate</span><span class="o">.</span><span class="n">param_value</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_simulate_statevector</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">circuit</span><span class="p">:</span> <span class="n">PauliPropagationCircuit</span><span class="p">,</span> <span class="n">parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="c1"># Normalize parameters from list format to indexed format</span>
+        <span class="n">normalized_params</span> <span class="o">=</span> <span class="n">_normalize_parameters</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+
+        <span class="n">nqubits</span> <span class="o">=</span> <span class="n">circuit</span><span class="o">.</span><span class="n">num_qubits</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">nqubits</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">state</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="n">j</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="n">j</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="n">j</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)]],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">)</span>
+
+        <span class="n">cnot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">cz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">complex</span><span class="p">)</span>
+        <span class="n">swap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="p">],</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="nb">complex</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">single_qubit_map</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;X&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s2">&quot;Y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">,</span> <span class="s2">&quot;Z&quot;</span><span class="p">:</span> <span class="n">z</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="n">h</span><span class="p">,</span> <span class="s2">&quot;S&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">,</span> <span class="s2">&quot;T&quot;</span><span class="p">:</span> <span class="n">t</span><span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">gate</span> <span class="ow">in</span> <span class="n">circuit</span><span class="o">.</span><span class="n">gates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">LayerBarrier</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">CliffordGate</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">gate</span><span class="o">.</span><span class="n">gate_type</span> <span class="ow">in</span> <span class="n">single_qubit_map</span><span class="p">:</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_single_qubit_gate</span><span class="p">(</span>
+                        <span class="n">state</span><span class="p">,</span> <span class="n">single_qubit_map</span><span class="p">[</span><span class="n">gate</span><span class="o">.</span><span class="n">gate_type</span><span class="p">],</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nqubits</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">gate</span><span class="o">.</span><span class="n">gate_type</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;CNOT&quot;</span><span class="p">,</span> <span class="s2">&quot;CX&quot;</span><span class="p">]:</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_two_qubit_gate</span><span class="p">(</span>
+                        <span class="n">state</span><span class="p">,</span> <span class="n">cnot</span><span class="p">,</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nqubits</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">gate</span><span class="o">.</span><span class="n">gate_type</span> <span class="o">==</span> <span class="s2">&quot;CZ&quot;</span><span class="p">:</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_two_qubit_gate</span><span class="p">(</span>
+                        <span class="n">state</span><span class="p">,</span> <span class="n">cz</span><span class="p">,</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nqubits</span>
+                    <span class="p">)</span>
+                <span class="k">elif</span> <span class="n">gate</span><span class="o">.</span><span class="n">gate_type</span> <span class="o">==</span> <span class="s2">&quot;SWAP&quot;</span><span class="p">:</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_two_qubit_gate</span><span class="p">(</span>
+                        <span class="n">state</span><span class="p">,</span> <span class="n">swap</span><span class="p">,</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nqubits</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported Clifford gate type: </span><span class="si">{</span><span class="n">gate</span><span class="o">.</span><span class="n">gate_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">PauliRotation</span><span class="p">):</span>
+                <span class="n">theta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_angle</span><span class="p">(</span><span class="n">gate</span><span class="p">,</span> <span class="n">normalized_params</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">pauli</span> <span class="o">=</span> <span class="n">single_qubit_map</span><span class="p">[</span><span class="n">gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                    <span class="n">rotation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">pauli</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_single_qubit_gate</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">rotation</span><span class="p">,</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nqubits</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">pauli_a</span> <span class="o">=</span> <span class="n">single_qubit_map</span><span class="p">[</span><span class="n">gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                    <span class="n">pauli_b</span> <span class="o">=</span> <span class="n">single_qubit_map</span><span class="p">[</span><span class="n">gate</span><span class="o">.</span><span class="n">symbols</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+                    <span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">kron</span><span class="p">(</span><span class="n">pauli_a</span><span class="p">,</span> <span class="n">pauli_b</span><span class="p">)</span>
+                    <span class="n">rotation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="n">j</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">generator</span>
+                    <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_two_qubit_gate</span><span class="p">(</span>
+                        <span class="n">state</span><span class="p">,</span> <span class="n">rotation</span><span class="p">,</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gate</span><span class="o">.</span><span class="n">qubits</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">nqubits</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only 1- and 2-qubit Pauli rotations are supported.&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported gate object in circuit: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">gate</span><span class="p">)</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">state</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circuit</span><span class="p">,</span> <span class="o">**</span><span class="n">parameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="n">List</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sample measurement outcomes from quantum circuit execution.</span>
+
+<span class="sd">        Accepts both the library&#39;s QuantumCircuit wrapper and raw Qiskit types.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            circuit: Quantum circuit(s) to sample from</span>
+<span class="sd">            **parameters: Parameter values</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary mapping bitstrings to counts (or list for batch execution)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">is_single</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+        <span class="n">circuits</span> <span class="o">=</span> <span class="n">_as_list</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">PauliPropagationCircuit</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s2">&quot;PauliPropagationExecutor expects PauliPropagationCircuit inputs only.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="n">sv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_simulate_statevector</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+            <span class="c1"># Compute probabilities</span>
+            <span class="n">probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">sv</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">probs</span> <span class="o">=</span> <span class="n">probs</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">probs</span><span class="p">)</span>  <span class="c1"># Normalize to handle numerical errors</span>
+
+            <span class="c1"># Determine number of shots</span>
+            <span class="n">shots</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shots</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">1024</span>
+
+            <span class="c1"># Sample from probability distribution</span>
+            <span class="n">nqubits</span> <span class="o">=</span> <span class="n">circ</span><span class="o">.</span><span class="n">num_qubits</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sv</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">shots</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probs</span><span class="p">)</span>
+
+            <span class="c1"># Convert indices to bitstrings and count</span>
+            <span class="n">counts</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">:</span>
+                <span class="n">bitstring</span> <span class="o">=</span> <span class="nb">format</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;0</span><span class="si">{</span><span class="n">nqubits</span><span class="si">}</span><span class="s2">b&quot;</span><span class="p">)</span>
+                <span class="n">counts</span><span class="p">[</span><span class="n">bitstring</span><span class="p">]</span> <span class="o">=</span> <span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">bitstring</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">is_single</span> <span class="k">else</span> <span class="n">results</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_statevector</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circuit</span><span class="p">,</span> <span class="o">**</span><span class="n">parameters</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute statevector from circuit execution.</span>
+
+<span class="sd">        Accepts both the library&#39;s QuantumCircuit wrapper and raw Qiskit types.</span>
+
+<span class="sd">        Note: This implementation uses Qiskit&#39;s statevector simulator as a fallback</span>
+<span class="sd">        since extracting full complex amplitudes from Pauli propagation alone</span>
+<span class="sd">        requires additional phase information that is non-trivial to obtain.</span>
+
+<span class="sd">        WARNING: Exponentially expensive for large qubit counts.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            circuit: Quantum circuit(s)</span>
+<span class="sd">            **parameters: Parameter values</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Statevector as complex numpy array (or list of arrays for batch)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">is_single</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circuit</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+        <span class="n">circuits</span> <span class="o">=</span> <span class="n">_as_list</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+
+        <span class="n">statevectors</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">circ</span> <span class="ow">in</span> <span class="n">circuits</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">PauliPropagationCircuit</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="s2">&quot;PauliPropagationExecutor expects PauliPropagationCircuit inputs only.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="n">nqubits</span> <span class="o">=</span> <span class="n">circ</span><span class="o">.</span><span class="n">num_qubits</span>
+
+            <span class="c1"># Warn for large systems</span>
+            <span class="k">if</span> <span class="n">nqubits</span> <span class="o">&gt;</span> <span class="mi">15</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Computing statevector for </span><span class="si">{</span><span class="n">nqubits</span><span class="si">}</span><span class="s2"> qubits requires a &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="mi">2</span><span class="o">**</span><span class="n">nqubits</span><span class="si">}</span><span class="s2">-dimensional vector. This may be slow and memory-intensive.&quot;</span><span class="p">,</span>
+                    <span class="ne">RuntimeWarning</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="n">statevectors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_simulate_statevector</span><span class="p">(</span><span class="n">circ</span><span class="p">,</span> <span class="n">parameters</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">statevectors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">is_single</span> <span class="k">else</span> <span class="n">statevectors</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transpile_circuit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">circuit</span><span class="p">:</span> <span class="n">QuantumCircuitBase</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationCircuit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transpile a circuit to PauliPropagationCircuit format.</span>
+
+<span class="sd">        Accepts both native PauliPropagationCircuit and generic QuantumCircuit types.</span>
+<span class="sd">        If a generic QuantumCircuit is provided, it is converted from its internal</span>
+<span class="sd">        Qiskit representation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            circuit (QuantumCircuitBase): Circuit to transpile (native or generic)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            PauliPropagationCircuit: Transpiled circuit in native format</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: If circuit type is not supported</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">PauliPropagationCircuit</span><span class="o">.</span><span class="n">from_quantum_circuit</span><span class="p">(</span><span class="n">circuit</span><span class="p">)</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transpile_operator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">QuantumOperatorBase</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationOperator</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transpile_operator</span><span class="p">(</span>  <span class="c1"># pylint: disable=arguments-differ</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">QuantumOperatorBase</span><span class="p">,</span>
+        <span class="n">symmetry_strategy</span><span class="p">:</span> <span class="n">SymmetryStrategy</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationOperator</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transpile_operator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumOperatorBase</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">PauliPropagationOperator</span><span class="p">]:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transpile_operator</span><span class="p">(</span>  <span class="c1"># pylint: disable=arguments-differ</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumOperatorBase</span><span class="p">],</span>
+        <span class="n">symmetry_strategy</span><span class="p">:</span> <span class="n">SymmetryStrategy</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">PauliPropagationOperator</span><span class="p">]:</span> <span class="o">...</span>
+
+<div class="viewcode-block" id="PauliPropagationExecutor.transpile_operator">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.transpile_operator">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transpile_operator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">QuantumOperatorBase</span> <span class="o">|</span> <span class="n">List</span><span class="p">[</span><span class="n">QuantumOperatorBase</span><span class="p">],</span>
+        <span class="n">symmetry_strategy</span><span class="p">:</span> <span class="n">SymmetryStrategy</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationOperator</span> <span class="o">|</span> <span class="n">List</span><span class="p">[</span><span class="n">PauliPropagationOperator</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Transpile the operator for execution on Pauli Propagation backend.</span>
+
+<span class="sd">        Accepts both native PauliPropagationOperator and generic QuantumOperator types.</span>
+<span class="sd">        When a list of operators is provided, each operator is transpiled and cached individually.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            operator (QuantumOperatorBase | List[QuantumOperatorBase]): The</span>
+<span class="sd">                quantum operator or a list of operators to transpile.</span>
+<span class="sd">            symmetry_strategy (SymmetryStrategy | None): Strategy for symmetry handling.</span>
+<span class="sd">                If provided, takes precedence over executor-level default.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            PauliPropagationOperator | List[PauliPropagationOperator]: The</span>
+<span class="sd">                transpiled operator(s) in native format.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Transpiling operator&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_transpile_operator_cached</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">symmetry_strategy</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">operator</span> <span class="ow">in</span> <span class="n">operator</span>
+            <span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transpile_operator_cached</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">symmetry_strategy</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transpile_operator_cached</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">QuantumOperatorBase</span><span class="p">,</span>
+        <span class="n">symmetry_strategy</span><span class="p">:</span> <span class="n">SymmetryStrategy</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationOperator</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_result_key</span><span class="p">(</span><span class="s2">&quot;transpile_operator&quot;</span><span class="p">,</span> <span class="n">operator</span><span class="p">,</span> <span class="n">symmetry_strategy</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Result cache hit for transpile_operator&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transpile_operator_with_symmetry</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">symmetry_strategy</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_result_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="k">return</span> <span class="n">result</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transpile_operator_with_symmetry</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">symmetry_strategy</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transpile_operator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">operator</span><span class="p">:</span> <span class="n">QuantumOperatorBase</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationOperator</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transpile_operator_with_symmetry</span><span class="p">(</span><span class="n">operator</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transpile_operator_with_symmetry</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">operator</span><span class="p">:</span> <span class="n">QuantumOperatorBase</span><span class="p">,</span>
+        <span class="n">symmetry_strategy</span><span class="p">:</span> <span class="n">SymmetryStrategy</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PauliPropagationOperator</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transpile an operator to PauliPropagationOperator format.</span>
+
+<span class="sd">        Accepts both native PauliPropagationOperator and generic QuantumOperator types.</span>
+<span class="sd">        If symmetry_strategy is provided, it takes precedence and is assigned to the</span>
+<span class="sd">        operator. Otherwise, falls back to the executor&#39;s default symmetry_strategy.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            operator (QuantumOperatorBase): Operator to transpile (native or generic)</span>
+<span class="sd">            symmetry_strategy (object | None): Symmetry strategy to assign. If None,</span>
+<span class="sd">                uses executor-level default (self.symmetry_strategy)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            PauliPropagationOperator: Transpiled operator in native format</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: If operator type is not supported</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">effective_symmetry</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">symmetry_strategy</span> <span class="k">if</span> <span class="n">symmetry_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_strategy</span>
+        <span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">PauliPropagationOperator</span><span class="o">.</span><span class="n">from_quantum_operator</span><span class="p">(</span><span class="n">operator</span><span class="p">,</span> <span class="n">effective_symmetry</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">has_active_symmetry</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">symmetry</span> <span class="o">=</span> <span class="n">effective_symmetry</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+<div class="viewcode-block" id="PauliPropagationExecutor.get_truncation_stats">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.get_truncation_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_truncation_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TruncationStats</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get statistics from last truncation operation.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            TruncationStats from most recent execution, or None if no truncation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_truncation_stats</span></div>
+
+
+<div class="viewcode-block" id="PauliPropagationExecutor.get_accepted_backend_types">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_types">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_accepted_backend_types</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">type</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return all object types accepted as backend in factory auto-detection.</span>
+
+<span class="sd">        PauliPropagationExecutor does not accept backend objects during initialization.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="PauliPropagationExecutor.get_accepted_backend_aliases">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PauliPropagationExecutor.get_accepted_backend_aliases">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_accepted_backend_aliases</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return string aliases accepted by this executor in ``Executor.create``.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+</div>
+
+</pre></div>
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="../../../_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="../../../_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+    </aside>
+  </div>
+</body>
+</html>

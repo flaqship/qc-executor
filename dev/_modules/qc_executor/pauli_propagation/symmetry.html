@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qc_executor.pauli_propagation.symmetry</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="../../../_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="../../../_static/favicon.png"><script src="../../../_static/documentation_options.js?v=01f34227"></script><script src="../../../_static/doctools.js?v=fd6eb6e6"></script><script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="../../../index.html">
+    <img class="fq-logo fq-logo--light" src="../../../_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="../../../_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../../../../versions.json"
+           data-current-version="dev"
+           data-pagename="_modules/qc_executor/pauli_propagation/symmetry">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="../../../index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="../../../_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="../../../_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <h1>Source code for qc_executor.pauli_propagation.symmetry</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Symmetry strategies for Pauli propagation.</span>
+
+<span class="sd">This module defines pluggable strategies that map Pauli terms to canonical</span>
+<span class="sd">representatives so equivalent terms can be merged during propagation.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+
+
+<div class="viewcode-block" id="SymmetryStrategy">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.SymmetryStrategy">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SymmetryStrategy</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstract base class for symmetry strategies.</span>
+
+<span class="sd">    Symmetry strategies define how Pauli terms are grouped into equivalence</span>
+<span class="sd">    classes. Each strategy must implement canonical_representative() to map</span>
+<span class="sd">    a Pauli term to its canonical form.</span>
+
+<span class="sd">    Canonical Representative:</span>
+<span class="sd">        A unique representative element from each equivalence class under the</span>
+<span class="sd">        symmetry transformation. Terms with the same canonical representative</span>
+<span class="sd">        are considered equivalent and can be merged (coefficients summed).</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        For qubit permutation symmetry, the strings XXY, XYX, YXX all have</span>
+<span class="sd">        the same multiset {X, X, Y} and should map to the same canonical form.</span>
+
+<span class="sd">    Implementation Notes:</span>
+<span class="sd">        - Pauli terms are encoded as integers (2 bits per qubit)</span>
+<span class="sd">        - Encoding: I=00, X=01, Y=10, Z=11 (little-endian)</span>
+<span class="sd">        - canonical_representative() must be deterministic</span>
+<span class="sd">        - canonical_representative() should be fast (called many times)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SymmetryStrategy.canonical_representative">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.SymmetryStrategy.canonical_representative">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">canonical_representative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute canonical representative of a Pauli term.</span>
+
+<span class="sd">        Maps a Pauli term to its canonical form under this symmetry.</span>
+<span class="sd">        All terms in the same equivalence class must map to the same canonical.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            term: Pauli term encoded as integer (2 bits per qubit, little-endian)</span>
+<span class="sd">            nqubits: Number of qubits</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Canonical representative (integer, same encoding as input)</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return human-readable name of this symmetry strategy.</span>
+
+<span class="sd">        Used for debugging, logging, and statistics tracking.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="NoSymmetry">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.NoSymmetry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NoSymmetry</span><span class="p">(</span><span class="n">SymmetryStrategy</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Identity symmetry strategy (no merging).</span>
+
+<span class="sd">    This strategy performs no merging - each Pauli term is its own canonical</span>
+<span class="sd">    representative. Used as the default symmetry when no specific symmetry</span>
+<span class="sd">    is requested.</span>
+
+<span class="sd">    Useful for:</span>
+<span class="sd">        - Backward compatibility (default behavior)</span>
+<span class="sd">        - Baseline comparisons (measuring impact of symmetry merging)</span>
+<span class="sd">        - Debugging (disable merging without changing code structure)</span>
+
+<span class="sd">    Performance:</span>
+<span class="sd">        - O(1) per canonical call (identity function)</span>
+<span class="sd">        - Zero computational overhead</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="NoSymmetry.canonical_representative">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.NoSymmetry.canonical_representative">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">canonical_representative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return term unchanged (identity function).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            term: Pauli term encoded as integer</span>
+<span class="sd">            nqubits: Number of qubits (unused)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            The input term unchanged</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">term</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return &#39;no_symmetry&#39; as identifier.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;no_symmetry&quot;</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_decode_pauli_to_string</span><span class="p">(</span><span class="n">term</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert Pauli term integer to human-readable string.</span>
+
+<span class="sd">    Helper function for debugging and testing. Delegates to</span>
+<span class="sd">    :func:`~qc_executor.pauli_propagation.utils.pauli_algebra.term_to_string` so</span>
+<span class="sd">    that the qubit-ordering convention is defined in a single place.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        term: Pauli term encoded as integer</span>
+<span class="sd">        nqubits: Number of qubits</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Human-readable Pauli string (e.g., &quot;ZYXI&quot;, qubit 0 is leftmost)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Imported lazily to avoid a circular import with the utils package.</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.utils.pauli_algebra</span><span class="w"> </span><span class="kn">import</span> <span class="n">term_to_string</span>  <span class="c1"># pylint: disable=import-outside-toplevel</span>
+
+    <span class="k">return</span> <span class="n">term_to_string</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PermutationSymmetry">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PermutationSymmetry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PermutationSymmetry</span><span class="p">(</span><span class="n">SymmetryStrategy</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Qubit permutation symmetry (S_n) using sorted multiset canonical form.</span>
+
+<span class="sd">    Groups Pauli terms that differ only by qubit permutations. The canonical</span>
+<span class="sd">    representative is the term with Paulis sorted lexicographically (I &lt; X &lt; Y &lt; Z).</span>
+
+<span class="sd">    Mathematical Background:</span>
+<span class="sd">        Two Pauli strings P and Q are in the same orbit under S_n (symmetric group</span>
+<span class="sd">        of n elements) if they have the same multiset of local Pauli operators.</span>
+
+<span class="sd">        Example: XXY, XYX, YXX all have multiset {X, X, Y} → same orbit</span>
+
+<span class="sd">    Implementation:</span>
+<span class="sd">        Uses O(n) bit manipulation without lookup tables. Canonical form is computed</span>
+<span class="sd">        by counting occurrences of each Pauli type and reconstructing in sorted order.</span>
+
+<span class="sd">    Algorithm Complexity:</span>
+<span class="sd">        Time: O(n) per canonical computation (one pass to count, one to reconstruct)</span>
+<span class="sd">        Space: O(1) (fixed-size counter array [4])</span>
+
+<span class="sd">    Scales efficiently to 100+ qubits.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; sym = PermutationSymmetry()</span>
+<span class="sd">        &gt;&gt;&gt; # Encode XXY, XYX, YXX at 3 qubits</span>
+<span class="sd">        &gt;&gt;&gt; term1 = 0x05  # XXY binary: 010001</span>
+<span class="sd">        &gt;&gt;&gt; term2 = 0x09  # XYX binary: 100001</span>
+<span class="sd">        &gt;&gt;&gt; term3 = 0x06  # YXX binary: 000110</span>
+<span class="sd">        &gt;&gt;&gt; sym.canonical_representative(term1, 3)  # All map to same value</span>
+<span class="sd">        &gt;&gt;&gt; sym.canonical_representative(term2, 3)</span>
+<span class="sd">        &gt;&gt;&gt; sym.canonical_representative(term3, 3)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PermutationSymmetry.canonical_representative">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.PermutationSymmetry.canonical_representative">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">canonical_representative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute canonical Pauli term under qubit permutations.</span>
+
+<span class="sd">        The canonical form is reconstructed from the multiset of local Pauli</span>
+<span class="sd">        symbols in sorted order ``I &lt; X &lt; Y &lt; Z``.</span>
+
+<span class="sd">        Uses whole-word popcounts to count Pauli types and repeated-pattern</span>
+<span class="sd">        arithmetic to reconstruct the sorted form, so the cost is O(1) word</span>
+<span class="sd">        operations instead of a per-qubit Python loop.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            term: Pauli term encoded as integer (2 bits per qubit, little-endian).</span>
+<span class="sd">            nqubits: Number of qubits.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Canonical representative as integer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Step 1: Count occurrences of each Pauli type via the low/high bit</span>
+        <span class="c1"># planes of the 2-bit encoding (X=01, Y=10, Z=11).</span>
+        <span class="n">term</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">term</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">nqubits</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">3</span>  <span class="c1"># 0b0101...01, one per qubit</span>
+        <span class="n">low</span> <span class="o">=</span> <span class="n">term</span> <span class="o">&amp;</span> <span class="n">mask</span>
+        <span class="n">high</span> <span class="o">=</span> <span class="p">(</span><span class="n">term</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">mask</span>
+
+        <span class="n">n_z</span> <span class="o">=</span> <span class="p">(</span><span class="n">low</span> <span class="o">&amp;</span> <span class="n">high</span><span class="p">)</span><span class="o">.</span><span class="n">bit_count</span><span class="p">()</span>
+        <span class="n">n_x</span> <span class="o">=</span> <span class="p">(</span><span class="n">low</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">high</span> <span class="o">&amp;</span> <span class="n">mask</span><span class="p">)</span><span class="o">.</span><span class="n">bit_count</span><span class="p">()</span>
+        <span class="n">n_y</span> <span class="o">=</span> <span class="p">(</span><span class="n">high</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">low</span> <span class="o">&amp;</span> <span class="n">mask</span><span class="p">)</span><span class="o">.</span><span class="n">bit_count</span><span class="p">()</span>
+        <span class="n">n_i</span> <span class="o">=</span> <span class="n">nqubits</span> <span class="o">-</span> <span class="n">n_x</span> <span class="o">-</span> <span class="n">n_y</span> <span class="o">-</span> <span class="n">n_z</span>
+
+        <span class="c1"># Step 2: Reconstruct with I&#39;s first, then X&#39;s, Y&#39;s, Z&#39;s. A run of k</span>
+        <span class="c1"># identical Paulis p is p * 0b0101...01 (k pairs) = p * (4^k - 1) / 3.</span>
+        <span class="n">run_x</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n_x</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">3</span>
+        <span class="n">run_y</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n_y</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">3</span>
+        <span class="n">run_z</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n_z</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">3</span>
+
+        <span class="n">canonical</span> <span class="o">=</span> <span class="n">run_x</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n_i</span><span class="p">)</span>
+        <span class="n">canonical</span> <span class="o">|=</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">run_y</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_i</span> <span class="o">+</span> <span class="n">n_x</span><span class="p">))</span>
+        <span class="n">canonical</span> <span class="o">|=</span> <span class="p">(</span><span class="mi">3</span> <span class="o">*</span> <span class="n">run_z</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_i</span> <span class="o">+</span> <span class="n">n_x</span> <span class="o">+</span> <span class="n">n_y</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">canonical</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return &#39;permutation&#39; as identifier.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;permutation&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="CompositeSymmetry">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.CompositeSymmetry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CompositeSymmetry</span><span class="p">(</span><span class="n">SymmetryStrategy</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compose multiple symmetry strategies.</span>
+
+<span class="sd">    Applies multiple symmetry strategies sequentially to compute the final</span>
+<span class="sd">    canonical representative. The result of strategy i becomes the input to</span>
+<span class="sd">    strategy i+1.</span>
+
+<span class="sd">    Use Cases:</span>
+<span class="sd">        - Combine multiple independent symmetries (e.g., permutation + point group)</span>
+<span class="sd">        - Layer symmetries with different granularities</span>
+<span class="sd">        - Experimental symmetry compositions for research</span>
+
+<span class="sd">    Implementation:</span>
+<span class="sd">        Strategies are applied in the order they are provided to __init__().</span>
+<span class="sd">        For commuting symmetries, order doesn&#39;t matter. For non-commuting</span>
+<span class="sd">        symmetries, different orders may give different canonical forms.</span>
+
+<span class="sd">    Performance:</span>
+<span class="sd">        Time: Sum of individual strategy times</span>
+<span class="sd">        Space: O(1) beyond storage of strategy references</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; perm_sym = PermutationSymmetry()</span>
+<span class="sd">        &gt;&gt;&gt; point_group_sym = PointGroupSymmetry()  # hypothetical</span>
+<span class="sd">        &gt;&gt;&gt; composite = CompositeSymmetry(perm_sym, point_group_sym)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Applies permutation symmetry first, then point group</span>
+<span class="sd">        &gt;&gt;&gt; canonical = composite.canonical_representative(term, nqubits)</span>
+
+<span class="sd">    Notes:</span>
+<span class="sd">        - Empty CompositeSymmetry (no strategies) acts as NoSymmetry</span>
+<span class="sd">        - Single strategy behaves identically to using that strategy alone</span>
+<span class="sd">        - Ordering matters only if symmetries don&#39;t commute</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">strategies</span><span class="p">:</span> <span class="n">SymmetryStrategy</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize composite symmetry with multiple strategies.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            *strategies: Variable number of SymmetryStrategy instances to compose</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">strategies</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">strategies</span><span class="p">)</span>  <span class="c1"># Convert tuple to list</span>
+
+<div class="viewcode-block" id="CompositeSymmetry.canonical_representative">
+<a class="viewcode-back" href="../../../api/generated/qc_executor.pauli_propagation.html#qc_executor.pauli_propagation.CompositeSymmetry.canonical_representative">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">canonical_representative</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">term</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply all configured strategies sequentially.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            term: Pauli term encoded as integer.</span>
+<span class="sd">            nqubits: Number of qubits.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Canonical representative after all strategies are applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">canonical</span> <span class="o">=</span> <span class="n">term</span>
+        <span class="k">for</span> <span class="n">strategy</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">strategies</span><span class="p">:</span>
+            <span class="n">canonical</span> <span class="o">=</span> <span class="n">strategy</span><span class="o">.</span><span class="n">canonical_representative</span><span class="p">(</span><span class="n">canonical</span><span class="p">,</span> <span class="n">nqubits</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">canonical</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return composite name listing all strategies.</span>
+
+<span class="sd">        Format: &#39;composite(strategy1 + strategy2 + ...)&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">strategies</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;composite(empty)&quot;</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="s2">&quot; + &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">strategies</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;composite(</span><span class="si">{</span><span class="n">names</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+</pre></div>
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="../../../_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="../../../_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+    </aside>
+  </div>
+</body>
+</html>

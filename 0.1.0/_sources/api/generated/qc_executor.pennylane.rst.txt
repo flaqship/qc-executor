@@ -1,0 +1,65 @@
+﻿pennylane
+=========
+
+.. module:: qc_executor.pennylane
+
+
+
+Dependencies
+------------
+
+Install with ``pip install qc-executor[pennylane]``. Requires:
+
+* ``pennylane>=0.34.0``
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Executor
+--------
+
+.. autoclass:: PennyLaneExecutor
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+
+Native abstraction
+------------------
+
+Circuit
+~~~~~~~
+
+.. autoclass:: PennyLaneCircuit
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+Operator
+~~~~~~~~
+
+.. autoclass:: PennyLaneOperator
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+

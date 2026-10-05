@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qc_executor.factory</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="../../_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="../../_static/favicon.png"><script src="../../_static/documentation_options.js?v=01f34227"></script><script src="../../_static/doctools.js?v=fd6eb6e6"></script><script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="../../index.html">
+    <img class="fq-logo fq-logo--light" src="../../_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="../../_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.1.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../../../versions.json"
+           data-current-version="dev"
+           data-pagename="_modules/qc_executor/factory">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="../../index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="../../_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="../../_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../usage/index.html#common-operations">Common operations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api/index.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../api/index.html#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/index.html#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/index.html#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/index.html#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/index.html#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/index.html#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/index.html#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/index.html#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../api/index.html#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <h1>Source code for qc_executor.factory</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Factory class for creating executor instances with plugin support.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">importlib.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">entry_points</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">cast</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.base.executor_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExecutorBase</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Executor">
+<a class="viewcode-back" href="../../api/index.html#qc_executor.factory.Executor">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Executor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory class for creating executor instances based on backend name.</span>
+
+<span class="sd">    This class provides a plugin-based architecture for executor backends.</span>
+<span class="sd">    Backends can be registered using the @Executor.register() decorator or</span>
+<span class="sd">    discovered automatically via entry points.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; executor = Executor.create(&quot;qiskit&quot;, shots=1024)</span>
+<span class="sd">        &gt;&gt;&gt; backends = Executor.available_backends()</span>
+<span class="sd">        &gt;&gt;&gt; print(backends)  # [&#39;qiskit&#39;, &#39;pennylane&#39;, &#39;qulacs&#39;]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_registry</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Type</span><span class="p">[</span><span class="s2">&quot;ExecutorBase&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">_backend_alias_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">_alias_registry_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">_plugins_discovered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_backend_extra_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;qiskit&quot;</span><span class="p">:</span> <span class="s2">&quot;qiskit-full&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;pennylane&quot;</span><span class="p">:</span> <span class="s2">&quot;pennylane&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;qulacs&quot;</span><span class="p">:</span> <span class="s2">&quot;qulacs&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;pauli_propagation&quot;</span><span class="p">:</span> <span class="s2">&quot;pauli_propagation&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Executor cannot be instantiated. Use Executor.create() instead.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Executor cannot be instantiated directly. &quot;</span>
+            <span class="s2">&quot;Use Executor.create(backend_name, **kwargs) instead.&quot;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="Executor.register">
+<a class="viewcode-back" href="../../api/index.html#qc_executor.factory.Executor.register">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Type</span><span class="p">[</span><span class="s2">&quot;ExecutorBase&quot;</span><span class="p">]],</span> <span class="n">Type</span><span class="p">[</span><span class="s2">&quot;ExecutorBase&quot;</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decorator to register a backend implementation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            name: The name of the backend (e.g., &quot;qiskit&quot;, &quot;pennylane&quot;, &quot;qulacs&quot;)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Decorator function that registers the backend class</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            TypeError: If the decorated class does not inherit from ExecutorBase</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; @Executor.register(&quot;qiskit&quot;)</span>
+<span class="sd">            ... class QiskitExecutor(ExecutorBase):</span>
+<span class="sd">            ...     pass</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">backend_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="s2">&quot;ExecutorBase&quot;</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Type</span><span class="p">[</span><span class="s2">&quot;ExecutorBase&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">backend_class</span><span class="p">,</span> <span class="n">ExecutorBase</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">backend_class</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> must inherit from ExecutorBase &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;to be registered as a backend&quot;</span>
+                <span class="p">)</span>
+
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend_class</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_index_backend_aliases</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">backend_class</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_alias_registry_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Registered backend &#39;</span><span class="si">%s</span><span class="s2">&#39;: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">backend_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">backend_class</span>
+
+        <span class="k">return</span> <span class="n">decorator</span></div>
+
+
+<div class="viewcode-block" id="Executor.create">
+<a class="viewcode-back" href="../../api/index.html#qc_executor.factory.Executor.create">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ExecutorBase&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an executor instance for the specified backend.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            target: Name of the backend (e.g., &quot;qiskit&quot;, &quot;pennylane&quot;, &quot;qulacs&quot;).</span>
+<span class="sd">                May also be a Qiskit ``Backend`` / ``BackendV2`` instance, in</span>
+<span class="sd">                which case the ``&quot;qiskit&quot;`` executor is used automatically and</span>
+<span class="sd">                the object is forwarded as ``backend=&lt;instance&gt;``.</span>
+<span class="sd">            **kwargs: Configuration parameters passed to the backend constructor</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            An instance of the requested backend executor</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If the backend is not found or not installed</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; executor = Executor.create(&quot;qiskit&quot;, shots=1024, seed=42)</span>
+<span class="sd">            &gt;&gt;&gt; executor = Executor.create(&quot;pennylane&quot;, shots=1000)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Try discovering plugins if not done yet</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_plugins_discovered</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_discover_plugins</span><span class="p">()</span>
+
+        <span class="c1"># Keep alias map in sync if tests or callers manipulated _registry directly.</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_ensure_alias_map_consistency</span><span class="p">()</span>
+
+        <span class="c1"># String path: look up in registry and create instance</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">target_alias</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_normalize_backend_alias</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+            <span class="c1"># Exact backend names take precedence over aliases.</span>
+            <span class="k">if</span> <span class="n">target</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="p">:</span>
+                <span class="n">backend_class</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="p">[</span><span class="n">target</span><span class="p">]</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating </span><span class="si">%s</span><span class="s2"> with config: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">backend_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">backend_class</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="n">alias_backend_name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_alias</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">alias_backend_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">backend_class</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">alias_backend_name</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">backend_class</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="bp">cls</span><span class="o">.</span><span class="n">_rebuild_backend_alias_map</span><span class="p">()</span>
+                    <span class="n">alias_backend_name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_alias</span><span class="p">)</span>
+                    <span class="n">backend_class</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">alias_backend_name</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">alias_backend_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                        <span class="k">else</span> <span class="kc">None</span>
+                    <span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">backend_class</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s2">&quot;backend&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="s2">&quot;Conflicting &#39;backend&#39; argument: the backend was specified &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;both via alias routing (&#39;</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&#39;) and explicitly in &quot;</span>
+                            <span class="s2">&quot;**kwargs. Please specify the backend only once.&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                        <span class="s2">&quot;Routing string target &#39;</span><span class="si">%s</span><span class="s2">&#39; to backend &#39;</span><span class="si">%s</span><span class="s2">&#39; via alias.&quot;</span><span class="p">,</span>
+                        <span class="n">target</span><span class="p">,</span>
+                        <span class="n">alias_backend_name</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">return</span> <span class="n">backend_class</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">target_alias</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+            <span class="k">raise</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_build_backend_not_found_error</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">target_alias</span><span class="p">)</span>
+
+        <span class="c1"># Non-string path: auto-detect executor from accepted_types</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">executor_class</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">accepted</span> <span class="o">=</span> <span class="n">executor_class</span><span class="o">.</span><span class="n">get_accepted_backend_types</span><span class="p">()</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">NotImplementedError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;get_accepted_backend_types() failed for &#39;</span><span class="si">%s</span><span class="s2">&#39;; skipping.&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">accepted</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;Auto-detected backend &#39;</span><span class="si">%s</span><span class="s2">&#39; for object of type </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span>
+                    <span class="n">name</span><span class="p">,</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">return</span> <span class="n">executor_class</span><span class="p">(</span><span class="n">backend</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># No plugin matched — produce a helpful error message</span>
+        <span class="n">accepted_summary</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">name</span><span class="p">:</span> <span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">executor_class</span><span class="o">.</span><span class="n">get_accepted_backend_types</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">executor_class</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">executor_class</span><span class="o">.</span><span class="n">get_accepted_backend_types</span><span class="p">()</span>
+        <span class="p">}</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;No registered executor accepts an object of type &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="o">.</span><span class="vm">__qualname__</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Pass the backend name as a string instead, or install the &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;matching plugin.</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Accepted types per backend: </span><span class="si">{</span><span class="n">accepted_summary</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span></div>
+
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_discover_plugins</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Discover and load plugins via entry points.</span>
+
+<span class="sd">        This method searches for entry points in the &#39;qc_executor.backends&#39; group</span>
+<span class="sd">        and loads them. Loading a plugin module triggers its @register decorator,</span>
+<span class="sd">        which adds the backend to the registry.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_plugins_discovered</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Get entry points for executor backends</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Python 3.10+ API: supports group keyword argument</span>
+            <span class="n">eps</span> <span class="o">=</span> <span class="n">entry_points</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="s2">&quot;qc_executor.backends&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="c1"># Python &lt; 3.10: entry_points() returns a dict-like mapping</span>
+            <span class="n">_all_eps</span> <span class="o">=</span> <span class="n">entry_points</span><span class="p">()</span>
+            <span class="n">_select</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_all_eps</span><span class="p">,</span> <span class="s2">&quot;select&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">_select</span><span class="p">):</span>
+                <span class="n">eps</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">_select</span><span class="p">(</span><span class="n">group</span><span class="o">=</span><span class="s2">&quot;qc_executor.backends&quot;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">eps</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+                    <span class="nb">list</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_all_eps</span><span class="p">,</span> <span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="o">*</span><span class="n">a</span><span class="p">:</span> <span class="p">[])(</span><span class="s2">&quot;qc_executor.backends&quot;</span><span class="p">,</span> <span class="p">[])</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Load each entry point</span>
+        <span class="k">for</span> <span class="n">ep</span> <span class="ow">in</span> <span class="n">eps</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loading plugin entry point: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ep</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                <span class="n">ep</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>  <span class="c1"># This triggers the @register decorator</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Failed to load plugin &#39;</span><span class="si">%s</span><span class="s2">&#39;: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ep</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_backend_not_found_error</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">target_alias</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="ne">ValueError</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a helpful ValueError for an unrecognised backend name.&quot;&quot;&quot;</span>
+        <span class="n">available</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">available_backends</span><span class="p">()</span>
+        <span class="n">available_str</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">available</span><span class="p">)</span> <span class="k">if</span> <span class="n">available</span> <span class="k">else</span> <span class="s2">&quot;none&quot;</span>
+        <span class="n">aliases</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">aliases_str</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">aliases</span><span class="p">)</span> <span class="k">if</span> <span class="n">aliases</span> <span class="k">else</span> <span class="s2">&quot;none&quot;</span>
+
+        <span class="n">resolved</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">target_alias</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">resolved</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_extra_map</span><span class="p">:</span>
+            <span class="n">backend_key</span> <span class="o">=</span> <span class="n">resolved</span>
+        <span class="k">elif</span> <span class="n">target</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_extra_map</span><span class="p">:</span>
+            <span class="n">backend_key</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">backend_key</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">message</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Backend &#39;</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&#39; not found. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Available backends: </span><span class="si">{</span><span class="n">available_str</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Known backend aliases: </span><span class="si">{</span><span class="n">aliases_str</span><span class="si">}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">backend_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">extra_name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_extra_map</span><span class="p">[</span><span class="n">backend_key</span><span class="p">]</span>
+            <span class="n">message</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; Install with: pip install qc-executor[</span><span class="si">{</span><span class="n">extra_name</span><span class="si">}</span><span class="s2">]&quot;</span>
+        <span class="k">return</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Executor.available_backends">
+<a class="viewcode-back" href="../../api/index.html#qc_executor.factory.Executor.available_backends">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">available_backends</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a list of available (installed) backends.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of backend names that can be used with create()</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; backends = Executor.available_backends()</span>
+<span class="sd">            &gt;&gt;&gt; print(backends)  # [&#39;qiskit&#39;, &#39;pennylane&#39;, &#39;qulacs&#39;]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Ensure plugins are discovered</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_plugins_discovered</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_discover_plugins</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
+
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_backend_alias</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">alias</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Normalize a backend alias for stable lookups and duplicate checks.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">alias</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_index_backend_aliases</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">backend_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">backend_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="s2">&quot;ExecutorBase&quot;</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add aliases for a backend to the central alias map.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If an alias is already owned by another backend.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">aliases</span> <span class="o">=</span> <span class="n">backend_class</span><span class="o">.</span><span class="n">get_accepted_backend_aliases</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">alias</span> <span class="ow">in</span> <span class="n">aliases</span><span class="p">:</span>
+            <span class="n">normalized_alias</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_normalize_backend_alias</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">alias</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">normalized_alias</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">existing_backend</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">normalized_alias</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">existing_backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">existing_backend</span> <span class="o">!=</span> <span class="n">backend_name</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Duplicate backend alias &#39;</span><span class="si">{</span><span class="n">normalized_alias</span><span class="si">}</span><span class="s2">&#39; declared by &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">&#39; and &#39;</span><span class="si">{</span><span class="n">existing_backend</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span><span class="p">[</span><span class="n">normalized_alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend_name</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_rebuild_backend_alias_map</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rebuild the alias map from the current backend registry.</span>
+
+<span class="sd">        This is a safety net for tests or integrations that modify ``_registry``</span>
+<span class="sd">        directly instead of using :meth:`register`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_alias_map</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">backend_name</span><span class="p">,</span> <span class="n">backend_class</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">aliases</span> <span class="o">=</span> <span class="n">backend_class</span><span class="o">.</span><span class="n">get_accepted_backend_aliases</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">alias</span> <span class="ow">in</span> <span class="n">aliases</span><span class="p">:</span>
+                <span class="n">normalized_alias</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_normalize_backend_alias</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">alias</span><span class="p">))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">normalized_alias</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">existing_backend</span> <span class="o">=</span> <span class="n">new_alias_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">normalized_alias</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">existing_backend</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">existing_backend</span> <span class="o">!=</span> <span class="n">backend_name</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Duplicate backend alias &#39;</span><span class="si">{</span><span class="n">normalized_alias</span><span class="si">}</span><span class="s2">&#39; declared by &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">backend_name</span><span class="si">}</span><span class="s2">&#39; and &#39;</span><span class="si">{</span><span class="n">existing_backend</span><span class="si">}</span><span class="s2">&#39;.&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="n">new_alias_map</span><span class="p">[</span><span class="n">normalized_alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">backend_name</span>
+
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_backend_alias_map</span> <span class="o">=</span> <span class="n">new_alias_map</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_alias_registry_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_alias_map_consistency</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rebuild alias map when registry changes outside of ``register``.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_registry</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_alias_registry_size</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_rebuild_backend_alias_map</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Executor.switch_backend">
+<a class="viewcode-back" href="../../api/index.html#qc_executor.factory.Executor.switch_backend">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">switch_backend</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">executor</span><span class="p">:</span> <span class="s2">&quot;ExecutorBase&quot;</span><span class="p">,</span> <span class="n">backend</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Any</span><span class="p">,</span> <span class="o">**</span><span class="n">overrides</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ExecutorBase&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Switch an executor to a different backend while preserving its configuration.</span>
+
+<span class="sd">        Creates a new executor instance with the specified backend, copying</span>
+<span class="sd">        the current configuration and applying any overrides.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            executor (ExecutorBase): The existing executor whose configuration</span>
+<span class="sd">                should be copied.</span>
+<span class="sd">            backend: Name of the backend to switch to (e.g., ``&quot;qiskit&quot;``,</span>
+<span class="sd">                ``&quot;pennylane&quot;``, ``&quot;qulacs&quot;``).  May also be a Qiskit</span>
+<span class="sd">                ``Backend`` / ``BackendV2`` instance, in which case the</span>
+<span class="sd">                ``&quot;qiskit&quot;`` executor is used automatically.</span>
+<span class="sd">            **overrides: Configuration parameters to override (e.g., shots=2048)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            ExecutorBase: New executor instance with the specified backend</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; executor = Executor.create(&quot;qiskit&quot;, shots=1024, seed=42)</span>
+<span class="sd">            &gt;&gt;&gt; pennylane_executor = Executor.switch_backend(executor, &quot;pennylane&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; # pennylane_executor has shots=1024, seed=42</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # Override specific parameters</span>
+<span class="sd">            &gt;&gt;&gt; qulacs_executor = Executor.switch_backend(executor, &quot;qulacs&quot;, shots=2048)</span>
+<span class="sd">            &gt;&gt;&gt; # qulacs_executor has shots=2048, seed=42</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # Switch to a real IBM Quantum backend</span>
+<span class="sd">            &gt;&gt;&gt; from qiskit_ibm_runtime import QiskitRuntimeService</span>
+<span class="sd">            &gt;&gt;&gt; service = QiskitRuntimeService()</span>
+<span class="sd">            &gt;&gt;&gt; ibm_backend = service.least_busy(operational=True, simulator=False)</span>
+<span class="sd">            &gt;&gt;&gt; ibm_executor = Executor.switch_backend(executor, ibm_backend)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">overrides</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Switching backend from </span><span class="si">%s</span><span class="s2"> to </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">executor</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">backend</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">backend</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="../../_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="../../_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+    </aside>
+  </div>
+</body>
+</html>

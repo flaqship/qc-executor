@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Reference</title>
+
+  
+  <script>
+    (function () {
+      var stored = localStorage.getItem("flaqship-theme");
+      var mode = stored || "auto";
+      var resolved = mode;
+      if (mode === "auto") {
+        resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      document.documentElement.setAttribute("data-theme", resolved);
+      document.documentElement.setAttribute("data-theme-mode", mode);
+    })();
+  </script><link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d75fae25" /><link rel="stylesheet" type="text/css" href="../_static/css/flaqship.css?v=8bed4aeb" /><link rel="icon" href="../_static/favicon.png"><script src="../_static/documentation_options.js?v=938c9ccc"></script><script src="../_static/doctools.js?v=fd6eb6e6"></script><script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/flaqship.js"></script>
+</head>
+<body>
+  <a class="fq-skip" href="#fq-main">Skip to content</a>
+
+  <header class="fq-header">
+  <button class="fq-nav-toggle" id="fq-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <a class="fq-brand" href="../index.html">
+    <img class="fq-logo fq-logo--light" src="../_static/logo/flaqship-logo-no-text.svg" alt="QC Executor">
+    <img class="fq-logo fq-logo--dark" src="../_static/logo/flaqship-logo-no-text-dark.svg" alt="QC Executor">
+      <span class="fq-brand-name">QC Executor 0.2.0 documentation</span>
+  </a>
+
+  <nav class="fq-header-nav">
+      <div class="fq-version-switcher" id="fq-version-switcher"
+           data-versions-url="../../versions.json"
+           data-current-version="dev"
+           data-pagename="api/index">
+        <button class="fq-version-btn" id="fq-version-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="fq-version-label">dev</span>
+          <svg class="fq-version-caret" viewBox="0 0 10 6" width="10" height="6" aria-hidden="true"><path fill="currentColor" d="M0 0l5 6 5-6z"/></svg>
+        </button>
+        <ul class="fq-version-menu" id="fq-version-menu" role="listbox" aria-label="Select documentation version" hidden></ul>
+      </div>
+      <a class="fq-header-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+      <a class="fq-icon-link" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener" aria-label="GitHub repository">
+        <svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true">
+          <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+            0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+            1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+            0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27
+            2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82
+            2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+            8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+
+    <button class="fq-icon-link fq-theme-toggle" id="fq-theme-toggle" aria-label="Toggle color theme">
+      <svg class="fq-icon-sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M12 7a5 5 0 100 10 5 5 0 000-10zm0-5a1 1 0 011 1v2a1 1 0 11-2
+          0V3a1 1 0 011-1zm0 17a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1zM4.2 5.6a1 1 0
+          011.4 0l1.4 1.4A1 1 0 116 8.4L4.6 7a1 1 0 010-1.4zm12.4 12.4a1 1 0 011.4 0l1.4
+          1.4a1 1 0 11-1.4 1.4L16.6 19a1 1 0 010-1.4zM2 12a1 1 0 011-1h2a1 1 0 110
+          2H3a1 1 0 01-1-1zm17 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1zM5.6 19.8a1 1
+          0 010-1.4L7 17a1 1 0 111.4 1.4L7 19.8a1 1 0 01-1.4 0zM18 6.9a1 1 0 010-1.4L19.4
+          4a1 1 0 111.4 1.4L19.4 7a1 1 0 01-1.4-.1z"/>
+      </svg>
+      <svg class="fq-icon-moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path fill="currentColor" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+      </svg>
+    </button>
+  </nav>
+</header>
+
+  <div class="fq-shell">
+    <aside class="fq-sidebar" id="fq-sidebar" aria-label="Site navigation">
+      <div class="fq-sidebar-inner">
+    <a class="fq-package-logo" href="../index.html" aria-label="Back to main page">
+        <img class="fq-logo fq-logo--light" src="../_static/logo.svg" alt="Package logo">
+        <img class="fq-logo fq-logo--dark" src="../_static/logo-dark.svg" alt="Package logo">
+    </a>
+    <a class="fq-sidebar-repo" href="https://github.com/flaqship/qc-executor" target="_blank" rel="noopener">
+      View on GitHub →
+    </a>
+  <nav class="fq-toctree" aria-label="Documentation navigation">
+    <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#install-from-pypi">Install from PyPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#install-from-github">Install from GitHub</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#build-from-source">Build from source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#backends-and-optional-dependencies">Backends and optional dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../installation.html#the-plugin-architecture">The plugin architecture</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../usage/index.html">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../usage/qiskit.html">Qiskit backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/qiskit.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/qiskit.html#selecting-a-backend">Selecting a backend</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/pennylane.html">PennyLane backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/pennylane.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/pennylane.html#selecting-a-device">Selecting a device</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/qulacs.html">Qulacs backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/qulacs.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/qulacs.html#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/pauli_propagation.html">Pauli Propagation backend</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../usage/pauli_propagation.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../usage/pauli_propagation.html#truncation-and-symmetry-merging">Truncation and symmetry merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#core-building-blocks">Core building blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#the-factory-executor">The factory: <code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#switching-backends">Switching backends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#common-operations">Common operations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#qubit-ordering">Qubit ordering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#working-with-native-circuits-and-operators">Working with native circuits and operators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#several-observables-at-once">Several observables at once</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#composing-circuits">Composing circuits</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#pauli-evolution">Pauli evolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#mid-circuit-measurement-and-classical-control">Mid-circuit measurement and classical control</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../usage/index.html#gate-support-and-lowering">Gate support and lowering</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-executor-factory">The Executor factory</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#shared-executor-interface">Shared executor interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#core-building-blocks">Core building blocks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#backend-plugins">Backend plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="generated/qc_executor.qiskit.html">qiskit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/qc_executor.pennylane.html">pennylane</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/qc_executor.qulacs.html">qulacs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="generated/qc_executor.pauli_propagation.html">pauli_propagation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Advanced Topics</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html">Pauli Propagation Symmetry Merging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#quick-start">Quick Start</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#direct-integration-with-paulisum">Direct Integration with PauliSum</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#barrier-controlled-merging-granularity">Barrier-Controlled Merging Granularity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#available-symmetry-strategies">Available Symmetry Strategies</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#nosymmetry">NoSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#permutationsymmetry">PermutationSymmetry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#compositesymmetry">CompositeSymmetry</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#implementation-details">Implementation Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#merging-strategy">Merging Strategy</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#algorithm-complexity">Algorithm Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#when-to-use-symmetry-merging">When to Use Symmetry Merging</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#extending-with-custom-symmetries">Extending with Custom Symmetries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pauli_propagation_symmetry_merging.html#api-pointers">API Pointers</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav>
+</div>
+    </aside>
+
+    <div class="fq-sidebar-backdrop" id="fq-sidebar-backdrop"></div>
+
+    <main class="fq-content" id="fq-main">
+      <article class="fq-article" role="main">
+        <section id="api-reference">
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h1>
+<p>This reference documents the public API: the <code class="xref py py-class docutils literal notranslate"><span class="pre">Executor</span></code> factory, the
+shared executor interface, the backend-agnostic building blocks, and each
+backend plugin.</p>
+<nav class="contents local" id="on-this-page">
+<p class="topic-title">On this page</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#the-executor-factory" id="id1">The Executor factory</a></p></li>
+<li><p><a class="reference internal" href="#shared-executor-interface" id="id2">Shared executor interface</a></p></li>
+<li><p><a class="reference internal" href="#core-building-blocks" id="id3">Core building blocks</a></p></li>
+<li><p><a class="reference internal" href="#backend-plugins" id="id4">Backend plugins</a></p></li>
+</ul>
+</nav>
+<section id="the-executor-factory">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink">The Executor factory</a><a class="headerlink" href="#the-executor-factory" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="#qc_executor.factory.Executor" title="qc_executor.factory.Executor"><code class="xref py py-class docutils literal notranslate"><span class="pre">Executor</span></code></a> is the entry point for creating backend
+executors. It is a factory and cannot be instantiated directly — use
+<a class="reference internal" href="#qc_executor.factory.Executor.create" title="qc_executor.factory.Executor.create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create()</span></code></a>.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.factory.Executor">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.factory.</span></span><span class="sig-name descname"><span class="pre">Executor</span></span><a class="reference internal" href="../_modules/qc_executor/factory.html#Executor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.factory.Executor" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Factory class for creating executor instances based on backend name.</p>
+<p>This class provides a plugin-based architecture for executor backends.
+Backends can be registered using the &#64;Executor.register() decorator or
+discovered automatically via entry points.</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">backends</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">available_backends</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">backends</span><span class="p">)</span>  <span class="c1"># [&#39;qiskit&#39;, &#39;pennylane&#39;, &#39;qulacs&#39;]</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.factory.Executor.register">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">register</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/factory.html#Executor.register"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.factory.Executor.register" title="Link to this definition">¶</a></dt>
+<dd><p>Decorator to register a backend implementation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – The name of the backend (e.g., “qiskit”, “pennylane”, “qulacs”)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>[[<code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code>[<a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a>]], <code class="xref py py-class docutils literal notranslate"><span class="pre">Type</span></code>[<a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a>]]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Decorator function that registers the backend class</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>TypeError</strong> – If the decorated class does not inherit from ExecutorBase</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nd">@Executor</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">)</span>
+<span class="gp">... </span><span class="k">class</span><span class="w"> </span><span class="nc">QiskitExecutor</span><span class="p">(</span><span class="n">ExecutorBase</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">pass</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.factory.Executor.create">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/factory.html#Executor.create"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.factory.Executor.create" title="Link to this definition">¶</a></dt>
+<dd><p>Create an executor instance for the specified backend.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>target</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> | <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>) – Name of the backend (e.g., “qiskit”, “pennylane”, “qulacs”).
+May also be a Qiskit <code class="docutils literal notranslate"><span class="pre">Backend</span></code> / <code class="docutils literal notranslate"><span class="pre">BackendV2</span></code> instance, in
+which case the <code class="docutils literal notranslate"><span class="pre">&quot;qiskit&quot;</span></code> executor is used automatically and
+the object is forwarded as <code class="docutils literal notranslate"><span class="pre">backend=&lt;instance&gt;</span></code>. An already
+constructed <code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code> instance is returned
+unchanged (no <code class="docutils literal notranslate"><span class="pre">**kwargs</span></code> allowed in that case).</p></li>
+<li><p><strong>**kwargs</strong> – Configuration parameters passed to the backend constructor</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>An instance of the requested backend executor</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the backend is not found or not installed</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;pennylane&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.factory.Executor.available_backends">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">available_backends</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/factory.html#Executor.available_backends"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.factory.Executor.available_backends" title="Link to this definition">¶</a></dt>
+<dd><p>Get a list of available (installed) backends.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of backend names that can be used with create()</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">backends</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">available_backends</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">backends</span><span class="p">)</span>  <span class="c1"># [&#39;qiskit&#39;, &#39;pennylane&#39;, &#39;qulacs&#39;]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.factory.Executor.switch_backend">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">switch_backend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">executor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backend</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">overrides</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/factory.html#Executor.switch_backend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.factory.Executor.switch_backend" title="Link to this definition">¶</a></dt>
+<dd><p>Switch an executor to a different backend while preserving its configuration.</p>
+<p>Creates a new executor instance with the specified backend, copying
+the current configuration and applying any overrides.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>executor</strong> (<a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><em>ExecutorBase</em></a>) – The existing executor whose configuration
+should be copied.</p></li>
+<li><p><strong>backend</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code> | <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>) – Name of the backend to switch to (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;qiskit&quot;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&quot;pennylane&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;qulacs&quot;</span></code>).  May also be a Qiskit
+<code class="docutils literal notranslate"><span class="pre">Backend</span></code> / <code class="docutils literal notranslate"><span class="pre">BackendV2</span></code> instance, in which case the
+<code class="docutils literal notranslate"><span class="pre">&quot;qiskit&quot;</span></code> executor is used automatically.</p></li>
+<li><p><strong>**overrides</strong> – Configuration parameters to override (e.g., shots=2048)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New executor instance with the specified backend</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase">ExecutorBase</a></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pennylane_executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">switch_backend</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="s2">&quot;pennylane&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># pennylane_executor has shots=1024, seed=42</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Override specific parameters</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qulacs_executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">switch_backend</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="s2">&quot;qulacs&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">2048</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># qulacs_executor has shots=2048, seed=42</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Switch to a real IBM Quantum backend</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">qiskit_ibm_runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">QiskitRuntimeService</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">service</span> <span class="o">=</span> <span class="n">QiskitRuntimeService</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ibm_backend</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">least_busy</span><span class="p">(</span><span class="n">operational</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">simulator</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ibm_executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">switch_backend</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">ibm_backend</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="shared-executor-interface">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Shared executor interface</a><a class="headerlink" href="#shared-executor-interface" title="Link to this heading">¶</a></h2>
+<p>All backend executors inherit from
+<a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a>, which defines the common
+configuration options (passed through <a class="reference internal" href="#qc_executor.factory.Executor.create" title="qc_executor.factory.Executor.create"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Executor.create</span></code></a>) and the evaluation interface shared by
+every backend.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.base.executor_base.</span></span><span class="sig-name descname"><span class="pre">ExecutorBase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">backend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shots</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_level</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'WARNING'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">caching</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cache'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_cache_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4096</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">ABC</span></code></p>
+<p>Base class for quantum circuit executors.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shots</strong> (<em>int</em><em> | </em><em>None</em><em>, </em><em>optional</em>) – Number of shots for sampling.</p></li>
+<li><p><strong>seed</strong> (<em>int</em><em> | </em><em>None</em><em>, </em><em>optional</em>) – Random seed for reproducibility.</p></li>
+<li><p><strong>log_file</strong> (<em>str</em><em> | </em><em>None</em><em>, </em><em>optional</em>) – Path to the log file.</p></li>
+<li><p><strong>log_level</strong> (<em>str</em><em>, </em><em>optional</em>) – Logging level (for example <code class="docutils literal notranslate"><span class="pre">&quot;DEBUG&quot;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&quot;INFO&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;WARNING&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;ERROR&quot;</span></code>).</p></li>
+<li><p><strong>caching</strong> (<em>bool</em><em> | </em><em>None</em><em>, </em><em>optional</em>) – Whether to cache computation results
+in memory.</p></li>
+<li><p><strong>cache_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – Directory for caching.</p></li>
+<li><p><strong>max_cache_size</strong> (<em>int</em><em> | </em><em>None</em><em>, </em><em>optional</em>) – Maximum number of entries kept
+in each in-memory cache; <code class="docutils literal notranslate"><span class="pre">None</span></code> makes them unbounded.</p></li>
+<li><p><strong>backend</strong> (<em>Any</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.shots">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">shots</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.shots" title="Link to this definition">¶</a></dt>
+<dd><p>Return the number of shots.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.remote">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">remote</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.remote" title="Link to this definition">¶</a></dt>
+<dd><p>Return True if the execution access a remote backend.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.get_config">
+<span class="sig-name descname"><span class="pre">get_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.get_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.get_config" title="Link to this definition">¶</a></dt>
+<dd><p>Get the current executor configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>Dictionary containing the executor configuration parameters</dt><dd><p>(shots, seed, log_file, log_level, caching, cache_dir, max_cache_size)</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s2">&quot;qiskit&quot;</span><span class="p">,</span> <span class="n">shots</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>  <span class="c1"># {&#39;shots&#39;: 1024, &#39;seed&#39;: 42, ...}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.switch_backend">
+<span class="sig-name descname"><span class="pre">switch_backend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">backend</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">overrides</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.switch_backend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.switch_backend" title="Link to this definition">¶</a></dt>
+<dd><p>Switch to a different backend while preserving configuration.</p>
+<p>Delegates to <a class="reference internal" href="#qc_executor.factory.Executor.switch_backend" title="qc_executor.factory.Executor.switch_backend"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Executor.switch_backend</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>backend</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>) – Name of the backend (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;qiskit&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;pennylane&quot;</span></code>)
+or a backend instance for auto-detection.</p></li>
+<li><p><strong>**overrides</strong> – Configuration parameters to override (e.g., shots=2048)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New executor instance with the specified backend</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase" title="qc_executor.base.executor_base.ExecutorBase">ExecutorBase</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.expectation_value">
+<span class="sig-name descname"><span class="pre">expectation_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observable</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.expectation_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.expectation_value" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the expectation value of the observable with respect to the circuit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>circuit</strong> (<em>QuantumCircuitBase</em><em> | </em><em>List</em><em>[</em><em>QuantumCircuitBase</em><em>]</em>) – The quantum circuit
+or a list of circuits.</p></li>
+<li><p><strong>observable</strong> (<em>QuantumOperatorBase</em><em> | </em><em>List</em><em>[</em><em>QuantumOperatorBase</em><em>]</em>) – The quantum
+observable or a list of observables.</p></li>
+<li><p><strong>parameters</strong> – Additional values for the free parameters of the circuit(s) and
+the observable(s) given as keyword arguments.
+Both vector-style keys (e.g., <code class="docutils literal notranslate"><span class="pre">x=[0.1,</span> <span class="pre">0.2]</span></code>) and indexed keys
+(e.g., <code class="docutils literal notranslate"><span class="pre">x[0]=0.1,</span> <span class="pre">x[1]=0.2</span></code>) are accepted and normalized.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The expectation value either as a single float or as a</dt><dd><p>numpy array if multiple circuits/observables are provided.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.expectation_value_derivatives">
+<span class="sig-name descname"><span class="pre">expectation_value_derivatives</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observable</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">derivative</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.expectation_value_derivatives"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.expectation_value_derivatives" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the derivatives of the expectation value with respect to the
+parameters of the circuit.</p>
+<p>The return format and the ordering below are part of the public API;
+downstream consumers rely on both. The full gradient of a circuit is
+obtained by supplying all of its parameter-vector names (see
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">QuantumCircuitBase.parameter_vector_names</span></code>) as <code class="docutils literal notranslate"><span class="pre">derivative</span></code>
+arguments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>circuit</strong> (<em>QuantumCircuitBase</em><em> | </em><em>List</em><em>[</em><em>QuantumCircuitBase</em><em>]</em>) – The quantum circuit
+or a list of circuits.</p></li>
+<li><p><strong>observable</strong> (<em>QuantumOperatorBase</em><em> | </em><em>List</em><em>[</em><em>QuantumOperatorBase</em><em>]</em>) – The quantum
+observable or a list of observables. Lists of circuits and
+observables are evaluated combinatorially: every circuit is
+paired with every observable. Observable lists are handled
+natively by each backend; a circuit list is expanded here.</p></li>
+<li><p><strong>derivative</strong> – The parameter(s) with respect to which the derivative is calculated.</p></li>
+<li><p><strong>parameters</strong> – Additional values for the free parameters of the circuit(s) and
+the observable(s) given as keyword arguments.
+Both vector-style keys (e.g., <code class="docutils literal notranslate"><span class="pre">x=[0.1,</span> <span class="pre">0.2]</span></code>) and indexed keys
+(e.g., <code class="docutils literal notranslate"><span class="pre">x[0]=0.1,</span> <span class="pre">x[1]=0.2</span></code>) are accepted and normalized.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The derivative of the expectation value:</dt><dd><ul class="simple">
+<li><p>single float/array if one derivative parameter is requested</p></li>
+<li><p>dictionary mapping parameter names to gradient arrays if multiple
+parameters are requested</p></li>
+</ul>
+</dd>
+</dl>
+<p>A list input adds a leading axis per list: <code class="docutils literal notranslate"><span class="pre">(n_circuits,</span> <span class="pre">...)</span></code>
+for a circuit list, <code class="docutils literal notranslate"><span class="pre">(n_observables,</span> <span class="pre">...)</span></code> for an observable
+list, and <code class="docutils literal notranslate"><span class="pre">(n_circuits,</span> <span class="pre">n_observables,</span> <span class="pre">...)</span></code> for both.</p>
+<p>Entries within each parameter vector are ordered by numeric
+element index, i.e. <code class="docutils literal notranslate"><span class="pre">theta[2]</span></code> precedes <code class="docutils literal notranslate"><span class="pre">theta[10]</span></code>.</p>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float | np.array | dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.sample" title="Link to this definition">¶</a></dt>
+<dd><p>Computes samples of the quantumstate of the given circuit.</p>
+<p>Bitstring keys use the big-endian convention <code class="docutils literal notranslate"><span class="pre">q[0]q[1]...q[n-1]</span></code>
+(qubit 0 is the leftmost character).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>circuit</strong> (<em>QuantumCircuitBase</em><em> | </em><em>List</em><em>[</em><em>QuantumCircuitBase</em><em>]</em>) – The quantum circuit
+or a list of circuits.</p></li>
+<li><p><strong>parameters</strong> – Additional values for the free parameters of the circuit(s)
+given as keyword arguments.
+Both vector-style keys (e.g., <code class="docutils literal notranslate"><span class="pre">x=[0.1,</span> <span class="pre">0.2]</span></code>) and indexed keys
+(e.g., <code class="docutils literal notranslate"><span class="pre">x[0]=0.1,</span> <span class="pre">x[1]=0.2</span></code>) are accepted and normalized.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The sampled results either as a single dictionary or a</dt><dd><p>list of dictionaries if multiple circuits are provided.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict | List[dict]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.statevector">
+<span class="sig-name descname"><span class="pre">statevector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.statevector"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.statevector" title="Link to this definition">¶</a></dt>
+<dd><p>Computes the statevector of the quantum circuit.</p>
+<p>Amplitudes use the big-endian basis ordering: index <code class="docutils literal notranslate"><span class="pre">i</span></code> encodes
+qubit 0 as the most significant bit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>circuit</strong> (<em>QuantumCircuitBase</em><em> | </em><em>List</em><em>[</em><em>QuantumCircuitBase</em><em>]</em>) – The quantum circuit
+or a list of circuits.</p></li>
+<li><p><strong>parameters</strong> – Additional values for the free parameters of the circuit(s)
+given as keyword arguments.
+Both vector-style keys (e.g., <code class="docutils literal notranslate"><span class="pre">x=[0.1,</span> <span class="pre">0.2]</span></code>) and indexed keys
+(e.g., <code class="docutils literal notranslate"><span class="pre">x[0]=0.1,</span> <span class="pre">x[1]=0.2</span></code>) are accepted and normalized.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The statevector of the circuit(s).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.probabilities">
+<span class="sig-name descname"><span class="pre">probabilities</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">parameters</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.probabilities"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.probabilities" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the measurement probabilities of a circuit.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">shots=None</span></code> the probabilities are exact (derived from the
+statevector); otherwise they are estimated from sampled counts.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>circuit</strong> (<em>QuantumCircuitBase</em>) – A single quantum circuit.</p></li>
+<li><p><strong>cutoff</strong> (<em>float</em><em>, </em><em>optional</em>) – Only probabilities strictly greater
+than this threshold are returned. The default of <code class="docutils literal notranslate"><span class="pre">0.0</span></code>
+omits exact zeros only, matching what the backends report
+natively; pass a larger value to keep the result sparse for
+many qubits.</p></li>
+<li><p><strong>parameters</strong> – Values for the free parameters of the circuit given as
+keyword arguments. Passing more than one parameter set (the
+same batching convention as <a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.expectation_value" title="qc_executor.base.executor_base.ExecutorBase.expectation_value"><code class="xref py py-meth docutils literal notranslate"><span class="pre">expectation_value()</span></code></a>) is
+supported on backends whose <a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.statevector" title="qc_executor.base.executor_base.ExecutorBase.statevector"><code class="xref py py-meth docutils literal notranslate"><span class="pre">statevector()</span></code></a>/<a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.sample" title="qc_executor.base.executor_base.ExecutorBase.sample"><code class="xref py py-meth docutils literal notranslate"><span class="pre">sample()</span></code></a>
+support it.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Mapping of basis-state
+index (big-endian ordering, qubit 0 = most significant bit) to
+probability - one mapping for a single parameter set, or a list
+of mappings, one per set, for a batch of parameter sets.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[int, float] | List[Dict[int, float]]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If a list of circuits is passed.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.transpile_circuit">
+<span class="sig-name descname"><span class="pre">transpile_circuit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">circuit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.transpile_circuit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.transpile_circuit" title="Link to this definition">¶</a></dt>
+<dd><p>Transpile the circuit for execution on this executor’s backend.</p>
+<p>Subclasses may override <code class="xref py py-meth docutils literal notranslate"><span class="pre">_transpile_circuit()</span></code> to apply
+backend-specific optimisations (e.g. gate decomposition, qubit
+routing).  When a list of circuits is provided, each circuit is
+transpiled and cached individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>circuit</strong> (<em>QuantumCircuitBase</em><em> | </em><em>List</em><em>[</em><em>QuantumCircuitBase</em><em>]</em>) – The
+quantum circuit or a list of circuits to transpile.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The transpiled</dt><dd><p>circuit(s).</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>QuantumCircuitBase | List[QuantumCircuitBase]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.transpile_operator">
+<span class="sig-name descname"><span class="pre">transpile_operator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">operator</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.transpile_operator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.transpile_operator" title="Link to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Overloads<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>self</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">QuantumOperatorBase</span>), <strong>options</strong> (<span class="sphinx_autodoc_typehints-type">Any</span>) → <span class="sphinx_autodoc_typehints-type">QuantumOperatorBase</span></p></li>
+<li><p><strong>self</strong>, <strong>operator</strong> (<span class="sphinx_autodoc_typehints-type">List[QuantumOperatorBase]</span>), <strong>options</strong> (<span class="sphinx_autodoc_typehints-type">Any</span>) → <span class="sphinx_autodoc_typehints-type">List[QuantumOperatorBase]</span></p></li>
+</ul>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>operator</strong> (<em>QuantumOperatorBase</em><em> | </em><em>List</em><em>[</em><em>QuantumOperatorBase</em><em>]</em>)</p></li>
+<li><p><strong>options</strong> (<em>Any</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>QuantumOperatorBase</em> | <em>List</em>[<em>QuantumOperatorBase</em>]</p>
+</dd>
+</dl>
+<p>Transpile the operator for execution on this executor’s backend.</p>
+<p>Subclasses may override <code class="xref py py-meth docutils literal notranslate"><span class="pre">_transpile_operator()</span></code> to apply
+backend-specific conversions (e.g., to wrapper types).  When a list
+of operators is provided, each operator is transpiled and cached individually.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>operator</strong> (<em>QuantumOperatorBase</em><em> | </em><em>List</em><em>[</em><em>QuantumOperatorBase</em><em>]</em>) – The
+quantum operator or a list of operators to transpile.</p></li>
+<li><p><strong>**options</strong> – Backend-specific transpilation options, forwarded to
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_transpile_operator()</span></code>.  The Pauli-propagation backend uses
+this for <code class="docutils literal notranslate"><span class="pre">symmetry_strategy</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>The transpiled</dt><dd><p>operator(s).</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>QuantumOperatorBase | List[QuantumOperatorBase]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_types">
+<span class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_accepted_backend_types</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.get_accepted_backend_types"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_types" title="Link to this definition">¶</a></dt>
+<dd><p>Return a list of backend object types accepted by this executor.</p>
+<p>This is used for auto-detection when a non-string backend is passed to
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">Executor.create()</span></code>.  If the backend object is an instance of any
+of the returned types, this executor will be selected automatically.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><dl class="simple">
+<dt>List of accepted backend types</dt><dd><p>(e.g., Qiskit <code class="docutils literal notranslate"><span class="pre">Backend</span></code> / <code class="docutils literal notranslate"><span class="pre">BackendV2</span></code> classes)</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[type]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_aliases">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">get_accepted_backend_aliases</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/base/executor_base.html#ExecutorBase.get_accepted_backend_aliases"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_aliases" title="Link to this definition">¶</a></dt>
+<dd><p>Return string aliases accepted by this executor.</p>
+<p>This optional list is used by <code class="xref py py-meth docutils literal notranslate"><span class="pre">Executor.create()</span></code> when a string
+target is not a registered backend name. The factory resolves aliases
+to the owning plugin and forwards the original string via
+<code class="docutils literal notranslate"><span class="pre">backend=&lt;target&gt;</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>String aliases accepted by the executor.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>List[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="core-building-blocks">
+<h2><a class="toc-backref" href="#id3" role="doc-backlink">Core building blocks</a><a class="headerlink" href="#core-building-blocks" title="Link to this heading">¶</a></h2>
+<p>Backend-agnostic circuit, observable, and parameter types from the package
+root.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.quantum_circuit.QuantumCircuit">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.quantum_circuit.</span></span><span class="sig-name descname"><span class="pre">QuantumCircuit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_qubits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_clbits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">_ir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/quantum_circuit.html#QuantumCircuit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.quantum_circuit.QuantumCircuit" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">QuantumCircuitBase</span></code></p>
+<p>A quantum circuit that is not tied to any quantum framework.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_qubits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of qubits in the circuit.</p></li>
+<li><p><strong>num_clbits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of classical bits for mid-circuit measurement.</p></li>
+<li><p><strong>_ir</strong> (<em>CircuitIR</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.quantum_circuit.QuantumCircuit.qiskit_circuit">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">qiskit_circuit</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></span><a class="headerlink" href="#qc_executor.quantum_circuit.QuantumCircuit.qiskit_circuit" title="Link to this definition">¶</a></dt>
+<dd><p>The circuit compiled to Qiskit.</p>
+<p>Provided so backends that still consume Qiskit objects keep working
+while they are migrated onto the IR.  Requires the <code class="docutils literal notranslate"><span class="pre">qiskit</span></code> extra.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The equivalent <code class="docutils literal notranslate"><span class="pre">qiskit.QuantumCircuit</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.quantum_circuit.QuantumCircuit.from_qiskit">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_qiskit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">qiskit_circuit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/quantum_circuit.html#QuantumCircuit.from_qiskit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.quantum_circuit.QuantumCircuit.from_qiskit" title="Link to this definition">¶</a></dt>
+<dd><p>Import a Qiskit circuit into the framework-independent IR.</p>
+<p>The circuit’s instructions are translated into the instruction store,
+so the result runs on every backend – unlike
+<a class="reference internal" href="generated/qc_executor.qiskit.html#qc_executor.qiskit.QiskitCircuit.from_qiskit" title="qc_executor.qiskit.QiskitCircuit.from_qiskit"><code class="xref py py-meth docutils literal notranslate"><span class="pre">QiskitCircuit.from_qiskit</span></code></a>,
+which only carries a pre-built circuit for the Qiskit backend and is the
+right tool for ISA-transpiled circuits.  Requires the <code class="docutils literal notranslate"><span class="pre">qiskit</span></code> extra.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>qiskit_circuit</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>) – The <code class="docutils literal notranslate"><span class="pre">qiskit.QuantumCircuit</span></code> to import.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#qc_executor.quantum_circuit.QuantumCircuit" title="qc_executor.quantum_circuit.QuantumCircuit"><code class="xref py py-class docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A new circuit holding the translated instructions.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>UnsupportedGateError</strong> – If the circuit is transpiled or contains an
+    instruction the IR cannot express; see
+    <code class="xref py py-func docutils literal notranslate"><span class="pre">qiskit_to_ir()</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.quantum_operator.QuantumOperator">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.quantum_operator.</span></span><span class="sig-name descname"><span class="pre">QuantumOperator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">paulis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coeffs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_qubits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">_ir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/quantum_operator.html#QuantumOperator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.quantum_operator.QuantumOperator" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">QuantumOperatorBase</span></code></p>
+<p>A weighted sum of Pauli strings, not tied to any quantum framework.</p>
+<p>Qubit <code class="docutils literal notranslate"><span class="pre">q</span></code> is character <code class="docutils literal notranslate"><span class="pre">q</span></code> of the label, so <code class="docutils literal notranslate"><span class="pre">QuantumOperator([&quot;ZI&quot;],</span>
+<span class="pre">[1.0])</span></code> measures Z on qubit 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>paulis</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]</span>) – Pauli labels making up the operator.</p></li>
+<li><p><strong>coeffs</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]]</span>) – One coefficient per label; numbers or SymPy expressions.</p></li>
+<li><p><strong>num_qubits</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code> | <code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span>) – Width, required only when no labels are given.</p></li>
+<li><p><strong>_ir</strong> (<em>PauliIR</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.quantum_operator.QuantumOperator.qiskit_operator">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">qiskit_operator</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></span><a class="headerlink" href="#qc_executor.quantum_operator.QuantumOperator.qiskit_operator" title="Link to this definition">¶</a></dt>
+<dd><p>The operator translated to Qiskit.</p>
+<p>Provided so backends that still consume Qiskit objects keep working
+while they are migrated onto the shared representation.  Requires the
+<code class="docutils literal notranslate"><span class="pre">qiskit</span></code> extra.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The equivalent <code class="docutils literal notranslate"><span class="pre">qiskit.quantum_info.SparsePauliOp</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="qc_executor.parameters.Parameters">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">qc_executor.parameters.</span></span><span class="sig-name descname"><span class="pre">Parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/parameters.html#Parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.parameters.Parameters" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Sequence</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code>]</p>
+<p>An ordered collection of <code class="xref py py-class docutils literal notranslate"><span class="pre">Parameter</span></code> elements sharing a name.</p>
+<p>Behaves like a sequence, so <code class="docutils literal notranslate"><span class="pre">len()</span></code>, indexing, slicing and iteration all
+work:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">x</span> <span class="o">=</span> <span class="n">Parameters</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="n">angle</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Name shared by all elements, e.g. <code class="docutils literal notranslate"><span class="pre">&quot;theta&quot;</span></code>.</p></li>
+<li><p><strong>length</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Initial number of elements.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.parameters.Parameters.name">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#qc_executor.parameters.Parameters.name" title="Link to this definition">¶</a></dt>
+<dd><p>The name shared by every element.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="qc_executor.parameters.Parameters.params">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">params</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Parameter</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#qc_executor.parameters.Parameters.params" title="Link to this definition">¶</a></dt>
+<dd><p>The contained elements.  Treat as read-only.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.parameters.Parameters.index">
+<span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/parameters.html#Parameters.index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.parameters.Parameters.index" title="Link to this definition">¶</a></dt>
+<dd><p>Return the position of <code class="docutils literal notranslate"><span class="pre">value</span></code> within the vector.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>value</strong> (<em>Any</em>)</p></li>
+<li><p><strong>start</strong> (<em>int</em>)</p></li>
+<li><p><strong>stop</strong> (<em>int</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="qc_executor.parameters.Parameters.resize">
+<span class="sig-name descname"><span class="pre">resize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/qc_executor/parameters.html#Parameters.resize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#qc_executor.parameters.Parameters.resize" title="Link to this definition">¶</a></dt>
+<dd><p>Grow or shrink the vector to <code class="docutils literal notranslate"><span class="pre">length</span></code> elements.</p>
+<p>Growing preserves existing element identities, so expressions already
+built from this vector stay valid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>length</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – The new number of elements.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="backend-plugins">
+<h2><a class="toc-backref" href="#id4" role="doc-backlink">Backend plugins</a><a class="headerlink" href="#backend-plugins" title="Link to this heading">¶</a></h2>
+<p>Each plugin provides an executor plus native circuit/operator wrappers. You
+normally obtain an executor through <code class="docutils literal notranslate"><span class="pre">Executor.create(&quot;&lt;name&gt;&quot;)</span></code> rather than
+instantiating these classes directly, but their public classes are documented
+on the per-plugin pages below.</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/qc_executor.qiskit.html#module-qc_executor.qiskit" title="qc_executor.qiskit"><code class="xref py py-obj docutils literal notranslate"><span class="pre">qc_executor.qiskit</span></code></a></p></td>
+<td><p>Qiskit backend for the executor framework.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/qc_executor.pennylane.html#module-qc_executor.pennylane" title="qc_executor.pennylane"><code class="xref py py-obj docutils literal notranslate"><span class="pre">qc_executor.pennylane</span></code></a></p></td>
+<td><p>PennyLane backend for Executor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/qc_executor.qulacs.html#module-qc_executor.qulacs" title="qc_executor.qulacs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">qc_executor.qulacs</span></code></a></p></td>
+<td><p>Qulacs backend for Executor.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="generated/qc_executor.pauli_propagation.html#module-qc_executor.pauli_propagation" title="qc_executor.pauli_propagation"><code class="xref py py-obj docutils literal notranslate"><span class="pre">qc_executor.pauli_propagation</span></code></a></p></td>
+<td><p>Pauli Propagation Package for Quantum Computing.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+      </article>
+      <footer class="fq-footer">
+  <div class="fq-footer-flaqship-logo">
+    <img class="fq-logo fq-logo--light" src="../_static/logo/flaqship-logo-mono.svg" alt="flaQship logo">
+    <img class="fq-logo fq-logo--dark" src="../_static/logo/flaqship-logo-mono-dark.svg" alt="flaQship logo">
+  </div>
+  <div class="fq-footer-links">
+      <a class="fq-footer-link"
+         href="https://github.com/flaqship/qc-executor/blob/main/docs/api/index.rst"
+         target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="fq-footer-link" href="https://flaqship.eu" target="_blank" rel="noopener">
+        flaqship.eu
+      </a>
+  </div>
+  <div class="fq-footer-meta"><span>© 2026, Fraunhofer IPA</span>
+    <span>Built with <a href="https://www.sphinx-doc.org/" target="_blank" rel="noopener">Sphinx</a>
+      &amp; the flaQship theme.</span>
+  </div>
+</footer>
+    </main>
+
+    <aside class="fq-pagetoc" aria-label="On this page">
+      
+  <div class="fq-pagetoc-inner">
+    <p class="fq-pagetoc-title">On this page</p>
+    <ul>
+<li><a class="reference internal" href="#">API Reference</a><ul>
+<li><a class="reference internal" href="#the-executor-factory">The Executor factory</a><ul>
+<li><a class="reference internal" href="#qc_executor.factory.Executor"><code class="docutils literal notranslate"><span class="pre">Executor</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.factory.Executor.register"><code class="docutils literal notranslate"><span class="pre">Executor.register()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.factory.Executor.create"><code class="docutils literal notranslate"><span class="pre">Executor.create()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.factory.Executor.available_backends"><code class="docutils literal notranslate"><span class="pre">Executor.available_backends()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.factory.Executor.switch_backend"><code class="docutils literal notranslate"><span class="pre">Executor.switch_backend()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#shared-executor-interface">Shared executor interface</a><ul>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase"><code class="docutils literal notranslate"><span class="pre">ExecutorBase</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.shots"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.shots</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.remote"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.remote</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.get_config"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.get_config()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.switch_backend"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.switch_backend()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.expectation_value"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.expectation_value()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.expectation_value_derivatives"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.expectation_value_derivatives()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.sample"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.sample()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.statevector"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.statevector()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.probabilities"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.probabilities()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.transpile_circuit"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.transpile_circuit()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.transpile_operator"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.transpile_operator()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_types"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.get_accepted_backend_types()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.base.executor_base.ExecutorBase.get_accepted_backend_aliases"><code class="docutils literal notranslate"><span class="pre">ExecutorBase.get_accepted_backend_aliases()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#core-building-blocks">Core building blocks</a><ul>
+<li><a class="reference internal" href="#qc_executor.quantum_circuit.QuantumCircuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.quantum_circuit.QuantumCircuit.qiskit_circuit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit.qiskit_circuit</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.quantum_circuit.QuantumCircuit.from_qiskit"><code class="docutils literal notranslate"><span class="pre">QuantumCircuit.from_qiskit()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#qc_executor.quantum_operator.QuantumOperator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.quantum_operator.QuantumOperator.qiskit_operator"><code class="docutils literal notranslate"><span class="pre">QuantumOperator.qiskit_operator</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#qc_executor.parameters.Parameters"><code class="docutils literal notranslate"><span class="pre">Parameters</span></code></a><ul>
+<li><a class="reference internal" href="#qc_executor.parameters.Parameters.name"><code class="docutils literal notranslate"><span class="pre">Parameters.name</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.parameters.Parameters.params"><code class="docutils literal notranslate"><span class="pre">Parameters.params</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.parameters.Parameters.index"><code class="docutils literal notranslate"><span class="pre">Parameters.index()</span></code></a></li>
+<li><a class="reference internal" href="#qc_executor.parameters.Parameters.resize"><code class="docutils literal notranslate"><span class="pre">Parameters.resize()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#backend-plugins">Backend plugins</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+    </aside>
+  </div>
+</body>
+</html>

@@ -56,10 +56,10 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: "Python version (`python --version`), executor version, OS"
+      description: "Python version (`python --version`), qc-executor version, OS"
       placeholder: |
         - Python: 3.11.x
-        - executor: 0.1.0
+        - qc-executor: 0.1.0
         - OS: Ubuntu 22.04
     validations:
       required: true

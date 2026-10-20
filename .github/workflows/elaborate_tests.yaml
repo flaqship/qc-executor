@@ -120,7 +120,7 @@ jobs:
       fail-fast: false
       matrix:
         qiskit-version:
-          - "qiskit==1.0.0"       # earliest supported
+          - "qiskit==1.2.0"       # earliest supported
           - "qiskit<2"            # latest Qiskit 1.x
           - "qiskit"              # latest (Qiskit 2.x)
 

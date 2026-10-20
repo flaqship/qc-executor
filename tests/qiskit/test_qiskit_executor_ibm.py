@@ -5,28 +5,38 @@ They use FakeBackend instances so that no real IBM Quantum credentials are
 needed.
 """
 
-from random import seed
-
 import numpy as np
 import pytest
+from qiskit import primitives as qiskit_primitives
+from qiskit.circuit import ParameterVector as QiskitParameterVector
+from qiskit.circuit import QuantumCircuit as QiskitQC
+from qiskit.primitives import StatevectorEstimator, StatevectorSampler
+from qiskit.providers import Backend
 
-# Skip the entire module if qiskit-ibm-runtime is not installed
-qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime")
-
-from executor import Executor, QuantumCircuit
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_executor import (
-    QiskitExecutor,
-    _classify_backend,
-    _is_backend_instance,
-)
-from executor.quantum_operator import QuantumOperator
-from executor.utils.qiskit_compat import (
+from qc_executor import Executor, QuantumCircuit
+from qc_executor.qiskit import qiskit_executor as qiskit_executor_module
+from qc_executor.qiskit._compat import (
     QISKIT_RUNTIME_AVAILABLE,
     QISKIT_RUNTIME_SMALLER_0_21,
     QISKIT_RUNTIME_SMALLER_0_23,
     QISKIT_RUNTIME_SMALLER_0_28,
+    QISKIT_SMALLER_1_2,
 )
+from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
+from qc_executor.qiskit.qiskit_executor import (
+    QiskitExecutor,
+    _classify_backend,
+    _is_backend_instance,
+    _resolve_backend_from_session_or_batch,
+)
+from qc_executor.quantum_operator import QuantumOperator
+
+# Skip the entire module if qiskit-ibm-runtime is not installed, or if it fails
+# to import because it is incompatible with the currently installed Qiskit
+# version (e.g. a newer qiskit-ibm-runtime against an older pinned Qiskit).
+qiskit_ibm_runtime = pytest.importorskip("qiskit_ibm_runtime", exc_type=ImportError)
+Batch = qiskit_ibm_runtime.Batch
+Session = qiskit_ibm_runtime.Session
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -36,22 +46,37 @@ from executor.utils.qiskit_compat import (
 def _get_fake_backend():
     """Return a small (5-qubit) IBM fake backend for testing.
 
-    Uses the runtime version to select the most appropriate backend.
-    FakeManilaV2 (5 qubits) is preferred to avoid excessive memory usage.
+    FakeManilaV2 (5 qubits) is preferred to avoid excessive memory usage;
+    FakeAlmadenV2 is a fallback for runtime builds that do not ship it.
     """
-    if QISKIT_RUNTIME_SMALLER_0_21:
-        # Older runtime builds — try FakeManilaV2 first, fall back to FakeAlmadenV2
-        candidates = ["FakeManilaV2", "FakeAlmadenV2"]
-    else:
-        # Runtime >= 0.21 — FakeManilaV2 is the preferred small fake backend
-        candidates = ["FakeManilaV2", "FakeAlmadenV2"]
+    candidates = ["FakeManilaV2", "FakeAlmadenV2"]
 
-    fake_provider = pytest.importorskip("qiskit_ibm_runtime.fake_provider")
+    fake_provider = pytest.importorskip("qiskit_ibm_runtime.fake_provider", exc_type=ImportError)
     for name in candidates:
         cls = getattr(fake_provider, name, None)
         if cls is not None:
             return cls()
-    pytest.skip("No fake backend available in this qiskit-ibm-runtime version")
+    return pytest.skip("No fake backend available in this qiskit-ibm-runtime version")
+
+
+class FakeRunEstimator:
+    """Minimal stand-in for a runtime Estimator - returns its label from run()."""
+
+    def __init__(self, label):
+        self.label = label
+
+    def run(self, pubs, *, precision=None):  # pylint: disable=unused-argument
+        return self.label
+
+
+class FakeRunSampler:
+    """Minimal stand-in for a runtime Sampler - returns its label from run()."""
+
+    def __init__(self, label):
+        self.label = label
+
+    def run(self, pubs, *, shots=None):  # pylint: disable=unused-argument
+        return self.label
 
 
 def _build_circuit(num_qubits, operations):
@@ -66,8 +91,9 @@ def _get_fake_session_or_skip():
     try:
         session_cls = qiskit_ibm_runtime.Session
         return session_cls(backend=backend)
-    except Exception as exc:
-        pytest.skip(f"Could not create runtime Session for fake backend: {exc}")
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        # Any failure (missing credentials, version drift) should skip, not fail.
+        return pytest.skip(f"Could not create runtime Session for fake backend: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +133,42 @@ class TestBackendDetection:
         assert ibm_quantum is False
         assert fake is True
 
+    def test_classify_backend_string_fallback_for_ibm_like_name(self):
+        class _UnknownBackend:
+            def __str__(self):
+                return "IBM Fake Backend"
+
+        remote, ibm_quantum, fake = _classify_backend(_UnknownBackend())
+
+        assert remote is False
+        assert ibm_quantum is False
+        assert fake is True
+
+    def test_resolve_backend_from_session_or_batch_via_backend_attr(self):
+        backend = _get_fake_backend()
+
+        class _SessionLike:
+            def __init__(self, backend):
+                self._backend = backend
+
+        assert _resolve_backend_from_session_or_batch(_SessionLike(backend)) is backend
+
+    def test_resolve_backend_from_session_or_batch_via_backend_name(self):
+        backend = _get_fake_backend()
+
+        class _Service:
+            def backend(self, name):
+                assert name == "fake_backend"
+                return backend
+
+        class _SessionLike:
+            def backend(self):
+                return "fake_backend"
+
+            service = _Service()
+
+        assert _resolve_backend_from_session_or_batch(_SessionLike()) is backend
+
 
 # ---------------------------------------------------------------------------
 # QiskitExecutor with FakeBackend
@@ -143,34 +205,60 @@ class TestQiskitExecutorFakeBackend:
         executor = QiskitExecutor(backend=backend, shots=1024)
         if QISKIT_RUNTIME_SMALLER_0_21:
             # Fallback to local primitive for fake backends (V1 runtime needs IBM account)
-            from qiskit.primitives import BaseEstimatorV1 as _BaseV1
-
-            assert isinstance(executor._estimator, _BaseV1)
+            expected_cls = getattr(qiskit_primitives, "BaseEstimatorV1")
         elif QISKIT_RUNTIME_SMALLER_0_28:
-            from qiskit_ibm_runtime import EstimatorV2 as ExpectedEstimator
-
-            assert isinstance(executor._estimator, ExpectedEstimator)
+            expected_cls = qiskit_ibm_runtime.EstimatorV2
         else:
-            from qiskit_ibm_runtime import Estimator as ExpectedEstimator
-
-            assert isinstance(executor._estimator, ExpectedEstimator)
+            expected_cls = qiskit_ibm_runtime.Estimator
+        assert isinstance(executor._estimator, expected_cls)
 
     def test_sampler_is_local_type_for_fake_backend(self):
         """Fake IBM backends use runtime primitives when runtime >= 0.21."""
         backend = _get_fake_backend()
         executor = QiskitExecutor(backend=backend, shots=1024)
         if QISKIT_RUNTIME_SMALLER_0_21:
-            from qiskit.primitives import BaseSamplerV1 as _BaseV1
-
-            assert isinstance(executor._sampler, _BaseV1)
+            expected_cls = getattr(qiskit_primitives, "BaseSamplerV1")
         elif QISKIT_RUNTIME_SMALLER_0_28:
-            from qiskit_ibm_runtime import SamplerV2 as ExpectedSampler
-
-            assert isinstance(executor._sampler, ExpectedSampler)
+            expected_cls = qiskit_ibm_runtime.SamplerV2
         else:
-            from qiskit_ibm_runtime import Sampler as ExpectedSampler
+            expected_cls = qiskit_ibm_runtime.Sampler
+        assert isinstance(executor._sampler, expected_cls)
 
-            assert isinstance(executor._sampler, ExpectedSampler)
+    def test_estimator_property_returns_internal_estimator(self):
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=1024)
+        assert executor.estimator is executor._estimator
+
+    def test_sampler_property_returns_internal_sampler(self):
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=1024)
+        assert executor.sampler is executor._sampler
+
+    def test_estimator_precision_reflects_shots(self):
+        """A freshly constructed estimator honors ``shots`` as ``1/sqrt(shots)``
+        precision - not qiskit's own default, which ignores the constructor's
+        ``shots`` argument entirely for runtime/backend primitives."""
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=2048)
+        assert executor.estimator.options.default_precision == pytest.approx(1.0 / 2048**0.5)
+
+    def test_sampler_shots_reflects_constructor_argument(self):
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=2048)
+        assert executor.sampler.options.default_shots == 2048
+
+    def test_exact_shots_leaves_default_precision_untouched(self):
+        """``shots=None`` means exact simulation; the primitive's own default
+        precision/shots (not attributable to any particular shot count) is
+        left alone rather than forced to some sentinel value."""
+        backend = _get_fake_backend()
+        executor = QiskitExecutor(backend=backend, shots=None)
+        # No shots configured -> _apply_shots_option is a no-op; whatever
+        # qiskit's own constructor chose is preserved unchanged.
+        default_executor = QiskitExecutor(backend=_get_fake_backend())
+        assert executor.estimator.options.default_precision == pytest.approx(
+            default_executor.estimator.options.default_precision
+        )
 
     def test_context_manager(self):
         """Test that the executor can be used as a context manager."""
@@ -237,30 +325,26 @@ class TestTranspilationFakeBackend:
 
 
 # ---------------------------------------------------------------------------
-# QiskitCircuit._from_qiskit
+# QiskitCircuit.from_qiskit
 # ---------------------------------------------------------------------------
 
 
 class TestQiskitCircuitFromQiskit:
     def test_from_qiskit_roundtrip(self):
-        from qiskit.circuit import QuantumCircuit as QiskitQC
-
         qc = QiskitQC(2)
         qc.h(0)
         qc.cx(0, 1)
-        wrapper = QiskitCircuit._from_qiskit(qc)
+        wrapper = QiskitCircuit.from_qiskit(qc)
         assert isinstance(wrapper, QiskitCircuit)
         assert wrapper.num_qubits == 2
 
     def test_from_qiskit_with_parameters(self):
-        from qiskit.circuit import ParameterVector
-        from qiskit.circuit import QuantumCircuit as QiskitQC
-
-        p = ParameterVector("p", 2)
+        # A raw Qiskit circuit takes Qiskit's own parameter objects.
+        p = QiskitParameterVector("p", 2)
         qc = QiskitQC(1)
         qc.rx(p[0], 0)
         qc.ry(p[1], 0)
-        wrapper = QiskitCircuit._from_qiskit(qc)
+        wrapper = QiskitCircuit.from_qiskit(qc)
         assert len(wrapper.free_parameters) == 2
         assert "p" in wrapper.parameter_names
 
@@ -294,6 +378,265 @@ class TestExecutionFakeBackend:
         assert len(result) >= 1
 
 
+class TestIBMInternalHelpers:
+    def test_public_create_session_builds_session_and_refreshes_primitives(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._execution_mode = "session"
+
+        calls = []
+        executor._create_session = lambda: calls.append("create_session")
+        executor._refresh_primitives = lambda: calls.append("refresh_primitives")
+
+        executor.create_session()
+
+        assert calls == ["create_session", "refresh_primitives"]
+
+    def test_public_create_session_is_a_noop_without_a_managed_session(self):
+        """Job-mode execution (or a non-IBM backend) never owns a session -
+        create_session() must not build one."""
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._execution_mode = "job"
+
+        calls = []
+        executor._create_session = lambda: calls.append("create_session")
+        executor._refresh_primitives = lambda: calls.append("refresh_primitives")
+
+        executor.create_session()
+
+        assert not calls
+
+    def test_ensure_session_active_recreates_expired_session(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._session = type("_Session", (), {"status": lambda self: "closed"})()
+        executor._create_session_called = False
+
+        def _fake_create_session():
+            executor._create_session_called = True
+
+        executor._create_session = _fake_create_session
+        executor._uses_managed_session = lambda: False
+
+        executor._ensure_session_active()
+
+        assert executor._create_session_called is True
+
+    def test_ensure_primitives_current_rebuilds_on_session_renewal(self):
+        """A session swap (detected by identity) triggers a primitive rebuild,
+        even though the already-cached estimator/sampler are not None - the
+        gap ``_ensure_runtime_primitives`` alone leaves uncovered."""
+        executor = object.__new__(QiskitExecutor)
+        old_session = object()
+        new_session = object()
+        executor._session = old_session
+        executor._raw_estimator = "stale_estimator"
+        executor._raw_sampler = "stale_sampler"
+
+        def _fake_ensure_session_active():
+            executor._session = new_session
+
+        refreshed = {"called": False}
+
+        def _fake_refresh_primitives():
+            refreshed["called"] = True
+            executor._raw_estimator = "fresh_estimator"
+            executor._raw_sampler = "fresh_sampler"
+
+        executor._ensure_session_active = _fake_ensure_session_active
+        executor._refresh_primitives = _fake_refresh_primitives
+
+        executor._ensure_primitives_current()
+
+        assert refreshed["called"] is True
+        assert executor._raw_estimator == "fresh_estimator"
+        assert executor._raw_sampler == "fresh_sampler"
+
+    def test_ensure_primitives_current_skips_rebuild_when_session_unchanged(self):
+        executor = object.__new__(QiskitExecutor)
+        session = object()
+        executor._session = session
+        executor._raw_estimator = "existing_estimator"
+        executor._raw_sampler = "existing_sampler"
+
+        executor._ensure_session_active = lambda: None  # session stays the same object
+
+        refreshed = {"called": False}
+
+        def _fake_refresh_primitives():
+            refreshed["called"] = True
+
+        executor._refresh_primitives = _fake_refresh_primitives
+
+        executor._ensure_primitives_current()
+
+        assert refreshed["called"] is False
+        assert executor._raw_estimator == "existing_estimator"
+        assert executor._raw_sampler == "existing_sampler"
+
+    def test_ensure_primitives_current_builds_on_first_use(self):
+        """No prior session/primitives at all (``None``) still triggers a build,
+        matching what ``_ensure_runtime_primitives`` already covered."""
+        executor = object.__new__(QiskitExecutor)
+        executor._session = None
+        executor._raw_estimator = None
+        executor._raw_sampler = None
+
+        executor._ensure_session_active = lambda: None
+
+        refreshed = {"called": False}
+
+        def _fake_refresh_primitives():
+            refreshed["called"] = True
+
+        executor._refresh_primitives = _fake_refresh_primitives
+
+        executor._ensure_primitives_current()
+
+        assert refreshed["called"] is True
+
+    def test_estimator_property_refreshes_stale_primitive(self):
+        """The public ``estimator`` property must go through
+        ``_ensure_primitives_current`` for IBM Quantum backends, not the
+        weaker ``_ensure_runtime_primitives`` (which never revisits an
+        already-built primitive)."""
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._estimator = "stale"
+
+        calls = []
+        executor._ensure_primitives_current = lambda: calls.append("called")
+
+        result = executor.estimator
+
+        assert calls == ["called"]
+        assert result == "stale"  # the fake helper above didn't mutate it
+
+    def test_sampler_property_refreshes_stale_primitive(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._sampler = "stale"
+
+        calls = []
+        executor._ensure_primitives_current = lambda: calls.append("called")
+
+        result = executor.sampler
+
+        assert calls == ["called"]
+        assert result == "stale"
+
+    def test_estimator_property_skips_refresh_for_non_ibm_backend(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = False
+        executor._estimator = "local_estimator"
+
+        def _should_not_be_called():
+            raise AssertionError("must not check session/primitive freshness for non-IBM backends")
+
+        executor._ensure_primitives_current = _should_not_be_called
+
+        assert executor.estimator == "local_estimator"
+
+    def test_instantiate_runtime_primitive_v2_uses_expected_kwargs(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._session = type("_Session", (), {"status": lambda self: "open"})()
+        executor._backend = _get_fake_backend()
+        executor._execution_mode = "job"
+
+        class _DummyPrimitive:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        if QISKIT_RUNTIME_SMALLER_0_23:
+            primitive = executor._instantiate_runtime_primitive_v2(_DummyPrimitive, {"a": 1})
+            assert primitive.kwargs["session"] is executor._session
+        else:
+            primitive = executor._instantiate_runtime_primitive_v2(_DummyPrimitive, {"a": 1})
+            assert primitive.kwargs["mode"] is executor._session
+        assert primitive.kwargs["options"] == {"a": 1}
+
+    def test_instantiate_runtime_primitive_v1_uses_backend_and_options(self, monkeypatch):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = False
+        executor._session = None
+        executor._backend = _get_fake_backend()
+
+        class _DummyPrimitive:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+
+        class _DummyOptions:
+            def __init__(self):
+                self.resilience_level = None
+
+        monkeypatch.setattr(
+            qiskit_executor_module,
+            "_load_runtime_options_v1",
+            lambda: _DummyOptions,
+        )
+
+        primitive = executor._instantiate_runtime_primitive_v1(
+            _DummyPrimitive, {"resilience_level": 1}
+        )
+
+        assert primitive.kwargs["backend"] is executor._backend
+        assert primitive.kwargs["options"] is not None
+        assert primitive.kwargs["options"].resilience_level == 1
+
+
+class TestPrimitiveWrapperAcrossSessionRenewal:
+    """The wrapper hook (see ``primitive_wrapper`` on ``QiskitExecutor``) must
+    be re-applied whenever a runtime session renewal rebuilds the raw
+    primitive - not just once at construction - so a host's retry/caching/
+    seeding decorations keep working across a long-running IBM Quantum loop
+    that never re-enters ``with``."""
+
+    class _Tagged:
+        def __init__(self, primitive, kind):
+            self.primitive = primitive
+            self.kind = kind
+
+    def test_estimator_wrapper_reapplied_after_simulated_session_renewal(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._primitive_wrapper = self._Tagged
+        executor._raw_estimator = FakeRunEstimator("stale")
+        executor._estimator = self._Tagged(executor._raw_estimator, "estimator")
+
+        def _fake_ensure_primitives_current():
+            executor._raw_estimator = FakeRunEstimator("fresh")
+            executor._estimator = executor._decorate_primitive(
+                executor._raw_estimator, "estimator"
+            )
+
+        executor._ensure_primitives_current = _fake_ensure_primitives_current
+
+        result = executor.estimator
+
+        assert isinstance(result, self._Tagged)
+        assert result.primitive.label == "fresh"
+
+    def test_sampler_wrapper_reapplied_after_simulated_session_renewal(self):
+        executor = object.__new__(QiskitExecutor)
+        executor._ibm_quantum_backend = True
+        executor._primitive_wrapper = self._Tagged
+        executor._raw_sampler = FakeRunSampler("stale")
+        executor._sampler = self._Tagged(executor._raw_sampler, "sampler")
+
+        def _fake_ensure_primitives_current():
+            executor._raw_sampler = FakeRunSampler("fresh")
+            executor._sampler = executor._decorate_primitive(executor._raw_sampler, "sampler")
+
+        executor._ensure_primitives_current = _fake_ensure_primitives_current
+
+        result = executor.sampler
+
+        assert isinstance(result, self._Tagged)
+        assert result.primitive.label == "fresh"
+
+
 # ---------------------------------------------------------------------------
 # Factory auto-detection tests
 # ---------------------------------------------------------------------------
@@ -309,8 +652,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_fake_backend(self):
         """Executor.create() should return a QiskitExecutor for a BackendV2."""
-        from executor.qiskit import QiskitExecutor
-
         backend = _get_fake_backend()
         executor = Executor.create(backend, shots=1024, seed=42)
 
@@ -322,8 +663,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_session(self):
         """Executor.create() should return a QiskitExecutor for a Session."""
-        from executor.qiskit import QiskitExecutor
-
         session = _get_fake_session_or_skip()
         try:
             executor = Executor.create(session, shots=1024)
@@ -335,9 +674,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_statevector_estimator(self):
         """Executor.create() should accept a StatevectorEstimator directly."""
-        from qiskit.primitives import StatevectorEstimator
-
-        from executor.qiskit import QiskitExecutor
 
         estimator = StatevectorEstimator()
         executor = Executor.create(estimator)
@@ -346,9 +682,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_statevector_sampler(self):
         """Executor.create() should accept a StatevectorSampler directly."""
-        from qiskit.primitives import StatevectorSampler
-
-        from executor.qiskit import QiskitExecutor
 
         sampler = StatevectorSampler()
         executor = Executor.create(sampler)
@@ -357,16 +690,12 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_create_with_backend_estimator(self):
         """Executor.create() should accept a BackendEstimatorV2."""
-        from executor.qiskit import QiskitExecutor
-        from executor.utils.qiskit_compat import QISKIT_SMALLER_1_2
 
         backend = _get_fake_backend()
-        if QISKIT_SMALLER_1_2:
-            from qiskit.primitives import BackendEstimator as BackendEstimatorCls
-        else:
-            from qiskit.primitives import BackendEstimatorV2 as BackendEstimatorCls
+        estimator_cls_name = "BackendEstimator" if QISKIT_SMALLER_1_2 else "BackendEstimatorV2"
+        estimator_cls = getattr(qiskit_primitives, estimator_cls_name)
 
-        estimator = BackendEstimatorCls(backend=backend)
+        estimator = estimator_cls(backend=backend)
         executor = Executor.create(estimator, shots=256)
 
         assert isinstance(executor, QiskitExecutor)
@@ -383,17 +712,13 @@ class TestExecutorFactoryQiskitAutoDetection:
                 "cannot be instantiated with a fake backend."
             )
 
-        from executor.qiskit import QiskitExecutor
-
         backend = _get_fake_backend()
-        if QISKIT_RUNTIME_SMALLER_0_28:
-            from qiskit_ibm_runtime import EstimatorV2
-
-            estimator = EstimatorV2(mode=backend)
-        else:
-            from qiskit_ibm_runtime import Estimator as EstimatorV2
-
-            estimator = EstimatorV2(mode=backend)
+        estimator_cls = (
+            qiskit_ibm_runtime.EstimatorV2
+            if QISKIT_RUNTIME_SMALLER_0_28
+            else qiskit_ibm_runtime.Estimator
+        )
+        estimator = estimator_cls(mode=backend)
 
         executor = Executor.create(estimator, shots=256)
         assert isinstance(executor, QiskitExecutor)
@@ -410,26 +735,19 @@ class TestExecutorFactoryQiskitAutoDetection:
                 "cannot be instantiated with a fake backend."
             )
 
-        from executor.qiskit import QiskitExecutor
-
         backend = _get_fake_backend()
-        if QISKIT_RUNTIME_SMALLER_0_28:
-            from qiskit_ibm_runtime import SamplerV2
-
-            sampler = SamplerV2(mode=backend)
-        else:
-            from qiskit_ibm_runtime import Sampler as SamplerV2
-
-            sampler = SamplerV2(mode=backend)
+        sampler_cls = (
+            qiskit_ibm_runtime.SamplerV2
+            if QISKIT_RUNTIME_SMALLER_0_28
+            else qiskit_ibm_runtime.Sampler
+        )
+        sampler = sampler_cls(mode=backend)
 
         executor = Executor.create(sampler, shots=256)
         assert isinstance(executor, QiskitExecutor)
 
     def test_get_accepted_types_contains_backend(self):
         """get_accepted_types() must include qiskit.providers.Backend."""
-        from qiskit.providers import Backend
-
-        from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -437,9 +755,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_contains_statevector_primitives(self):
         """get_accepted_types() must include the built-in statevector primitives."""
-        from qiskit.primitives import StatevectorEstimator, StatevectorSampler
-
-        from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -448,9 +763,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_contains_session_and_batch(self):
         """get_accepted_types() must include Session and Batch."""
-        from qiskit_ibm_runtime import Batch, Session
-
-        from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -459,13 +771,11 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_no_dummy_classes(self):
         """Dummy sentinel classes must not appear in get_accepted_types()."""
-        from executor.qiskit import QiskitExecutor
-
         accepted = QiskitExecutor.get_accepted_backend_types()
 
         # All returned types must originate from a real package, not from
         # the executor module itself.
-        executor_module = "executor.qiskit.qiskit_executor"
+        executor_module = "qc_executor.qiskit.qiskit_executor"
         for t in accepted:
             assert (
                 getattr(t, "__module__", "") != executor_module
@@ -473,7 +783,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_get_accepted_types_returns_list_of_types(self):
         """get_accepted_types() must return a list of actual type objects."""
-        from executor.qiskit import QiskitExecutor
 
         accepted = QiskitExecutor.get_accepted_backend_types()
 
@@ -484,7 +793,6 @@ class TestExecutorFactoryQiskitAutoDetection:
 
     def test_fake_backend_isinstance_check_against_accepted_types(self):
         """A FakeBackend instance must match at least one accepted type."""
-        from executor.qiskit import QiskitExecutor
 
         backend = _get_fake_backend()
         accepted = QiskitExecutor.get_accepted_backend_types()

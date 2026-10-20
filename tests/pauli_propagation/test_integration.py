@@ -1,18 +1,18 @@
 """Integration tests for PauliPropagation strict native API."""
 
 import numpy as np
-import pytest
 import sympy as sp
 
-from executor.base import ExecutorBase
-from executor.factory import Executor
-from executor.parameters import Parameters
-from executor.pauli_propagation import (
+from qc_executor import QuantumCircuit, QuantumOperator
+from qc_executor.base import ExecutorBase
+from qc_executor.factory import Executor
+from qc_executor.parameters import Parameters
+from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
     PauliPropagationExecutor,
     PauliPropagationOperator,
 )
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
+from qc_executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
 
 
 class TestImportPaths:
@@ -83,6 +83,8 @@ class TestNativeTypes:
         op_z = PauliPropagationOperator(["Z"], [1.0])
 
         results = executor.expectation_value(circuit, [op_x, op_z])
+        assert isinstance(results, np.ndarray)
+        results = np.asarray(results)
         assert len(results) == 2
         assert np.isclose(results[0], 1.0, atol=1e-10)
         assert np.isclose(results[1], 0.0, atol=1e-10)
@@ -177,23 +179,46 @@ class TestFactoryIntegration:
         assert np.isclose(value, 1.0, atol=1e-10)
 
 
-class TestStrictInputContract:
-    def test_reject_legacy_quantumcircuit(self):
+class TestAcceptsGenericAndNativeInputs:
+    """The executor transpiles generic inputs instead of rejecting them.
+
+    This backend used to raise TypeError unless both the circuit and the
+    observable were already native, forcing callers to transpile by hand.
+    """
+
+    def test_generic_circuit_with_native_observable(self):
         executor = PauliPropagationExecutor()
         observable = PauliPropagationOperator(["Z"], [1.0])
+        circuit = QuantumCircuit(1)
 
-        with pytest.raises(TypeError, match="PauliPropagationCircuit"):
-            from executor import QuantumCircuit
+        assert np.isclose(executor.expectation_value(circuit, observable), 1.0, atol=1e-10)
 
-            legacy = QuantumCircuit(1)
-            executor.expectation_value(legacy, observable)
-
-    def test_reject_legacy_quantumoperator(self):
+    def test_native_circuit_with_generic_observable(self):
         executor = PauliPropagationExecutor()
         circuit = PauliPropagationCircuit(1)
+        observable = QuantumOperator(["Z"], [1.0])
 
-        with pytest.raises(TypeError, match="PauliPropagationOperator"):
-            from executor import QuantumOperator
+        assert np.isclose(executor.expectation_value(circuit, observable), 1.0, atol=1e-10)
 
-            legacy = QuantumOperator(["Z"], [1.0])
-            executor.expectation_value(circuit, legacy)
+    def test_both_generic(self):
+        executor = PauliPropagationExecutor()
+        circuit = QuantumCircuit(1)
+        circuit.x(0)
+
+        result = executor.expectation_value(circuit, QuantumOperator(["Z"], [1.0]))
+
+        assert np.isclose(result, -1.0, atol=1e-10)
+
+    def test_generic_and_native_inputs_agree(self):
+        executor = PauliPropagationExecutor()
+        generic_circuit = QuantumCircuit(1)
+        generic_circuit.h(0)
+        observable = QuantumOperator(["X"], [1.0])
+
+        from_generic = executor.expectation_value(generic_circuit, observable)
+        from_native = executor.expectation_value(
+            executor.transpile_circuit(generic_circuit),
+            executor.transpile_operator(observable),
+        )
+
+        assert np.isclose(from_generic, from_native, atol=1e-12)

@@ -3,19 +3,19 @@ requires = ["hatchling >= 1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "executor"
+name = "qc-executor"
 description = "Abstraction layer for quantum circuits and operators across multiple backends."
 readme = "README.md"
 authors = [
-    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
-    {name = "Jan Schnabel", email = "jan.schnabel@ipa.fraunhofer.de"},
-    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
-    {name = "Marco Roth", email = "marco.roth@ipa.fraunhofer.de"},
+    {name = "Dennis Kleinhans", email = "dennis.kleinhans@ipa.fraunhofer.de"},
+    {name = "Florian Wieland", email = "florian.wieland@ipa.fraunhofer.de"},
+    {name = "David Kreplin", email = "david.kreplin@hs-heilbronn.de"},
 ]
 maintainers = [
-    {name = "David Kreplin", email = "david.kreplin@ipa.fraunhofer.de"},
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
+    {name = "Chia-Tso Lai", email = "chia-tso.lai@ipa.fraunhofer.de"},
+    {name = "Manuel Hagelüken", email = "manuel.hagelueken@ipa.fraunhofer.de"},
 ]
 license = {file = "LICENSE.txt"}
 classifiers = [
@@ -32,22 +32,36 @@ classifiers = [
 ]
 keywords = ["quantum", "circuit", "executor", "pennylane", "qiskit", "qulacs"]
 dependencies = [
-    "dill>=0.3.4",
-    "mapomatic>=0.10.0",
     "numpy>=1.20",
-    "qiskit>=1.0.0",
     "sympy>=1.8",
 ]
 requires-python = ">=3.10"
 dynamic = ["version"]
 
+[project.urls]
+Homepage = "https://flaqship.eu"
+Documentation = "https://flaqship.github.io/qc-executor/"
+Repository = "https://github.com/flaqship/qc-executor"
+Issues = "https://github.com/flaqship/qc-executor/issues"
+
 [project.optional-dependencies]
-pennylane = ["pennylane>=0.34.0"]
+# Every backend is optional; the core package needs only numpy and sympy.
+qiskit = ["qiskit>=1.2.0", "packaging>=21.0"]
+pennylane = ["pennylane>=0.34.0", "packaging>=21.0"]
 qulacs = ["qulacs>=0.6.4.1"]
-qiskit-full = ["qiskit-aer>=0.12.0", "qiskit-ibm-runtime>=0.18.0"]
 qoqo = ["qoqo>=1.21.0", "qoqo_quest>=0.18.0"]
+# Aer and the IBM runtime are needed for shot-based sampling and for the
+# dynamic circuits the local Qiskit primitives refuse to run.
+qiskit-full = [
+    "qiskit>=1.2.0",
+    "packaging>=21.0",
+    "qiskit-aer>=0.12.0",
+    "qiskit-ibm-runtime>=0.18.0",
+]
 pauli_propagation = []
 all = [
+    "qiskit>=1.2.0",
+    "packaging>=21.0",
     "pennylane>=0.34.0",
     "qulacs>=0.6.4.1",
     "qiskit-aer>=0.12.0",
@@ -68,11 +82,15 @@ dev = [
     "black[jupyter]",
     "pylint",
     "pytest",
+    "pytest-cov",
+    "diff-cover",
     "nbmake",
 ]
 docs = [
     "sphinx>=7.0",
     "sphinx-autodoc-typehints",
+    "myst-parser>=2.0",
+    "flaqship-sphinx-theme",
 ]
 examples = [
     "nbmake",
@@ -86,11 +104,17 @@ examples = [
 [tool.uv]
 managed = true
 
+[tool.uv.sources]
+flaqship-sphinx-theme = { git = "https://github.com/flaqship/flaqship-sphinx-theme.git" }
+
 [tool.hatch.version]
-path = "src/executor/__init__.py"
+path = "src/qc_executor/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/executor"]
+packages = ["src/qc_executor"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "docs", "examples", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE.txt", "pyproject.toml"]
 
 [tool.black]
 line-length = 99
@@ -102,17 +126,44 @@ line_length = 99
 [tool.pylint]
 max-line-length = 99
 
+[tool.pylint.format]
+max-module-lines = 2000
+
 [tool.pylint.design]
-max-attributes = 10
-max-args = 10
-max-positional-arguments = 10
-max-locals = 20
-max-public-methods = 50
+max-attributes = 20
+max-args = 20
+max-positional-arguments = 20
+max-locals = 50
+max-public-methods = 80
+max-branches = 50
+max-returns = 20
+max-statements = 150
 
 [tool.pylint.main]
+fail-under = 9.9
 extension-pkg-allow-list = [
     "numpy",
 ]
 
+[tool.pylint.classes]
+# Recognise pytest's setup_method/setup_class as valid places to define
+# instance/class attributes, alongside the usual dunder and unittest hooks.
+defining-attr-methods = [
+    "__init__",
+    "__new__",
+    "setUp",
+    "asyncSetUp",
+    "__post_init__",
+    "setup_method",
+    "setup_class",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "@abstractmethod",
+]

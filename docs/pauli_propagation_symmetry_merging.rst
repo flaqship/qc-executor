@@ -22,11 +22,11 @@ Basic Usage
 
 .. code-block:: python
 
-   from executor.pauli_propagation import (
+   from qc_executor.pauli_propagation import (
        PauliPropagationExecutor,
        PermutationSymmetry,
    )
-   from executor.pauli_propagation.utils.pauli_types import PauliSum
+   from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
    from qiskit import QuantumCircuit
    from qiskit.quantum_info import SparsePauliOp
 
@@ -54,9 +54,9 @@ Direct Integration with PauliSum
 
 .. code-block:: python
 
-   from executor.pauli_propagation import PermutationSymmetry
-   from executor.pauli_propagation.utils.pauli_types import PauliSum
-   from executor.pauli_propagation.utils.propagation import propagate
+   from qc_executor.pauli_propagation import PermutationSymmetry
+   from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+   from qc_executor.pauli_propagation.utils.propagation import propagate
 
    sym = PermutationSymmetry()
    observable = PauliSum(nqubits=4, symmetry=sym)
@@ -103,7 +103,7 @@ Identity strategy that performs no merging. Used by default when no symmetry is 
 
 .. code-block:: python
 
-   from executor.pauli_propagation import NoSymmetry, PauliPropagationExecutor
+   from qc_executor.pauli_propagation import NoSymmetry, PauliPropagationExecutor
 
    executor = PauliPropagationExecutor(symmetry_strategy=NoSymmetry())
 
@@ -116,7 +116,7 @@ Qubit permutation symmetry ``S_n`` groups Pauli terms that differ only by qubit 
 
 .. code-block:: python
 
-   from executor.pauli_propagation import PermutationSymmetry, PauliPropagationExecutor
+   from qc_executor.pauli_propagation import PermutationSymmetry, PauliPropagationExecutor
 
    executor = PauliPropagationExecutor(
        symmetry_strategy=PermutationSymmetry()
@@ -139,7 +139,7 @@ Chains multiple symmetry strategies and applies each strategy in sequence.
 
 .. code-block:: python
 
-   from executor.pauli_propagation import CompositeSymmetry, PermutationSymmetry
+   from qc_executor.pauli_propagation import CompositeSymmetry, PermutationSymmetry
 
    sym = CompositeSymmetry(
        PermutationSymmetry(),
@@ -199,7 +199,7 @@ To implement a custom symmetry, subclass ``SymmetryStrategy``:
 
 .. code-block:: python
 
-   from executor.pauli_propagation.symmetry import SymmetryStrategy
+   from qc_executor.pauli_propagation.symmetry import SymmetryStrategy
 
    class MyCustomSymmetry(SymmetryStrategy):
        def canonical_representative(self, term: int, nqubits: int) -> int:
@@ -235,7 +235,7 @@ API Pointers
 
 Useful entry points:
 
-- ``executor.pauli_propagation.symmetry`` for the symmetry strategy classes.
-- ``executor.pauli_propagation.utils.pauli_types`` for ``PauliSum`` and ``PauliString``.
-- ``executor.pauli_propagation.utils.propagation`` for low-level propagation helpers.
-- ``executor.pauli_propagation`` for the public executor, circuit, and operator types.
+- ``qc_executor.pauli_propagation.symmetry`` for the symmetry strategy classes.
+- ``qc_executor.pauli_propagation.utils.pauli_types`` for ``PauliSum`` and ``PauliString``.
+- ``qc_executor.pauli_propagation.utils.propagation`` for low-level propagation helpers.
+- ``qc_executor.pauli_propagation`` for the public executor, circuit, and operator types.

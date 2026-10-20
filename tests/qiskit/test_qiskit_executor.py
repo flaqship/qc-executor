@@ -2,14 +2,19 @@ import logging
 
 import numpy as np
 import pytest
-from qiskit.circuit import Parameter
 from qiskit.primitives import StatevectorEstimator, StatevectorSampler
 
-from executor import QuantumCircuit
-from executor.parameters import Parameters
-from executor.qiskit.qiskit_circuit import QiskitCircuit
-from executor.qiskit.qiskit_executor import QiskitExecutor
-from executor.quantum_operator import QuantumOperator
+from qc_executor import QuantumCircuit
+from qc_executor.parameters import Parameter, Parameters
+from qc_executor.qiskit._sympy_bridge import to_qiskit_expr
+from qc_executor.qiskit.qiskit_circuit import QiskitCircuit
+from qc_executor.qiskit.qiskit_executor import (
+    QiskitExecutor,
+    _counts_register,
+    _databin_fields,
+)
+from qc_executor.qiskit.qiskit_operator import QiskitOperator
+from qc_executor.quantum_operator import QuantumOperator
 
 
 def _build_circuit(num_qubits, operations):
@@ -72,6 +77,16 @@ class TestQiskitExecutor:
         with pytest.raises(ValueError, match="cannot be combined with injected"):
             QiskitExecutor(backend=StatevectorEstimator(), options={"resilience_level": 1})
 
+    def test_shot_based_aer_string_backend_uses_aer(self):
+        """The "aer" string backend should create Aer-backed primitives."""
+        pytest.importorskip("qiskit_aer", exc_type=ImportError)
+
+        executor = QiskitExecutor(backend="aer", shots=32, seed=0)
+
+        assert executor._backend is not None
+        assert executor._estimator is not None
+        assert executor._sampler is not None
+
     # ========================================================================
     # Logging Tests
     # ========================================================================
@@ -102,7 +117,7 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(log_level="INFO", log_file=log_file)
         executor._logger.info("qiskit test log message")
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "qiskit test log message" in content
 
@@ -119,7 +134,7 @@ class TestQiskitExecutor:
         operator = QuantumOperator(["Z"], [1.0])
         executor.expectation_value(qc, operator)
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "Computing expectation value" in content
 
@@ -135,7 +150,7 @@ class TestQiskitExecutor:
         qc = _build_circuit(1, [])
         executor.statevector(qc)
 
-        with open(log_file) as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
         assert "Computing statevector" in content
 
@@ -152,10 +167,10 @@ class TestQiskitExecutor:
         executor = QiskitExecutor(max_cache_size=64)
         assert executor._max_cache_size == 64
 
-    def test_unlimited_cache_size_by_default(self):
-        """Test that cache is unlimited when max_cache_size is not specified."""
+    def test_default_cache_size_is_bounded(self):
+        """Test that the default cache bound is used when max_cache_size is not specified."""
         executor = QiskitExecutor()
-        assert executor._max_cache_size is None
+        assert executor._max_cache_size == 4096
 
     def test_expectation_value_bell_state_z_basis(self):
         """Test expectation value of Bell state with Z observables."""
@@ -396,6 +411,39 @@ class TestQiskitExecutor:
 
         assert isinstance(result, (float, np.ndarray))
 
+    def test_expectation_value_derivatives_by_parameter_vector(self):
+        """A Parameters object is resolved to its vector name."""
+        x = Parameters("x", 2)
+        qc = _build_circuit(2, [("ry", [0, x[0]]), ("rx", [1, x[1]])])
+        operator = QuantumOperator(["ZZ"], [1.0])
+
+        executor = QiskitExecutor()
+        by_vector = executor.expectation_value_derivatives(qc, operator, x, x=[0.3, 0.8])
+        by_name = executor.expectation_value_derivatives(qc, operator, "x", x=[0.3, 0.8])
+
+        np.testing.assert_allclose(by_vector, by_name)
+
+    def test_expectation_value_derivatives_tuple_rejects_unknown_types(self):
+        """A tuple entry that is neither a name nor a parameter is rejected."""
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        with pytest.raises(ValueError, match="Unknown derivative parameter type in tuple"):
+            executor.expectation_value_derivatives(qc, operator, ("x", 3), x=[0.3])
+
+    def test_expectation_value_derivatives_tuple_rejects_foreign_parameters(self):
+        """A tuple entry must belong to the circuit or the observable."""
+        x = Parameters("x", 1)
+        z = Parameters("z", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        with pytest.raises(ValueError, match="found in neither the circuit nor the observable"):
+            executor.expectation_value_derivatives(qc, operator, (x[0], z[0]), x=[0.3])
+
     def test_expectation_value_derivatives_indexed_parameter(self):
         """Test derivative with respect to indexed parameter (e.g., x[0])."""
         x = Parameters("x", 2)
@@ -443,7 +491,7 @@ class TestQiskitExecutor:
 
         operator = QuantumOperator(["ZZ", "XX"], [0.5, 0.5], 2)
 
-        result = executor.expectation_value(QiskitCircuit(circuit), operator)
+        result = executor.expectation_value(QiskitCircuit.from_quantum_circuit(circuit), operator)
 
         assert np.allclose(result, 1.0)
 
@@ -565,10 +613,10 @@ class TestParameterVectorSupport:
         """ParameterVector elements are bound by index correctly."""
         x = Parameters("x", 2)
         qc = _build_circuit(2, [("rx", [0, x[0]]), ("ry", [1, x[1]])])
-        operator = QuantumOperator(["IZ"], [1.0])
+        operator = QuantumOperator(["ZI"], [1.0])
 
         executor = QiskitExecutor()
-        # x[0]=pi → qubit 0 flipped → <IZ> = -1; x[1]=0 → qubit 1 unchanged
+        # x[0]=pi -> qubit 0 flipped -> <Z on qubit 0> = -1; x[1]=0 leaves qubit 1
         result = executor.expectation_value(qc, operator, x=[np.pi, 0.0])
 
         assert np.isclose(result, -1.0, atol=1e-5)
@@ -618,6 +666,162 @@ class TestMixedParameterEdgeCases:
         result = executor.expectation_value(qc, operator, theta=[0.0])
 
         assert np.isclose(float(np.real(result)), 1.0, atol=1e-5)
+
+
+class TestExecutorInternalHelpers:
+    def test_prepare_parameter_dicts_separates_circuit_and_observable_parameters(self):
+        """Circuit and observable parameters must be split into separate dicts."""
+        x = Parameters("x", 2)
+        p_obs = Parameters("p_obs", 1)
+        qc = _build_circuit(1, [("rx", [0, x[0]]), ("ry", [0, x[1]])])
+        operator = QuantumOperator(["Z"], [p_obs[0]])
+
+        executor = QiskitExecutor()
+        circuit_dict, observable_dict = executor._prepare_parameter_dicts(
+            qc, operator, x=[0.1, 0.2], p_obs=0.3
+        )
+
+        # The executor binds Qiskit's own parameter objects, so compare against
+        # the translated parameters rather than the framework-independent ones.
+        assert circuit_dict == {to_qiskit_expr(x[0]): 0.1, to_qiskit_expr(x[1]): 0.2}
+        assert observable_dict == {to_qiskit_expr(p_obs[0]): 0.3}
+
+    def test_prepare_parameter_dicts_raises_for_short_parameter_vector(self):
+        """An underspecified ParameterVector should raise a clear ValueError.
+
+        Parameter values are interpreted the same way as the PennyLane/Qulacs
+        backends (adjust_features): 2 values for a declared length-3 vector
+        match neither "one value per vector element" nor a recognized batch
+        shape, so the shared, backend-consistent error message is raised.
+        """
+        x = Parameters("x", 3)
+        qc = _build_circuit(1, [("rx", [0, x[2]])])
+
+        executor = QiskitExecutor()
+
+        with pytest.raises(ValueError, match="Wrong format of an input variable"):
+            executor._prepare_parameter_dicts(qc, None, x=[0.1, 0.2])
+
+    def test_extract_counts_supports_v2_and_v1_result_formats(self):
+        """Count extraction must handle both V2 PUB results and V1 quasi distributions."""
+        executor = QiskitExecutor()
+
+        class _FakeMeas:
+            def get_counts(self):
+                return {"01": 2, "10": 1}
+
+        class _FakeData:
+            meas = _FakeMeas()
+
+        class _FakePub:
+            data = _FakeData()
+
+        class _FakeV2Result:
+            def __iter__(self):
+                return iter([_FakePub()])
+
+        v2_counts = executor._extract_counts(_FakeV2Result(), n_qubits=2)
+        assert v2_counts == [{"10": 2, "01": 1}]
+
+        class _FakeV1Result:
+            quasi_dists = [{1: 0.25, 2: 0.75}]
+            metadata = [{"shots": 4}]
+
+        v1_counts = executor._extract_counts(_FakeV1Result(), n_qubits=2)
+        assert v1_counts == [{"10": 1, "01": 3}]
+
+    def test_extract_counts_reads_a_register_that_is_not_called_meas(self):
+        """A circuit with its own measurements brings its own register name.
+
+        ``measure_all`` names its register ``meas``; a circuit carrying
+        mid-circuit measurements names it after its own classical register, and
+        hard-coding ``meas`` made those results unreadable.
+        """
+        executor = QiskitExecutor()
+
+        class _FakeBits:
+            def get_counts(self):
+                return {"01": 3}
+
+        class _FakeData:
+            def keys(self):
+                return ["c"]
+
+            c = _FakeBits()
+
+        class _FakePub:
+            data = _FakeData()
+
+        class _FakeResult:
+            def __iter__(self):
+                return iter([_FakePub()])
+
+        assert executor._extract_counts(_FakeResult()) == [{"10": 3}]
+
+    def test_extract_counts_rejects_a_pub_without_data(self):
+        executor = QiskitExecutor()
+
+        class _FakePub:
+            data = None
+
+        class _FakeResult:
+            def __iter__(self):
+                return iter([_FakePub()])
+
+        with pytest.raises(ValueError, match="no 'data' attribute"):
+            executor._extract_counts(_FakeResult())
+
+    def test_expectation_value_supports_lists_of_circuits_and_operators(self):
+        """Batched circuits/operators should return the full circuit/operator grid."""
+        qc0 = _build_circuit(1, [])
+        qc1 = _build_circuit(1, [("x", [0])])
+        op0 = QuantumOperator(["Z"], [1.0])
+        op1 = QuantumOperator(["Z"], [1.0])
+
+        executor = QiskitExecutor()
+        result = executor.expectation_value([qc0, qc1], [op0, op1])
+
+        values = np.asarray(result, dtype=float)
+        assert values.shape == (2, 2)
+        assert np.allclose(values, [[1.0, 1.0], [-1.0, -1.0]], atol=1e-5)
+
+    def test_statevector_supports_lists_of_circuits(self):
+        """Statevector evaluation should return one vector per circuit in list mode."""
+        qc0 = _build_circuit(1, [])
+        qc1 = _build_circuit(1, [("x", [0])])
+
+        executor = QiskitExecutor()
+        statevectors = executor.statevector([qc0, qc1])
+
+        assert isinstance(statevectors, np.ndarray)
+        assert statevectors.shape == (2, 2)
+        assert np.isclose(abs(statevectors[0, 0]), 1.0, atol=1e-5)
+        assert np.isclose(abs(statevectors[1, 1]), 1.0, atol=1e-5)
+
+    def test_sample_supports_lists_of_circuits(self):
+        """Sampling should return one count dictionary per circuit in list mode."""
+        qc0 = _build_circuit(1, [])
+        qc1 = _build_circuit(1, [("x", [0])])
+
+        executor = QiskitExecutor(shots=128, seed=0)
+        counts_list = executor.sample([qc0, qc1])
+
+        assert isinstance(counts_list, list)
+        assert len(counts_list) == 2
+        assert sum(counts_list[0].values()) == 128
+        assert sum(counts_list[1].values()) == 128
+        assert "0" in counts_list[0]
+        assert "1" in counts_list[1]
+
+    def test_transpile_operator_wraps_generic_operator_and_preserves_native_wrapper(self):
+        """Generic operators are wrapped, native Qiskit operators are passed through."""
+        executor = QiskitExecutor()
+        generic_operator = QuantumOperator(["Z"], [1.0])
+        wrapped_operator = executor._transpile_operator(generic_operator)
+        assert wrapped_operator.qiskit_operator == generic_operator.qiskit_operator
+
+        native_operator = QiskitOperator.from_quantum_operator(generic_operator)
+        assert executor._transpile_operator(native_operator) is native_operator
 
 
 # =============================================================================
@@ -672,3 +876,55 @@ class TestQubitOrdering:
         # With q0 leftmost: |01> means q0=0, q1=1
         # Computational basis: 0*2^1 + 1*2^0 = 1 → index 1
         assert np.isclose(abs(sv[1]), 1.0, atol=1e-5), f"Expected amplitude at index 1; got {sv}"
+
+
+class TestCountsRegisterResolution:
+    """Which classical register a V2 sampler result should be read from.
+
+    ``DataBin`` names each field after a classical register, so ``meas`` only
+    appears when this executor added the measurements itself via
+    ``measure_all``.
+    """
+
+    class _Bits:
+        """Stands in for a ``BitArray``."""
+
+        def get_counts(self):
+            return {"0": 1}
+
+    @staticmethod
+    def _data(**attributes):
+        """Build a stand-in ``DataBin`` exposing the given register names."""
+        names = list(attributes)
+        return type("Data", (), {"keys": lambda self: names, **attributes})()
+
+    def test_a_single_register_is_used_whatever_its_name(self):
+        bits = self._Bits()
+
+        assert _counts_register(self._data(creg=bits), 0) is bits
+
+    def test_meas_wins_when_several_registers_are_present(self):
+        meas = self._Bits()
+
+        assert _counts_register(self._data(meas=meas, c=self._Bits()), 0) is meas
+
+    def test_several_registers_without_meas_is_an_error(self):
+        data = self._data(a=self._Bits(), b=self._Bits())
+
+        with pytest.raises(ValueError, match="several classical registers"):
+            _counts_register(data, 0)
+
+    def test_no_register_at_all_is_an_error(self):
+        with pytest.raises(ValueError, match="no classical register with counts"):
+            _counts_register(self._data(), 3)
+
+    def test_fields_come_from_the_qiskit_1_0_dataclass_shape(self):
+        """Qiskit 1.0's DataBin predates the mapping interface."""
+        data = type("Data", (), {"_FIELDS": ("c",), "c": self._Bits()})()
+
+        assert _databin_fields(data) == ["c"]
+
+    def test_fields_fall_back_to_a_plain_attribute_scan(self):
+        data = type("Data", (), {"c": self._Bits()})()
+
+        assert _databin_fields(data) == ["c"]

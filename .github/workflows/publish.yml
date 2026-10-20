@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: release
-      url: https://pypi.org/p/executor
+      url: https://pypi.org/p/qc-executor
     permissions:
       id-token: write
 

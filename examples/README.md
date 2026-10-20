@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains Jupyter notebooks demonstrating the use of the `executor` library.
+This directory contains Jupyter notebooks demonstrating the use of the `qc_executor` library.
 
 ## Structure
 

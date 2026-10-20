@@ -15,16 +15,15 @@ import numpy as np
 import pennylane as qml
 import pytest
 
-from executor.pennylane.pennylane_gates import (
-    RXX,
-    RYY,
-    RZX,
-    RZZ,
+from qc_executor.pennylane.pennylane_gates import (
     cs,
     csx,
-    pennylane_target,
     qiskit_pennylane_gate_dict,
     reset,
+    rxx,
+    ryy,
+    rzx,
+    rzz,
     sdg,
     tdg,
 )
@@ -39,7 +38,7 @@ class TestPennyLaneGates:
         """Test RXX gate (two-qubit XX rotation)."""
         theta = 0.5
         wires = [0, 1]
-        gate = RXX(theta, wires)
+        gate = rxx(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "XX", wires=wires)
@@ -49,7 +48,7 @@ class TestPennyLaneGates:
         """Test RYY gate (two-qubit YY rotation)."""
         theta = 0.7
         wires = [0, 1]
-        gate = RYY(theta, wires)
+        gate = ryy(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "YY", wires=wires)
@@ -59,7 +58,7 @@ class TestPennyLaneGates:
         """Test RZZ gate (two-qubit ZZ rotation)."""
         theta = np.pi / 4
         wires = [0, 1]
-        gate = RZZ(theta, wires)
+        gate = rzz(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "ZZ", wires=wires)
@@ -69,7 +68,7 @@ class TestPennyLaneGates:
         """Test RZX gate (two-qubit ZX rotation)."""
         theta = np.pi / 2
         wires = [1, 2]
-        gate = RZX(theta, wires)
+        gate = rzx(theta, wires)
 
         assert gate is not None
         expected = qml.PauliRot(theta, "ZX", wires=wires)
@@ -79,7 +78,7 @@ class TestPennyLaneGates:
     def test_rxx_gate_various_angles(self, theta):
         """Test RXX gate with various rotation angles."""
         wires = [0, 1]
-        gate = RXX(theta, wires)
+        gate = rxx(theta, wires)
         assert gate is not None
 
     # Adjoint (Dagger) Gates
@@ -226,27 +225,9 @@ class TestPennyLaneGates:
         assert "measure" in qiskit_pennylane_gate_dict
         assert qiskit_pennylane_gate_dict["measure"] == qml.measure
 
-    # PennyLane Target Tests
+    # The Qiskit Target that used to define the basis is gone; the gate table
+    # itself is now the source of truth for what PennyLane can execute.
 
-    def test_pennylane_target_exists(self):
-        """Test that PennyLane target object exists."""
-        assert pennylane_target is not None
-
-    def test_pennylane_target_has_operations(self):
-        """Test that PennyLane target has operations attribute."""
-        assert hasattr(pennylane_target, "operations")
-        assert len(pennylane_target.operations) > 0
-
-    def test_pennylane_target_contains_gates(self):
-        """Test that PennyLane target contains expected gate operations."""
-        operation_names = [operator.name for operator in pennylane_target.operations]
-
-        # Check a sample of important gates
-        important_gates = ["h", "x", "cx", "rx", "ry", "rz"]
-        for gate in important_gates:
-            assert gate in operation_names, f"Gate '{gate}' not in target operations"
-
-    def test_pennylane_target_gate_count(self):
-        """Test that PennyLane target has reasonable number of gates."""
-        # Should have at least 20 gates
-        assert len(pennylane_target.operations) >= 20
+    def test_gate_table_covers_a_reasonable_basis(self):
+        """The gate table should still cover a broad basis."""
+        assert len(qiskit_pennylane_gate_dict) >= 20

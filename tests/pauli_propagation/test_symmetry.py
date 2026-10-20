@@ -1,13 +1,28 @@
 """Tests for symmetry module."""
 
 import os
+import random
 import time
 
-import numpy as np
 import pytest
 
-from executor.pauli_propagation.symmetry import CompositeSymmetry, NoSymmetry, PermutationSymmetry
-from executor.pauli_propagation.utils.pauli_types import PauliString, PauliSum
+from qc_executor.pauli_propagation import (
+    PauliPropagationCircuit,
+    PauliPropagationExecutor,
+    PauliPropagationOperator,
+)
+from qc_executor.pauli_propagation.symmetry import (
+    CompositeSymmetry,
+    NoSymmetry,
+    PermutationSymmetry,
+    _decode_pauli_to_string,
+)
+from qc_executor.pauli_propagation.utils.pauli_types import PauliSum
+from qc_executor.pauli_propagation.utils.propagation import (
+    _apply_symmetry_merging,
+    batch_propagate,
+    propagate,
+)
 
 # Benchmark tests are skipped by default to avoid flakiness due to scheduler noise
 # and hardware differences. Set RUN_BENCHMARKS=1 to enable them.
@@ -32,6 +47,14 @@ class TestNoSymmetry:
         """NoSymmetry should have descriptive name."""
         sym = NoSymmetry()
         assert "no" in sym.name.lower() or "identity" in sym.name.lower()
+
+
+class TestSymmetryHelpers:
+    """Test helper functions in symmetry module."""
+
+    def test_decode_pauli_to_string_delegates_to_pauli_algebra(self):
+        decoded = _decode_pauli_to_string(0b110001, 3)
+        assert decoded == "XIZ"
 
 
 class TestPermutationSymmetry:
@@ -217,7 +240,7 @@ class TestCompositeSymmetry:
         class IncrementSymmetry:
             """Test strategy that increments the term."""
 
-            def canonical_representative(self, term: int, nqubits: int) -> int:
+            def canonical_representative(self, term: int, _nqubits: int) -> int:
                 return term + 1
 
             @property
@@ -227,7 +250,7 @@ class TestCompositeSymmetry:
         class DoubleSymmetry:
             """Test strategy that doubles the term."""
 
-            def canonical_representative(self, term: int, nqubits: int) -> int:
+            def canonical_representative(self, term: int, _nqubits: int) -> int:
                 return term * 2
 
             @property
@@ -253,6 +276,11 @@ class TestCompositeSymmetry:
         name = comp.name
         assert "composite" in name.lower()
         assert "permutation" in name.lower()
+
+    def test_name_empty_composition(self):
+        """Empty composition should expose dedicated name."""
+        comp = CompositeSymmetry()
+        assert comp.name == "composite(empty)"
 
 
 class TestPauliSumSymmetryIntegration:
@@ -297,8 +325,6 @@ class TestPauliSumSymmetryIntegration:
         assert len(ps) == 3
 
         # Manually merge using symmetry
-        from executor.pauli_propagation.utils.propagation import _apply_symmetry_merging
-
         _apply_symmetry_merging(ps)
 
         # After merging: 1 term with coefficient sum
@@ -315,8 +341,6 @@ class TestPropagationSymmetryIntegration:
         """Propagate should apply symmetry merging if enabled."""
         # Simplified test: verify symmetry merging is callable
         # Full integration tests would require constructing realistic gate sequences
-        from executor.pauli_propagation.utils.propagation import propagate
-
         sym = PermutationSymmetry()
         observable = PauliSum(nqubits=2, symmetry=sym)
         observable.add_term("ZI", 1.0)
@@ -331,8 +355,6 @@ class TestPropagationSymmetryIntegration:
 
     def test_batch_propagate_with_symmetry(self):
         """Batch propagate should apply symmetry merging to all observables."""
-        from executor.pauli_propagation.utils.propagation import batch_propagate
-
         sym = PermutationSymmetry()
 
         obs1 = PauliSum(nqubits=2, symmetry=sym)
@@ -359,15 +381,11 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_default_no_symmetry(self):
         """Executor should default to NoSymmetry."""
-        from executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
-
         executor = PauliPropagationExecutor()
         assert isinstance(executor.symmetry_strategy, NoSymmetry)
 
     def test_executor_with_permutation_symmetry(self):
         """Executor should accept PermutationSymmetry."""
-        from executor.pauli_propagation.pauli_propagation_executor import PauliPropagationExecutor
-
         sym = PermutationSymmetry()
         executor = PauliPropagationExecutor(symmetry_strategy=sym)
 
@@ -375,12 +393,6 @@ class TestExecutorSymmetryIntegration:
 
     def test_executor_expectation_with_symmetry(self):
         """Executor should apply symmetry during expectation value computation."""
-        from executor.pauli_propagation import (
-            PauliPropagationCircuit,
-            PauliPropagationExecutor,
-            PauliPropagationOperator,
-        )
-
         qc = PauliPropagationCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
@@ -453,8 +465,6 @@ class TestSymmetryPerformance:
     @pytest.mark.benchmark
     def test_merging_reduces_terms(self):
         """Verify that symmetry merging reduces term count on realistic examples."""
-        from executor.pauli_propagation.utils.propagation import _apply_symmetry_merging
-
         nqubits = 10
         sym = PermutationSymmetry()
 
@@ -463,8 +473,6 @@ class TestSymmetryPerformance:
 
         # Add unique permutations of a multiset without enumerating all permutations
         # Base multiset: 5 I's, 3 X's, 1 Y, 1 Z
-        import random
-
         random.seed(42)
         chars = list("IIIIIXXXYZ")
         unique_perms = set()
@@ -492,3 +500,64 @@ class TestSymmetryPerformance:
         _, coeff = list(ps)[0]
         expected_coeff = len(random_perms)
         assert abs(coeff - expected_coeff) < 1e-10
+
+
+class TestSymmetryIdentity:
+    """Strategies must hash and compare by value.
+
+    The executor puts the strategy into its cache key; identity hashing would
+    make two equivalent strategies miss each other's entries.
+    """
+
+    def test_equal_strategies_hash_alike(self):
+        assert PermutationSymmetry() == PermutationSymmetry()
+        assert hash(PermutationSymmetry()) == hash(PermutationSymmetry())
+
+    def test_different_strategies_differ(self):
+        assert NoSymmetry() != PermutationSymmetry()
+        assert hash(NoSymmetry()) != hash(PermutationSymmetry())
+
+    def test_composites_compare_by_their_members(self):
+        left = CompositeSymmetry(PermutationSymmetry())
+        right = CompositeSymmetry(PermutationSymmetry())
+        other = CompositeSymmetry(NoSymmetry())
+
+        assert left == right
+        assert hash(left) == hash(right)
+        assert left != other
+
+    def test_not_equal_to_other_types(self):
+        assert NoSymmetry() != "no-symmetry"
+
+    def test_usable_as_a_dict_key(self):
+        cache = {PermutationSymmetry(): "hit"}
+
+        assert cache[PermutationSymmetry()] == "hit"
+
+
+class TestPermutationSymmetryCrossCheck:
+    """Randomized cross-check of the popcount-based canonical form."""
+
+    @staticmethod
+    def _ref_canonical(term, nqubits):
+        """Original per-qubit-loop implementation (frozen reference)."""
+        counts = [0, 0, 0, 0]
+        for q in range(nqubits):
+            counts[(term >> (2 * q)) & 0x3] += 1
+        canonical = 0
+        bit_pos = 0
+        for pauli_type in range(4):
+            for _ in range(counts[pauli_type]):
+                canonical |= pauli_type << (2 * bit_pos)
+                bit_pos += 1
+        return canonical
+
+    def test_matches_reference_implementation(self):
+        sym = PermutationSymmetry()
+        rng = random.Random(7)
+        for _ in range(500):
+            nqubits = rng.choice([1, 2, 3, 5, 8, 16, 31, 32, 33, 48, 70])
+            term = rng.getrandbits(2 * nqubits)
+            assert sym.canonical_representative(term, nqubits) == self._ref_canonical(
+                term, nqubits
+            ), (term, nqubits)

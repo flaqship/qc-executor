@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from executor import Executor, Parameters, QuantumCircuit, QuantumOperator
+from qc_executor import Executor, Parameters, QuantumCircuit, QuantumOperator
 
 # Skip module when optional backends are missing in the active test environment.
 pytest.importorskip("qulacs")

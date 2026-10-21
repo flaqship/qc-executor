@@ -20,7 +20,7 @@ except ImportError as e:
     import warnings
 
     warnings.warn(
-        f"qoqo backend not available: {e}. " "Install with: pip install executor[qoqo]",
+        f"qoqo backend not available: {e}. " "Install with: pip install qc-executor[qoqo]",
         UserWarning,
     )
     raise

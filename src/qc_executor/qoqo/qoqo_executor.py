@@ -47,7 +47,6 @@ class QoqoExecutor(ExecutorBase):
             shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
         )
 
-        self._noise_context: Union[QoqoNoiseContext, None] = None
         self._noise_backend = None
         self._noise_model = None
 
@@ -97,7 +96,6 @@ class QoqoExecutor(ExecutorBase):
         if noise_model is None:
             self._noise_model = None
             self._noise_backend = None
-            self._noise_context = None
             return
         if backend is None:
             raise RuntimeError("Loading a noise model requires the backend it was created from.")
@@ -223,14 +221,11 @@ class QoqoExecutor(ExecutorBase):
 
         qoqo_circuit.assign_parameters(flat_circuit_parameters)
         qoqo_observable.assign_parameters(obs_parameters)
-        if self._shots is None and self._noise_context is None:
+        if self._shots is None:
             statevector = self._statevector(qoqo_circuit, **parameter_values)
             return qoqo_observable.expectation_from_statevector(statevector)
 
-        constant_circuit = qoqo_circuit.get_qoqo_circuit()
-        if self._noise_context is not None:
-            constant_circuit = self._noise_context.apply(constant_circuit)
-
+        constant_circuit = self._get_constant_circuit(qoqo_circuit, **parameter_values)
         measurement, id_shift = qoqo_observable.get_qoqo_observable_measurement(
             constant_circuit, self._shots
         )
@@ -279,15 +274,8 @@ class QoqoExecutor(ExecutorBase):
         Returns:
             dict: The samples from the circuit.
         """
-
-        if self._noise_context is not None:
-            # Noise turns the simulation non-unitary; sample from the
-            # density matrix diagonal instead of a statevector.
-            density = self.density_matrix(circuit, **parameter_values)
-            probabilities = np.real(np.diag(density))
-        else:
-            statevector = self.statevector(circuit, **parameter_values)
-            probabilities = np.square(np.abs(statevector))
+        statevector = self.statevector(circuit, **parameter_values)
+        probabilities = np.square(np.abs(statevector))
 
         # Generate bitstrings corresponding to each basis state
         num_qubits = circuit.num_qubits
@@ -310,11 +298,6 @@ class QoqoExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-        if self._noise_context is not None:
-            raise NotImplementedError(
-                "statevector is not defined for noisy circuits: noise turns the "
-                "simulation non-unitary. Use density_matrix() or sample() instead."
-            )
         if isinstance(circuit, QoqoCircuit):
             qoqo_circuit = circuit
         else:

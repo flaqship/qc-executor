@@ -3,36 +3,61 @@ from qoqo_qasm import qasm_str_to_circuit
 from qiskit.qasm2 import dumps, loads
 from qiskit.compiler import transpile
 
-from ..utils.decompose_to_std import decompose_to_std
+from ..qiskit._decompose import decompose_to_std
 from ..quantum_circuit import QuantumCircuit
 from .qoqo_gate import qoqo_target
 
 
 class QoqoCircuit:
+    """qoqo (QuEST) circuit data structure.
+
+    Args:
+        circuit (QuantumCircuit): Circuit to convert to qoqo. A generic
+            :class:`~qc_executor.quantum_circuit.QuantumCircuit` is imported
+            via its Qiskit representation.
+        backend (Union[Backend, None]): Optional qiskit backend. If given, the
+            circuit is transpiled to the gate set of the backend instead of the
+            default qoqo target. Required for noise simulation, since the
+            noise insertion only supports device gate sets.
+            (Defaults to ``None``)
+    """
 
     @classmethod
     def from_quantum_circuit(cls, circuit: QuantumCircuit) -> "QoqoCircuit":
-        """Create a Qulacs native circuit from a generic circuit."""
+        """Create a Qoqo native circuit from a generic circuit."""
         return cls(circuit)
 
     def __init__(
         self,
         circuit: QuantumCircuit,
+        backend=None,
     ) -> None:
+        qiskit_circuit = (
+            circuit._qiskit_circuit
+            if hasattr(circuit, "_qiskit_circuit")
+            else getattr(circuit, "qiskit_circuit", circuit)
+        )
         # Transpile circuit to supported basis gates and expand blocks automatically
         self._qiskit_base_circuit = transpile(
-            decompose_to_std(circuit._qiskit_circuit),
-            target=qoqo_target,
+            decompose_to_std(qiskit_circuit),
+            backend=backend,
+            target=None if backend is not None else qoqo_target,
             optimization_level=0,
         )
         self._num_qubits = self._qiskit_base_circuit.num_qubits
+        self._noise_backend = backend
         self.is_parameterized = len(self._qiskit_base_circuit.parameters) > 0
         self._qiskit_circuit = self._qiskit_base_circuit if not self.is_parameterized else None
         self._qoqo_gates_parameters = []
+        self._qoqo_gates_parameters_dimensions = {}
 
-        for param in circuit.parameters:
-            if param.vector.name not in self._qoqo_gates_parameters:
-                self._qoqo_gates_parameters.append(param.vector.name)
+        for param in self._qiskit_base_circuit.parameters:
+            vector_name = (
+                param.vector.name if hasattr(param, "vector") else param.name.split("[")[0]
+            )
+            if vector_name not in self._qoqo_gates_parameters:
+                self._qoqo_gates_parameters.append(vector_name)
+                self._qoqo_gates_parameters_dimensions[vector_name] = len(param.vector)
 
     @property
     def num_qubits(self) -> int:
@@ -40,8 +65,8 @@ class QoqoCircuit:
         return self._num_qubits
 
     @property
-    def qoqo_circuit(self) -> callable:
-        """qoqo circuit that can be called with parameters"""
+    def qoqo_circuit(self) -> Circuit:
+        """qoqo circuit"""
         return self._qoqo_circuit
 
     @property
@@ -57,7 +82,7 @@ class QoqoCircuit:
     @property
     def hash(self) -> str:
         """Hashable object of the circuit and observable for caching"""
-        return hash(str(self._qiskit_base_circuit))
+        return str(self._qiskit_base_circuit)
 
     def circuit_metrics(self) -> dict:
         """count number of gates in the circuit"""

@@ -17,11 +17,11 @@ from qoqo_quest import Backend
 
 from .qoqo_circuit import QoqoCircuit
 from .qoqo_operator import QoqoOperator
-from qollage import draw_circuit
+from .qoqo_noise import QoqoNoiseContext
 
 
 class QoqoExecutor(ExecutorBase):
-    """Base class for quantum circuit executors.
+    """Executor for qoqo circuits simulated with QuEST.
 
     Args:
         shots (int, optional): Number of shots for sampling. Defaults to None.
@@ -47,8 +47,9 @@ class QoqoExecutor(ExecutorBase):
             shots=shots, seed=seed, log_file=log_file, caching=caching, cache_dir=cache_dir
         )
 
-        self._circuit_cache = {}
-        self._operator_cache = {}
+        self._noise_context: Union[QoqoNoiseContext, None] = None
+        self._noise_backend = None
+        self._noise_model = None
 
         if seed is not None:
             self._random = np.random.default_rng(seed)
@@ -70,9 +71,95 @@ class QoqoExecutor(ExecutorBase):
         """Return True if the execution access a remote backend."""
         return False
 
+    def load_noise_model(self, noise_model, backend=None) -> None:
+        """Load a qiskit-aer noise model that is applied to every circuit evaluation.
+
+        The noise model is converted into qoqo noise pragmas that are inserted
+        into the circuit before the evaluation. The backend is required, since
+        the noise insertion needs the gate set and gate times of the device
+        the noise model was created from (e.g. via
+        ``NoiseModel.from_backend(backend)``).
+
+        Circuits are transpiled to the gate set of the backend whenever a
+        noise model is loaded, and noisy evaluations return density matrices
+        instead of statevectors.
+
+        Args:
+            noise_model (Union[NoiseModel, None]): qiskit-aer noise model to
+                be applied to every circuit evaluation, or None to disable
+                noise.
+            backend (Union[Backend, None]): qiskit backend the noise model
+                was created from. Required if a noise model is given.
+
+        Raises:
+            RuntimeError: If a noise model is given without a backend.
+        """
+        if noise_model is None:
+            self._noise_model = None
+            self._noise_backend = None
+            self._noise_context = None
+            return
+        if backend is None:
+            raise RuntimeError("Loading a noise model requires the backend it was created from.")
+        self._noise_model = noise_model
+        self._noise_backend = backend
+
+    @property
+    def noise_model(self):
+        """The qiskit-aer noise model applied to circuit evaluations, or None."""
+        return self._noise_model
+
+    @property
+    def noise_backend(self):
+        """The qiskit backend of the noise model, or None."""
+        return self._noise_backend
+
+    def _get_constant_circuit(self, circuit: QoqoCircuit, **parameter_values) -> Circuit:
+        """Assign parameter values to the circuit and apply noise if loaded.
+
+        Args:
+            circuit (QoqoCircuit): qoqo circuit to evaluate
+            parameter_values: Parameter values in vector form (e.g. ``x=[0.1]``)
+
+        Returns:
+            Circuit: The assigned and, if a noise model is loaded, noisy circuit.
+        """
+        flat_parameters = {
+            f"{key}[{i}]": float(v)
+            for key, vals in parameter_values.items()
+            if key in circuit.parameter_names
+            for i, v in enumerate(np.asarray(vals).reshape(-1))
+        }
+        circuit.assign_parameters(flat_parameters)
+        constant_circuit = circuit.get_qoqo_circuit()
+        if self._noise_model is not None and self._noise_backend is not None:
+            _noise_context = QoqoNoiseContext(self.noise_model, self.noise_backend)
+            constant_circuit = _noise_context.apply(constant_circuit)
+        return constant_circuit
+
+    def _to_native_circuit(self, circuit):
+        """Convert a circuit to QoqoCircuit, targeting the noise backend gate set.
+
+        With a loaded noise model the noise insertion only supports device
+        gate sets, so the circuit is transpiled to the gate set of the noise
+        backend instead of the default qoqo target.
+
+        Args:
+            circuit: A single circuit.
+
+        Returns:
+            The circuit in native form.
+        """
+        if isinstance(circuit, QoqoCircuit):
+            if self._noise_backend is None or circuit._noise_backend is self._noise_backend:
+                return circuit
+            # Noise backend changed since this circuit was built: rebuild.
+            return QoqoCircuit(circuit._qiskit_base_circuit, backend=self._noise_backend)
+        return QoqoCircuit(circuit, backend=self._noise_backend)
+
     def _expectation_value(
         self, circuit: QuantumCircuitBase, operator: QuantumOperatorBase, **parameter_values
-    ) -> float:
+    ) -> float | np.ndarray:
         """
         Calculate the expectation value of the operator with respect to the circuit.
 
@@ -83,30 +170,67 @@ class QoqoExecutor(ExecutorBase):
         Returns:
             float: The expectation value.
         """
-        if circuit in self._circuit_cache:
-            qoqo_circuit = self._circuit_cache[circuit]
+        batch_size = None
+        for key, vals in parameter_values.items():
+            arr = np.asarray(vals)
+            if arr.ndim > 1:
+                if batch_size is None:
+                    batch_size = arr.shape[0]
+                elif arr.shape[0] != batch_size:
+                    raise ValueError(
+                        f"Inconsistent batch dimension for '{key}': "
+                        f"expected {batch_size}, got {arr.shape[0]}"
+                    )
+
+        if batch_size is not None:
+            results = []
+
+            for b in range(batch_size):
+                single_parameter_values = {}
+                for key, vals in parameter_values.items():
+                    arr = np.asarray(vals)
+
+                    if arr.ndim > 1:
+                        single_parameter_values[key] = arr[b]
+                    else:
+                        single_parameter_values[key] = vals
+
+                results.append(
+                    self._expectation_value(circuit, operator, **single_parameter_values)
+                )
+
+            return np.asarray(results)
+
+        if isinstance(circuit, QoqoCircuit):
+            qoqo_circuit = circuit
         else:
-            if isinstance(circuit, QoqoCircuit):
-                qoqo_circuit = circuit
-            else:
-                qoqo_circuit = QoqoCircuit(circuit)
-            self._circuit_cache[circuit] = qoqo_circuit
+            qoqo_circuit = QoqoCircuit(circuit)
 
         qoqo_observable = QoqoOperator(operator)
         flat_circuit_parameters = {}
         for key, vals in parameter_values.items():
-            is_list = isinstance(vals, list)
             if key in qoqo_circuit.parameter_names:
-                if is_list:
-                    for i, v in enumerate(vals):
-                        flat_circuit_parameters[f"{key}[{i}]"] = v
+                arr = np.asarray(vals)
+                if arr.ndim == 0:
+                    flat_circuit_parameters[key] = float(arr)
                 else:
-                    flat_circuit_parameters[key] = vals
-        obs_parameters = [parameter_values[key] for key in qoqo_observable.parameter_names]
+                    for i, v in enumerate(arr.reshape(-1)):
+                        flat_circuit_parameters[f"{key}[{i}]"] = float(v)
+
+        obs_parameters = []
+        for key in qoqo_observable.parameter_names:
+            obs_parameters.extend(np.asarray(parameter_values[key]).reshape(-1).tolist())
+
         qoqo_circuit.assign_parameters(flat_circuit_parameters)
-        qoqo_observable.assign_parameters(np.array(obs_parameters).flatten().tolist())
+        qoqo_observable.assign_parameters(obs_parameters)
+        if self._shots is None and self._noise_context is None:
+            statevector = self._statevector(qoqo_circuit, **parameter_values)
+            return qoqo_observable.expectation_from_statevector(statevector)
 
         constant_circuit = qoqo_circuit.get_qoqo_circuit()
+        if self._noise_context is not None:
+            constant_circuit = self._noise_context.apply(constant_circuit)
+
         measurement, id_shift = qoqo_observable.get_qoqo_observable_measurement(
             constant_circuit, self._shots
         )
@@ -156,10 +280,14 @@ class QoqoExecutor(ExecutorBase):
             dict: The samples from the circuit.
         """
 
-        statevector = self.statevector(circuit, **parameter_values)
-
-        # Get the probabilities
-        probabilities = np.square(np.abs(statevector))
+        if self._noise_context is not None:
+            # Noise turns the simulation non-unitary; sample from the
+            # density matrix diagonal instead of a statevector.
+            density = self.density_matrix(circuit, **parameter_values)
+            probabilities = np.real(np.diag(density))
+        else:
+            statevector = self.statevector(circuit, **parameter_values)
+            probabilities = np.square(np.abs(statevector))
 
         # Generate bitstrings corresponding to each basis state
         num_qubits = circuit.num_qubits
@@ -182,21 +310,87 @@ class QoqoExecutor(ExecutorBase):
         Returns:
             np.ndarray: The statevector of the circuit.
         """
-        if circuit in self._circuit_cache:
-            qoqo_circuit = self._circuit_cache[circuit]
+        if self._noise_context is not None:
+            raise NotImplementedError(
+                "statevector is not defined for noisy circuits: noise turns the "
+                "simulation non-unitary. Use density_matrix() or sample() instead."
+            )
+        if isinstance(circuit, QoqoCircuit):
+            qoqo_circuit = circuit
         else:
             qoqo_circuit = QoqoCircuit(circuit)
-            self._circuit_cache[circuit] = qoqo_circuit
+
+        constant_circuit = self._get_constant_circuit(qoqo_circuit, **parameter_values)
 
         running_circuit = Circuit()
         running_circuit += ops.DefinitionComplex("state_vector", qoqo_circuit.num_qubits, True)
-        running_circuit += qoqo_circuit.get_qoqo_circuit()
+        running_circuit += constant_circuit
         running_circuit += ops.PragmaGetStateVector("state_vector", None)
 
         backend = Backend(qoqo_circuit.num_qubits)
         results = backend.run_circuit(running_circuit)
 
-        return results[2].get("state_vector")[0]
+        return np.array(results[2].get("state_vector")[0])
+
+    def density_matrix(self, circuit: QuantumCircuitBase, **parameters) -> np.ndarray:
+        """Compute the density matrix of the quantum circuit.
+
+        Without a loaded noise model this is the pure-state density matrix
+        of the statevector; with a noise model loaded (see
+        :meth:`load_noise_model`) the noise pragmas are inserted into the
+        circuit before the evaluation.
+
+        Args:
+            circuit (QuantumCircuitBase): The quantum circuit.
+            parameters: Values for the free parameters of the circuit given
+                as keyword arguments in vector form (e.g. ``x=[0.1, 0.2]``).
+
+        Returns:
+            np.ndarray: Density matrix of the circuit as 2D numpy array of
+            shape ``(2**num_qubits, 2**num_qubits)``.
+        """
+        self._logger.info("Computing density matrix")
+        parameters = self._normalize_parameter_values(**parameters)
+        circuit = self._coerce_circuit(circuit)
+        if self._result_cache is not None:
+            key = self._make_result_key("density_matrix", circuit, **parameters)
+            if key in self._result_cache:
+                self._logger.debug("Result cache hit for density_matrix")
+                return self._result_cache[key]
+            result = self._density_matrix(circuit, **parameters)
+            self._result_cache[key] = result
+            return result
+        return self._density_matrix(circuit, **parameters)
+
+    def _density_matrix(self, circuit: QuantumCircuitBase, **parameter_values) -> np.ndarray:
+        """
+        Get the density matrix of the circuit.
+
+        Args:
+            circuit (QuantumCircuitBase): The quantum circuit.
+
+        Returns:
+            np.ndarray: The density matrix of the circuit.
+        """
+        if isinstance(circuit, QoqoCircuit):
+            qoqo_circuit = circuit
+        else:
+            qoqo_circuit = QoqoCircuit(circuit)
+
+        constant_circuit = self._get_constant_circuit(qoqo_circuit, **parameter_values)
+
+        running_circuit = Circuit()
+        running_circuit += ops.DefinitionComplex(
+            "density_matrix", 4**qoqo_circuit.num_qubits, True
+        )
+        running_circuit += constant_circuit
+        running_circuit += ops.PragmaGetDensityMatrix("density_matrix", None)
+
+        backend = Backend(qoqo_circuit.num_qubits)
+        results = backend.run_circuit(running_circuit)
+
+        density_matrix = np.array(results[2].get("density_matrix")[0])
+        return density_matrix.reshape(2**qoqo_circuit.num_qubits, 2**qoqo_circuit.num_qubits)
 
     def _transpile_circuit(self, circuit: QuantumCircuitBase) -> QuantumCircuitBase:
         """Abstract implementation of circuit transpilation."""
@@ -233,14 +427,10 @@ class QoqoExecutor(ExecutorBase):
         if isinstance(circuit, list) or isinstance(observable, list):
             raise NotImplementedError("Multiple circuits/observables not yet supported")
 
-        if circuit in self._circuit_cache:
-            qoqo_circuit = self._circuit_cache[circuit]
+        if isinstance(circuit, QoqoCircuit):
+            qoqo_circuit = circuit
         else:
-            if isinstance(circuit, QoqoCircuit):
-                qoqo_circuit = circuit
-            else:
-                qoqo_circuit = QoqoCircuit(circuit)
-            self._circuit_cache[circuit] = qoqo_circuit
+            qoqo_circuit = QoqoCircuit(circuit)
 
         qoqo_observable = QoqoOperator(observable)
 

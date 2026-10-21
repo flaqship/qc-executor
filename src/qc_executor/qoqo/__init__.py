@@ -2,7 +2,7 @@
 
 try:
     # Register QoqoExecutor with the factory
-    from executor.factory import Executor
+    from qc_executor.factory import Executor
 
     from .qoqo_circuit import QoqoCircuit
     from .qoqo_executor import QoqoExecutor

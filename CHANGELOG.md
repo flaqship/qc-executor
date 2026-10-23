@@ -276,3 +276,19 @@ operator, so an object you have already converted is passed straight through
 rather than translated again.
 
 ## [Unreleased]
+
+### Changed
+
+- **Minimum supported Qiskit version is now 2.5.2**, up from 1.2.0. Qiskit
+  2.1.0 to 2.5.1 simplify parameter expressions incorrectly and silently return
+  wrong values and gradients, for example `x0**2 + x1**2` evaluates as
+  `(x0 + x1)**2`, `2*x0 - 2/x0` as `0`, and the derivative of `cos(x0)**2`
+  misses the chain rule. Qiskit 2.5.2 fixes these. Qiskit 1.x and 2.0 are no
+  longer supported.
+- The `qiskit-full` and `all` extras now require `qiskit-aer>=0.17.0` and
+  `qiskit-ibm-runtime>=0.37.0`, the first releases that support Qiskit 2.
+- **Minimum SymPy version is now 1.12.1**, up from 1.8. Older SymPy releases
+  cannot convert NumPy 2 scalars, which breaks the Pauli propagation backend, and
+  SymPy 1.8 does not import on Python 3.12 or later.
+- **Minimum PennyLane version is now 0.42.3**, up from 0.34.0. Earlier releases
+  do not cap `autoray`, and a fresh install pulls an `autoray` they cannot import.

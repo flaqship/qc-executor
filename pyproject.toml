@@ -33,7 +33,7 @@ classifiers = [
 keywords = ["quantum", "circuit", "executor", "pennylane", "qiskit", "qulacs"]
 dependencies = [
     "numpy>=1.20",
-    "sympy>=1.8",
+    "sympy>=1.12.1",
 ]
 requires-python = ">=3.10"
 dynamic = ["version"]
@@ -46,25 +46,25 @@ Issues = "https://github.com/flaqship/qc-executor/issues"
 
 [project.optional-dependencies]
 # Every backend is optional; the core package needs only numpy and sympy.
-qiskit = ["qiskit>=1.2.0", "packaging>=21.0"]
-pennylane = ["pennylane>=0.34.0", "packaging>=21.0"]
+qiskit = ["qiskit>=2.5.2", "packaging>=21.0"]
+pennylane = ["pennylane>=0.42.3", "packaging>=21.0"]
 qulacs = ["qulacs>=0.6.4.1"]
 # Aer and the IBM runtime are needed for shot-based sampling and for the
 # dynamic circuits the local Qiskit primitives refuse to run.
 qiskit-full = [
-    "qiskit>=1.2.0",
+    "qiskit>=2.5.2",
     "packaging>=21.0",
-    "qiskit-aer>=0.12.0",
-    "qiskit-ibm-runtime>=0.18.0",
+    "qiskit-aer>=0.17.0",
+    "qiskit-ibm-runtime>=0.37.0",
 ]
 pauli_propagation = []
 all = [
-    "qiskit>=1.2.0",
+    "qiskit>=2.5.2",
     "packaging>=21.0",
-    "pennylane>=0.34.0",
+    "pennylane>=0.42.3",
     "qulacs>=0.6.4.1",
-    "qiskit-aer>=0.12.0",
-    "qiskit-ibm-runtime>=0.18.0",
+    "qiskit-aer>=0.17.0",
+    "qiskit-ibm-runtime>=0.37.0",
 ]
 
 [project.entry-points."qc_executor.backends"]

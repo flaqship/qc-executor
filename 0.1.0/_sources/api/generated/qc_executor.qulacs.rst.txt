@@ -1,0 +1,65 @@
+﻿qulacs
+======
+
+.. module:: qc_executor.qulacs
+
+
+
+Dependencies
+------------
+
+Install with ``pip install qc-executor[qulacs]``. Requires:
+
+* ``qulacs>=0.6.4.1``
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Executor
+--------
+
+.. autoclass:: QulacsExecutor
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+
+Native abstraction
+------------------
+
+Circuit
+~~~~~~~
+
+.. autoclass:: QulacsCircuit
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+Operator
+~~~~~~~~
+
+.. autoclass:: QulacsOperator
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+

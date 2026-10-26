@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="-8 -8 384 384"
+   role="img"
+   aria-label="qc-executor"
+   version="1.1"
+   id="svg6"
+   sodipodi:docname="qc-executor.svg"
+   inkscape:export-filename="logo_large.png"
+   inkscape:export-xdpi="79.559998"
+   inkscape:export-ydpi="79.559998"
+   width="384"
+   height="384"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs6" />
+  <sodipodi:namedview
+     id="namedview6"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.5"
+     inkscape:cx="178"
+     inkscape:cy="147"
+     inkscape:window-width="2400"
+     inkscape:window-height="1261"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg6" />
+  <path
+     d="M 242.52,94.509398 A 126,126 0 1 0 210.9,283.4994"
+     fill="none"
+     stroke="#003858"
+     stroke-width="22"
+     stroke-linecap="round"
+     id="path1" />
+  <circle
+     cx="20"
+     cy="175.4994"
+     r="13"
+     fill="#ffffff"
+     stroke="#003858"
+     stroke-width="8"
+     id="circle1" />
+  <rect
+     x="141"
+     y="98.499397"
+     width="44"
+     height="44"
+     rx="6"
+     fill="#487088"
+     id="rect1" />
+  <path
+     d="m 176,120.4994 h 138 v 20"
+     fill="none"
+     stroke="#487088"
+     stroke-width="12"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="path2" />
+  <rect
+     x="141"
+     y="163.4994"
+     width="44"
+     height="44"
+     rx="6"
+     fill="#f06818"
+     id="rect2" />
+  <path
+     d="M 176,185.4994 H 310"
+     fill="none"
+     stroke="#f06818"
+     stroke-width="12"
+     stroke-linecap="round"
+     id="path3" />
+  <circle
+     cx="315"
+     cy="185.4994"
+     r="13"
+     fill="#ffffff"
+     stroke="#f06818"
+     stroke-width="8"
+     id="circle3" />
+  <rect
+     x="141"
+     y="226.4994"
+     width="44"
+     height="44"
+     rx="6"
+     fill="#003858"
+     id="rect3" />
+  <path
+     d="m 176,248.4994 h 72 v 52 h 50"
+     fill="none"
+     stroke="#003858"
+     stroke-width="12"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="path4" />
+  <rect
+     x="298"
+     y="271.49939"
+     width="44"
+     height="58"
+     rx="6"
+     fill="#003858"
+     id="rect4" />
+  <rect
+     x="320"
+     y="282.73941"
+     width="45"
+     height="10"
+     rx="5"
+     fill="#003858"
+     id="rect5" />
+  <rect
+     x="320"
+     y="308.2594"
+     width="45"
+     height="10"
+     rx="5"
+     fill="#003858"
+     id="rect6" />
+</svg>

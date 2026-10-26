@@ -1,0 +1,69 @@
+﻿qiskit
+======
+
+.. module:: qc_executor.qiskit
+
+
+
+Dependencies
+------------
+
+Install with ``pip install qc-executor[qiskit-full]``. Requires:
+
+* ``qiskit>=1.0.0``
+
+* ``qiskit-aer>=0.12.0``
+
+* ``qiskit-ibm-runtime>=0.18.0``
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Executor
+--------
+
+.. autoclass:: QiskitExecutor
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+
+Native abstraction
+------------------
+
+Circuit
+~~~~~~~
+
+.. autoclass:: QiskitCircuit
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+Operator
+~~~~~~~~
+
+.. autoclass:: QiskitOperator
+   :members:
+   :show-inheritance:
+   :member-order: bysource
+
+
+
+

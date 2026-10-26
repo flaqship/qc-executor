@@ -19,7 +19,7 @@ Requirements
 * Core runtime dependencies (installed automatically):
 
   * ``numpy >= 1.20``
-  * ``sympy >= 1.8`` — symbolic parameter expressions
+  * ``sympy >= 1.12.1`` — symbolic parameter expressions
 
 That is the whole list. No quantum framework is imported by ``import
 qc_executor``; backends resolve on first use and are ``None`` when their extra

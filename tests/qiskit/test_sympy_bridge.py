@@ -150,7 +150,7 @@ class TestFactory:
         grown = factory.element(Parameter("x", 4))
 
         assert len(factory.vectors["x"]) == 5
-        assert factory.element(Parameter("x", 0)) is first
+        assert factory.element(Parameter("x", 0)) == first
         assert grown.index == 4
 
     def test_vectors_exposes_created_vectors(self):

@@ -275,7 +275,7 @@ Every executor method accepts a generic *or* a backend-native circuit and
 operator, so an object you have already converted is passed straight through
 rather than translated again.
 
-## [Unreleased]
+## [0.2.1] - 26.10.2026
 
 ### Changed
 
@@ -292,3 +292,6 @@ rather than translated again.
   SymPy 1.8 does not import on Python 3.12 or later.
 - **Minimum PennyLane version is now 0.42.3**, up from 0.34.0. Earlier releases
   do not cap `autoray`, and a fresh install pulls an `autoray` they cannot import.
+
+
+## [Unreleased]

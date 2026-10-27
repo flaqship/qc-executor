@@ -234,36 +234,6 @@ class QoqoExecutor(ExecutorBase):
 
         return expectations["expectation_value"] + id_shift
 
-    def _expectation_value_derivatives(
-        self,
-        circuit: QuantumCircuitBase | List[QuantumCircuitBase],
-        observable: QuantumOperatorBase | List[QuantumOperatorBase],
-        *derivative,
-        **parameters,
-    ) -> float | np.ndarray | dict:
-        """
-        Calculate the derivatives of the expectation value with respect to the
-        parameters of the circuit.
-
-        Args:
-            circuit (QuantumCircuitBase | List[QuantumCircuitBase]): The quantum circuit
-                or a list of circuits.
-            observable (QuantumOperatorBase | List[QuantumOperatorBase]): The quantum
-                observable or a list of observables.
-            derivative: The parameter(s) with respect to which the derivative is calculated.
-            parameters: Additional values for the free parameters of the circuit(s) and
-                the observable(s) given as keyword arguments.
-                Both vector-style keys (e.g., ``x=[0.1, 0.2]``) and indexed keys
-                (e.g., ``x[0]=0.1, x[1]=0.2``) are accepted and normalized.
-
-        Returns:
-            float | np.array | dict: The derivative of the expectation value:
-                - single float/array if one derivative parameter is requested
-                - dictionary mapping parameter names to gradient arrays if multiple
-                  parameters are requested
-        """
-        raise NotImplementedError
-
     def _sample(self, circuit: QuantumCircuitBase, **parameter_values) -> dict:
         """
         Sample the circuit.
@@ -309,7 +279,7 @@ class QoqoExecutor(ExecutorBase):
         running_circuit += ops.DefinitionComplex("state_vector", qoqo_circuit.num_qubits, True)
         running_circuit += constant_circuit
         running_circuit += ops.PragmaGetStateVector("state_vector", None)
-
+        print(running_circuit)
         backend = Backend(qoqo_circuit.num_qubits)
         results = backend.run_circuit(running_circuit)
 
@@ -368,7 +338,7 @@ class QoqoExecutor(ExecutorBase):
         )
         running_circuit += constant_circuit
         running_circuit += ops.PragmaGetDensityMatrix("density_matrix", None)
-
+        print(running_circuit)
         backend = Backend(qoqo_circuit.num_qubits)
         results = backend.run_circuit(running_circuit)
 

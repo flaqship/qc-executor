@@ -279,7 +279,6 @@ class QoqoExecutor(ExecutorBase):
         running_circuit += ops.DefinitionComplex("state_vector", qoqo_circuit.num_qubits, True)
         running_circuit += constant_circuit
         running_circuit += ops.PragmaGetStateVector("state_vector", None)
-        print(running_circuit)
         backend = Backend(qoqo_circuit.num_qubits)
         results = backend.run_circuit(running_circuit)
 
@@ -338,7 +337,6 @@ class QoqoExecutor(ExecutorBase):
         )
         running_circuit += constant_circuit
         running_circuit += ops.PragmaGetDensityMatrix("density_matrix", None)
-        print(running_circuit)
         backend = Backend(qoqo_circuit.num_qubits)
         results = backend.run_circuit(running_circuit)
 

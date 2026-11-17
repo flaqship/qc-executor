@@ -59,6 +59,62 @@ Basic usage
    Executor.create("pennylane").statevector(pennylane_circuit, x=[0.8], p=[0.5])
    executor.sample(pennylane_circuit, x=[0.8], p=[0.5])
 
+Batched expectation values
+--------------------------
+
+Pass a two-dimensional array to evaluate a batch of circuit parameter sets.
+PennyLane broadcasts the circuit parameters through the configured device,
+while the executor preserves the same results as evaluating each row
+individually:
+
+.. code-block:: python
+
+   import numpy as np
+   from qc_executor import QuantumCircuit, QuantumOperator, Parameters
+   from qc_executor.pennylane import PennyLaneExecutor
+
+   x = Parameters("x", 1)
+   circuit = QuantumCircuit(1)
+   circuit.ry(0, x[0])
+   observable = QuantumOperator(["Z"], [1.0])
+
+   executor = PennyLaneExecutor()
+   result = executor.expectation_value(
+       circuit, observable, x=np.array([[0.1], [0.5], [1.0]])
+   )
+
+When multiple parameters are swept, ``expectation_value`` returns a separate
+axis for each sweep:
+
+.. code-block:: python
+
+   p = Parameters("p", 1)
+   x = Parameters("x", 1)
+   circuit = QuantumCircuit(1)
+   circuit.ry(0, p[0] * x[0])
+   p_values = [[0.3], [0.7]]
+   x_values = [[0.1], [0.3], [0.5]]
+
+   result = executor.expectation_value(circuit, observable, p=p_values, x=x_values)
+   # result.shape is (2, 3): rows correspond to p, columns to x.
+   for p_index, p_value in enumerate(p_values):
+       for x_index, x_value in enumerate(x_values):
+           print(p_value, x_value, result[p_index, x_index])
+
+Sweep axes follow the circuit's ``parameter_names`` order, followed by the
+observable's ``parameter_names`` order; use the transpiled PennyLane circuit
+and operator to inspect these names. Within each parameter, rows keep their
+input order. A parameter supplied with one row adds no axis, and vector-valued
+rows are kept together. Circuit and observable sweeps form a Cartesian product,
+including when they use the same parameter name. Empty batches have an empty
+axis, and no sweeps produce a scalar. Circuit and observable lists add leading
+axes in that order; all pairs must have matching sweep shapes.
+
+Previously, multiple circuit parameter sweeps were flattened into one axis.
+Use ``result.ravel()`` to recover that order for a single circuit and observable.
+With finite shots, separate calls draw different samples even when seeded.
+Use an analytic executor (``shots=None``) to compare exact results.
+
 Selecting a device
 ------------------
 

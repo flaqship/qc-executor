@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- PennyLane `expectation_value` now returns one axis per parameter sweep instead
+  of flattening multiple circuit parameter sweeps. For a single circuit and
+  observable, call `.ravel()` to recover the previous flat ordering.
+
 ## [0.1.0] - 20.08.2026
 
 Initial release.

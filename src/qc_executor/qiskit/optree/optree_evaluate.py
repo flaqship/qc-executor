@@ -1376,8 +1376,36 @@ class OpTreeEvaluate:
                 .values
             )
         elif isinstance(estimator, BaseEstimatorV2):
-            pubs = list(zip(total_circuit_list, total_operator_list, total_parameter_list))
-            estimator_result = np.array([r.data.evs for r in estimator.run(pubs).result()])
+            from .optree import OpTree  # pylint: disable=import-outside-toplevel
+
+            grouped = {}
+            for index, (circ, op, params) in enumerate(
+                zip(total_circuit_list, total_operator_list, total_parameter_list)
+            ):
+                key = (id(circ), OpTree.hash_operator(op)) if len(params) else (index,)
+                grouped.setdefault(key, []).append(index)
+
+            pubs = []
+            for indices in grouped.values():
+                first = indices[0]
+                params = (
+                    np.stack([total_parameter_list[index] for index in indices])
+                    if len(indices) > 1
+                    else total_parameter_list[first]
+                )
+                pubs.append((total_circuit_list[first], total_operator_list[first], params))
+
+            pub_results = list(estimator.run(pubs).result())
+            if len(pub_results) != len(pubs):
+                raise ValueError("Estimator returned an unexpected number of PUB results.")
+            estimator_result = np.empty(len(total_circuit_list))
+            for indices, result in zip(grouped.values(), pub_results):
+                values = np.asarray(result.data.evs).reshape(-1)
+                if len(values) != len(indices):
+                    raise ValueError(
+                        "Estimator returned an unexpected number of expectation values."
+                    )
+                estimator_result[indices] = values
         else:
             raise ValueError("Unknown estimator type!")
 

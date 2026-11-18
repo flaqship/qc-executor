@@ -1587,7 +1587,8 @@ class QiskitExecutor(ExecutorBase):
             parameter_values: Parameter values as keyword arguments.
 
         Returns:
-            The expectation value(s).
+            The expectation value(s), with one axis per parameter sweep after
+            any leading circuit and observable list axes.
         """
         if self._ibm_quantum_backend:
             self._ensure_runtime_primitives()
@@ -1597,37 +1598,97 @@ class QiskitExecutor(ExecutorBase):
                 "No estimator is configured. Pass `backend` as an Estimator primitive "
                 "or use a backend/session that supports estimation."
             )
-        # Convert to OpTree format
-        circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
+        circuits = circuit if isinstance(circuit, list) else [circuit]
+        observables = observable if isinstance(observable, list) else [observable]
 
-        # Prepare separate parameter dictionaries - a plain dict for a single
-        # parameter set, or a list of dicts (one per set) for a batch.
-        circuit_dict, observable_dict = self._prepare_parameter_dicts(
-            circuit, observable, **parameter_values
+        def parameter_sweeps(objects, native_attribute):
+            dimensions = {}
+            native_parameters = []
+            for obj in objects:
+                native = getattr(obj, native_attribute, obj)
+                native_parameters.extend(native.parameters)
+            for parameter in native_parameters:
+                name = parameter.vector.name if hasattr(parameter, "vector") else parameter.name
+                dimension = parameter.index + 1 if hasattr(parameter, "index") else 1
+                dimensions[name] = max(dimensions.get(name, 0), dimension)
+            arrays = {}
+            for name in sorted(dimensions):
+                if name not in parameter_values:
+                    raise ValueError(f"Parameter '{name}' not found in provided parameter values.")
+                arrays[name] = adjust_features(parameter_values[name], dimensions[name])[0]
+            shape = tuple(len(array) for array in arrays.values() if len(array) != 1)
+            dictionaries = []
+            for rows in itertools.product(*arrays.values()):
+                row_values = dict(zip(arrays, rows))
+                dictionaries.append(
+                    {
+                        parameter: (
+                            row_values[parameter.vector.name][parameter.index]
+                            if hasattr(parameter, "vector")
+                            else row_values[parameter.name][0]
+                        )
+                        for parameter in native_parameters
+                    }
+                )
+            signature = tuple((name, dimensions[name]) for name in sorted(dimensions))
+            return dictionaries, shape, signature
+
+        circuit_sweeps = [parameter_sweeps([item], "qiskit_circuit") for item in circuits]
+        observable_sweeps = [parameter_sweeps([item], "qiskit_operator") for item in observables]
+        pair_shapes = {
+            (*circuit_sweep[1], *observable_sweep[1])
+            for circuit_sweep in circuit_sweeps
+            for observable_sweep in observable_sweeps
+        }
+        if len(pair_shapes) > 1:
+            raise ValueError(
+                "All circuit-observable pairs must have matching parameter sweep shapes."
+            )
+        circuit_signatures = {sweep[2] for sweep in circuit_sweeps}
+        observable_signatures = {sweep[2] for sweep in observable_sweeps}
+        if len(circuit_signatures) > 1 or len(observable_signatures) > 1:
+            values = np.asarray(
+                [
+                    [self._expectation_value(circ, obs, **parameter_values) for obs in observables]
+                    for circ in circuits
+                ]
+            )
+            if not isinstance(circuit, list):
+                values = values[0]
+            if not isinstance(observable, list):
+                values = values[0] if not isinstance(circuit, list) else values[:, 0, ...]
+            return values
+
+        circuit_dicts, circuit_shape, _ = parameter_sweeps(circuits, "qiskit_circuit")
+        observable_dicts, observable_shape, _ = parameter_sweeps(observables, "qiskit_operator")
+        list_shape = ((len(circuits),) if isinstance(circuit, list) else ()) + (
+            (len(observables),) if isinstance(observable, list) else ()
         )
-        is_batched = isinstance(circuit_dict, list)
+        shape = (*list_shape, *circuit_shape, *observable_shape)
+        if not circuit_dicts or not observable_dicts:
+            return np.empty(shape)
 
-        # dictionaries_combined=True pairs entry i of the circuit-parameter
-        # list with entry i of the observable-parameter list (one parameter
-        # set per pair) rather than every combination of the two - the
-        # circuit-/observable-*list* axes (multiple circuits/observables)
-        # already provide the cross-product behavior.
+        circuit_tree, observable_tree = self._convert_to_optree(circuit, observable)
+        multiple_circuit_dicts = len(circuit_dicts) > 1
+        multiple_observable_dicts = len(observable_dicts) > 1
         result = OpTreeEvaluate.evaluate_with_estimator(
             circuit=circuit_tree,
             operator=observable_tree,
-            dictionary_circuit=circuit_dict,
-            dictionary_operator=observable_dict,
+            dictionary_circuit=circuit_dicts if multiple_circuit_dicts else circuit_dicts[0],
+            dictionary_operator=(
+                observable_dicts if multiple_observable_dicts else observable_dicts[0]
+            ),
             estimator=self._estimator,
-            dictionaries_combined=is_batched,
             detect_duplicates=True,
         )
-        if is_batched:
-            # OpTree returns the parameter-set (batch) axis first/outermost;
-            # move it to the end so the circuit-/observable-list axes lead,
-            # matching the "list input adds a leading axis" base contract and
-            # the PennyLane/Qulacs batching convention.
-            result = np.moveaxis(np.asarray(result), 0, -1)
-        return result
+        sweep_axis_count = int(multiple_circuit_dicts) + int(multiple_observable_dicts)
+        result = np.asarray(result)
+        if sweep_axis_count:
+            result = np.moveaxis(
+                result, tuple(range(sweep_axis_count)), tuple(range(-sweep_axis_count, 0))
+            )
+        result = result.reshape(shape)
+        return result[()] if not shape else result
 
     def _expectation_value_derivatives(
         self,

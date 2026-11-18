@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Qiskit `expectation_value` now evaluates the Cartesian product of parameter
+  sweeps, with one result axis per sweep, matching PennyLane. This replaces the
+  previous paired-row behavior. Estimator V2 batches compatible circuit rows
+  into vectorized PUBs. Derivative and sampling batching remain unchanged.
 - PennyLane `expectation_value` now returns one axis per parameter sweep instead
   of flattening multiple circuit parameter sweeps. For a single circuit and
   observable, call `.ravel()` to recover the previous flat ordering.

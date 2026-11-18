@@ -65,6 +65,53 @@ Basic usage
    executor.statevector(qiskit_circuit, x=[0.8], p=[0.5])
    executor.sample(qiskit_circuit, x=[0.8], p=[0.5])
 
+Batched expectation values
+--------------------------
+
+Supply batches for several parameters to evaluate their Cartesian product.
+Each sweep contributes one result axis, even when the batches have different
+lengths. A parameter with one row adds no axis.
+
+.. code-block:: python
+
+    x_values = [[0.1], [0.3], [0.5]]
+    p_values = [[0.2], [0.4], [0.6]]
+    analytic = Executor.create("qiskit", backend="statevector")
+    results = analytic.expectation_value(
+         qc, observable, x=x_values, p=p_values, p_obs=[0.5, 0.6]
+    )
+    print(results.shape)  # (3, 3): rows are p, columns are x
+    for p_index, p_value in enumerate(p_values):
+        for x_index, x_value in enumerate(x_values):
+            print(p_value, x_value, results[p_index, x_index])
+
+The result has a leading axis for each circuit or observable list, followed
+by circuit parameter sweep axes and then observable parameter sweep axes. Axes
+follow each object's parameter-name order; inspect the transpiled circuit and
+operator to see their parameters. Circuit and observable lists require matching
+sweep shapes. Pairs with different parameter signatures are evaluated separately.
+
+This changes Qiskit's previous behavior, which paired batches by index. For
+equally sized sweeps, the old paired results are the diagonal of the new grid.
+Other operations, such as derivatives and sampling, keep their existing batching
+semantics. Estimator V2 groups compatible circuit and bound-observable pairs into
+vectorized PUBs; different observable coefficients can produce separate PUBs.
+V1 estimators retain their existing submission path.
+
+Actual concurrency depends on the primitive and backend. For example, Aer can
+be configured with limits that match the CPUs allocated to the application:
+
+.. code-block:: python
+
+    from qiskit_aer import AerSimulator
+
+    backend = AerSimulator(max_parallel_threads=4, max_parallel_experiments=4)
+    executor = Executor.create("qiskit", backend=backend, shots=4096)
+
+Batching does not guarantee multi-core execution, and large batches can use
+more memory. Shot-based estimates may differ from separate executions; even
+when a primitive is seeded, grouping can change the random sample sequence.
+
 Selecting a backend
 -------------------
 

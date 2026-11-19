@@ -4,6 +4,9 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_qiskit_executor.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
+from types import SimpleNamespace
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 from qiskit.circuit import QuantumCircuit as QiskitQC
@@ -86,6 +89,230 @@ class TestQiskitExecutorParameterBatching:
 
         assert np.shape(batched) == (3,)
         assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_expectation_value_batch_uses_vectorized_estimator_pub(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        with patch.object(executor._estimator, "run", wraps=executor._estimator.run) as run:
+            result = executor.expectation_value(qc, operator, x=[[0.1], [0.5], [1.0]])
+
+        pubs = run.call_args.args[0]
+        assert run.call_count == 1
+        assert len(pubs) == 1
+        assert np.shape(pubs[0][2]) == (3, 1)
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5, 1.0]), atol=1e-10)
+
+    def test_expectation_value_cartesian_parameter_sweeps(self):
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
+        qc = _build_circuit(1, [("ry", [0, p[0] * x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        with patch.object(executor._estimator, "run", wraps=executor._estimator.run) as run:
+            result = executor.expectation_value(
+                qc, operator, x=[[0.1], [0.3], [0.5]], p=[[0.2], [0.4]]
+            )
+
+        assert result.shape == (2, 3)
+        np.testing.assert_allclose(result, np.cos(np.outer([0.2, 0.4], [0.1, 0.3, 0.5])))
+        assert len(run.call_args.args[0]) == 1
+        assert np.shape(run.call_args.args[0][0][2]) == (6, 2)
+
+    @pytest.mark.parametrize("p_values", [[[0.2], [0.4]], [[0.2], [0.4], [0.6]]])
+    def test_expectation_value_cartesian_matches_pennylane(self, p_values):
+        pytest.importorskip("pennylane")
+        from qc_executor.pennylane import PennyLaneExecutor
+
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
+        qc = _build_circuit(1, [("ry", [0, p[0] * x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        values = {"x": [[0.1], [0.3], [0.5]], "p": p_values}
+
+        qiskit_result = QiskitExecutor(backend="statevector").expectation_value(
+            qc, operator, **values
+        )
+        pennylane_result = PennyLaneExecutor().expectation_value(qc, operator, **values)
+
+        assert qiskit_result.shape == (len(p_values), 3)
+        np.testing.assert_allclose(qiskit_result, pennylane_result, atol=1e-10)
+
+    def test_expectation_value_cartesian_observable_and_shared_parameters(self):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        executor = QiskitExecutor(backend="statevector")
+
+        result = executor.expectation_value(
+            qc,
+            QuantumOperator(["Z"], [coefficient[0]]),
+            x=[[0.1], [0.5], [1.0]],
+            coefficient=[[1.0], [2.0]],
+        )
+        assert result.shape == (3, 2)
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5, 1.0])[:, None] * [1.0, 2.0])
+
+        shared = executor.expectation_value(qc, QuantumOperator(["Z"], [x[0]]), x=[[0.2], [0.7]])
+        assert shared.shape == (2, 2)
+        np.testing.assert_allclose(shared, np.cos([0.2, 0.7])[:, None] * [0.2, 0.7])
+
+    def test_expectation_value_cartesian_vector_rows_and_three_sweeps(self):
+        pytest.importorskip("pennylane")
+        from qc_executor.pennylane import PennyLaneExecutor
+
+        x = Parameters("x", 2)
+        p = Parameters("p", 1)
+        coefficient = Parameters("coefficient", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0] * p[0]]), ("rz", [0, x[1]])])
+        operator = QuantumOperator(["X"], [coefficient[0]])
+        values = {
+            "p": [[0.2], [0.4]],
+            "x": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]],
+            "coefficient": [[1.0], [2.0], [3.0], [4.0]],
+        }
+
+        result = QiskitExecutor(backend="statevector").expectation_value(qc, operator, **values)
+        reference = PennyLaneExecutor().expectation_value(qc, operator, **values)
+
+        assert result.shape == (2, 3, 4)
+        np.testing.assert_allclose(result, reference, atol=1e-10)
+
+    def test_expectation_value_cartesian_heterogeneous_circuit_list(self):
+        x = Parameters("x", 1)
+        y = Parameters("y", 1)
+        circuits = [
+            _build_circuit(1, [("ry", [0, x[0]])]),
+            _build_circuit(1, [("rx", [0, y[0]])]),
+        ]
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        result = executor.expectation_value(circuits, operator, x=[[0.1], [0.5]], y=[[0.2], [0.7]])
+        assert result.shape == (2, 2)
+        np.testing.assert_allclose(result, [np.cos([0.1, 0.5]), np.cos([0.2, 0.7])])
+
+        with pytest.raises(ValueError, match="matching parameter sweep shapes"):
+            executor.expectation_value(circuits, operator, x=[[0.1]], y=[[0.2], [0.7]])
+
+    def test_expectation_value_heterogeneous_observable_list(self):
+        first = Parameters("first", 1)
+        second = Parameters("second", 1)
+        qc = _build_circuit(1, [("h", [0])])
+        operators = [QuantumOperator(["X"], [first[0]]), QuantumOperator(["X"], [second[0]])]
+
+        result = QiskitExecutor(backend="statevector").expectation_value(
+            qc, operators, first=[[1.0], [2.0]], second=[[3.0], [4.0]]
+        )
+
+        assert result.shape == (2, 2)
+        np.testing.assert_allclose(result, [[1.0, 2.0], [3.0, 4.0]])
+
+    def test_expectation_value_missing_parameter(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+
+        with pytest.raises(ValueError, match="Parameter 'x' not found"):
+            QiskitExecutor(backend="statevector").expectation_value(
+                qc, QuantumOperator(["Z"], [1.0])
+            )
+
+    def test_expectation_value_cartesian_singleton_lists_and_empty_batch(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+
+        result = executor.expectation_value([qc], [operator], x=[[0.1], [0.5]])
+        assert result.shape == (1, 1, 2)
+        np.testing.assert_allclose(result[0, 0], np.cos([0.1, 0.5]))
+        assert executor.expectation_value(qc, operator, x=np.empty((0, 1))).shape == (0,)
+
+    def test_expectation_value_batch_groups_distinct_observables_and_circuits(self):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        circuits = [
+            _build_circuit(1, [("ry", [0, x[0]])]),
+            _build_circuit(1, [("rx", [0, x[0]])]),
+        ]
+        operators = [
+            QuantumOperator(["Z"], [coefficient[0]]),
+            QuantumOperator(["X"], [coefficient[0]]),
+        ]
+        executor = QiskitExecutor(backend="statevector")
+        parameter_values = {"x": [[0.1], [0.5], [1.0]], "coefficient": [[2.0], [3.0], [2.0]]}
+
+        with patch.object(executor._estimator, "run", wraps=executor._estimator.run) as run:
+            result = executor.expectation_value(circuits, operators, **parameter_values)
+
+        pubs = run.call_args.args[0]
+        assert run.call_count == 1
+        assert len(pubs) == 8
+        assert (
+            sum(np.asarray(pub[2]).shape[0] if np.ndim(pub[2]) == 2 else 1 for pub in pubs) == 36
+        )
+        expected = np.array(
+            [
+                [
+                    [
+                        [
+                            executor.expectation_value(
+                                circuit, operator, x=[angle], coefficient=[scale]
+                            )
+                            for scale in [2.0, 3.0, 2.0]
+                        ]
+                        for angle in [0.1, 0.5, 1.0]
+                    ]
+                    for operator in operators
+                ]
+                for circuit in circuits
+            ]
+        )
+        assert result.shape == (2, 2, 3, 3)
+        np.testing.assert_allclose(result, expected, atol=1e-10)
+
+    def test_expectation_value_batch_seed_reproducibility(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        values = [[0.1], [0.5], [1.0]]
+
+        first = QiskitExecutor(backend=StatevectorEstimator(seed=7), shots=1000)
+        second = QiskitExecutor(backend=StatevectorEstimator(seed=7), shots=1000)
+
+        np.testing.assert_array_equal(
+            first.expectation_value(qc, operator, x=values),
+            second.expectation_value(qc, operator, x=values),
+        )
+
+    def test_expectation_value_batch_with_aer_estimator(self):
+        aer = pytest.importorskip("qiskit_aer", exc_type=ImportError)
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        backend = aer.AerSimulator(max_parallel_threads=2, max_parallel_experiments=2)
+        executor = QiskitExecutor(backend=backend, shots=4096)
+
+        with patch.object(executor._estimator, "run", wraps=executor._estimator.run) as run:
+            result = executor.expectation_value(qc, operator, x=[[0.0], [np.pi]])
+
+        assert len(run.call_args.args[0]) == 1
+        np.testing.assert_allclose(result, [1.0, -1.0], atol=0.05)
+
+    @pytest.mark.parametrize("results", [[], [SimpleNamespace(data=SimpleNamespace(evs=[1.0]))]])
+    def test_expectation_value_batch_rejects_malformed_primitive_results(self, results):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [1.0])
+        executor = QiskitExecutor(backend="statevector")
+        job = SimpleNamespace(result=lambda: results)
+
+        with patch.object(executor._estimator, "run", return_value=job):
+            with pytest.raises(ValueError, match="Estimator returned an unexpected number"):
+                executor.expectation_value(qc, operator, x=[[0.1], [0.5], [1.0]])
 
     def test_expectation_value_flat_list_previously_silently_wrong(self):
         """A flat list for a 1-dimensional parameter used to be misread as

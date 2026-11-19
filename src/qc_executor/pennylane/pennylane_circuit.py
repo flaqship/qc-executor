@@ -283,7 +283,15 @@ class PennyLaneCircuit(QuantumCircuitBase):
             measurements: list = [0] * self.num_clbits
 
             # Collects the args values connected to the circuit parameters
-            circ_param_list = sum([list(args[i]) for i in range(len(self.parameter_names))], [])
+            circ_param_list = [
+                (
+                    args[index][component]
+                    if isinstance(args[index], (list, tuple))
+                    else args[index][..., component]
+                )
+                for index, parameter in enumerate(self.parameter_names)
+                for component in range(self.parameter_dimensions[parameter])
+            ]
 
             # Loop through all penny lane gates
             for i, circuit_gate in enumerate(self._pennylane_gates):

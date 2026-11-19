@@ -31,8 +31,8 @@ jobs:
       - name: Check tests/
         run: uvx black -l 99 tests --check
 
-      - name: Check examples/ (notebooks)
-        run: uvx black -l 99 --ipynb examples --check
+      - name: Check examples/
+        run: uvx --from 'black[jupyter]' black -l 99 examples --check
   isort:
     runs-on: ubuntu-latest
 

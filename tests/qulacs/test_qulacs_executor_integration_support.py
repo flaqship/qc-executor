@@ -4,12 +4,22 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_qulacs_executor.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
+import json
+import subprocess
+import sys
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import get_context
+from pathlib import Path
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
 from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.parameters import Parameters
 from qc_executor.qulacs import QulacsExecutor
+from qc_executor.qulacs import qulacs_executor as qulacs_module
+from qc_executor.qulacs.qulacs_executor import _initialize_qulacs_worker
 
 
 def _build_circuit(num_qubits, operations):
@@ -17,6 +27,63 @@ def _build_circuit(num_qubits, operations):
     for gate_name, gate_args in operations:
         getattr(qc, gate_name)(*gate_args)
     return qc
+
+
+def test_batch_benchmark_json_output():
+    script = Path(__file__).resolve().parents[2] / "examples" / "qulacs" / "benchmark_batches.py"
+    output = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--batch-size",
+            "2",
+            "--qubits",
+            "2",
+            "--layers",
+            "1",
+            "--json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = json.loads(output.stdout)
+    assert result["shape"] == [2]
+    assert len(result["values"]) == 2
+    assert result["wall_seconds"] > 0
+    assert len(result["wall_samples_seconds"]) == 1
+    assert result["peak_rss_self"] > 0
+
+
+def test_batch_benchmark_cartesian_json_output():
+    script = Path(__file__).resolve().parents[2] / "examples" / "qulacs" / "benchmark_batches.py"
+    output = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--grid-size",
+            "2",
+            "--qubits",
+            "2",
+            "--layers",
+            "1",
+            "--warmups",
+            "1",
+            "--repeats",
+            "1",
+            "--json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = json.loads(output.stdout)
+    assert result["shape"] == [2, 2]
+    assert result["grid_size"] == 2
+    assert result["batch_size"] == 4
+    assert result["warmups"] == 1
+    assert len(result["wall_samples_seconds"]) == 1
+    assert len(result["values"]) == 4
 
 
 class TestQulacsExecutorExpectationAndStatevector:
@@ -35,6 +102,173 @@ class TestQulacsExecutorExpectationAndStatevector:
 
         assert np.shape(batched) == (3,)
         assert np.allclose(batched, individually, atol=1e-10)
+
+    def test_expectation_value_cartesian_sweeps(self):
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
+        coefficient = Parameters("coefficient", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0] * p[0]])])
+        op = QuantumOperator(["Z"], [coefficient[0]])
+        executor = QulacsExecutor()
+
+        result = executor.expectation_value(
+            qc, op, x=[[0.1], [0.3], [0.5]], p=[[0.2], [0.4]], coefficient=[[1.0], [2.0]]
+        )
+
+        expected = np.cos(np.outer([0.2, 0.4], [0.1, 0.3, 0.5]))[:, :, None] * [1.0, 2.0]
+        assert result.shape == (2, 3, 2)
+        np.testing.assert_allclose(result, expected, atol=1e-10)
+
+    def test_expectation_value_parallel_matches_sequential(self):
+        x = Parameters("x", 1)
+        p = Parameters("p", 1)
+        coefficient = Parameters("coefficient", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0] * p[0]])])
+        op = QuantumOperator(["Z"], [coefficient[0]])
+        values = {"x": [[0.1], [0.3], [0.5]], "p": [[0.2], [0.4]], "coefficient": [[1.0], [2.0]]}
+
+        sequential = QulacsExecutor().expectation_value(qc, op, **values)
+        with patch(
+            "qc_executor.qulacs.qulacs_executor.ProcessPoolExecutor", wraps=ProcessPoolExecutor
+        ) as pool:
+            parallel = QulacsExecutor(max_workers=2, parallel_min_batch_size=2).expectation_value(
+                qc, op, **values
+            )
+
+        assert parallel.shape == (2, 3, 2)
+        np.testing.assert_allclose(parallel, sequential, atol=1e-10)
+        assert pool.call_count == 1
+        assert pool.call_args.kwargs["max_workers"] == 2
+
+    def test_expectation_value_parallel_matches_other_backends(self):
+        pytest.importorskip("pennylane")
+        pytest.importorskip("qiskit")
+        from qc_executor.pennylane import PennyLaneExecutor
+        from qc_executor.qiskit import QiskitExecutor
+
+        x = Parameters("x", 2)
+        p = Parameters("p", 1)
+        coefficient = Parameters("coefficient", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0] * p[0]]), ("rz", [0, x[1]])])
+        op = QuantumOperator(["X"], [coefficient[0]])
+        values = {
+            "p": [[0.2], [0.4]],
+            "x": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]],
+            "coefficient": [[1.0], [2.0], [3.0]],
+        }
+
+        result = QulacsExecutor(max_workers=2, parallel_min_batch_size=2).expectation_value(
+            qc, op, **values
+        )
+        assert result.shape == (2, 3, 3)
+        for executor in (PennyLaneExecutor(), QiskitExecutor(backend="statevector")):
+            np.testing.assert_allclose(
+                result, executor.expectation_value(qc, op, **values), atol=1e-10
+            )
+
+    def test_expectation_value_parallel_threshold_and_empty_batch(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor = QulacsExecutor(max_workers=2, parallel_min_batch_size=3)
+
+        with patch("qc_executor.qulacs.qulacs_executor.ProcessPoolExecutor") as pool:
+            result = executor.expectation_value(qc, op, x=[[0.1], [0.5]])
+            empty = executor.expectation_value(qc, op, x=np.empty((0, 1)))
+
+        pool.assert_not_called()
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5]))
+        assert empty.shape == (0,)
+
+    @pytest.mark.parametrize(
+        "name,value",
+        [
+            ("max_workers", 0),
+            ("max_workers", True),
+            ("parallel_min_batch_size", 1),
+            ("parallel_min_batch_size", 1.5),
+        ],
+    )
+    def test_invalid_parallel_configuration(self, name, value):
+        with pytest.raises(ValueError, match=name):
+            QulacsExecutor(**{name: value})
+
+    def test_parallel_worker_limits_native_thread_pools(self):
+        from threadpoolctl import threadpool_info
+
+        qc = QulacsExecutor().transpile_circuit(_build_circuit(1, [("h", [0])]))
+        with ProcessPoolExecutor(
+            max_workers=1,
+            mp_context=get_context("spawn"),
+            initializer=_initialize_qulacs_worker,
+            initargs=((qc.num_qubits, qc.num_clbits, qc.ir), []),
+        ) as pool:
+            libraries = pool.submit(threadpool_info).result()
+
+        assert all(lib["num_threads"] == 1 for lib in libraries)
+
+    def test_worker_initialization_and_chunk_execution(self):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        circuit = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [coefficient[0]])
+        executor = QulacsExecutor()
+        native_circuit = executor.transpile_circuit(circuit)
+        native_operator = executor.transpile_operator(operator)
+        circuit_data = (native_circuit.num_qubits, native_circuit.num_clbits, native_circuit.ir)
+        observable_data = [(native_operator.num_qubits, native_operator.ir, [([2.0],)])]
+
+        with patch.dict(qulacs_module._WORKER_CONTEXT, {}, clear=True):
+            with patch("threadpoolctl.threadpool_limits") as limit_threads:
+                qulacs_module._initialize_qulacs_worker(circuit_data, observable_data)
+                result = qulacs_module._evaluate_qulacs_worker_chunk([([0.1],), ([0.5],)])
+
+        limit_threads.assert_called_once_with(limits=1)
+        np.testing.assert_allclose(np.asarray(result).reshape(-1), 2 * np.cos([0.1, 0.5]))
+
+    def test_expectation_value_parallel_circuit_and_observable_lists(self):
+        x = Parameters("x", 1)
+        circuits = [
+            _build_circuit(1, [("ry", [0, x[0]])]),
+            _build_circuit(1, [("rx", [0, x[0]])]),
+        ]
+        operators = [QuantumOperator(["Z"], [1.0]), QuantumOperator(["X"], [1.0])]
+        values = {"x": [[0.1], [0.5], [1.0]]}
+        sequential = QulacsExecutor().expectation_value(circuits, operators, **values)
+        parallel = QulacsExecutor(max_workers=2, parallel_min_batch_size=2).expectation_value(
+            circuits, operators, **values
+        )
+
+        assert parallel.shape == (2, 2, 3)
+        np.testing.assert_allclose(parallel, sequential, atol=1e-10)
+
+    def test_expectation_value_rejects_mismatched_list_sweep_shapes(self):
+        x = Parameters("x", 1)
+        circuits = [_build_circuit(1, [("ry", [0, x[0]])]), _build_circuit(1, [("h", [0])])]
+        op = QuantumOperator(["Z"], [1.0])
+
+        with pytest.raises(ValueError, match="matching parameter sweep shapes"):
+            QulacsExecutor().expectation_value(circuits, op, x=[[0.1], [0.5]])
+
+    def test_parallel_unsupported_circuit_raises_directly(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("reset", [0]), ("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [1.0])
+        executor = QulacsExecutor(max_workers=2, parallel_min_batch_size=2)
+
+        with pytest.raises(NotImplementedError, match="reset"):
+            executor.expectation_value(qc, op, x=[[0.1], [0.5]])
+
+    def test_parallel_same_name_in_circuit_and_observable(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        op = QuantumOperator(["Z"], [x[0]])
+        executor = QulacsExecutor(max_workers=2, parallel_min_batch_size=2)
+
+        result = executor.expectation_value(qc, op, x=[[0.2], [0.7]])
+
+        assert result.shape == (2, 2)
+        np.testing.assert_allclose(result, np.cos([0.2, 0.7])[:, None] * [0.2, 0.7])
 
     def test_expectation_value_single_set_unaffected_by_batching_support(self):
         """A single parameter set still returns a bare scalar."""

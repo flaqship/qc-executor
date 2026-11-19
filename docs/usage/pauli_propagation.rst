@@ -64,6 +64,41 @@ transpiled to the native Pauli-propagation types before evaluation.
    )
    print(grads)
 
+Batched expectation values
+--------------------------
+
+Pass multiple rows for each parameter to evaluate every combination. The
+result has one axis for each parameter sweep, in circuit parameter-name order
+followed by observable parameter-name order. A single row adds no sweep axis.
+Lists of circuits and observables add leading axes; their sweep shapes must
+match.
+
+.. code-block:: python
+
+   p_values = [[0.2], [0.4], [0.6]]
+   x_values = [[0.1], [0.3], [0.5]]
+   parallel = Executor.create("pauli_propagation", n_jobs=2)
+   result = parallel.expectation_value(
+       pp_circuit, pp_observable, p=p_values, x=x_values, p_obs=[0.5, 0.6]
+   )
+   print(result.shape)  # (3, 3): rows are p, columns are x
+   for p_index, p_value in enumerate(p_values):
+       for x_index, x_value in enumerate(x_values):
+           print(p_value, x_value, result[p_index, x_index])
+
+``n_jobs=1`` (the default) runs sequentially. Set ``n_jobs`` to a positive
+number to use that many worker processes, or ``-1`` to use all logical CPUs
+reported by the operating system. Set an explicit limit when the application
+shares CPUs with other jobs or runs under a CPU quota.
+Workers are started for each call and add memory and startup overhead, so small
+batches may be faster sequentially. When using multiprocessing from a Python
+script, place the calling code under ``if __name__ == "__main__":``.
+Expectation values are analytic; sampling and derivative parameter batching
+retain their existing behavior.
+
+Previously, multiple circuits and observables returned a flat array in
+circuit-major order. Call ``result.ravel()`` to recover that ordering.
+
 Truncation and symmetry merging
 -------------------------------
 

@@ -11,6 +11,8 @@ authors = [
     {name = "Dennis Kleinhans", email = "dennis.kleinhans@ipa.fraunhofer.de"},
     {name = "Florian Wieland", email = "florian.wieland@ipa.fraunhofer.de"},
     {name = "David Kreplin", email = "david.kreplin@hs-heilbronn.de"},
+    {name = "Chia-Tso Lai", email = "chia-tso.lai@ipa.fraunhofer.de"},
+    {name = "Pablo Rodriguez Onorato", email = "pablo.rodriguez-onorato@ipa.fraunhofer.de"},
 ]
 maintainers = [
     {name = "Moritz Willmann", email = "moritz.willmann@ipa.fraunhofer.de"},
@@ -48,7 +50,7 @@ Issues = "https://github.com/flaqship/qc-executor/issues"
 # Every backend is optional; the core package needs only numpy and sympy.
 qiskit = ["qiskit>=2.5.2", "packaging>=21.0"]
 pennylane = ["pennylane>=0.42.3", "packaging>=21.0"]
-qulacs = ["qulacs>=0.6.4.1"]
+qulacs = ["qulacs>=0.6.4.1", "threadpoolctl>=3.1"]
 # Aer and the IBM runtime are needed for shot-based sampling and for the
 # dynamic circuits the local Qiskit primitives refuse to run.
 qiskit-full = [
@@ -63,6 +65,7 @@ all = [
     "packaging>=21.0",
     "pennylane>=0.42.3",
     "qulacs>=0.6.4.1",
+    "threadpoolctl>=3.1",
     "qiskit-aer>=0.17.0",
     "qiskit-ibm-runtime>=0.37.0",
 ]

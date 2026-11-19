@@ -9,12 +9,14 @@ import os
 import re
 import warnings
 from concurrent.futures import ProcessPoolExecutor
+from itertools import product
 from typing import TYPE_CHECKING, Any, Dict, List, overload
 
 import numpy as np
 import sympy as sp
 
 from ..base import ExecutorBase, QuantumCircuitBase, QuantumOperatorBase
+from ..utils.data_preprocessing import adjust_features
 from .pauli_propagation_circuit import PauliPropagationCircuit
 from .pauli_propagation_operator import PauliPropagationOperator
 from .symmetry import NoSymmetry
@@ -85,6 +87,35 @@ def _normalize_parameters(parameters: Dict) -> Dict[str, float]:
             )
 
     return normalized
+
+
+def _expectation_parameter_sweeps(obj, parameters):
+    """Prepare independently batched parameter bindings for one circuit or observable."""
+    symbols = obj.parameter_symbols
+    dimensions = {}
+    for symbol in symbols:
+        match = re.fullmatch(r"(.+)\[(\d+)\]", symbol)
+        name = match.group(1) if match else symbol
+        dimension = int(match.group(2)) + 1 if match else 1
+        dimensions[name] = max(dimensions.get(name, 0), dimension)
+
+    arrays = {}
+    for name in sorted(dimensions):
+        if name not in parameters:
+            raise ValueError(f"Parameter '{name}' not found in provided parameter values.")
+        arrays[name] = adjust_features(parameters[name], dimensions[name])[0]
+    shape = tuple(len(array) for array in arrays.values() if len(array) != 1)
+    bindings = []
+    for rows in product(*arrays.values()):
+        values = dict(zip(arrays, rows))
+        binding = {}
+        for symbol in symbols:
+            match = re.fullmatch(r"(.+)\[(\d+)\]", symbol)
+            name = match.group(1) if match else symbol
+            index = int(match.group(2)) if match else 0
+            binding[symbol] = float(values[name][index])
+        bindings.append(binding)
+    return bindings, shape
 
 
 def _evaluate_symbolic_expression(expression, parameters: Dict[str, float]) -> float:
@@ -196,8 +227,9 @@ class PauliPropagationExecutor(ExecutorBase):
         max_weight: Maximum Pauli weight for truncation (None = no weight limit)
         symmetry_strategy: Strategy for Pauli symmetry merging (None = no merging)
         n_jobs: Number of worker processes for independent expectation-value
-            evaluations (multiple circuits x observables, parameter-shift
-            gradients). 1 (default) runs serially; -1 uses all CPU cores.
+            evaluations (including parameter batches, multiple circuits and
+            observables, and parameter-shift gradients). 1 (default) runs
+            serially; -1 uses all CPU cores.
             Process startup on Windows (spawn) costs roughly 100 ms per
             worker plus import time, so parallelism pays off only for
             workloads with many or expensive independent evaluations.
@@ -261,6 +293,7 @@ class PauliPropagationExecutor(ExecutorBase):
         observable,
         **parameters,
     ) -> float | np.ndarray:
+        """Evaluate every Cartesian parameter combination for each circuit and observable."""
         is_single_circuit = not isinstance(circuit, list)
         is_single_observable = not isinstance(observable, list)
 
@@ -278,29 +311,84 @@ class PauliPropagationExecutor(ExecutorBase):
                     "PauliPropagationExecutor expects PauliPropagationOperator inputs only."
                 )
 
-        # Normalize parameters once (from list format x=[0.1] to indexed x[0]=0.1)
-        normalized_params = _normalize_parameters(parameters)
+        circuit_data = [
+            (circ, *_expectation_parameter_sweeps(circ, parameters)) for circ in circuits
+        ]
+        observable_data = []
+        for obs in observables:
+            bindings, shape = _expectation_parameter_sweeps(obs, parameters)
+            bound = [
+                obs.assign_parameters(binding) if obs.is_parametrized else obs
+                for binding in bindings
+            ]
+            observable_data.append((bound, shape))
 
-        ntasks = len(circuits) * len(observables)
+        pair_shapes = {
+            (*circuit_shape, *observable_shape)
+            for _, _, circuit_shape in circuit_data
+            for _, observable_shape in observable_data
+        }
+        if len(pair_shapes) > 1:
+            raise ValueError(
+                "All circuit-observable pairs must have matching parameter sweep shapes."
+            )
+
+        bound_observables = [obs for group, _ in observable_data for obs in group]
+        tasks = [
+            (circ, bound_observables, binding)
+            for circ, bindings, _ in circuit_data
+            for binding in bindings
+        ]
+        ntasks = len(tasks) * len(bound_observables)
         if self.n_jobs != 1 and ntasks > 1:
-            outcomes = self._parallel_expectations(circuits, observables, normalized_params)
-        else:
-            outcomes = []
-            for circ in circuits:
-                outcomes.extend(
-                    self._batch_expectations_for_circuit(circ, observables, normalized_params)
+            task_args = [
+                (
+                    circ,
+                    obs,
+                    binding,
+                    self.truncate_threshold,
+                    self.max_weight,
+                    self.symmetry_strategy,
                 )
+                for circ, group, binding in tasks
+                for obs in group
+            ]
+            outcomes = self._parallel_expectation_tasks(task_args)
+        else:
+            outcomes = [
+                outcome
+                for circ, group, binding in tasks
+                for outcome in self._batch_expectations_for_circuit(circ, group, binding)
+            ]
 
         do_truncate = self.truncate_threshold is not None or self.max_weight is not None
         if do_truncate and outcomes:
             # Same semantics as computing pair-by-pair: keep the last stats
             self.last_truncation_stats = outcomes[-1][1]
 
-        results = [value for value, _ in outcomes]
+        cursor = 0
+        values = []
+        for _, bindings, circuit_shape in circuit_data:
+            circuit_values = [[] for _ in observables]
+            for _ in bindings:
+                for index, (group, _) in enumerate(observable_data):
+                    circuit_values[index].extend(
+                        value.real for value, _ in outcomes[cursor : cursor + len(group)]
+                    )
+                    cursor += len(group)
+            values.append(
+                [
+                    np.asarray(result).reshape((*circuit_shape, *shape))
+                    for result, (_, shape) in zip(circuit_values, observable_data)
+                ]
+            )
 
-        if is_single_circuit and is_single_observable:
-            return float(results[0].real)
-        return np.array([r.real for r in results])
+        results = np.asarray(values)
+        if is_single_circuit:
+            results = results[0]
+        if is_single_observable:
+            results = results[0] if is_single_circuit else results[:, 0, ...]
+        return float(results) if np.ndim(results) == 0 else results
 
     def _resolved_n_jobs(self) -> int:
         """Return the effective worker count (-1 means all CPU cores)."""
@@ -308,24 +396,8 @@ class PauliPropagationExecutor(ExecutorBase):
             return os.cpu_count() or 1
         return self.n_jobs
 
-    def _parallel_expectations(self, circuits, observables, normalized_params):
-        """Evaluate all circuit x observable pairs in worker processes.
-
-        Task order (and therefore result order) is circuit-major, matching
-        the serial path.
-        """
-        task_args = [
-            (
-                circ,
-                obs,
-                normalized_params,
-                self.truncate_threshold,
-                self.max_weight,
-                self.symmetry_strategy,
-            )
-            for circ in circuits
-            for obs in observables
-        ]
+    def _parallel_expectation_tasks(self, task_args):
+        """Evaluate independent expectation tasks in input order."""
         max_workers = min(self._resolved_n_jobs(), len(task_args))
         chunksize = max(1, len(task_args) // (4 * max_workers))
         # Per-call pool: simpler lifecycle than a cached pool and safe with

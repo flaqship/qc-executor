@@ -358,11 +358,26 @@ class PennyLaneExecutor(ExecutorBase):
             # than relying on whatever the device was constructed with.
             circuit_func = qml.set_shots(circuit_func, shots=self._shots)
 
+            if not circuit_parameter_tuples:
+                circuit_values.append([])
+                continue
+            if not observable_parameter_tuples:
+                circuit_values.append([[] for _ in circuit_parameter_tuples])
+                continue
+
+            batched_circuit_parameters = [
+                np.stack([cp[index] for cp in circuit_parameter_tuples])
+                for index in range(len(pennylane_circuit.parameter_names))
+            ]
             observable_values = []
-            for cp in circuit_parameter_tuples:
-                cp_values = [circuit_func(*cp, *op) for op in observable_parameter_tuples]
-                observable_values.append(cp_values)
-            circuit_values.append(observable_values)
+            for op in observable_parameter_tuples:
+                batch_values = np.asarray(circuit_func(*batched_circuit_parameters, *op))
+                observable_values.append(batch_values.reshape(-1))
+            circuit_values.append(
+                np.stack(observable_values, axis=-1)
+                .reshape(len(circuit_parameter_tuples), len(observable_parameter_tuples))
+                .tolist()
+            )
         return circuit_values
 
     def _expectation_value(
@@ -379,7 +394,9 @@ class PennyLaneExecutor(ExecutorBase):
             observable (QuantumOperatorBase): The quantum observable.
 
         Returns:
-            float: The expectation value.
+            float | np.ndarray: A scalar or an array with leading circuit and
+                observable list axes followed by one axis for each parameter
+                sweep, in circuit then observable parameter-name order.
         """
 
         pennylane_circuits, multiple_circuits = self._preprocess_circuits(circuit)
@@ -398,13 +415,25 @@ class PennyLaneExecutor(ExecutorBase):
                 circuit_parameter_tuples,
                 parameter_values,
             )
-            values.append(circuit_values)
+            shaped_values = []
+            for pennylane_obs, observable_values in zip(pennylane_observables, circuit_values):
+                observable_parameters, _, _ = self._collect_named_params(
+                    pennylane_obs, parameter_values
+                )
+                shape = tuple(
+                    len(parameter)
+                    for parameter in (*circuit_parameters, *observable_parameters)
+                    if len(parameter) != 1
+                )
+                shaped_values.append(np.asarray(observable_values).reshape(shape))
+            values.append(shaped_values)
 
-        values = np.array(values)
-        if values.shape[-1] == 1:
-            values = values[..., 0]
-        if values.shape[-1] == 1:
-            values = values[..., 0]
+        try:
+            values = np.asarray(values)
+        except ValueError as exc:
+            raise ValueError(
+                "All circuit-observable pairs must have matching parameter sweep shapes."
+            ) from exc
 
         if not multiple_circuits:
             values = values[0]

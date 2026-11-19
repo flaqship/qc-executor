@@ -198,6 +198,28 @@ class TestQiskitExecutorParameterBatching:
         with pytest.raises(ValueError, match="matching parameter sweep shapes"):
             executor.expectation_value(circuits, operator, x=[[0.1]], y=[[0.2], [0.7]])
 
+    def test_expectation_value_heterogeneous_observable_list(self):
+        first = Parameters("first", 1)
+        second = Parameters("second", 1)
+        qc = _build_circuit(1, [("h", [0])])
+        operators = [QuantumOperator(["X"], [first[0]]), QuantumOperator(["X"], [second[0]])]
+
+        result = QiskitExecutor(backend="statevector").expectation_value(
+            qc, operators, first=[[1.0], [2.0]], second=[[3.0], [4.0]]
+        )
+
+        assert result.shape == (2, 2)
+        np.testing.assert_allclose(result, [[1.0, 2.0], [3.0, 4.0]])
+
+    def test_expectation_value_missing_parameter(self):
+        x = Parameters("x", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+
+        with pytest.raises(ValueError, match="Parameter 'x' not found"):
+            QiskitExecutor(backend="statevector").expectation_value(
+                qc, QuantumOperator(["Z"], [1.0])
+            )
+
     def test_expectation_value_cartesian_singleton_lists_and_empty_batch(self):
         x = Parameters("x", 1)
         qc = _build_circuit(1, [("ry", [0, x[0]])])

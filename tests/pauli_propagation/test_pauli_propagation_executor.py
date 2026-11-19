@@ -158,7 +158,8 @@ class TestBatchExpectationValue:
 
         results = executor.expectation_value([c0, c1], [op_z, op_x])
 
-        expected = np.array([1.0, 0.0, -1.0, 0.0])
+        expected = np.array([[1.0, 0.0], [-1.0, 0.0]])
+        assert np.shape(results) == (2, 2)
         assert np.allclose(results, expected, atol=1e-10)
 
     def test_single_observable_still_returns_float(self):

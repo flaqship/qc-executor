@@ -163,6 +163,18 @@ class TestPennylaneExpectationValue:
         assert executor.expectation_value(qc, operator, x=[[0.1], [0.5]]).shape == (2,)
         assert executor.expectation_value(qc, operator, x=np.empty((0, 1))).shape == (0,)
 
+    def test_expectation_value_empty_observable_batch(self):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        qc = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [coefficient[0]])
+
+        result = PennyLaneExecutor().expectation_value(
+            qc, operator, x=[[0.1], [0.5]], coefficient=np.empty((0, 1))
+        )
+
+        assert result.shape == (2, 0)
+
     def test_expectation_value_vector_parameter_rows(self):
         angles = Parameters("angles", 2)
         scale = Parameters("scale", 1)

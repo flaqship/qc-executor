@@ -15,7 +15,7 @@ examples/
 │   ├── 02_batch_benchmark.ipynb      – compare sequential and parallel batches
 │   └── benchmark_batches.py          – command-line benchmark with CPU and memory measurements
 └── pauli_propagation/
-    └── 01_basic_usage.ipynb          – PauliPropagationExecutor: native circuit/observable workflow
+    └── 01_basic_usage.ipynb          – PauliPropagationExecutor: native types and batched execution
 ```
 
 ## Running the notebooks

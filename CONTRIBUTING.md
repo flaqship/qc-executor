@@ -34,7 +34,7 @@ the design.
 This project uses [Black](https://black.readthedocs.io/) with a line length of 99.
 
 ```bash
-uv run black -l 99 src tests
+uv run black -l 99 src tests examples
 ```
 
 Linting via [Pylint](https://pylint.readthedocs.io/):

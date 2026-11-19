@@ -2,10 +2,14 @@
 
 import pickle
 import random
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import get_context
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
+from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.parameters import Parameters
 from qc_executor.pauli_propagation import (
     PauliPropagationCircuit,
@@ -82,9 +86,205 @@ class TestBatchPathEquivalence:
 
         # Circuit-major ordering
         expected = [
-            executor.expectation_value(circ, obs) for circ in circuits for obs in observables
+            [executor.expectation_value(circ, obs) for obs in observables] for circ in circuits
         ]
         assert np.allclose(batched, expected)
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_cartesian_parameter_sweeps(self, n_jobs):
+        p = Parameters("p", 1)
+        x = Parameters("x", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, p[0] * x[0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
+
+        result = PauliPropagationExecutor(n_jobs=n_jobs).expectation_value(
+            circuit, observable, p=[[0.2], [0.4]], x=[[0.1], [0.3], [0.5]]
+        )
+
+        assert np.shape(result) == (2, 3)
+        np.testing.assert_allclose(result, np.cos(np.outer([0.2, 0.4], [0.1, 0.3, 0.5])))
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_cartesian_observable_and_shared_parameters(self, n_jobs):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+        executor = PauliPropagationExecutor(n_jobs=n_jobs)
+
+        result = executor.expectation_value(
+            circuit,
+            PauliPropagationOperator(["Z"], [coefficient[0]]),
+            x=[[0.1], [0.5], [1.0]],
+            coefficient=[[1.0], [2.0]],
+        )
+        assert np.shape(result) == (3, 2)
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5, 1.0])[:, None] * [1.0, 2.0])
+
+        shared = executor.expectation_value(
+            circuit, PauliPropagationOperator(["Z"], [x[0]]), x=[[0.2], [0.7]]
+        )
+        assert np.shape(shared) == (2, 2)
+        np.testing.assert_allclose(shared, np.cos([0.2, 0.7])[:, None] * [0.2, 0.7])
+
+    def test_parameter_batch_uses_worker_pool(self):
+        x = Parameters("x", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
+        executor = PauliPropagationExecutor(n_jobs=2)
+
+        with patch(
+            "qc_executor.pauli_propagation.pauli_propagation_executor.ProcessPoolExecutor",
+            wraps=ProcessPoolExecutor,
+        ) as pool:
+            result = executor.expectation_value(circuit, observable, x=[[0.1], [0.5], [1.0]])
+
+        pool.assert_called_once()
+        assert pool.call_args.kwargs["max_workers"] == 2
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5, 1.0]), atol=1e-10)
+
+    def test_parameter_batch_with_spawn_workers(self):
+        x = Parameters("x", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
+        executor = PauliPropagationExecutor(n_jobs=2)
+
+        def spawn_pool(**kwargs):
+            return ProcessPoolExecutor(mp_context=get_context("spawn"), **kwargs)
+
+        with patch(
+            "qc_executor.pauli_propagation.pauli_propagation_executor.ProcessPoolExecutor",
+            side_effect=spawn_pool,
+        ):
+            result = executor.expectation_value(circuit, observable, x=[[0.1], [0.5]])
+
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5]), atol=1e-10)
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_parameter_batch_preserves_truncation_statistics(self, n_jobs):
+        x = Parameters("x", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
+        executor = PauliPropagationExecutor(n_jobs=n_jobs, truncate_threshold=1e-10)
+
+        result = executor.expectation_value(circuit, observable, x=[[0.1], [0.5]])
+
+        np.testing.assert_allclose(result, np.cos([0.1, 0.5]), atol=1e-10)
+        assert executor.get_truncation_stats() is not None
+
+    def test_cartesian_vector_rows_match_other_backends(self):
+        pennylane = pytest.importorskip("qc_executor.pennylane")
+        qiskit = pytest.importorskip("qc_executor.qiskit")
+        qulacs = pytest.importorskip("qc_executor.qulacs")
+
+        x = Parameters("x", 2)
+        p = Parameters("p", 1)
+        coefficient = Parameters("coefficient", 1)
+        circuit = QuantumCircuit(1)
+        circuit.ry(0, p[0] * x[0])
+        circuit.rz(0, x[1])
+        observable = QuantumOperator(["X"], [coefficient[0]])
+        values = {
+            "p": [[0.2], [0.4]],
+            "x": [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]],
+            "coefficient": [[1.0], [2.0]],
+        }
+
+        result = PauliPropagationExecutor(n_jobs=2).expectation_value(
+            circuit, observable, **values
+        )
+        assert np.shape(result) == (2, 3, 2)
+        for executor in (
+            pennylane.PennyLaneExecutor(),
+            qiskit.QiskitExecutor(),
+            qulacs.QulacsExecutor(),
+        ):
+            np.testing.assert_allclose(
+                result, executor.expectation_value(circuit, observable, **values), atol=1e-10
+            )
+
+    @pytest.mark.parametrize("n_jobs", [1, 2])
+    def test_lists_with_circuit_and_observable_sweeps(self, n_jobs):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        first = PauliPropagationCircuit(1)
+        first.ry(0, x[0])
+        second = PauliPropagationCircuit(1)
+        second.rx(0, x[0])
+        circuits = [first, second]
+        observables = [
+            PauliPropagationOperator(["Z"], [coefficient[0]]),
+            PauliPropagationOperator(["X"], [coefficient[0]]),
+        ]
+        executor = PauliPropagationExecutor(n_jobs=n_jobs)
+        result = executor.expectation_value(
+            circuits, observables, x=[[0.1], [0.5]], coefficient=[[1.0], [2.0], [3.0]]
+        )
+        expected = np.array(
+            [
+                [
+                    [
+                        [
+                            executor.expectation_value(circ, obs, x=[angle], coefficient=[scale])
+                            for scale in [1.0, 2.0, 3.0]
+                        ]
+                        for angle in [0.1, 0.5]
+                    ]
+                    for obs in observables
+                ]
+                for circ in circuits
+            ]
+        )
+
+        assert np.shape(result) == (2, 2, 2, 3)
+        np.testing.assert_allclose(result, expected, atol=1e-10)
+
+    def test_empty_observable_sweep(self):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+        observable = PauliPropagationOperator(["Z"], [coefficient[0]])
+
+        result = PauliPropagationExecutor().expectation_value(
+            circuit, observable, x=[[0.1], [0.5]], coefficient=np.empty((0, 1))
+        )
+
+        assert np.shape(result) == (2, 0)
+
+    def test_empty_batch_singleton_lists_and_mismatched_shapes(self):
+        x = Parameters("x", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+        observable = PauliPropagationOperator(["Z"], [1.0])
+        executor = PauliPropagationExecutor()
+
+        assert np.shape(executor.expectation_value(circuit, observable, x=np.empty((0, 1)))) == (
+            0,
+        )
+        assert np.shape(executor.expectation_value([circuit], [observable], x=[[0.1], [0.5]])) == (
+            1,
+            1,
+            2,
+        )
+        with pytest.raises(ValueError, match="matching parameter sweep shapes"):
+            executor.expectation_value(
+                [circuit, PauliPropagationCircuit(1)], observable, x=[[0.1], [0.5]]
+            )
+
+    def test_missing_parameter_has_clear_error(self):
+        x = Parameters("x", 1)
+        circuit = PauliPropagationCircuit(1)
+        circuit.ry(0, x[0])
+
+        with pytest.raises(ValueError, match="Parameter 'x' not found"):
+            PauliPropagationExecutor().expectation_value(
+                circuit, PauliPropagationOperator(["Z"], [1.0])
+            )
 
     def test_truncation_stats_still_reported(self):
         nqubits = 4

@@ -4,12 +4,12 @@ Merged in with ``integration-support``; the tests both branches share live in
 ``test_qulacs_executor.py``, which is kept exactly as on ``integration-support-ir``.
 """
 
-from concurrent.futures import ProcessPoolExecutor
 import json
-from multiprocessing import get_context
-from pathlib import Path
 import subprocess
 import sys
+from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import get_context
+from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
@@ -18,6 +18,7 @@ import pytest
 from qc_executor import QuantumCircuit, QuantumOperator
 from qc_executor.parameters import Parameters
 from qc_executor.qulacs import QulacsExecutor
+from qc_executor.qulacs import qulacs_executor as qulacs_module
 from qc_executor.qulacs.qulacs_executor import _initialize_qulacs_worker
 
 
@@ -205,6 +206,25 @@ class TestQulacsExecutorExpectationAndStatevector:
             libraries = pool.submit(threadpool_info).result()
 
         assert all(lib["num_threads"] == 1 for lib in libraries)
+
+    def test_worker_initialization_and_chunk_execution(self):
+        x = Parameters("x", 1)
+        coefficient = Parameters("coefficient", 1)
+        circuit = _build_circuit(1, [("ry", [0, x[0]])])
+        operator = QuantumOperator(["Z"], [coefficient[0]])
+        executor = QulacsExecutor()
+        native_circuit = executor.transpile_circuit(circuit)
+        native_operator = executor.transpile_operator(operator)
+        circuit_data = (native_circuit.num_qubits, native_circuit.num_clbits, native_circuit.ir)
+        observable_data = [(native_operator.num_qubits, native_operator.ir, [([2.0],)])]
+
+        with patch.dict(qulacs_module._WORKER_CONTEXT, {}, clear=True):
+            with patch("threadpoolctl.threadpool_limits") as limit_threads:
+                qulacs_module._initialize_qulacs_worker(circuit_data, observable_data)
+                result = qulacs_module._evaluate_qulacs_worker_chunk([([0.1],), ([0.5],)])
+
+        limit_threads.assert_called_once_with(limits=1)
+        np.testing.assert_allclose(np.asarray(result).reshape(-1), 2 * np.cos([0.1, 0.5]))
 
     def test_expectation_value_parallel_circuit_and_observable_lists(self):
         x = Parameters("x", 1)

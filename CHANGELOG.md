@@ -18,20 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **More efficient batched expectation values.** PennyLane and Qiskit use
   backend-native batching for compatible parameter sets. Performance and
   parallel execution depend on the selected device or primitive.
+- **Pauli-propagation parameter batches.** Evaluate parameter sweeps in one
+  call; set `n_jobs` to distribute independent evaluations across processes.
+  Small batches may be faster with the default sequential setting.
 
 ### Changed
 
 - **Breaking: expectation-value parameter sweeps return one axis per sweep.**
-  PennyLane, Qiskit and Qulacs evaluate every combination of independently
-  batched parameters. For example, two `p` values and three `x` values produce
-  a `(2, 3)` array. Axes follow circuit parameter names, then observable
-  parameter names; circuit and observable lists add leading axes.
+  PennyLane, Qiskit, Qulacs and Pauli propagation evaluate every combination of
+  independently batched parameters. For example, two `p` values and three `x`
+  values produce a `(2, 3)` array. Axes follow circuit parameter names, then
+  observable parameter names; circuit and observable lists add leading axes.
 - Qiskit previously paired batched parameters by row. For two equally sized
   sweeps, the former paired results correspond to the diagonal of the new
   result array. PennyLane and Qulacs previously flattened multiple circuit
   sweeps; for a single circuit and observable, `.ravel()` recovers their former
   flat order when only circuit parameters are swept. Derivative, statevector
   and sampling batching are unchanged.
+- Pauli propagation previously flattened circuit and observable lists into one
+  axis. Use `.ravel()` to recover the previous circuit-major ordering.
 
 ## [0.1.0] - 20.08.2026
 

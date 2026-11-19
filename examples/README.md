@@ -11,7 +11,9 @@ examples/
 ├── qiskit/
 │   └── 01_basic_usage.ipynb          – QiskitExecutor: expectation values, derivatives, sampling
 ├── qulacs/
-│   └── 01_basic_usage.ipynb          – QulacsExecutor: expectation values, derivatives, sampling
+│   ├── 01_basic_usage.ipynb          – QulacsExecutor: expectation values, derivatives, sampling
+│   ├── 02_batch_benchmark.ipynb      – compare sequential and parallel batches
+│   └── benchmark_batches.py          – command-line benchmark with CPU and memory measurements
 └── pauli_propagation/
     └── 01_basic_usage.ipynb          – PauliPropagationExecutor: native circuit/observable workflow
 ```

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor
 from itertools import product
+from multiprocessing import get_context
 from typing import Any, List, Tuple, cast
 
 import numpy as np
@@ -17,6 +19,51 @@ from ..quantum_circuit import QuantumCircuit
 from ..utils.data_preprocessing import adjust_features, resolve_parameter_batch_size, to_tuple
 from .qulacs_circuit import QulacsCircuit
 from .qulacs_operator import QulacsObservableBatch, QulacsOperator
+
+_WORKER_CONTEXT: dict = {}
+
+
+def _evaluate_qulacs_rows(circuit_func, num_qubits, operator_groups, rows):
+    results = []
+    for row in rows:
+        state = QuantumState(num_qubits)
+        circuit_func(*row).update_quantum_state(state)
+        results.append(
+            [
+                [operator.get_expectation_value(state) for operator in operators]
+                for operators in operator_groups
+            ]
+        )
+    return results
+
+
+def _initialize_qulacs_worker(circuit_data, observable_data):
+    from threadpoolctl import threadpool_limits  # pylint: disable=import-outside-toplevel
+
+    _WORKER_CONTEXT["thread_limit"] = threadpool_limits(limits=1)
+    num_qubits, num_clbits, circuit_ir = circuit_data
+    circuit = QulacsCircuit(num_qubits, num_clbits, _ir=circuit_ir)
+    _WORKER_CONTEXT["num_qubits"] = num_qubits
+    _WORKER_CONTEXT["circuit_func"] = circuit.get_circuit_func()
+    operator_groups = []
+    for operator_qubits, operator_ir, rows in observable_data:
+        observable = QulacsOperator(num_qubits=operator_qubits, _ir=operator_ir)
+        operator_groups.append(
+            [
+                observable.build_operator([value for group in row for value in group])
+                for row in rows
+            ]
+        )
+    _WORKER_CONTEXT["operator_groups"] = operator_groups
+
+
+def _evaluate_qulacs_worker_chunk(rows):
+    return _evaluate_qulacs_rows(
+        _WORKER_CONTEXT["circuit_func"],
+        _WORKER_CONTEXT["num_qubits"],
+        _WORKER_CONTEXT["operator_groups"],
+        rows,
+    )
 
 
 class QulacsExecutor(ExecutorBase):
@@ -31,6 +78,10 @@ class QulacsExecutor(ExecutorBase):
         cache_dir (str, optional): Directory for caching.
         max_cache_size (int | None, optional): Maximum number of entries kept
             in each in-memory cache; ``None`` makes them unbounded.
+        max_workers (int): Maximum worker processes for expectation batches.
+            Defaults to 1 (sequential execution).
+        parallel_min_batch_size (int): Minimum circuit parameter combinations
+            required to use worker processes. Defaults to 16.
     """
 
     _native_circuit_class = QulacsCircuit
@@ -45,7 +96,20 @@ class QulacsExecutor(ExecutorBase):
         caching: bool | None = None,
         cache_dir: str = "cache",
         max_cache_size: int | None = 4096,
+        max_workers: int = 1,
+        parallel_min_batch_size: int = 16,
     ):
+
+        if not isinstance(max_workers, int) or isinstance(max_workers, bool) or max_workers < 1:
+            raise ValueError("max_workers must be a positive integer.")
+        if (
+            not isinstance(parallel_min_batch_size, int)
+            or isinstance(parallel_min_batch_size, bool)
+            or parallel_min_batch_size < 2
+        ):
+            raise ValueError("parallel_min_batch_size must be an integer of at least 2.")
+        self._max_workers = max_workers
+        self._parallel_min_batch_size = parallel_min_batch_size
 
         super().__init__(
             shots=shots,
@@ -182,89 +246,87 @@ class QulacsExecutor(ExecutorBase):
         qulacs_circuits, multiple_circuits = self._preprocess_circuits(circuit)
         qulacs_observables, multiple_observables = self._preprocess_operators(observable)
 
-        values = []
-
-        # Multiple circuits, multiple observables, and multiple parameter
-        # sets (a batch, per named parameter) are all supported and handled
-        # by the nested loops below - see the shape handling after the loop.
-
-        for qulacs_circuit in qulacs_circuits:
-
-            circuit_parameters = []
-            multiple_circuit_parameters = []
-            circuit_parameters_dimension = []
-
-            circuit_values = []
-            for param in qulacs_circuit.parameter_names:
-                if param not in parameter_values:
-                    raise ValueError(
-                        f"Parameter '{param}' not found in provided parameter values."
-                    )
-
-                param_values, multiple_params = adjust_features(
-                    parameter_values[param], qulacs_circuit.parameter_dimensions[param]
+        def parameter_arrays(obj):
+            arrays = []
+            for name in obj.parameter_names:
+                if name not in parameter_values:
+                    raise ValueError(f"Parameter '{name}' not found in provided parameter values.")
+                arrays.append(
+                    adjust_features(parameter_values[name], obj.parameter_dimensions[name])[0]
                 )
-                circuit_parameters.append(param_values)
-                multiple_circuit_parameters.append(multiple_params)
-                circuit_parameters_dimension.append(qulacs_circuit.parameter_dimensions[param])
+            return arrays
 
-            circuit_parameter_tuples = product(*circuit_parameters)
+        observable_data = []
+        for qulacs_observable in qulacs_observables:
+            arrays = parameter_arrays(qulacs_observable)
+            rows = list(product(*arrays))
+            shape = tuple(len(array) for array in arrays if len(array) != 1)
+            observable_data.append((qulacs_observable, rows, shape))
 
-            for cp in circuit_parameter_tuples:
-                cp_values = []
+        values = []
+        for qulacs_circuit in qulacs_circuits:
+            arrays = parameter_arrays(qulacs_circuit)
+            circuit_shape = tuple(len(array) for array in arrays if len(array) != 1)
+            rows = list(product(*arrays))
+            if self._max_workers > 1 and len(rows) >= self._parallel_min_batch_size:
+                qulacs_circuit.get_circuit_func()
+                for worker_observable, _, _ in observable_data:
+                    worker_observable._ensure_compiled()  # pylint: disable=protected-access
+                worker_count = min(self._max_workers, len(rows))
+                chunk_size = max(1, (len(rows) + worker_count * 4 - 1) // (worker_count * 4))
+                chunks = [
+                    rows[start : start + chunk_size] for start in range(0, len(rows), chunk_size)
+                ]
+                circuit_data = (
+                    qulacs_circuit.num_qubits,
+                    qulacs_circuit.num_clbits,
+                    qulacs_circuit.ir,
+                )
+                operator_data = [
+                    (observable.num_qubits, observable.ir, observable_rows)
+                    for observable, observable_rows, _ in observable_data
+                ]
+                with ProcessPoolExecutor(
+                    max_workers=worker_count,
+                    mp_context=get_context("spawn"),
+                    initializer=_initialize_qulacs_worker,
+                    initargs=(circuit_data, operator_data),
+                ) as pool:
+                    row_results = [
+                        result
+                        for chunk in pool.map(_evaluate_qulacs_worker_chunk, chunks)
+                        for result in chunk
+                    ]
+            else:
+                operator_groups = [
+                    [
+                        observable.build_operator([value for group in row for value in group])
+                        for row in observable_rows
+                    ]
+                    for observable, observable_rows, _ in observable_data
+                ]
+                row_results = _evaluate_qulacs_rows(
+                    qulacs_circuit.get_circuit_func(),
+                    qulacs_circuit.num_qubits,
+                    operator_groups,
+                    rows,
+                )
+            circuit_values = [
+                [row[index] for row in row_results] for index in range(len(qulacs_observables))
+            ]
+            values.append(
+                [
+                    np.real_if_close(np.asarray(result).reshape((*circuit_shape, *shape)))
+                    for result, (_, _, shape) in zip(circuit_values, observable_data)
+                ]
+            )
 
-                qulacs_circuit_object = qulacs_circuit.get_circuit_func()(*cp)
-                state = QuantumState(qulacs_circuit.num_qubits)
-                qulacs_circuit_object.update_quantum_state(state)
-
-                for qulacs_observable in qulacs_observables:
-                    observable_values = []
-                    observable_parameters = []
-                    multiple_observable_parameters = []
-                    observable_parameters_dimension = []
-                    for param in qulacs_observable.parameter_names:
-                        if param not in parameter_values:
-                            raise ValueError(
-                                f"Parameter '{param}' not found in provided parameter values."
-                            )
-
-                        param_values, multiple_params = adjust_features(
-                            parameter_values[param], qulacs_observable.parameter_dimensions[param]
-                        )
-                        observable_parameters.append(param_values)
-                        multiple_observable_parameters.append(multiple_params)
-                        observable_parameters_dimension.append(
-                            qulacs_observable.parameter_dimensions[param]
-                        )
-
-                    observable_parameter_tuples = product(*observable_parameters)
-
-                    for obs in observable_parameter_tuples:
-                        qulacs_observable_object = QulacsObservableBatch(
-                            [qulacs_observable]
-                        ).get_operator_func()(*obs[0] if obs else ())
-                        # not sure about the [0] here, but it works for single observables
-                        observable_values.append(
-                            np.real_if_close(
-                                np.array(
-                                    [
-                                        o.get_expectation_value(state)
-                                        for o in qulacs_observable_object
-                                    ][0]
-                                )
-                            )
-                        )
-                    # check for multiple parameter sets
-                    cp_values.append(observable_values)
-                circuit_values.append(cp_values)
-            values.append(circuit_values)
-
-        values = np.array(values)
-        values = np.moveaxis(values, 1, 2)
-        if values.shape[-1] == 1:
-            values = values[..., 0]
-        if values.shape[-1] == 1:
-            values = values[..., 0]
+        try:
+            values = np.asarray(values)
+        except ValueError as exc:
+            raise ValueError(
+                "All circuit-observable pairs must have matching parameter sweep shapes."
+            ) from exc
 
         if not multiple_circuits:
             values = values[0]

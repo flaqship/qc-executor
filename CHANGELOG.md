@@ -7,15 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Parallel Qulacs expectation-value batches.** Set `max_workers` when
+  creating a Qulacs executor to distribute sufficiently large batches across
+  worker processes. Execution is sequential by default; `parallel_min_batch_size`
+  controls when workers are used. Worker processes limit native threads to
+  reduce CPU oversubscription. Small batches may be slower because of worker
+  startup costs.
+- **More efficient batched expectation values.** PennyLane and Qiskit use
+  backend-native batching for compatible parameter sets. Performance and
+  parallel execution depend on the selected device or primitive.
+
 ### Changed
 
-- Qiskit `expectation_value` now evaluates the Cartesian product of parameter
-  sweeps, with one result axis per sweep, matching PennyLane. This replaces the
-  previous paired-row behavior. Estimator V2 batches compatible circuit rows
-  into vectorized PUBs. Derivative and sampling batching remain unchanged.
-- PennyLane `expectation_value` now returns one axis per parameter sweep instead
-  of flattening multiple circuit parameter sweeps. For a single circuit and
-  observable, call `.ravel()` to recover the previous flat ordering.
+- **Breaking: expectation-value parameter sweeps return one axis per sweep.**
+  PennyLane, Qiskit and Qulacs evaluate every combination of independently
+  batched parameters. For example, two `p` values and three `x` values produce
+  a `(2, 3)` array. Axes follow circuit parameter names, then observable
+  parameter names; circuit and observable lists add leading axes.
+- Qiskit previously paired batched parameters by row. For two equally sized
+  sweeps, the former paired results correspond to the diagonal of the new
+  result array. PennyLane and Qulacs previously flattened multiple circuit
+  sweeps; for a single circuit and observable, `.ravel()` recovers their former
+  flat order when only circuit parameters are swept. Derivative, statevector
+  and sampling batching are unchanged.
 
 ## [0.1.0] - 20.08.2026
 
@@ -304,6 +320,3 @@ rather than translated again.
   SymPy 1.8 does not import on Python 3.12 or later.
 - **Minimum PennyLane version is now 0.42.3**, up from 0.34.0. Earlier releases
   do not cap `autoray`, and a fresh install pulls an `autoray` they cannot import.
-
-
-## [Unreleased]
